@@ -9,6 +9,12 @@ export const addEmployee = async (name, email, organizationId, assignment = {}) 
     return response.data
 }
 
+export const bulkAddEmployees = async (employees, organizationId) => {
+    const response = await axios.post(ServerUrl + "/api/admin/employees/bulk", { employees },
+        { withCredentials: true, ...withOrg(organizationId) })
+    return response.data
+}
+
 export const listEmployees = async (organizationId) => {
     const response = await axios.get(ServerUrl + "/api/admin/employees",
         { withCredentials: true, ...withOrg(organizationId) })

@@ -8,47 +8,97 @@ const resolveOrgId = (req) => {
     return req.query.organizationId || null
 }
 
+// Kept in sync with Interview model's `mode` enum - assignedMode ends up there
+// verbatim when the employee's interview is generated, so an invalid value
+// (likely from free-text CSV input) would otherwise only surface as a crash
+// at that much later point instead of here, at import time.
+const VALID_MODES = ["HR", "Technical", "Behavioral", "System Design", "Case Study", "Group Discussion", "Managerial Round"]
+
+// Shared by addEmployee and the CSV bulk importer. Throws { status, message }
+// on any validation/conflict failure so both callers can report it uniformly.
+const upsertEmployee = async (organizationId, raw) => {
+    let { name, email, department, assignedRole, assignedExperience, assignedMode, assignedContext } = raw
+    name = name?.trim()
+    email = email?.trim().toLowerCase()
+    if (!name || !email) throw { status: 400, message: "name and email are required" }
+
+    assignedMode = assignedMode?.trim() || null
+    if (assignedMode) {
+        const matched = VALID_MODES.find((m) => m.toLowerCase() === assignedMode.toLowerCase())
+        if (!matched) throw { status: 400, message: `invalid interview type "${assignedMode}" - must be one of ${VALID_MODES.join(", ")}` }
+        assignedMode = matched
+    }
+
+    const assignedFields = {
+        department: department?.trim() || null,
+        assignedRole: assignedRole?.trim() || null,
+        assignedExperience: assignedExperience?.trim() || null,
+        assignedMode,
+        assignedContext: assignedContext?.trim() || null,
+    }
+
+    const existing = await User.findOne({ email })
+    if (existing) {
+        if (existing.role === "superadmin") {
+            throw { status: 409, message: "belongs to a Super Admin and can't be reused" }
+        }
+        if (existing.role === "admin" || (existing.organizationId && String(existing.organizationId) !== String(organizationId))) {
+            throw { status: 409, message: "already belongs to a different organization or an admin account" }
+        }
+    }
+
+    // Reuses the account if this email already exists as an org-less employee
+    // (e.g. it signed up on its own) instead of blocking on a conflict.
+    return User.findOneAndUpdate(
+        { email },
+        {
+            $set: { role: "employee", organizationId, ...assignedFields },
+            $setOnInsert: { name, email },
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+    )
+}
+
 export const addEmployee = async (req, res) => {
     try {
         const organizationId = resolveOrgId(req)
         if (!organizationId) return res.status(400).json({ message: "organizationId is required" })
 
-        let { name, email, department, assignedRole, assignedExperience, assignedMode, assignedContext } = req.body
-        name = name?.trim()
-        email = email?.trim().toLowerCase()
-        if (!name || !email) return res.status(400).json({ message: "name and email are required" })
-
-        const assignedFields = {
-            department: department?.trim() || null,
-            assignedRole: assignedRole?.trim() || null,
-            assignedExperience: assignedExperience?.trim() || null,
-            assignedMode: assignedMode?.trim() || null,
-            assignedContext: assignedContext?.trim() || null,
-        }
-
-        const existing = await User.findOne({ email })
-        if (existing) {
-            if (existing.role === "superadmin") {
-                return res.status(409).json({ message: "That email belongs to a Super Admin and can't be reused" })
-            }
-            if (existing.role === "admin" || (existing.organizationId && String(existing.organizationId) !== String(organizationId))) {
-                return res.status(409).json({ message: "That email already belongs to a different organization or an admin account" })
-            }
-        }
-
-        // Reuses the account if this email already exists as an org-less employee
-        // (e.g. it signed up on its own) instead of blocking on a conflict.
-        const employee = await User.findOneAndUpdate(
-            { email },
-            {
-                $set: { role: "employee", organizationId, ...assignedFields },
-                $setOnInsert: { name, email },
-            },
-            { upsert: true, new: true, setDefaultsOnInsert: true }
-        )
+        const employee = await upsertEmployee(organizationId, req.body)
         return res.status(201).json(employee)
     } catch (error) {
+        if (error?.status) return res.status(error.status).json({ message: error.message })
         return res.status(500).json({ message: `failed to add employee ${error}` })
+    }
+}
+
+export const bulkAddEmployees = async (req, res) => {
+    try {
+        const organizationId = resolveOrgId(req)
+        if (!organizationId) return res.status(400).json({ message: "organizationId is required" })
+
+        const rows = Array.isArray(req.body.employees) ? req.body.employees : []
+        if (rows.length === 0) return res.status(400).json({ message: "No rows to import" })
+        if (rows.length > 500) return res.status(400).json({ message: "Max 500 rows per upload" })
+
+        const results = []
+        for (const row of rows) {
+            const email = row.email?.trim().toLowerCase() || "(missing email)"
+            try {
+                const employee = await upsertEmployee(organizationId, row)
+                results.push({ email: employee.email, status: "ok" })
+            } catch (error) {
+                results.push({ email, status: "error", message: error?.message || String(error) })
+            }
+        }
+
+        return res.status(207).json({
+            created: results.filter((r) => r.status === "ok").length,
+            failed: results.filter((r) => r.status === "error").length,
+            results,
+        })
+    } catch (error) {
+        return res.status(500).json({ message: `failed to bulk add employees ${error}` })
     }
 }
 
@@ -123,7 +173,16 @@ export const updateEmployee = async (req, res) => {
         if (department !== undefined) update.department = department?.trim() || null
         if (assignedRole !== undefined) update.assignedRole = assignedRole?.trim() || null
         if (assignedExperience !== undefined) update.assignedExperience = assignedExperience?.trim() || null
-        if (assignedMode !== undefined) update.assignedMode = assignedMode?.trim() || null
+        if (assignedMode !== undefined) {
+            const trimmed = assignedMode?.trim() || null
+            if (trimmed) {
+                const matched = VALID_MODES.find((m) => m.toLowerCase() === trimmed.toLowerCase())
+                if (!matched) return res.status(400).json({ message: `invalid interview type "${trimmed}"` })
+                update.assignedMode = matched
+            } else {
+                update.assignedMode = null
+            }
+        }
         if (assignedContext !== undefined) update.assignedContext = assignedContext?.trim() || null
 
         if (Object.keys(update).length === 0) {

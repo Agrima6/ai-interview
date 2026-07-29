@@ -3,6 +3,7 @@ import isAuth from "../middlewares/isAuth.js"
 import requireRole from "../middlewares/requireRole.js"
 import {
     addEmployee,
+    bulkAddEmployees,
     listEmployees,
     getEmployeeInterviews,
     updateEmployee,
@@ -17,6 +18,7 @@ const adminRouter = express.Router()
 adminRouter.use(isAuth, requireRole("admin", "superadmin"))
 
 adminRouter.post("/employees", addEmployee)
+adminRouter.post("/employees/bulk", bulkAddEmployees)
 adminRouter.get("/employees", listEmployees)
 adminRouter.get("/employees/:id/interviews", getEmployeeInterviews)
 adminRouter.patch("/employees/:id", updateEmployee)

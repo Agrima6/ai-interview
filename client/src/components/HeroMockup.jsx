@@ -1,15 +1,11 @@
 import React from 'react'
 import { motion } from 'motion/react'
 import { Radio } from 'lucide-react'
-
-const INTERVIEW_GIF = "https://assets-v2.lottiefiles.com/a/4ab59f98-1171-11ee-ae84-4701bf3b3b9e/MuEl9pAZMr.gif"
+import INTERVIEW_GIF from '../assets/hero-ai-interview.gif'
 
 function HeroMockup() {
     return (
         <div className='relative w-full max-w-[460px] mx-auto lg:mx-0'>
-            {/* background glow */}
-            <div className='absolute -inset-10 bg-[radial-gradient(closest-side,rgba(224,39,27,0.16),transparent)] blur-2xl -z-10' />
-
             <motion.div
                 initial={{ opacity: 0, y: 24 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -24,11 +20,15 @@ function HeroMockup() {
                     </span>
                 </div>
 
-                <img
-                    src={INTERVIEW_GIF}
-                    alt="AI interviewer animation"
-                    className='w-full h-auto object-contain'
-                />
+                {/* Plain white, no border/shadow - the gif's own background is white,
+                    so this makes it blend into the page instead of looking boxed. */}
+                <div className='bg-white'>
+                    <img
+                        src={INTERVIEW_GIF}
+                        alt="AI interviewer animation"
+                        className='w-full h-auto object-contain'
+                    />
+                </div>
             </motion.div>
         </div>
     )

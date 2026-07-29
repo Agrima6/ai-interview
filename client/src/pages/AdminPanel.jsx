@@ -2,12 +2,13 @@ import React, { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
-import { ArrowLeft, Users, ClipboardList, TrendingUp, CheckCircle2, Plus, X, Power, Coins, Settings2, FileText, Building2 } from 'lucide-react'
+import { ArrowLeft, Users, ClipboardList, TrendingUp, CheckCircle2, Plus, X, Power, Coins, Settings2, FileText, Building2, Upload } from 'lucide-react'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 import Button from '../components/Button'
 import Dropdown from '../components/Dropdown'
-import { addEmployee, listEmployees, getEmployeeInterviews, updateEmployee, getTrends } from '../utils/adminApi'
+import { addEmployee, bulkAddEmployees, listEmployees, getEmployeeInterviews, updateEmployee, getTrends } from '../utils/adminApi'
+import { parseEmployeeCsv } from '../utils/csv'
 
 // Kept in sync with the modes offered in Step1SetUp.jsx - what an admin can
 // assign here is a subset of what an employee could otherwise pick freely.
@@ -185,6 +186,83 @@ function AssignInterviewModal({ employee, organizationId, onClose, onSaved }) {
     )
 }
 
+function BulkUploadModal({ organizationId, onClose, onDone }) {
+    const [fileName, setFileName] = useState("")
+    const [uploading, setUploading] = useState(false)
+    const [error, setError] = useState("")
+    const [results, setResults] = useState(null)
+
+    const handleFile = async (e) => {
+        const file = e.target.files[0]
+        if (!file) return
+        setFileName(file.name)
+        setError("")
+        setResults(null)
+        setUploading(true)
+        try {
+            const text = await file.text()
+            const rows = parseEmployeeCsv(text)
+            if (rows.length === 0) {
+                setError("No valid rows found. Make sure the first row has a 'name' and 'email' column.")
+                return
+            }
+            const data = await bulkAddEmployees(rows, organizationId)
+            setResults(data)
+            onDone()
+        } catch (err) {
+            setError(err.response?.data?.message || "Failed to upload CSV.")
+        } finally {
+            setUploading(false)
+        }
+    }
+
+    return (
+        <div className='fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4' onClick={onClose}>
+            <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className='w-full max-w-md max-h-[85vh] overflow-y-auto bg-card border border-line rounded-2xl shadow-[var(--shadow-lift)] p-6'>
+                <div className='flex items-center justify-between mb-5'>
+                    <h3 className='text-[17px] font-semibold text-ink'>Bulk Upload Employees</h3>
+                    <button onClick={onClose} className='text-text-secondary hover:text-ink'><X size={18} /></button>
+                </div>
+
+                <p className='text-[12.5px] text-text-secondary mb-4 leading-relaxed'>
+                    CSV with a header row. Required columns: <span className='font-medium text-ink'>name, email</span>.
+                    Optional: department, role, experience, mode, context.
+                </p>
+
+                <label className='border-2 border-dashed border-line rounded-2xl p-6 text-center cursor-pointer hover:border-accent/50 hover:bg-accent/[0.03] transition-colors flex flex-col items-center gap-2 mb-4'>
+                    <Upload size={22} className='text-accent' />
+                    <span className='text-[13.5px] text-text-secondary font-medium'>
+                        {uploading ? "Uploading..." : fileName || "Click to choose a .csv file"}
+                    </span>
+                    <input type="file" accept=".csv,text/csv" className='hidden' onChange={handleFile} disabled={uploading} />
+                </label>
+
+                {error && <p className='text-[12.5px] text-red-500 mb-3'>{error}</p>}
+
+                {results && (
+                    <div className='space-y-2'>
+                        <p className='text-[13.5px] text-ink font-medium'>
+                            {results.created} added, {results.failed} failed.
+                        </p>
+                        {results.failed > 0 && (
+                            <div className='max-h-40 overflow-y-auto space-y-1.5'>
+                                {results.results.filter((r) => r.status === "error").map((r, i) => (
+                                    <p key={i} className='text-[12px] text-red-500'>{r.email}: {r.message}</p>
+                                ))}
+                            </div>
+                        )}
+                        <Button onClick={onClose} className='w-full !py-2.5 mt-2'>Done</Button>
+                    </div>
+                )}
+            </motion.div>
+        </div>
+    )
+}
+
 function EmployeeDetailModal({ employee, organizationId, onClose }) {
     const [data, setData] = useState(null)
     const [loading, setLoading] = useState(true)
@@ -344,6 +422,7 @@ function AdminPanel() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
     const [showAddForm, setShowAddForm] = useState(false)
+    const [showBulkUpload, setShowBulkUpload] = useState(false)
 
     const load = async () => {
         setLoading(true)
@@ -380,9 +459,14 @@ function AdminPanel() {
                             </div>
                         </div>
 
-                        <Button onClick={() => setShowAddForm(true)} className='!px-5'>
-                            <Plus size={16} /> Add Employee
-                        </Button>
+                        <div className='flex items-center gap-2'>
+                            <Button variant="secondary" onClick={() => setShowBulkUpload(true)} className='!px-5'>
+                                <Upload size={16} /> Bulk Upload (CSV)
+                            </Button>
+                            <Button onClick={() => setShowAddForm(true)} className='!px-5'>
+                                <Plus size={16} /> Add Employee
+                            </Button>
+                        </div>
                     </div>
 
                     <div className='flex items-center gap-1 mb-8 bg-black/[0.03] dark:bg-white/[0.05] p-1 rounded-full w-fit'>
@@ -500,6 +584,14 @@ function AdminPanel() {
                     organizationId={organizationId}
                     onClose={() => setShowAddForm(false)}
                     onAdded={() => { setShowAddForm(false); load() }}
+                />
+            )}
+
+            {showBulkUpload && (
+                <BulkUploadModal
+                    organizationId={organizationId}
+                    onClose={() => setShowBulkUpload(false)}
+                    onDone={() => load()}
                 />
             )}
         </div>
