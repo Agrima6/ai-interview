@@ -12,7 +12,21 @@ const userSchema = new mongoose.Schema({
     },
     credits:{
         type:Number,
-        default:100
+        default:1000
+    },
+    role:{
+        type:String,
+        enum:["employee","admin","superadmin"],
+        default:"employee"
+    },
+    organizationId:{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:"Organization",
+        default:null
+    },
+    active:{
+        type:Boolean,
+        default:true
     }
 
 }, {timestamps:true})

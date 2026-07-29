@@ -10,7 +10,10 @@ import InterviewPage from './pages/InterviewPage'
 import InterviewHistory from './pages/InterviewHistory'
 import Pricing from './pages/Pricing'
 import InterviewReport from './pages/InterviewReport'
+import AdminPanel from './pages/AdminPanel'
+import SuperAdminPanel from './pages/SuperAdminPanel'
 import RequireAuth from './components/RequireAuth'
+import RequireRole from './components/RequireRole'
 import { ServerUrl } from './constants'
 
 export { ServerUrl }
@@ -47,8 +50,8 @@ function App() {
       <Route path='/history' element={<RequireAuth><InterviewHistory/></RequireAuth>}/>
       <Route path='/pricing' element={<RequireAuth><Pricing/></RequireAuth>}/>
       <Route path='/report/:id' element={<RequireAuth><InterviewReport/></RequireAuth>}/>
-
-
+      <Route path='/admin' element={<RequireAuth><RequireRole roles={["admin","superadmin"]}><AdminPanel/></RequireRole></RequireAuth>}/>
+      <Route path='/superadmin' element={<RequireAuth><RequireRole roles={["superadmin"]}><SuperAdminPanel/></RequireRole></RequireAuth>}/>
 
     </Routes>
   )

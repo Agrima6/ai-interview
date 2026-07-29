@@ -27,7 +27,7 @@ export const googleAuth = async (req,res) => {
             return res.status(401).json({message:"Invalid or expired Google sign-in token"})
         }
 
-        const email = decoded.email
+        const email = decoded.email?.toLowerCase()
         if(!email){
             return res.status(400).json({message:"Google account has no email"})
         }

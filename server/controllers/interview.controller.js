@@ -2,7 +2,7 @@ import fs from "fs"
 import path from "path"
 import { fileURLToPath } from "url"
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
-import { askAi, askAiJson } from "../services/openRouter.service.js";
+import { askAi, askAiJson } from "../services/ai.service.js";
 import User from "../models/user.model.js";
 import Interview from "../models/interview.model.js";
 

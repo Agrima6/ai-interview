@@ -8,6 +8,8 @@ import authRouter from "./routes/auth.route.js"
 import userRouter from "./routes/user.route.js"
 import interviewRouter from "./routes/interview.route.js"
 import paymentRouter from "./routes/payment.route.js"
+import adminRouter from "./routes/admin.route.js"
+import User from "./models/user.model.js"
 
 const app = express()
 
@@ -34,9 +36,26 @@ app.use("/api/auth" , authRouter)
 app.use("/api/user", userRouter)
 app.use("/api/interview" , interviewRouter)
 app.use("/api/payment" , paymentRouter)
+app.use("/api/admin" , adminRouter)
+
+// Ensures the designated Super Admin account exists (pre-registered, same
+// mechanism an Admin uses to pre-register an Employee) so the first Google
+// sign-in with this email lands as superadmin with no separate setup step.
+const ensureSuperAdmin = async () => {
+    if (!process.env.SUPERADMIN_EMAIL) return
+    try {
+        await User.findOneAndUpdate(
+            { email: process.env.SUPERADMIN_EMAIL },
+            { $setOnInsert: { name: "Super Admin", email: process.env.SUPERADMIN_EMAIL, role: "superadmin" } },
+            { upsert: true, setDefaultsOnInsert: true }
+        )
+    } catch (error) {
+        console.log(`ensureSuperAdmin error ${error}`)
+    }
+}
 
 const PORT = process.env.PORT || 6000
 app.listen(PORT , ()=>{
     console.log(`Server running on port ${PORT}`)
-    connectDb()
+    connectDb().then(ensureSuperAdmin)
 })
