@@ -2,6 +2,7 @@ import React from 'react'
 import maleVideo from "../assets/videos/male-ai.mp4"
 import femaleVideo from "../assets/videos/female-ai.mp4"
 import Timer from './Timer'
+import ProctoringCamera from './ProctoringCamera'
 import { motion, AnimatePresence } from "motion/react"
 import { Mic, MicOff, ArrowRight, Radio, Maximize, ShieldAlert, ArrowLeftRight } from "lucide-react";
 import { useState } from 'react'
@@ -471,7 +472,8 @@ setIsSubmitting(false)
           <ul className='text-[13.5px] text-text-secondary text-left space-y-2 mb-7 leading-relaxed'>
             <li>&bull; The interview runs in fullscreen.</li>
             <li>&bull; Copy and paste are disabled on the answer box.</li>
-            <li>&bull; Switching tabs, windows, or exiting fullscreen counts as a violation.</li>
+            <li>&bull; Your camera stays on - no face, more than one face, or looking away from the screen counts as a violation.</li>
+            <li>&bull; Switching tabs, windows, or exiting fullscreen also counts as a violation.</li>
             <li>&bull; After 3 violations, the interview ends automatically.</li>
           </ul>
           <motion.button
@@ -525,6 +527,12 @@ setIsSubmitting(false)
               className='absolute top-3 right-3 flex items-center gap-1.5 bg-black/70 backdrop-blur-sm text-white text-[11.5px] font-medium px-2.5 py-1 rounded-full hover:bg-black/85 transition-colors'>
               <ArrowLeftRight size={11} /> {voiceGender === "male" ? "Male" : "Female"}
             </button>
+
+            <ProctoringCamera
+              active={proctoringStarted}
+              onViolation={registerViolation}
+              className="absolute bottom-3 right-3 w-20 h-20 sm:w-24 sm:h-24 z-10"
+            />
           </div>
 
           {/* subtitle */}
