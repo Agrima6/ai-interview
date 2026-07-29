@@ -17,6 +17,7 @@ const app = express()
 // deployed frontend's origin(s) via CLIENT_URL (comma-separated if more than one).
 const allowedOrigins = [
     /^http:\/\/localhost:\d+$/,
+    /^https:\/\/ai-interview-[a-z0-9-]+-agrima-agarwals-projects\.vercel\.app$/,
     ...(process.env.CLIENT_URL || "").split(",").map((s) => s.trim()).filter(Boolean),
 ]
 
@@ -46,7 +47,10 @@ const ensureSuperAdmin = async () => {
     try {
         await User.findOneAndUpdate(
             { email: process.env.SUPERADMIN_EMAIL },
-            { $setOnInsert: { name: "Super Admin", email: process.env.SUPERADMIN_EMAIL, role: "superadmin" } },
+            {
+                $set: { role: "superadmin" },
+                $setOnInsert: { name: "Super Admin", email: process.env.SUPERADMIN_EMAIL },
+            },
             { upsert: true, setDefaultsOnInsert: true }
         )
     } catch (error) {
