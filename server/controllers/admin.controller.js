@@ -180,14 +180,46 @@ export const createOrganization = async (req, res) => {
         }
 
         const existing = await User.findOne({ email: adminEmail })
-        if (existing) return res.status(409).json({ message: "A user with this email already exists" })
+        if (existing?.role === "superadmin") {
+            return res.status(409).json({ message: "That email belongs to a Super Admin and can't be reused" })
+        }
 
         const org = await Organization.create({ name: orgName, createdBy: req.user._id })
-        const admin = await User.create({ name: adminName, email: adminEmail, role: "admin", organizationId: org._id })
+        // Reuses the account if this email already exists (e.g. it was an employee
+        // somewhere, or signed up on its own) instead of blocking on a conflict —
+        // promotes it to admin of this org, keeping its existing name/credits/history.
+        const admin = await User.findOneAndUpdate(
+            { email: adminEmail },
+            {
+                $set: { role: "admin", organizationId: org._id },
+                $setOnInsert: { name: adminName, email: adminEmail },
+            },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        )
 
-        return res.status(201).json({ organization: org, admin })
+        return res.status(201).json({ organization: org, admin, reusedExisting: !!existing })
     } catch (error) {
         return res.status(500).json({ message: `failed to create organization ${error}` })
+    }
+}
+
+export const deleteOrganization = async (req, res) => {
+    try {
+        const org = await Organization.findById(req.params.id)
+        if (!org) return res.status(404).json({ message: "Organization not found" })
+
+        // Demote its admin/employees back to plain, org-less employees instead of
+        // deleting their accounts — preserves credits and interview history so they
+        // can be reassigned to a different org later if needed.
+        await User.updateMany(
+            { organizationId: org._id },
+            { $set: { organizationId: null, role: "employee" } }
+        )
+        await Organization.findByIdAndDelete(org._id)
+
+        return res.json({ message: "Organization deleted" })
+    } catch (error) {
+        return res.status(500).json({ message: `failed to delete organization ${error}` })
     }
 }
 

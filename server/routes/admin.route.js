@@ -9,6 +9,7 @@ import {
     getTrends,
     createOrganization,
     listOrganizations,
+    deleteOrganization,
 } from "../controllers/admin.controller.js"
 
 const adminRouter = express.Router()
@@ -23,5 +24,6 @@ adminRouter.get("/trends", getTrends)
 
 adminRouter.post("/organizations", requireRole("superadmin"), createOrganization)
 adminRouter.get("/organizations", requireRole("superadmin"), listOrganizations)
+adminRouter.delete("/organizations/:id", requireRole("superadmin"), deleteOrganization)
 
 export default adminRouter

@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { ArrowLeft, Building2, Users, ClipboardList, TrendingUp, Plus, X } from 'lucide-react'
+import { ArrowLeft, Building2, Users, ClipboardList, TrendingUp, Plus, X, Trash2 } from 'lucide-react'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 import Button from '../components/Button'
-import { createOrganization, listOrganizations } from '../utils/adminApi'
+import { createOrganization, listOrganizations, deleteOrganization } from '../utils/adminApi'
 
 function StatCard({ icon: Icon, label, value }) {
     return (
@@ -74,6 +74,20 @@ function SuperAdminPanel() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
     const [showAddForm, setShowAddForm] = useState(false)
+    const [deletingId, setDeletingId] = useState(null)
+
+    const handleDelete = async (org) => {
+        if (!window.confirm(`Delete "${org.name}"? Its admin and employees will be moved back to unassigned accounts (their credits and interview history are kept, just detached from this org).`)) return
+        setDeletingId(org._id)
+        try {
+            await deleteOrganization(org._id)
+            setOrgs((prev) => prev.filter((o) => o._id !== org._id))
+        } catch (err) {
+            alert(err.response?.data?.message || "Failed to delete organization.")
+        } finally {
+            setDeletingId(null)
+        }
+    }
 
     const load = async () => {
         setLoading(true)
@@ -143,6 +157,7 @@ function SuperAdminPanel() {
                                                 <th className='pb-3 pr-4 text-[12px] font-medium text-text-secondary uppercase tracking-wide'>Employees</th>
                                                 <th className='pb-3 pr-4 text-[12px] font-medium text-text-secondary uppercase tracking-wide'>Interviews</th>
                                                 <th className='pb-3 pr-4 text-[12px] font-medium text-text-secondary uppercase tracking-wide'>Avg Score</th>
+                                                <th className='pb-3 pr-4 text-[12px] font-medium text-text-secondary uppercase tracking-wide'></th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -156,6 +171,14 @@ function SuperAdminPanel() {
                                                     <td className='py-3 pr-4 text-[13.5px] text-ink'>{org.employeeCount}</td>
                                                     <td className='py-3 pr-4 text-[13.5px] text-ink'>{org.interviewCount}</td>
                                                     <td className='py-3 pr-4 text-[13.5px] text-ink'>{org.avgScore || '-'}</td>
+                                                    <td className='py-3 pr-4 text-right'>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleDelete(org) }}
+                                                            disabled={deletingId === org._id}
+                                                            className='p-2 rounded-lg text-text-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors disabled:opacity-50'>
+                                                            <Trash2 size={15} />
+                                                        </button>
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>

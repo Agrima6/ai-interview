@@ -43,3 +43,8 @@ export const listOrganizations = async () => {
     const response = await axios.get(ServerUrl + "/api/admin/organizations", { withCredentials: true })
     return response.data
 }
+
+export const deleteOrganization = async (organizationId) => {
+    const response = await axios.delete(ServerUrl + `/api/admin/organizations/${organizationId}`, { withCredentials: true })
+    return response.data
+}
