@@ -3,8 +3,8 @@ import { ServerUrl } from "../constants"
 
 const withOrg = (organizationId) => (organizationId ? { params: { organizationId } } : {})
 
-export const addEmployee = async (name, email, organizationId) => {
-    const response = await axios.post(ServerUrl + "/api/admin/employees", { name, email },
+export const addEmployee = async (name, email, organizationId, assignment = {}) => {
+    const response = await axios.post(ServerUrl + "/api/admin/employees", { name, email, ...assignment },
         { withCredentials: true, ...withOrg(organizationId) })
     return response.data
 }

@@ -70,9 +70,12 @@ const findRoleOption = (roleStr) =>
 function Step1SetUp({ onStart }) {
     const { userData } = useSelector((state) => state.user)
     const dispatch = useDispatch()
-    const [role, setRole] = useState("");
-    const [experience, setExperience] = useState("");
-    const [mode, setMode] = useState("Technical");
+    // An Admin can pre-assign an employee's next interview (role/experience/mode/
+    // context) - when set, this employee doesn't pick freely, they just confirm it.
+    const isAssigned = Boolean(userData?.assignedRole)
+    const [role, setRole] = useState(userData?.assignedRole || "");
+    const [experience, setExperience] = useState(userData?.assignedExperience || "");
+    const [mode, setMode] = useState(userData?.assignedMode || "Technical");
     const [language, setLanguage] = useState("English");
     const [voicePreference, setVoicePreference] = useState("auto");
     const [resumeFile, setResumeFile] = useState(null);
@@ -129,6 +132,8 @@ function Step1SetUp({ onStart }) {
         setLoading(true)
         try {
            const result = await axios.post(ServerUrl + "/api/interview/generate-questions" , {role, experience, mode, language, resumeText, projects, skills } , {withCredentials:true})
+           // Note: if this account has an admin-assigned role/experience/mode, the
+           // server enforces those regardless of what's sent here - see interview.controller.js.
            console.log(result.data)
            if(userData){
             dispatch(setUserData({...userData , credits:result.data.creditsLeft}))
@@ -211,29 +216,44 @@ function Step1SetUp({ onStart }) {
 
                     <div className='space-y-4'>
 
-                        <RoleCombobox
-                            value={role}
-                            onChange={handleRoleChange}
-                            options={ROLE_SUGGESTIONS}
-                        />
+                        {isAssigned ? (
+                            <div className='bg-accent/[0.06] border border-accent/20 rounded-2xl p-5 space-y-2.5'>
+                                <p className='text-[12px] font-semibold text-accent uppercase tracking-wide'>Interview assigned by your admin</p>
+                                <p className='text-[15px] font-semibold text-ink'>{role}</p>
+                                <p className='text-[13px] text-text-secondary'>
+                                    {experience} &bull; {MODE_LABELS[mode] || mode}
+                                    {userData?.department ? ` • ${userData.department}` : ""}
+                                </p>
+                                {userData?.assignedContext && (
+                                    <p className='text-[12.5px] text-text-secondary leading-relaxed pt-2 border-t border-accent/15'>
+                                        {userData.assignedContext}
+                                    </p>
+                                )}
+                            </div>
+                        ) : (
+                            <>
+                                <RoleCombobox
+                                    value={role}
+                                    onChange={handleRoleChange}
+                                    options={ROLE_SUGGESTIONS}
+                                />
 
-                        <div className='relative'>
-                            <Briefcase size={16} className='absolute top-1/2 -translate-y-1/2 left-4 text-text-secondary' />
+                                <div className='relative'>
+                                    <Briefcase size={16} className='absolute top-1/2 -translate-y-1/2 left-4 text-text-secondary' />
 
-                            <input type='text' placeholder='Experience (e.g. 2 years)'
-                                className='w-full pl-11 pr-4 py-3 text-[14.5px] text-ink bg-card border border-line rounded-xl focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none transition-colors'
-                                onChange={(e) => setExperience(e.target.value)} value={experience} />
+                                    <input type='text' placeholder='Experience (e.g. 2 years)'
+                                        className='w-full pl-11 pr-4 py-3 text-[14.5px] text-ink bg-card border border-line rounded-xl focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none transition-colors'
+                                        onChange={(e) => setExperience(e.target.value)} value={experience} />
+                                </div>
 
-
-
-                        </div>
-
-                        <Dropdown
-                            icon={Sparkles}
-                            value={mode}
-                            onChange={setMode}
-                            options={modeOptions}
-                        />
+                                <Dropdown
+                                    icon={Sparkles}
+                                    value={mode}
+                                    onChange={setMode}
+                                    options={modeOptions}
+                                />
+                            </>
+                        )}
 
                         <Dropdown
                             icon={Languages}
@@ -249,7 +269,7 @@ function Step1SetUp({ onStart }) {
                             options={VOICE_OPTIONS}
                         />
 
-                        {!analysisDone && (
+                        {!isAssigned && !analysisDone && (
                             <motion.div
                                 whileHover={{ scale: 1.01 }}
                                 onClick={() => document.getElementById("resumeUpload").click()}

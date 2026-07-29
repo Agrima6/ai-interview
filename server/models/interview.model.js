@@ -40,6 +40,14 @@ const interviewSchema = new mongoose.Schema({
     resumeText:{
      type:String
     },
+    department:{
+        type:String,
+        default:null
+    },
+    context:{
+        type:String,
+        default:null
+    },
     questions:[questionsSchema],
 
     finalScore: { type: Number, default: 0 },

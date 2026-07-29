@@ -1,12 +1,18 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
-import { ArrowLeft, Users, ClipboardList, TrendingUp, CheckCircle2, Plus, X, Power, Coins } from 'lucide-react'
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
+import { ArrowLeft, Users, ClipboardList, TrendingUp, CheckCircle2, Plus, X, Power, Coins, Settings2, FileText, Building2 } from 'lucide-react'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 import Button from '../components/Button'
+import Dropdown from '../components/Dropdown'
 import { addEmployee, listEmployees, getEmployeeInterviews, updateEmployee, getTrends } from '../utils/adminApi'
+
+// Kept in sync with the modes offered in Step1SetUp.jsx - what an admin can
+// assign here is a subset of what an employee could otherwise pick freely.
+const INTERVIEW_MODES = ["Technical", "HR", "Behavioral", "System Design", "Case Study", "Group Discussion", "Managerial Round"]
+const MODE_OPTIONS = INTERVIEW_MODES.map((m) => ({ value: m, label: m }))
 
 function StatCard({ icon: Icon, label, value }) {
     return (
@@ -19,9 +25,31 @@ function StatCard({ icon: Icon, label, value }) {
     )
 }
 
+function AssignmentFields({ department, setDepartment, assignedRole, setAssignedRole, assignedExperience, setAssignedExperience, assignedMode, setAssignedMode, assignedContext, setAssignedContext }) {
+    return (
+        <div className='space-y-3'>
+            <input type="text" placeholder="Department (e.g. Engineering)" value={department} onChange={(e) => setDepartment(e.target.value)}
+                className='w-full px-4 py-2.5 text-[14px] text-ink bg-card border border-line rounded-xl focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none transition-colors' />
+            <input type="text" placeholder="Role to interview for (e.g. Backend Developer)" value={assignedRole} onChange={(e) => setAssignedRole(e.target.value)}
+                className='w-full px-4 py-2.5 text-[14px] text-ink bg-card border border-line rounded-xl focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none transition-colors' />
+            <input type="text" placeholder="Experience level (e.g. 2 years)" value={assignedExperience} onChange={(e) => setAssignedExperience(e.target.value)}
+                className='w-full px-4 py-2.5 text-[14px] text-ink bg-card border border-line rounded-xl focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none transition-colors' />
+            <Dropdown value={assignedMode} onChange={setAssignedMode} options={MODE_OPTIONS} placeholder="Interview type" />
+            <textarea placeholder="Interview context / job description (optional) - shapes the AI's questions" value={assignedContext} onChange={(e) => setAssignedContext(e.target.value)} rows={3}
+                className='w-full px-4 py-2.5 text-[14px] text-ink bg-card border border-line rounded-xl focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none transition-colors resize-none' />
+        </div>
+    )
+}
+
 function AddEmployeeModal({ onClose, onAdded, organizationId }) {
     const [name, setName] = useState("")
     const [email, setEmail] = useState("")
+    const [showAssignment, setShowAssignment] = useState(false)
+    const [department, setDepartment] = useState("")
+    const [assignedRole, setAssignedRole] = useState("")
+    const [assignedExperience, setAssignedExperience] = useState("")
+    const [assignedMode, setAssignedMode] = useState("")
+    const [assignedContext, setAssignedContext] = useState("")
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState("")
 
@@ -31,7 +59,9 @@ function AddEmployeeModal({ onClose, onAdded, organizationId }) {
         setSaving(true)
         setError("")
         try {
-            await addEmployee(name.trim(), email.trim(), organizationId)
+            await addEmployee(name.trim(), email.trim(), organizationId, {
+                department, assignedRole, assignedExperience, assignedMode, assignedContext,
+            })
             onAdded()
         } catch (err) {
             setError(err.response?.data?.message || "Failed to add employee.")
@@ -46,7 +76,7 @@ function AddEmployeeModal({ onClose, onAdded, organizationId }) {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 onClick={(e) => e.stopPropagation()}
-                className='w-full max-w-sm bg-card border border-line rounded-2xl shadow-[var(--shadow-lift)] p-6'>
+                className='w-full max-w-sm max-h-[85vh] overflow-y-auto bg-card border border-line rounded-2xl shadow-[var(--shadow-lift)] p-6'>
                 <div className='flex items-center justify-between mb-5'>
                     <h3 className='text-[17px] font-semibold text-ink'>Add Employee</h3>
                     <button onClick={onClose} className='text-text-secondary hover:text-ink'><X size={18} /></button>
@@ -56,11 +86,100 @@ function AddEmployeeModal({ onClose, onAdded, organizationId }) {
                         className='w-full px-4 py-2.5 text-[14px] text-ink bg-card border border-line rounded-xl focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none transition-colors' />
                     <input type="email" placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)}
                         className='w-full px-4 py-2.5 text-[14px] text-ink bg-card border border-line rounded-xl focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none transition-colors' />
+
+                    {!showAssignment ? (
+                        <button type="button" onClick={() => setShowAssignment(true)}
+                            className='text-[13px] font-medium text-accent hover:underline'>
+                            + Assign a specific interview (optional)
+                        </button>
+                    ) : (
+                        <div className='pt-1 border-t border-line'>
+                            <p className='text-[12.5px] text-text-secondary my-3'>
+                                Leave blank to let them choose their own role/mode when they sign in.
+                            </p>
+                            <AssignmentFields
+                                department={department} setDepartment={setDepartment}
+                                assignedRole={assignedRole} setAssignedRole={setAssignedRole}
+                                assignedExperience={assignedExperience} setAssignedExperience={setAssignedExperience}
+                                assignedMode={assignedMode} setAssignedMode={setAssignedMode}
+                                assignedContext={assignedContext} setAssignedContext={setAssignedContext}
+                            />
+                        </div>
+                    )}
+
                     {error && <p className='text-[12.5px] text-red-500'>{error}</p>}
                     <Button type="submit" disabled={saving} className='w-full !py-2.5'>
                         {saving ? "Adding..." : "Add Employee"}
                     </Button>
                 </form>
+            </motion.div>
+        </div>
+    )
+}
+
+function AssignInterviewModal({ employee, organizationId, onClose, onSaved }) {
+    const [department, setDepartment] = useState(employee.department || "")
+    const [assignedRole, setAssignedRole] = useState(employee.assignedRole || "")
+    const [assignedExperience, setAssignedExperience] = useState(employee.assignedExperience || "")
+    const [assignedMode, setAssignedMode] = useState(employee.assignedMode || "")
+    const [assignedContext, setAssignedContext] = useState(employee.assignedContext || "")
+    const [saving, setSaving] = useState(false)
+    const [error, setError] = useState("")
+
+    const handleSave = async () => {
+        setSaving(true)
+        setError("")
+        try {
+            await updateEmployee(employee._id, { department, assignedRole, assignedExperience, assignedMode, assignedContext }, organizationId)
+            onSaved()
+        } catch (err) {
+            setError(err.response?.data?.message || "Failed to update assignment.")
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    const handleClear = async () => {
+        setSaving(true)
+        setError("")
+        try {
+            await updateEmployee(employee._id, { department: "", assignedRole: "", assignedExperience: "", assignedMode: "", assignedContext: "" }, organizationId)
+            onSaved()
+        } catch (err) {
+            setError(err.response?.data?.message || "Failed to clear assignment.")
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    return (
+        <div className='fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4' onClick={onClose}>
+            <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className='w-full max-w-sm max-h-[85vh] overflow-y-auto bg-card border border-line rounded-2xl shadow-[var(--shadow-lift)] p-6'>
+                <div className='flex items-center justify-between mb-5'>
+                    <div>
+                        <h3 className='text-[17px] font-semibold text-ink'>Assign Interview</h3>
+                        <p className='text-[13px] text-text-secondary'>{employee.name}</p>
+                    </div>
+                    <button onClick={onClose} className='text-text-secondary hover:text-ink'><X size={18} /></button>
+                </div>
+                <div className='space-y-3'>
+                    <AssignmentFields
+                        department={department} setDepartment={setDepartment}
+                        assignedRole={assignedRole} setAssignedRole={setAssignedRole}
+                        assignedExperience={assignedExperience} setAssignedExperience={setAssignedExperience}
+                        assignedMode={assignedMode} setAssignedMode={setAssignedMode}
+                        assignedContext={assignedContext} setAssignedContext={setAssignedContext}
+                    />
+                    {error && <p className='text-[12.5px] text-red-500'>{error}</p>}
+                    <div className='flex gap-2'>
+                        <Button onClick={handleClear} disabled={saving} variant="secondary" className='flex-1 !py-2.5'>Clear</Button>
+                        <Button onClick={handleSave} disabled={saving} className='flex-1 !py-2.5'>{saving ? "Saving..." : "Save"}</Button>
+                    </div>
+                </div>
             </motion.div>
         </div>
     )
@@ -99,16 +218,20 @@ function EmployeeDetailModal({ employee, organizationId, onClose }) {
                 ) : (
                     <div className='space-y-3'>
                         {data.interviews.map((iv) => (
-                            <div key={iv._id} className='bg-bg border border-line rounded-xl p-4 flex items-center justify-between gap-4'>
+                            <Link key={iv._id} to={`/report/${iv._id}`} target="_blank" rel="noopener noreferrer"
+                                className='bg-bg border border-line rounded-xl p-4 flex items-center justify-between gap-4 hover:border-accent/40 transition-colors'>
                                 <div>
                                     <p className='text-[14px] font-medium text-ink'>{iv.role}</p>
                                     <p className='text-[12.5px] text-text-secondary'>{iv.experience} &bull; {iv.mode} &bull; {new Date(iv.createdAt).toLocaleDateString()}</p>
                                 </div>
-                                <div className='text-right shrink-0'>
-                                    <p className='text-[16px] font-bold text-ink'>{iv.finalScore || 0}<span className='text-[12px] text-text-secondary'>/10</span></p>
-                                    <p className='text-[11px] text-text-secondary'>{iv.status}</p>
+                                <div className='text-right shrink-0 flex items-center gap-3'>
+                                    <div>
+                                        <p className='text-[16px] font-bold text-ink'>{iv.finalScore || 0}<span className='text-[12px] text-text-secondary'>/10</span></p>
+                                        <p className='text-[11px] text-text-secondary'>{iv.status}</p>
+                                    </div>
+                                    <FileText size={15} className='text-text-secondary shrink-0' />
                                 </div>
-                            </div>
+                            </Link>
                         ))}
                     </div>
                 )}
@@ -121,6 +244,7 @@ function EmployeeRow({ employee, organizationId, onChanged }) {
     const [editingCredits, setEditingCredits] = useState(false)
     const [credits, setCredits] = useState(employee.credits)
     const [showDetail, setShowDetail] = useState(false)
+    const [showAssign, setShowAssign] = useState(false)
     const [busy, setBusy] = useState(false)
 
     const saveCredits = async () => {
@@ -170,6 +294,9 @@ function EmployeeRow({ employee, organizationId, onChanged }) {
                         </button>
                     )}
                 </td>
+                <td className='py-3 pr-4 text-[13px] text-text-secondary'>
+                    {employee.department || <span className='text-text-secondary/50'>-</span>}
+                </td>
                 <td className='py-3 pr-4 text-[13.5px] text-ink'>{employee.interviewCount}</td>
                 <td className='py-3 pr-4 text-[13.5px] text-ink'>{employee.avgScore || '-'}</td>
                 <td className='py-3 pr-4 text-[12.5px] text-text-secondary'>
@@ -181,15 +308,26 @@ function EmployeeRow({ employee, organizationId, onChanged }) {
                     </span>
                 </td>
                 <td className='py-3'>
-                    <button onClick={toggleActive} disabled={busy}
-                        title={employee.active ? "Deactivate" : "Reactivate"}
-                        className='w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/[0.04] dark:hover:bg-white/[0.06] text-text-secondary hover:text-red-500 transition-colors'>
-                        <Power size={14} />
-                    </button>
+                    <div className='flex items-center gap-1'>
+                        <button onClick={() => setShowAssign(true)}
+                            title="Assign a specific interview"
+                            className='w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/[0.04] dark:hover:bg-white/[0.06] text-text-secondary hover:text-accent transition-colors'>
+                            <Settings2 size={14} />
+                        </button>
+                        <button onClick={toggleActive} disabled={busy}
+                            title={employee.active ? "Deactivate" : "Reactivate"}
+                            className='w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/[0.04] dark:hover:bg-white/[0.06] text-text-secondary hover:text-red-500 transition-colors'>
+                            <Power size={14} />
+                        </button>
+                    </div>
                 </td>
             </tr>
             {showDetail && (
                 <EmployeeDetailModal employee={employee} organizationId={organizationId} onClose={() => setShowDetail(false)} />
+            )}
+            {showAssign && (
+                <AssignInterviewModal employee={employee} organizationId={organizationId} onClose={() => setShowAssign(false)}
+                    onSaved={() => { setShowAssign(false); onChanged() }} />
             )}
         </>
     )
@@ -305,6 +443,25 @@ function AdminPanel() {
                                     )}
                                 </div>
                             </div>
+
+                            {trends.departmentBreakdown?.length > 0 && (
+                                <div className='bg-card border border-line rounded-2xl p-6'>
+                                    <h3 className='text-[15px] font-semibold text-ink mb-6 flex items-center gap-2'>
+                                        <Building2 size={15} className='text-accent' /> Avg Score by Department
+                                    </h3>
+                                    <div className='h-56'>
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart data={trends.departmentBreakdown}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-line)" />
+                                                <XAxis dataKey="department" tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} axisLine={{ stroke: 'var(--color-line)' }} tickLine={false} />
+                                                <YAxis domain={[0, 10]} tick={{ fontSize: 12, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
+                                                <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid var(--color-line)', fontSize: 13, background: 'var(--color-card)', color: 'var(--color-ink)' }} />
+                                                <Bar dataKey="avgScore" fill="#22C55E" radius={[6, 6, 0, 0]} />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <div className='bg-card border border-line rounded-2xl p-6 overflow-x-auto'>
@@ -316,6 +473,7 @@ function AdminPanel() {
                                         <tr className='border-b border-line text-left'>
                                             <th className='pb-3 pr-4 text-[12px] font-medium text-text-secondary uppercase tracking-wide'>Name</th>
                                             <th className='pb-3 pr-4 text-[12px] font-medium text-text-secondary uppercase tracking-wide'>Credits</th>
+                                            <th className='pb-3 pr-4 text-[12px] font-medium text-text-secondary uppercase tracking-wide'>Department</th>
                                             <th className='pb-3 pr-4 text-[12px] font-medium text-text-secondary uppercase tracking-wide'>Interviews</th>
                                             <th className='pb-3 pr-4 text-[12px] font-medium text-text-secondary uppercase tracking-wide'>Avg Score</th>
                                             <th className='pb-3 pr-4 text-[12px] font-medium text-text-secondary uppercase tracking-wide'>Last Active</th>

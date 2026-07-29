@@ -13,15 +13,39 @@ export const addEmployee = async (req, res) => {
         const organizationId = resolveOrgId(req)
         if (!organizationId) return res.status(400).json({ message: "organizationId is required" })
 
-        let { name, email } = req.body
+        let { name, email, department, assignedRole, assignedExperience, assignedMode, assignedContext } = req.body
         name = name?.trim()
         email = email?.trim().toLowerCase()
         if (!name || !email) return res.status(400).json({ message: "name and email are required" })
 
-        const existing = await User.findOne({ email })
-        if (existing) return res.status(409).json({ message: "A user with this email already exists" })
+        const assignedFields = {
+            department: department?.trim() || null,
+            assignedRole: assignedRole?.trim() || null,
+            assignedExperience: assignedExperience?.trim() || null,
+            assignedMode: assignedMode?.trim() || null,
+            assignedContext: assignedContext?.trim() || null,
+        }
 
-        const employee = await User.create({ name, email, role: "employee", organizationId })
+        const existing = await User.findOne({ email })
+        if (existing) {
+            if (existing.role === "superadmin") {
+                return res.status(409).json({ message: "That email belongs to a Super Admin and can't be reused" })
+            }
+            if (existing.role === "admin" || (existing.organizationId && String(existing.organizationId) !== String(organizationId))) {
+                return res.status(409).json({ message: "That email already belongs to a different organization or an admin account" })
+            }
+        }
+
+        // Reuses the account if this email already exists as an org-less employee
+        // (e.g. it signed up on its own) instead of blocking on a conflict.
+        const employee = await User.findOneAndUpdate(
+            { email },
+            {
+                $set: { role: "employee", organizationId, ...assignedFields },
+                $setOnInsert: { name, email },
+            },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        )
         return res.status(201).json(employee)
     } catch (error) {
         return res.status(500).json({ message: `failed to add employee ${error}` })
@@ -34,7 +58,7 @@ export const listEmployees = async (req, res) => {
         if (!organizationId) return res.status(400).json({ message: "organizationId is required" })
 
         const employees = await User.find({ organizationId, role: "employee" })
-            .select("name email credits active createdAt")
+            .select("name email credits active createdAt department assignedRole assignedExperience assignedMode assignedContext")
             .sort({ createdAt: -1 })
 
         const stats = await Interview.aggregate([
@@ -57,6 +81,11 @@ export const listEmployees = async (req, res) => {
                 credits: e.credits,
                 active: e.active,
                 createdAt: e.createdAt,
+                department: e.department,
+                assignedRole: e.assignedRole,
+                assignedExperience: e.assignedExperience,
+                assignedMode: e.assignedMode,
+                assignedContext: e.assignedContext,
                 interviewCount: s?.interviewCount || 0,
                 avgScore: s ? Number((s.avgScore || 0).toFixed(1)) : 0,
                 lastActive: s?.lastActive || null,
@@ -87,10 +116,15 @@ export const getEmployeeInterviews = async (req, res) => {
 export const updateEmployee = async (req, res) => {
     try {
         const organizationId = resolveOrgId(req)
-        const { credits, active } = req.body
+        const { credits, active, department, assignedRole, assignedExperience, assignedMode, assignedContext } = req.body
         const update = {}
         if (typeof credits === "number") update.credits = credits
         if (typeof active === "boolean") update.active = active
+        if (department !== undefined) update.department = department?.trim() || null
+        if (assignedRole !== undefined) update.assignedRole = assignedRole?.trim() || null
+        if (assignedExperience !== undefined) update.assignedExperience = assignedExperience?.trim() || null
+        if (assignedMode !== undefined) update.assignedMode = assignedMode?.trim() || null
+        if (assignedContext !== undefined) update.assignedContext = assignedContext?.trim() || null
 
         if (Object.keys(update).length === 0) {
             return res.status(400).json({ message: "Nothing to update" })
@@ -148,6 +182,16 @@ export const getTrends = async (req, res) => {
             } },
         ])
 
+        const departmentBreakdown = await Interview.aggregate([
+            { $match: { userId: { $in: employeeIds } } },
+            { $group: {
+                _id: { $ifNull: ["$department", "Unassigned"] },
+                count: { $sum: 1 },
+                avgScore: { $avg: "$finalScore" },
+            } },
+            { $sort: { count: -1 } },
+        ])
+
         return res.json({
             employeeCount: employeeIds.length,
             totalInterviews: totals[0]?.totalInterviews || 0,
@@ -162,6 +206,11 @@ export const getTrends = async (req, res) => {
                 week: w._id,
                 avgScore: Number((w.avgScore || 0).toFixed(1)),
                 count: w.count,
+            })),
+            departmentBreakdown: departmentBreakdown.map((d) => ({
+                department: d._id,
+                count: d.count,
+                avgScore: Number((d.avgScore || 0).toFixed(1)),
             })),
         })
     } catch (error) {

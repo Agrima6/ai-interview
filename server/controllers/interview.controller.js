@@ -100,21 +100,25 @@ export const generateQuestion = async (req, res) => {
   try {
     let { role, experience, mode, language, resumeText, projects, skills } = req.body
 
-    role = role?.trim();
-    experience = experience?.trim();
-    mode = mode?.trim();
-    language = language?.trim() === "Hinglish" ? "Hinglish" : "English";
-
-    if (!role || !experience || !mode) {
-      return res.status(400).json({ message: "Role, Experience and Mode are required." })
-    }
-
     const user = await User.findById(req.userId)
 
     if (!user) {
       return res.status(404).json({
         message: "User not found."
       });
+    }
+
+    // If an Admin assigned this employee a specific interview, that always wins
+    // over whatever the client sent - the client can't bypass it by editing the
+    // request, and a stale/cached UI can't drift from what was actually assigned.
+    role = (user.assignedRole || role)?.trim();
+    experience = (user.assignedExperience || experience)?.trim();
+    mode = (user.assignedMode || mode)?.trim();
+    language = language?.trim() === "Hinglish" ? "Hinglish" : "English";
+    const context = user.assignedContext?.trim() || null;
+
+    if (!role || !experience || !mode) {
+      return res.status(400).json({ message: "Role, Experience and Mode are required." })
     }
 
     if (user.credits < 50) {
@@ -140,6 +144,7 @@ export const generateQuestion = async (req, res) => {
     Projects:${projectText}
     Skills:${skillsText},
     Resume:${safeResume}
+    ${context ? `HiringCompanyContext:${context}` : ""}
     `;
 
     if (!userPrompt.trim()) {
@@ -182,6 +187,7 @@ Question 4 → medium
 Question 5 → hard  
 
 Make questions based on the candidate’s role, experience,interviewMode, projects, skills, and resume details.
+${context ? "If HiringCompanyContext is provided, prioritize it - it's the specific focus areas and job description the hiring company wants tested." : ""}
 `
       }
       ,
@@ -225,6 +231,8 @@ Make questions based on the candidate’s role, experience,interviewMode, projec
       mode,
       language,
       resumeText: safeResume,
+      department: user.department || null,
+      context,
       questions: questionsArray.map((q, index) => ({
         question: q,
         difficulty: ["easy", "easy", "medium", "medium", "hard"][index],
@@ -444,6 +452,22 @@ export const getInterviewReport = async (req,res) => {
       return res.status(404).json({ message: "Interview not found" });
     }
 
+    const isOwner = String(interview.userId) === String(req.userId)
+    if (!isOwner) {
+      // Not the candidate themselves - only that candidate's own org Admin, or
+      // a Super Admin, may view it (prevents any signed-in user from reading
+      // someone else's report just by guessing/sharing an interview id).
+      if (req.user.role === "superadmin") {
+        // allowed
+      } else if (req.user.role === "admin") {
+        const owner = await User.findById(interview.userId).select("organizationId")
+        if (!owner || String(owner.organizationId) !== String(req.user.organizationId)) {
+          return res.status(403).json({ message: "You don't have permission to view this report." })
+        }
+      } else {
+        return res.status(403).json({ message: "You don't have permission to view this report." })
+      }
+    }
 
     const totalQuestions = interview.questions.length;
 
