@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { CameraOff } from 'lucide-react'
+import { Camera, CameraOff } from 'lucide-react'
 
 const CHECK_INTERVAL_MS = 1000
 // A single bad reading can just be a blink or a quick glance at the keyboard -
@@ -118,12 +118,31 @@ function ProctoringCamera({ active, onViolation, className = "" }) {
         : status === "initializing" ? "ring-line"
         : "ring-red-500"
 
+    const statusLabel = {
+        initializing: "Starting camera...",
+        ok: "Face detected",
+        "no-face": "No face detected",
+        "multiple-faces": "Multiple faces detected",
+        "looking-away": "Please face the screen",
+        unavailable: "Camera unavailable",
+    }[status]
+
     return (
         <div className={`relative rounded-xl overflow-hidden ring-2 ${ringColor} transition-colors bg-black ${className}`}>
             <video ref={videoRef} muted playsInline className="w-full h-full object-cover scale-x-[-1]" />
+
+            <div className='absolute top-3 left-3 flex items-center gap-1.5 bg-black/70 backdrop-blur-sm text-white text-[11.5px] font-medium px-2.5 py-1 rounded-full'>
+                <Camera size={11} /> Your Camera
+            </div>
+
+            <div className={`absolute bottom-3 left-3 flex items-center gap-1.5 backdrop-blur-sm text-[11.5px] font-medium px-2.5 py-1 rounded-full ${status === "ok" ? "bg-black/70 text-white" : status === "initializing" ? "bg-black/70 text-white/70" : "bg-red-600 text-white"}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${status === "ok" ? "bg-success" : status === "initializing" ? "bg-white/50" : "bg-white animate-pulse"}`} />
+                {statusLabel}
+            </div>
+
             {status === "unavailable" && (
                 <div className='absolute inset-0 bg-black/85 flex items-center justify-center'>
-                    <CameraOff size={16} className='text-white/70' />
+                    <CameraOff size={20} className='text-white/70' />
                 </div>
             )}
         </div>

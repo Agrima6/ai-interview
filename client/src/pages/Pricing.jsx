@@ -81,7 +81,7 @@ function Pricing() {
       key: import.meta.env.VITE_RAZORPAY_KEY_ID,
       amount: result.data.amount,
       currency: "INR",
-      name: "ATS Pro",
+      name: "WorkMate IQ",
       description: `${plan.name} - ${plan.credits} Credits`,
       order_id: result.data.id,
 

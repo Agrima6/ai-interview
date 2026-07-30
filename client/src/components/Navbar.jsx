@@ -1,7 +1,7 @@
 import React from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { motion } from "motion/react"
-import { Coins, LogOut, LogIn, User, Sparkles, ShieldCheck } from "lucide-react";
+import { Coins, LogOut, LogIn, User, ShieldCheck } from "lucide-react";
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -10,6 +10,7 @@ import { loginWithGoogle } from '../utils/authApi';
 import { setUserData } from '../redux/userSlice';
 import Button from './Button';
 import ThemeToggle from './ThemeToggle';
+import logo from '../assets/logo.png';
 
 const GUEST_EMAIL = "guest@ats-pro.local"
 
@@ -68,10 +69,8 @@ function Navbar() {
                 className='glass w-full max-w-[1280px] rounded-2xl border border-line shadow-[var(--shadow-soft)] px-5 md:px-6 py-3 flex justify-between items-center relative'>
 
                 <div onClick={() => navigate('/')} className='flex items-center gap-2.5 cursor-pointer shrink-0'>
-                    <div className='bg-accent text-white w-8 h-8 rounded-lg flex items-center justify-center shadow-[0_4px_12px_-4px_rgba(224,39,27,0.6)]'>
-                        <Sparkles size={16} strokeWidth={2.25} />
-                    </div>
-                    <span className='font-semibold hidden sm:block text-[15px] tracking-tight text-ink'>ATS Pro</span>
+                    <img src={logo} alt="WorkMate IQ" className='w-11 h-11 rounded-full shadow-[0_4px_12px_-4px_rgba(224,39,27,0.6)]' />
+                    <span className='font-semibold hidden sm:block text-[17px] tracking-tight text-ink'>WorkMate IQ</span>
                 </div>
 
                 <div className='hidden lg:flex items-center gap-1 absolute left-1/2 -translate-x-1/2'>

@@ -1,7 +1,8 @@
 import React from 'react'
-import { Sparkles, Globe, Mail, MessageCircle, ArrowRight } from 'lucide-react'
+import { Globe, Mail, MessageCircle, ArrowRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import Button from './Button'
+import logo from '../assets/logo.png'
 
 const COLUMNS = [
     {
@@ -32,10 +33,8 @@ function Footer() {
 
                     <div>
                         <div className='flex items-center gap-2.5 mb-5'>
-                            <div className='bg-accent text-white w-8 h-8 rounded-lg flex items-center justify-center'>
-                                <Sparkles size={16} strokeWidth={2.25} />
-                            </div>
-                            <span className='font-semibold text-[15px] tracking-tight'>ATS Pro</span>
+                            <img src={logo} alt="WorkMate IQ" className='w-11 h-11 rounded-full' />
+                            <span className='font-semibold text-[17px] tracking-tight'>WorkMate IQ</span>
                         </div>
                         <p className='text-white/50 text-[14px] leading-relaxed max-w-[280px] mb-6'>
                             AI-powered interview preparation platform built to improve communication, technical depth, and confidence.
@@ -81,7 +80,7 @@ function Footer() {
                 </div>
 
                 <div className='pt-8 flex flex-col sm:flex-row justify-between items-center gap-4'>
-                    <p className='text-white/40 text-[13px]'>© {new Date().getFullYear()} ATS Pro. All rights reserved.</p>
+                    <p className='text-white/40 text-[13px]'>© {new Date().getFullYear()} WorkMate IQ. All rights reserved.</p>
                     <button onClick={() => navigate('/interview')} className='text-[13px] text-white/60 hover:text-white transition-colors'>
                         Start your first interview →
                     </button>

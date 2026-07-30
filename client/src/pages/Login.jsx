@@ -2,11 +2,12 @@ import React, { useState } from 'react'
 import { useDispatch } from 'react-redux'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from "motion/react"
-import { Sparkles, LogIn } from "lucide-react"
+import { LogIn } from "lucide-react"
 import { setUserData } from '../redux/userSlice'
 import { loginWithGoogle, loginAsGuest } from '../utils/authApi'
 import Button from '../components/Button'
 import ThemeToggle from '../components/ThemeToggle'
+import logo from '../assets/logo.png'
 
 function Login() {
     const dispatch = useDispatch()
@@ -56,10 +57,8 @@ function Login() {
                 transition={{ duration: 0.4 }}
                 className='w-full max-w-sm bg-card border border-line rounded-2xl shadow-[var(--shadow-soft)] p-8 text-center'
             >
-                <div className='bg-accent text-white w-10 h-10 rounded-lg flex items-center justify-center mx-auto mb-5'>
-                    <Sparkles size={18} strokeWidth={2.25} />
-                </div>
-                <h1 className='text-[22px] font-semibold text-ink mb-2'>Sign in to ATS Pro</h1>
+                <img src={logo} alt="WorkMate IQ" className='w-14 h-14 rounded-full mx-auto mb-5' />
+                <h1 className='text-[22px] font-semibold text-ink mb-2'>Sign in to WorkMate IQ</h1>
                 <p className='text-[14px] text-text-secondary mb-7 leading-relaxed'>Practice interviews, get AI feedback, and track your progress.</p>
 
                 <Button size="lg" className='w-full !mb-3' onClick={handleGoogle} disabled={loading}>

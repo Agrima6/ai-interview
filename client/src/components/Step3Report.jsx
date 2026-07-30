@@ -1,5 +1,5 @@
 import React from 'react'
-import { ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft, Download, User, Briefcase, Building2, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from "motion/react"
 import { buildStyles, CircularProgressbar } from 'react-circular-progressbar';
@@ -18,6 +18,11 @@ function Step3Report({ report }) {
   }
   const navigate = useNavigate()
   const {
+    candidate = null,
+    role = "",
+    experience = "",
+    mode = "",
+    createdAt = null,
     finalScore = 0,
     confidence = 0,
     communication = 0,
@@ -66,7 +71,7 @@ function Step3Report({ report }) {
   // ================= TITLE =================
   doc.setFont("helvetica", "bold");
   doc.setFontSize(20);
-  doc.setTextColor(34, 197, 94);
+  doc.setTextColor(224, 39, 27);
   doc.text("AI Interview Performance Report", pageWidth / 2, currentY, {
     align: "center",
   });
@@ -74,13 +79,34 @@ function Step3Report({ report }) {
   currentY += 5;
 
   // underline
-  doc.setDrawColor(34, 197, 94);
+  doc.setDrawColor(224, 39, 27);
   doc.line(margin, currentY + 2, pageWidth - margin, currentY + 2);
 
   currentY += 15;
 
+  // ================= CANDIDATE DETAILS =================
+  if (candidate) {
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text(candidate.name || "Candidate", margin, currentY);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.5);
+    doc.setTextColor(90, 90, 90);
+    const metaLine = [candidate.email, candidate.department, role, experience, mode]
+      .filter(Boolean)
+      .join("   |   ");
+    doc.text(metaLine, margin, currentY + 6);
+    if (createdAt) {
+      doc.text(new Date(createdAt).toLocaleDateString(), pageWidth - margin, currentY, { align: "right" });
+    }
+
+    currentY += 16;
+  }
+
   // ================= FINAL SCORE BOX =================
-  doc.setFillColor(240, 253, 244);
+  doc.setFillColor(253, 237, 236);
   doc.roundedRect(margin, currentY, contentWidth, 20, 4, 4, "F");
 
   doc.setFontSize(14);
@@ -152,7 +178,7 @@ function Step3Report({ report }) {
     valign: "top",
   },
   headStyles: {
-    fillColor: [34, 197, 94],
+    fillColor: [224, 39, 27],
     textColor: 255,
     halign: "center",
   },
@@ -194,6 +220,37 @@ function Step3Report({ report }) {
         <button onClick={downloadPDF} className='inline-flex items-center gap-2 bg-accent hover:bg-accent-dark hover:-translate-y-0.5 text-white px-6 py-3 rounded-full shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-lift)] transition-all duration-300 font-medium text-[14px] text-nowrap'><Download size={15} /> Download PDF</button>
       </div>
 
+      {candidate && (
+        <div className='max-w-[1280px] mx-auto mb-8 bg-card border border-line rounded-2xl shadow-[var(--shadow-soft)] p-5 sm:p-6 flex flex-wrap items-center gap-x-8 gap-y-3'>
+          <div className='flex items-center gap-3'>
+            <div className='w-10 h-10 rounded-full bg-accent text-white flex items-center justify-center font-semibold text-[14px] shrink-0'>
+              {candidate.name?.slice(0, 1).toUpperCase() || <User size={15} />}
+            </div>
+            <div>
+              <p className='text-[14.5px] font-semibold text-ink'>{candidate.name}</p>
+              <p className='text-[12.5px] text-text-secondary'>{candidate.email}</p>
+            </div>
+          </div>
+
+          {candidate.department && (
+            <div className='flex items-center gap-2 text-[13px] text-text-secondary'>
+              <Building2 size={14} className='text-accent' /> {candidate.department}
+            </div>
+          )}
+
+          {role && (
+            <div className='flex items-center gap-2 text-[13px] text-text-secondary'>
+              <Briefcase size={14} className='text-accent' /> {role}{experience ? ` · ${experience}` : ""}{mode ? ` · ${mode}` : ""}
+            </div>
+          )}
+
+          {createdAt && (
+            <div className='flex items-center gap-2 text-[13px] text-text-secondary ml-auto'>
+              <Calendar size={14} className='text-accent' /> {new Date(createdAt).toLocaleDateString()}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className='grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 max-w-[1280px] mx-auto'>
 
@@ -212,7 +269,7 @@ function Step3Report({ report }) {
                 text={`${score}/10`}
                 styles={buildStyles({
                   textSize: "18px",
-                  pathColor: "#22C55E",
+                  pathColor: "#E0271B",
                   textColor: "var(--color-ink)",
                   trailColor: "var(--color-line)",
                 })}
@@ -252,7 +309,7 @@ function Step3Report({ report }) {
                     </div>
 
                     <div className='bg-black/[0.06] dark:bg-white/[0.08] h-1.5 sm:h-2 rounded-full overflow-hidden'>
-                      <div className='bg-success h-full rounded-full transition-all duration-700'
+                      <div className='bg-accent h-full rounded-full transition-all duration-700'
                         style={{ width: `${s.value * 10}%` }}
 
                       ></div>
@@ -290,8 +347,8 @@ function Step3Report({ report }) {
                   <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid var(--color-line)', fontSize: 13, background: 'var(--color-card)', color: 'var(--color-ink)' }} />
                   <Area type="monotone"
                     dataKey="score"
-                    stroke="#22C55E"
-                    fill="#22C55E"
+                    stroke="#E0271B"
+                    fill="#E0271B"
                     fillOpacity={0.12}
                     strokeWidth={2.5} />
 
@@ -329,13 +386,13 @@ function Step3Report({ report }) {
                     </div>
 
 
-                    <div className='bg-success/10 text-success px-3 py-1 rounded-full font-bold text-[12.5px] w-fit shrink-0'>
+                    <div className='bg-accent/10 text-accent px-3 py-1 rounded-full font-bold text-[12.5px] w-fit shrink-0'>
                       {q.score ?? 0}/10
                     </div>
                   </div>
 
-                  <div className='bg-success/[0.05] border border-success/15 p-4 rounded-xl'>
-                    <p className='text-[11.5px] text-success font-semibold mb-1 uppercase tracking-wide'>
+                  <div className='bg-accent/[0.05] border border-accent/15 p-4 rounded-xl'>
+                    <p className='text-[11.5px] text-accent font-semibold mb-1 uppercase tracking-wide'>
                       AI Feedback
                     </p>
                     <p className='text-[13.5px] text-text-secondary leading-relaxed'>

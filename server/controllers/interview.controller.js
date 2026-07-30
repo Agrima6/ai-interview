@@ -452,6 +452,8 @@ export const getInterviewReport = async (req,res) => {
       return res.status(404).json({ message: "Interview not found" });
     }
 
+    const candidate = await User.findById(interview.userId).select("name email department organizationId")
+
     const isOwner = String(interview.userId) === String(req.userId)
     if (!isOwner) {
       // Not the candidate themselves - only that candidate's own org Admin, or
@@ -460,8 +462,7 @@ export const getInterviewReport = async (req,res) => {
       if (req.user.role === "superadmin") {
         // allowed
       } else if (req.user.role === "admin") {
-        const owner = await User.findById(interview.userId).select("organizationId")
-        if (!owner || String(owner.organizationId) !== String(req.user.organizationId)) {
+        if (!candidate || String(candidate.organizationId) !== String(req.user.organizationId)) {
           return res.status(403).json({ message: "You don't have permission to view this report." })
         }
       } else {
@@ -493,6 +494,11 @@ export const getInterviewReport = async (req,res) => {
       : 0;
 
        return res.json({
+      candidate: candidate ? { name: candidate.name, email: candidate.email, department: candidate.department } : null,
+      role: interview.role,
+      experience: interview.experience,
+      mode: interview.mode,
+      createdAt: interview.createdAt,
       finalScore: interview.finalScore,
       confidence: Number(avgConfidence.toFixed(1)),
       communication: Number(avgCommunication.toFixed(1)),

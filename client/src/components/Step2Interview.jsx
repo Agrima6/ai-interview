@@ -527,13 +527,14 @@ setIsSubmitting(false)
               className='absolute top-3 right-3 flex items-center gap-1.5 bg-black/70 backdrop-blur-sm text-white text-[11.5px] font-medium px-2.5 py-1 rounded-full hover:bg-black/85 transition-colors'>
               <ArrowLeftRight size={11} /> {voiceGender === "male" ? "Male" : "Female"}
             </button>
-
-            <ProctoringCamera
-              active={proctoringStarted}
-              onViolation={registerViolation}
-              className="absolute bottom-3 right-3 w-20 h-20 sm:w-24 sm:h-24 z-10"
-            />
           </div>
+
+          {/* your camera - proctoring */}
+          <ProctoringCamera
+            active={proctoringStarted}
+            onViolation={registerViolation}
+            className="w-full max-w-md h-48 sm:h-56"
+          />
 
           {/* subtitle */}
           {subtitle && (
