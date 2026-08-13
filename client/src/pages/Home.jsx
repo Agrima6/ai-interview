@@ -10,10 +10,10 @@ import { motion } from "motion/react";
 import { ArrowRight, PlayCircle } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
 
-import evalImg from "../assets/ai-ans.png";
-import resumeImg from "../assets/resume.png";
-import pdfImg from "../assets/pdf.png";
-import analyticsImg from "../assets/history.png";
+import evalImg from "../assets/feature-eval.jpg";
+import resumeImg from "../assets/feature-resume.jpg";
+import pdfImg from "../assets/feature-pdf.jpg";
+import analyticsImg from "../assets/feature-analytics.jpg";
 
 const featureImages = { evalImg, resumeImg, pdfImg, analyticsImg }
 
