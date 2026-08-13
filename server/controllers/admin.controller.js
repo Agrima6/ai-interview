@@ -1,12 +1,13 @@
 import User from "../models/user.model.js"
 import Organization from "../models/organization.model.js"
 import Interview from "../models/interview.model.js"
+import { resolveConductOrgId } from "../utils/orgProvision.js"
 
-// admin -> always their own org; superadmin -> whichever org they ask for via ?organizationId=
-const resolveOrgId = (req) => {
-    if (req.user.role === "admin") return req.user.organizationId
-    return req.query.organizationId || null
-}
+// Same personal-workspace resolution used by the Conduct-Interview area:
+// admin/employee -> their own (auto-provisioned) org; superadmin -> whichever
+// org they ask for via ?organizationId=, falling back to their own workspace
+// if they navigated here directly instead of via /superadmin.
+const resolveOrgId = resolveConductOrgId
 
 // Kept in sync with Interview model's `mode` enum - assignedMode ends up there
 // verbatim when the employee's interview is generated, so an invalid value
@@ -61,7 +62,7 @@ const upsertEmployee = async (organizationId, raw) => {
 
 export const addEmployee = async (req, res) => {
     try {
-        const organizationId = resolveOrgId(req)
+        const organizationId = await resolveOrgId(req)
         if (!organizationId) return res.status(400).json({ message: "organizationId is required" })
 
         const employee = await upsertEmployee(organizationId, req.body)
@@ -74,7 +75,7 @@ export const addEmployee = async (req, res) => {
 
 export const bulkAddEmployees = async (req, res) => {
     try {
-        const organizationId = resolveOrgId(req)
+        const organizationId = await resolveOrgId(req)
         if (!organizationId) return res.status(400).json({ message: "organizationId is required" })
 
         const rows = Array.isArray(req.body.employees) ? req.body.employees : []
@@ -104,7 +105,7 @@ export const bulkAddEmployees = async (req, res) => {
 
 export const listEmployees = async (req, res) => {
     try {
-        const organizationId = resolveOrgId(req)
+        const organizationId = await resolveOrgId(req)
         if (!organizationId) return res.status(400).json({ message: "organizationId is required" })
 
         const employees = await User.find({ organizationId, role: "employee" })
@@ -149,7 +150,7 @@ export const listEmployees = async (req, res) => {
 
 export const getEmployeeInterviews = async (req, res) => {
     try {
-        const organizationId = resolveOrgId(req)
+        const organizationId = await resolveOrgId(req)
         const employee = await User.findOne({ _id: req.params.id, organizationId, role: "employee" })
         if (!employee) return res.status(404).json({ message: "Employee not found" })
 
@@ -165,7 +166,7 @@ export const getEmployeeInterviews = async (req, res) => {
 
 export const updateEmployee = async (req, res) => {
     try {
-        const organizationId = resolveOrgId(req)
+        const organizationId = await resolveOrgId(req)
         const { credits, active, department, assignedRole, assignedExperience, assignedMode, assignedContext } = req.body
         const update = {}
         if (typeof credits === "number") update.credits = credits
@@ -203,7 +204,7 @@ export const updateEmployee = async (req, res) => {
 
 export const getTrends = async (req, res) => {
     try {
-        const organizationId = resolveOrgId(req)
+        const organizationId = await resolveOrgId(req)
         if (!organizationId) return res.status(400).json({ message: "organizationId is required" })
 
         const employees = await User.find({ organizationId, role: "employee" }).select("_id")
