@@ -44,8 +44,10 @@ const findVoiceForGender = (voices, gender, isHinglish) => {
 };
 
 function Step2Interview({ interviewData, onFinish }) {
-  const { interviewId, questions, userName, language = "English", voicePreference = "auto" } = interviewData;
+  const { interviewId, questions, userName, language = "English", voicePreference = "auto", sessionMode = "real", roundLabel = null } = interviewData;
   const isHinglish = language === "Hinglish";
+  const isPractice = sessionMode === "practice";
+  const [answerRecorded, setAnswerRecorded] = useState(false);
   const [isIntroPhase, setIsIntroPhase] = useState(true);
 
   const [isMicOn, setIsMicOn] = useState(true);
@@ -334,8 +336,14 @@ function Step2Interview({ interviewData, onFinish }) {
           currentQuestion.timeLimit - timeLeft,
       } , {withCredentials:true})
 
-      setFeedback(result.data.feedback)
-      speakText(result.data.feedback)
+      if (isPractice) {
+        setFeedback(result.data.feedback)
+        speakText(result.data.feedback)
+      } else {
+        // Real mode: don't reveal per-answer feedback - just confirm the
+        // answer was recorded. Full feedback only shows up in the final report.
+        setAnswerRecorded(true)
+      }
       setIsSubmitting(false)
     } catch (error) {
 console.log(error)
@@ -346,6 +354,7 @@ setIsSubmitting(false)
   const handleNext =async () => {
     setAnswer("");
     setFeedback("");
+    setAnswerRecorded(false);
 
     if (currentIndex + 1 >= questions.length) {
       finishInterview();
@@ -380,7 +389,7 @@ setIsSubmitting(false)
     if (isIntroPhase) return;
     if (!currentQuestion) return;
 
-    if (timeLeft === 0 && !isSubmitting && !feedback) {
+    if (timeLeft === 0 && !isSubmitting && !feedback && !answerRecorded) {
       submitAnswer()
     }
   }, [timeLeft]);
@@ -580,9 +589,17 @@ setIsSubmitting(false)
         {/* Text section */}
 
         <div className='flex-1 flex flex-col p-4 sm:p-6 md:p-8 relative'>
-          <h2 className='text-[19px] sm:text-[22px] font-semibold text-ink mb-6'>
-            AI Smart Interview
-          </h2>
+          <div className='flex flex-wrap items-center gap-3 mb-6'>
+            <h2 className='text-[19px] sm:text-[22px] font-semibold text-ink'>
+              AI Smart Interview
+            </h2>
+            {roundLabel && (
+              <span className='bg-accent/10 text-accent px-3 py-1 rounded-full text-[12px] font-medium'>{roundLabel}</span>
+            )}
+            <span className={`px-3 py-1 rounded-full text-[11.5px] font-medium ${isPractice ? "bg-success/10 text-success" : "bg-black/[0.06] dark:bg-white/10 text-text-secondary"}`}>
+              {isPractice ? "Practice Mode" : "Real Mode"}
+            </span>
+          </div>
 
 
           {!isIntroPhase && (<div
@@ -612,7 +629,7 @@ setIsSubmitting(false)
             </p>
           )}
 
-         {!feedback ? ( <div className='flex items-center gap-4 mt-6'>
+         {!feedback && !answerRecorded ? ( <div className='flex items-center gap-4 mt-6'>
             <motion.button
               onClick={toggleMic}
               disabled={!micSupported}
@@ -635,7 +652,13 @@ setIsSubmitting(false)
              initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
             className='mt-6 bg-success/[0.06] border border-success/20 p-5 rounded-2xl'>
-              <p className='text-success font-medium mb-4 text-[14.5px] leading-relaxed'>{feedback}</p>
+              {isPractice ? (
+                <p className='text-success font-medium mb-4 text-[14.5px] leading-relaxed'>{feedback}</p>
+              ) : (
+                <p className='text-success font-medium mb-4 text-[14.5px] leading-relaxed'>
+                  Answer recorded. You'll see feedback for every question together in your final report.
+                </p>
+              )}
 
               <button
               onClick={handleNext}

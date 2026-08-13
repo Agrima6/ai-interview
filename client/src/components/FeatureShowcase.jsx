@@ -49,7 +49,7 @@ function FeatureShowcase({ images }) {
                         className={`grid lg:grid-cols-2 gap-12 lg:gap-20 items-center ${reversed ? 'lg:[&>*:first-child]:order-2' : ''}`}
                     >
                         <div className='relative'>
-                            <div className='absolute -inset-6 bg-[radial-gradient(closest-side,rgba(224,39,27,0.08),transparent)] -z-10' />
+                            <div className='absolute -inset-6 bg-[radial-gradient(closest-side,rgba(99,102,241,0.10),transparent)] -z-10' />
                             <div className='rounded-2xl border border-line bg-card shadow-[var(--shadow-soft)] p-3 hover:shadow-[var(--shadow-lift)] transition-shadow duration-300'>
                                 <img src={images[f.image]} alt={f.title} className='w-full h-auto object-contain max-h-[280px] mx-auto' />
                             </div>

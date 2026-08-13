@@ -3,6 +3,7 @@ import path from "path"
 import { fileURLToPath } from "url"
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import { askAi, askAiJson } from "../services/ai.service.js";
+import { buildReport } from "../services/rulesEngine.service.js";
 import User from "../models/user.model.js";
 import Interview from "../models/interview.model.js";
 
@@ -409,9 +410,19 @@ export const finishInterview = async (req,res) => {
     interview.finalScore = finalScore;
     interview.status = "completed";
 
+    // Deterministic rubric + AI-score report, built on top of the AI scoring
+    // that already happened per-question in submitAnswer. Best-effort: a
+    // failure here shouldn't block the candidate from finishing the interview.
+    try {
+      interview.report = buildReport(interview, interview.resumeText || "");
+    } catch (reportError) {
+      console.error("failed to build interview report:", reportError);
+    }
+
     await interview.save();
 
     return res.status(200).json({
+       interviewId: interview._id,
        finalScore: Number(finalScore.toFixed(1)),
       confidence: Number(avgConfidence.toFixed(1)),
       communication: Number(avgCommunication.toFixed(1)),
@@ -424,6 +435,10 @@ export const finishInterview = async (req,res) => {
         communication: q.communication || 0,
         correctness: q.correctness || 0,
       })),
+      report: interview.report || null,
+      sessionMode: interview.sessionMode,
+      templateId: interview.templateId,
+      roundIndex: interview.roundIndex,
     })
   } catch (error) {
     return res.status(500).json({message:`failed to finish Interview ${error}`})
@@ -435,7 +450,7 @@ export const getMyInterviews = async (req,res) => {
   try {
     const interviews = await Interview.find({userId:req.userId})
     .sort({ createdAt: -1 })
-    .select("role experience mode finalScore status createdAt");
+    .select("role experience mode finalScore status createdAt sessionMode templateId roundIndex");
 
     return res.status(200).json(interviews)
 
@@ -503,7 +518,12 @@ export const getInterviewReport = async (req,res) => {
       confidence: Number(avgConfidence.toFixed(1)),
       communication: Number(avgCommunication.toFixed(1)),
       correctness: Number(avgCorrectness.toFixed(1)),
-      questionWiseScore: interview.questions
+      questionWiseScore: interview.questions,
+      report: interview.report || null,
+      sessionMode: interview.sessionMode,
+      templateId: interview.templateId,
+      roundIndex: interview.roundIndex,
+      status: interview.status,
     });
 
   } catch (error) {

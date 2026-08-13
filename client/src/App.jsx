@@ -12,8 +12,13 @@ import Pricing from './pages/Pricing'
 import InterviewReport from './pages/InterviewReport'
 import AdminPanel from './pages/AdminPanel'
 import SuperAdminPanel from './pages/SuperAdminPanel'
+import AdminDashboard from './pages/admin/AdminDashboard'
+import QuestionBankManager from './pages/admin/QuestionBankManager'
+import TemplateBuilder from './pages/admin/TemplateBuilder'
+import InviteCandidates from './pages/admin/InviteCandidates'
 import RequireAuth from './components/RequireAuth'
 import RequireRole from './components/RequireRole'
+import InviteLanding from './pages/InviteLanding'
 import { ServerUrl } from './constants'
 
 export { ServerUrl }
@@ -50,7 +55,12 @@ function App() {
       <Route path='/history' element={<RequireAuth><InterviewHistory/></RequireAuth>}/>
       <Route path='/pricing' element={<RequireAuth><Pricing/></RequireAuth>}/>
       <Route path='/report/:id' element={<RequireAuth><InterviewReport/></RequireAuth>}/>
-      <Route path='/admin' element={<RequireAuth><RequireRole roles={["admin","superadmin"]}><AdminPanel/></RequireRole></RequireAuth>}/>
+      <Route path='/interview/invite/:token' element={<InviteLanding/>}/>
+      <Route path='/admin' element={<RequireAuth><RequireRole roles={["admin","superadmin"]}><AdminDashboard/></RequireRole></RequireAuth>}/>
+      <Route path='/admin/employees' element={<RequireAuth><RequireRole roles={["admin","superadmin"]}><AdminPanel/></RequireRole></RequireAuth>}/>
+      <Route path='/admin/question-banks' element={<RequireAuth><RequireRole roles={["admin","superadmin"]}><QuestionBankManager/></RequireRole></RequireAuth>}/>
+      <Route path='/admin/templates' element={<RequireAuth><RequireRole roles={["admin","superadmin"]}><TemplateBuilder/></RequireRole></RequireAuth>}/>
+      <Route path='/admin/invites' element={<RequireAuth><RequireRole roles={["admin","superadmin"]}><InviteCandidates/></RequireRole></RequireAuth>}/>
       <Route path='/superadmin' element={<RequireAuth><RequireRole roles={["superadmin"]}><SuperAdminPanel/></RequireRole></RequireAuth>}/>
 
     </Routes>

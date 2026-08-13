@@ -12,9 +12,12 @@
       (function () {
         try {
           var saved = localStorage.getItem("theme");
-          var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-          if (saved === "dark" || (!saved && prefersDark)) {
+          var prefersLight = window.matchMedia("(prefers-color-scheme: light)").matches;
+          if (saved === "dark" || (!saved && !prefersLight) || (saved !== "light" && !saved)) {
             document.documentElement.classList.add("dark");
+          }
+          if (saved === "light" || (!saved && prefersLight)) {
+            document.documentElement.classList.remove("dark");
           }
         } catch (e) {}
       })();

@@ -69,7 +69,7 @@ function Navbar() {
                 className='glass w-full max-w-[1280px] rounded-2xl border border-line shadow-[var(--shadow-soft)] px-5 md:px-6 py-3 flex justify-between items-center relative'>
 
                 <div onClick={() => navigate('/')} className='flex items-center gap-2.5 cursor-pointer shrink-0'>
-                    <img src={logo} alt="WorkMate IQ" className='w-11 h-11 rounded-full shadow-[0_4px_12px_-4px_rgba(224,39,27,0.6)]' />
+                    <img src={logo} alt="WorkMate IQ" className='w-11 h-11 rounded-full shadow-[0_4px_12px_-4px_rgba(99,102,241,0.6)]' />
                     <span className='font-semibold hidden sm:block text-[17px] tracking-tight text-ink'>WorkMate IQ</span>
                 </div>
 

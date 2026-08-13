@@ -9,6 +9,9 @@ import userRouter from "./routes/user.route.js"
 import interviewRouter from "./routes/interview.route.js"
 import paymentRouter from "./routes/payment.route.js"
 import adminRouter from "./routes/admin.route.js"
+import questionBankRouter from "./routes/questionBank.route.js"
+import interviewTemplateRouter from "./routes/interviewTemplate.route.js"
+import inviteRouter from "./routes/invite.route.js"
 import User from "./models/user.model.js"
 
 const app = express()
@@ -38,6 +41,9 @@ app.use("/api/user", userRouter)
 app.use("/api/interview" , interviewRouter)
 app.use("/api/payment" , paymentRouter)
 app.use("/api/admin" , adminRouter)
+app.use("/api/question-banks" , questionBankRouter)
+app.use("/api/interview-templates" , interviewTemplateRouter)
+app.use("/api/invites" , inviteRouter)
 
 // Ensures the designated Super Admin account exists (pre-registered, same
 // mechanism an Admin uses to pre-register an Employee) so the first Google

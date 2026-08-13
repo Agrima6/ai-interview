@@ -6,7 +6,9 @@ const getInitialTheme = () => {
     if (typeof window === "undefined") return "light"
     const saved = localStorage.getItem("theme")
     if (saved === "dark" || saved === "light") return saved
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
+    // Dark is the primary/default aesthetic; only fall back to light if the
+    // user's OS explicitly prefers it.
+    return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"
 }
 
 function ThemeToggle({ className = "" }) {

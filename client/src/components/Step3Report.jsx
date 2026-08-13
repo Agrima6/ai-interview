@@ -1,12 +1,110 @@
-import React from 'react'
-import { ArrowLeft, Download, User, Briefcase, Building2, Calendar } from 'lucide-react';
+import React, { useState } from 'react'
+import { ArrowLeft, Download, User, Briefcase, Building2, Calendar, ChevronDown, CheckCircle2, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from "motion/react"
+import { motion, AnimatePresence } from "motion/react"
 import { buildStyles, CircularProgressbar } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend } from "recharts"
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
+
+function QuestionCard({ q, index }) {
+  const [open, setOpen] = useState(index === 0);
+  const pq = q.perQuestion;
+
+  const radarData = pq ? [
+    { metric: "Keywords", value: pq.rubricScores?.keywordCoverage || 0 },
+    { metric: "Structure", value: pq.rubricScores?.structureScore || 0 },
+    { metric: "Time Mgmt", value: pq.rubricScores?.timeManagementScore || 0 },
+    { metric: "Conciseness", value: 10 - (pq.rubricScores?.fillerWordRate || 0) },
+    { metric: "Length Fit", value: pq.rubricScores?.lengthAppropriateness || 0 },
+    { metric: "Correctness", value: pq.aiScore?.correctness || 0 },
+    { metric: "Communication", value: pq.aiScore?.communication || 0 },
+    { metric: "Confidence", value: pq.aiScore?.confidence || 0 },
+  ] : null;
+
+  return (
+    <div className='bg-bg rounded-2xl border border-line overflow-hidden'>
+      <button
+        onClick={() => setOpen(!open)}
+        className='w-full flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 p-4 sm:p-6 text-left'>
+        <div>
+          <p className="text-[11.5px] text-text-secondary">Question {index + 1}</p>
+          <p className="font-semibold text-ink text-[14.5px] sm:text-[15px] leading-relaxed mt-1">
+            {q.question || "Question not available"}
+          </p>
+        </div>
+        <div className='flex items-center gap-3 shrink-0'>
+          <div className='bg-accent/10 text-accent px-3 py-1 rounded-full font-bold text-[12.5px] w-fit'>
+            {(pq?.weightedFinalScore ?? q.score ?? 0)}/10
+          </div>
+          <ChevronDown size={16} className={`text-text-secondary transition-transform ${open ? "rotate-180" : ""}`} />
+        </div>
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className='overflow-hidden'>
+            <div className='px-4 sm:px-6 pb-6 space-y-4'>
+              {q.answer && (
+                <div className='bg-card border border-line p-4 rounded-xl'>
+                  <p className='text-[11.5px] text-text-secondary font-semibold mb-1 uppercase tracking-wide'>Candidate's Answer</p>
+                  <p className='text-[13.5px] text-ink leading-relaxed'>{q.answer}</p>
+                </div>
+              )}
+
+              {radarData && (
+                <div className='h-64'>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart data={radarData} outerRadius="70%">
+                      <PolarGrid stroke="var(--color-line)" />
+                      <PolarAngleAxis dataKey="metric" tick={{ fontSize: 10.5, fill: 'var(--color-text-secondary)' }} />
+                      <PolarRadiusAxis domain={[0, 10]} tick={false} axisLine={false} />
+                      <Radar name="Score" dataKey="value" stroke="#6366f1" fill="#6366f1" fillOpacity={0.35} />
+                      <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid var(--color-line)', fontSize: 12, background: 'var(--color-card)', color: 'var(--color-ink)' }} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+
+              {q.feedback && (
+                <div className='bg-accent/[0.05] border border-accent/15 p-4 rounded-xl'>
+                  <p className='text-[11.5px] text-accent font-semibold mb-1 uppercase tracking-wide'>AI Feedback</p>
+                  <p className='text-[13.5px] text-text-secondary leading-relaxed'>{q.feedback}</p>
+                </div>
+              )}
+
+              {pq && (pq.strengths?.length > 0 || pq.flaws?.length > 0) && (
+                <div className='grid sm:grid-cols-2 gap-4'>
+                  {pq.strengths?.length > 0 && (
+                    <div>
+                      <p className='text-[11.5px] font-semibold text-success mb-2 uppercase tracking-wide flex items-center gap-1.5'><CheckCircle2 size={12} /> Strengths</p>
+                      <ul className='space-y-1'>
+                        {pq.strengths.map((s, i) => <li key={i} className='text-[12.5px] text-text-secondary leading-relaxed'>• {s}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {pq.flaws?.length > 0 && (
+                    <div>
+                      <p className='text-[11.5px] font-semibold text-red-500 mb-2 uppercase tracking-wide flex items-center gap-1.5'><XCircle size={12} /> Areas to Improve</p>
+                      <ul className='space-y-1'>
+                        {pq.flaws.map((s, i) => <li key={i} className='text-[12.5px] text-text-secondary leading-relaxed'>• {s}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
 
 function Step3Report({ report }) {
   if (!report) {
@@ -28,11 +126,21 @@ function Step3Report({ report }) {
     communication = 0,
     correctness = 0,
     questionWiseScore = [],
+    report: deepReport = null,
+    sessionMode = null,
   } = report;
+
+  const hasDeepReport = Boolean(deepReport);
+  const overallScore = hasDeepReport ? (deepReport.finalWeightedScore ?? finalScore) : finalScore;
 
   const questionScoreData = questionWiseScore.map((score, index) => ({
     name: `Q${index + 1}`,
-    score: score.score || 0
+    score: (hasDeepReport ? deepReport.perQuestion?.[index]?.weightedFinalScore : score.score) || 0
+  }))
+
+  const mergedQuestions = questionWiseScore.map((q, i) => ({
+    ...q,
+    perQuestion: hasDeepReport ? deepReport.perQuestion?.find((p) => p.questionIndex === i) : null,
   }))
 
   const skills = [
@@ -44,10 +152,10 @@ function Step3Report({ report }) {
   let performanceText = "";
   let shortTagline = "";
 
-  if (finalScore >= 8) {
+  if (overallScore >= 8) {
     performanceText = "Ready for job opportunities.";
     shortTagline = "Excellent clarity and structured responses.";
-  } else if (finalScore >= 5) {
+  } else if (overallScore >= 5) {
     performanceText = "Needs minor improvement before interviews.";
     shortTagline = "Good foundation, refine articulation.";
   } else {
@@ -55,7 +163,7 @@ function Step3Report({ report }) {
     shortTagline = "Work on clarity and confidence.";
   }
 
-  const score = finalScore;
+  const score = overallScore;
   const percentage = (score / 10) * 100;
 
 
@@ -71,7 +179,7 @@ function Step3Report({ report }) {
   // ================= TITLE =================
   doc.setFont("helvetica", "bold");
   doc.setFontSize(20);
-  doc.setTextColor(224, 39, 27);
+  doc.setTextColor(99, 102, 241);
   doc.text("AI Interview Performance Report", pageWidth / 2, currentY, {
     align: "center",
   });
@@ -79,7 +187,7 @@ function Step3Report({ report }) {
   currentY += 5;
 
   // underline
-  doc.setDrawColor(224, 39, 27);
+  doc.setDrawColor(99, 102, 241);
   doc.line(margin, currentY + 2, pageWidth - margin, currentY + 2);
 
   currentY += 15;
@@ -94,7 +202,7 @@ function Step3Report({ report }) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9.5);
     doc.setTextColor(90, 90, 90);
-    const metaLine = [candidate.email, candidate.department, role, experience, mode]
+    const metaLine = [candidate.email, candidate.department, role, experience, mode, sessionMode]
       .filter(Boolean)
       .join("   |   ");
     doc.text(metaLine, margin, currentY + 6);
@@ -106,13 +214,13 @@ function Step3Report({ report }) {
   }
 
   // ================= FINAL SCORE BOX =================
-  doc.setFillColor(253, 237, 236);
+  doc.setFillColor(238, 238, 253);
   doc.roundedRect(margin, currentY, contentWidth, 20, 4, 4, "F");
 
   doc.setFontSize(14);
   doc.setTextColor(0, 0, 0);
   doc.text(
-    `Final Score: ${finalScore}/10`,
+    `Final Score: ${Number(overallScore).toFixed(1)}/10`,
     pageWidth / 2,
     currentY + 12,
     { align: "center" }
@@ -132,36 +240,95 @@ function Step3Report({ report }) {
 
   currentY += 45;
 
-  // ================= ADVICE =================
-  let advice = "";
+  // ================= RESUME ANALYSIS (deep report only) =================
+  if (hasDeepReport && deepReport.resumeAnalysis) {
+    if (currentY > 230) { doc.addPage(); currentY = 25; }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("Resume Analysis", margin, currentY);
+    currentY += 7;
 
-  if (finalScore >= 8) {
-    advice =
-      "Excellent performance. Maintain confidence and structure. Continue refining clarity and supporting answers with strong real-world examples.";
-  } else if (finalScore >= 5) {
-    advice =
-      "Good foundation shown. Improve clarity and structure. Practice delivering concise, confident answers with stronger supporting examples.";
-  } else {
-    advice =
-      "Significant improvement required. Focus on structured thinking, clarity, and confident delivery. Practice answering aloud regularly.";
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.5);
+    const matched = (deepReport.resumeAnalysis.matchedSkills || []).join(", ") || "None";
+    const missing = (deepReport.resumeAnalysis.missingSkills || []).join(", ") || "None";
+    doc.text(doc.splitTextToSize(`Matched Skills: ${matched}`, contentWidth), margin, currentY);
+    currentY += doc.splitTextToSize(`Matched Skills: ${matched}`, contentWidth).length * 5 + 3;
+    doc.text(doc.splitTextToSize(`Missing Skills: ${missing}`, contentWidth), margin, currentY);
+    currentY += doc.splitTextToSize(`Missing Skills: ${missing}`, contentWidth).length * 5 + 3;
+    if (deepReport.resumeAnalysis.gapSummary) {
+      const gapLines = doc.splitTextToSize(deepReport.resumeAnalysis.gapSummary, contentWidth);
+      doc.text(gapLines, margin, currentY);
+      currentY += gapLines.length * 5 + 5;
+    }
+    currentY += 5;
   }
 
-  doc.setFillColor(255, 255, 255);
-  doc.setDrawColor(220);
-  doc.roundedRect(margin, currentY, contentWidth, 35, 4, 4);
+  // ================= RECOMMENDATION / STRENGTHS / FLAWS =================
+  if (hasDeepReport) {
+    if (currentY > 230) { doc.addPage(); currentY = 25; }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("Recommendation", margin, currentY);
+    currentY += 7;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.5);
+    const recLines = doc.splitTextToSize(deepReport.recommendation || "N/A", contentWidth);
+    doc.text(recLines, margin, currentY);
+    currentY += recLines.length * 5 + 8;
 
-  doc.setFont("helvetica", "bold");
-  doc.text("Professional Advice", margin + 10, currentY + 10);
+    if (deepReport.overallStrengths?.length) {
+      doc.setFont("helvetica", "bold");
+      doc.text("Overall Strengths", margin, currentY);
+      currentY += 6;
+      doc.setFont("helvetica", "normal");
+      deepReport.overallStrengths.forEach((s) => {
+        const lines = doc.splitTextToSize(`- ${s}`, contentWidth);
+        doc.text(lines, margin, currentY);
+        currentY += lines.length * 5;
+      });
+      currentY += 5;
+    }
+    if (deepReport.overallFlaws?.length) {
+      doc.setFont("helvetica", "bold");
+      doc.text("Areas to Improve", margin, currentY);
+      currentY += 6;
+      doc.setFont("helvetica", "normal");
+      deepReport.overallFlaws.forEach((s) => {
+        const lines = doc.splitTextToSize(`- ${s}`, contentWidth);
+        doc.text(lines, margin, currentY);
+        currentY += lines.length * 5;
+      });
+      currentY += 5;
+    }
+  } else {
+    let advice = "";
+    if (overallScore >= 8) {
+      advice = "Excellent performance. Maintain confidence and structure. Continue refining clarity and supporting answers with strong real-world examples.";
+    } else if (overallScore >= 5) {
+      advice = "Good foundation shown. Improve clarity and structure. Practice delivering concise, confident answers with stronger supporting examples.";
+    } else {
+      advice = "Significant improvement required. Focus on structured thinking, clarity, and confident delivery. Practice answering aloud regularly.";
+    }
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(220);
+    doc.roundedRect(margin, currentY, contentWidth, 35, 4, 4);
 
-  const splitAdvice = doc.splitTextToSize(advice, contentWidth - 20);
-  doc.text(splitAdvice, margin + 10, currentY + 20);
+    doc.setFont("helvetica", "bold");
+    doc.text("Professional Advice", margin + 10, currentY + 10);
 
-  currentY += 50;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+
+    const splitAdvice = doc.splitTextToSize(advice, contentWidth - 20);
+    doc.text(splitAdvice, margin + 10, currentY + 20);
+
+    currentY += 50;
+  }
 
   // ================= QUESTION TABLE =================
+  if (currentY > 250) { doc.addPage(); currentY = 25; }
   autoTable(doc, {
   startY: currentY,
   margin: { left: margin, right: margin },
@@ -169,7 +336,7 @@ function Step3Report({ report }) {
   body: questionWiseScore.map((q, i) => [
     `${i + 1}`,
     q.question,
-    `${q.score}/10`,
+    `${hasDeepReport ? (deepReport.perQuestion?.[i]?.weightedFinalScore ?? q.score) : q.score}/10`,
     q.feedback,
   ]),
   styles: {
@@ -178,7 +345,7 @@ function Step3Report({ report }) {
     valign: "top",
   },
   headStyles: {
-    fillColor: [224, 39, 27],
+    fillColor: [99, 102, 241],
     textColor: 255,
     halign: "center",
   },
@@ -206,7 +373,14 @@ function Step3Report({ report }) {
             className='mt-1 w-11 h-11 shrink-0 rounded-full bg-card border border-line shadow-[var(--shadow-soft)] flex items-center justify-center hover:border-black/20 dark:hover:border-white/20 transition-colors'><ArrowLeft size={16} className='text-text-secondary' /></button>
 
           <div>
-            <p className='text-[13px] font-semibold text-accent tracking-wide uppercase mb-2'>Report</p>
+            <div className='flex items-center gap-3 flex-wrap mb-2'>
+              <p className='text-[13px] font-semibold text-accent tracking-wide uppercase'>Report</p>
+              {sessionMode && (
+                <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium ${sessionMode === "practice" ? "bg-success/10 text-success" : "bg-black/[0.06] dark:bg-white/10 text-text-secondary"}`}>
+                  {sessionMode === "practice" ? "Practice" : "Real"} Session
+                </span>
+              )}
+            </div>
             <h1 className='text-[26px] sm:text-[30px] font-semibold text-ink leading-tight'>
               Interview Analytics Dashboard
             </h1>
@@ -266,10 +440,10 @@ function Step3Report({ report }) {
             <div className='relative w-20 h-20 sm:w-24 sm:h-24 mx-auto'>
               <CircularProgressbar
                 value={percentage}
-                text={`${score}/10`}
+                text={`${Number(score).toFixed(1)}/10`}
                 styles={buildStyles({
-                  textSize: "18px",
-                  pathColor: "#E0271B",
+                  textSize: "16px",
+                  pathColor: "#6366f1",
                   textColor: "var(--color-ink)",
                   trailColor: "var(--color-line)",
                 })}
@@ -282,11 +456,13 @@ function Step3Report({ report }) {
 
             <div className="mt-5 pt-5 border-t border-line">
               <p className="font-semibold text-ink text-[14.5px]">
-                {performanceText}
+                {hasDeepReport && deepReport.recommendation ? deepReport.recommendation : performanceText}
               </p>
-              <p className="text-text-secondary text-[13px] mt-1">
-                {shortTagline}
-              </p>
+              {!hasDeepReport && (
+                <p className="text-text-secondary text-[13px] mt-1">
+                  {shortTagline}
+                </p>
+              )}
             </div>
           </motion.div>
 
@@ -324,6 +500,43 @@ function Step3Report({ report }) {
 
           </motion.div>
 
+          {hasDeepReport && deepReport.resumeAnalysis && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className='bg-card rounded-3xl border border-line shadow-[var(--shadow-soft)] p-6 sm:p-8'>
+              <h3 className="text-[15px] font-semibold text-ink mb-5">Resume Analysis</h3>
+
+              {deepReport.resumeAnalysis.matchedSkills?.length > 0 && (
+                <div className='mb-4'>
+                  <p className='text-[12px] text-text-secondary mb-2'>Matched Skills</p>
+                  <div className='flex flex-wrap gap-1.5'>
+                    {deepReport.resumeAnalysis.matchedSkills.map((s, i) => (
+                      <span key={i} className='bg-success/10 text-success px-2.5 py-1 rounded-full text-[11.5px] font-medium'>{s}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {deepReport.resumeAnalysis.missingSkills?.length > 0 && (
+                <div className='mb-4'>
+                  <p className='text-[12px] text-text-secondary mb-2'>Missing Skills</p>
+                  <div className='flex flex-wrap gap-1.5'>
+                    {deepReport.resumeAnalysis.missingSkills.map((s, i) => (
+                      <span key={i} className='bg-red-500/10 text-red-500 px-2.5 py-1 rounded-full text-[11.5px] font-medium'>{s}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {deepReport.resumeAnalysis.gapSummary && (
+                <p className='text-[12.5px] text-text-secondary leading-relaxed pt-3 border-t border-line'>
+                  {deepReport.resumeAnalysis.gapSummary}
+                </p>
+              )}
+            </motion.div>
+          )}
+
 
         </div>
 
@@ -347,9 +560,9 @@ function Step3Report({ report }) {
                   <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid var(--color-line)', fontSize: 13, background: 'var(--color-card)', color: 'var(--color-ink)' }} />
                   <Area type="monotone"
                     dataKey="score"
-                    stroke="#E0271B"
-                    fill="#E0271B"
-                    fillOpacity={0.12}
+                    stroke="#6366f1"
+                    fill="#6366f1"
+                    fillOpacity={0.15}
                     strokeWidth={2.5} />
 
 
@@ -370,47 +583,41 @@ function Step3Report({ report }) {
             <h3 className="text-[15px] font-semibold text-ink mb-6">
               Question Breakdown
             </h3>
-            <div className='space-y-5'>
-              {questionWiseScore.map((q, i) => (
-                <div key={i} className='bg-bg p-4 sm:p-6 rounded-2xl border border-line'>
-
-                  <div className='flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4'>
-                    <div>
-                      <p className="text-[11.5px] text-text-secondary">
-                        Question {i + 1}
-                      </p>
-
-                      <p className="font-semibold text-ink text-[14.5px] sm:text-[15px] leading-relaxed mt-1">
-                        {q.question || "Question not available"}
-                      </p>
-                    </div>
-
-
-                    <div className='bg-accent/10 text-accent px-3 py-1 rounded-full font-bold text-[12.5px] w-fit shrink-0'>
-                      {q.score ?? 0}/10
-                    </div>
-                  </div>
-
-                  <div className='bg-accent/[0.05] border border-accent/15 p-4 rounded-xl'>
-                    <p className='text-[11.5px] text-accent font-semibold mb-1 uppercase tracking-wide'>
-                      AI Feedback
-                    </p>
-                    <p className='text-[13.5px] text-text-secondary leading-relaxed'>
-
-                      {q.feedback && q.feedback.trim() !== ""
-                        ? q.feedback
-                        : "No feedback available for this question."}
-                    </p>
-                  </div>
-
-                </div>
+            <div className='space-y-4'>
+              {mergedQuestions.map((q, i) => (
+                <QuestionCard key={i} q={q} index={i} />
               ))}
             </div>
 
           </motion.div>
 
-
-
+          {hasDeepReport && (deepReport.overallStrengths?.length > 0 || deepReport.overallFlaws?.length > 0) && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className='bg-card rounded-3xl border border-line shadow-[var(--shadow-soft)] p-5 sm:p-8 grid sm:grid-cols-2 gap-6'>
+              {deepReport.overallStrengths?.length > 0 && (
+                <div>
+                  <h3 className="text-[14px] font-semibold text-success mb-4 flex items-center gap-2"><CheckCircle2 size={15} /> Overall Strengths</h3>
+                  <ul className='space-y-2'>
+                    {deepReport.overallStrengths.map((s, i) => (
+                      <li key={i} className='text-[13.5px] text-text-secondary leading-relaxed'>• {s}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {deepReport.overallFlaws?.length > 0 && (
+                <div>
+                  <h3 className="text-[14px] font-semibold text-red-500 mb-4 flex items-center gap-2"><XCircle size={15} /> Overall Areas to Improve</h3>
+                  <ul className='space-y-2'>
+                    {deepReport.overallFlaws.map((s, i) => (
+                      <li key={i} className='text-[13.5px] text-text-secondary leading-relaxed'>• {s}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </motion.div>
+          )}
 
 
         </div>

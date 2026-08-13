@@ -44,7 +44,7 @@ function Home() {
 
       {/* HERO */}
       <div className='relative bg-noise overflow-hidden'>
-        <div className='absolute top-[-120px] right-[-120px] w-[480px] h-[480px] rounded-full bg-[radial-gradient(closest-side,rgba(224,39,27,0.10),transparent)] blur-2xl -z-10' />
+        <div className='absolute top-[-120px] right-[-120px] w-[480px] h-[480px] rounded-full bg-[radial-gradient(closest-side,rgba(99,102,241,0.14),transparent)] blur-2xl -z-10' />
         <div className='absolute top-[200px] left-[-160px] w-[400px] h-[400px] rounded-full bg-[radial-gradient(closest-side,rgba(17,17,17,0.05),transparent)] blur-2xl -z-10 dark:bg-[radial-gradient(closest-side,rgba(255,255,255,0.05),transparent)]' />
 
         <div className='max-w-[1280px] mx-auto px-6 pt-16 pb-24 lg:pt-24 lg:pb-32 grid lg:grid-cols-2 gap-16 items-center'>
@@ -129,7 +129,7 @@ function Home() {
       {/* CTA BANNER — intentionally always-dark, like Footer, regardless of theme */}
       <section className='max-w-[1280px] mx-auto px-6 pb-[100px] lg:pb-[140px]'>
         <div className='relative overflow-hidden bg-[#120f10] rounded-[32px] px-8 py-16 sm:py-20 text-center bg-noise'>
-          <div className='absolute top-[-100px] left-1/2 -translate-x-1/2 w-[500px] h-[300px] rounded-full bg-[radial-gradient(closest-side,rgba(224,39,27,0.3),transparent)] blur-2xl' />
+          <div className='absolute top-[-100px] left-1/2 -translate-x-1/2 w-[500px] h-[300px] rounded-full bg-[radial-gradient(closest-side,rgba(99,102,241,0.35),transparent)] blur-2xl' />
           <h2 className='relative text-[32px] sm:text-[42px] font-semibold text-white leading-tight mb-4 text-balance'>
             Ready to walk in already prepared?
           </h2>
