@@ -18,6 +18,7 @@ import { setUserData } from '../redux/userSlice';
 import Button from './Button';
 import Dropdown from './Dropdown';
 import RoleCombobox from './RoleCombobox';
+import { parseYears, clampYears, formatYears, MAX_YEARS } from '../utils/experience';
 
 // Each preset role declares which interview types make sense for it - a
 // "Sales Executive" interview offering a "Technical Interview" mode wouldn't
@@ -74,7 +75,9 @@ function Step1SetUp({ onStart }) {
     // context) - when set, this employee doesn't pick freely, they just confirm it.
     const isAssigned = Boolean(userData?.assignedRole)
     const [role, setRole] = useState(userData?.assignedRole || "");
-    const [experience, setExperience] = useState(userData?.assignedExperience || "");
+    // Numeric years-of-experience, kept separate from the assigned (admin-set,
+    // free-text) display string - see utils/experience.js.
+    const [experienceYears, setExperienceYears] = useState(parseYears(userData?.assignedExperience));
     const [mode, setMode] = useState(userData?.assignedMode || "Technical");
     const [language, setLanguage] = useState("English");
     const [voicePreference, setVoicePreference] = useState("auto");
@@ -113,7 +116,7 @@ function Step1SetUp({ onStart }) {
             setRole(extractedRole)
             const preset = findRoleOption(extractedRole)
             if (preset && !preset.modes.includes(mode)) setMode(preset.modes[0])
-            setExperience(result.data.experience || "");
+            setExperienceYears(parseYears(result.data.experience));
             setProjects(result.data.projects || []);
             setSkills(result.data.skills || []);
             setResumeText(result.data.resumeText || "");
@@ -131,6 +134,7 @@ function Step1SetUp({ onStart }) {
     const handleStart = async () => {
         setLoading(true)
         try {
+           const experience = isAssigned ? userData.assignedExperience : formatYears(experienceYears)
            const result = await axios.post(ServerUrl + "/api/interview/generate-questions" , {role, experience, mode, language, resumeText, projects, skills } , {withCredentials:true})
            // Note: if this account has an admin-assigned role/experience/mode, the
            // server enforces those regardless of what's sent here - see interview.controller.js.
@@ -221,7 +225,7 @@ function Step1SetUp({ onStart }) {
                                 <p className='text-[12px] font-semibold text-accent uppercase tracking-wide'>Interview assigned by your admin</p>
                                 <p className='text-[15px] font-semibold text-ink'>{role}</p>
                                 <p className='text-[13px] text-text-secondary'>
-                                    {experience} &bull; {MODE_LABELS[mode] || mode}
+                                    {userData?.assignedExperience} &bull; {MODE_LABELS[mode] || mode}
                                     {userData?.department ? ` • ${userData.department}` : ""}
                                 </p>
                                 {userData?.assignedContext && (
@@ -241,9 +245,12 @@ function Step1SetUp({ onStart }) {
                                 <div className='relative'>
                                     <Briefcase size={16} className='absolute top-1/2 -translate-y-1/2 left-4 text-text-secondary' />
 
-                                    <input type='text' placeholder='Experience (e.g. 2 years)'
-                                        className='w-full pl-11 pr-4 py-3 text-[14.5px] text-ink bg-card border border-line rounded-xl focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none transition-colors'
-                                        onChange={(e) => setExperience(e.target.value)} value={experience} />
+                                    <input type='number' inputMode='numeric' min={0} max={MAX_YEARS} step={1}
+                                        placeholder='Years of experience (e.g. 2, or 0 for fresher)'
+                                        className='w-full pl-11 pr-4 py-3 text-[14.5px] text-ink bg-card border border-line rounded-xl focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
+                                        onChange={(e) => setExperienceYears(clampYears(e.target.value))}
+                                        onKeyDown={(e) => { if (["e", "E", "+", "-", "."].includes(e.key)) e.preventDefault() }}
+                                        value={experienceYears} />
                                 </div>
 
                                 <Dropdown
@@ -342,7 +349,7 @@ function Step1SetUp({ onStart }) {
 
                         <Button
                             onClick={handleStart}
-                            disabled={!role || !experience || loading}
+                            disabled={!role || (!isAssigned && experienceYears === "") || loading}
                             size="lg"
                             className='w-full !rounded-xl'>
                             {loading ? "Starting..." : "Start Interview"}

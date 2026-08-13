@@ -9,6 +9,7 @@ import Button from '../components/Button'
 import Dropdown from '../components/Dropdown'
 import { addEmployee, bulkAddEmployees, listEmployees, getEmployeeInterviews, updateEmployee, getTrends } from '../utils/adminApi'
 import { parseEmployeeCsv } from '../utils/csv'
+import { parseYears, clampYears, formatYears, MAX_YEARS } from '../utils/experience'
 
 // Kept in sync with the modes offered in Step1SetUp.jsx - what an admin can
 // assign here is a subset of what an employee could otherwise pick freely.
@@ -33,8 +34,12 @@ function AssignmentFields({ department, setDepartment, assignedRole, setAssigned
                 className='w-full px-4 py-2.5 text-[14px] text-ink bg-card border border-line rounded-xl focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none transition-colors' />
             <input type="text" placeholder="Role to interview for (e.g. Backend Developer)" value={assignedRole} onChange={(e) => setAssignedRole(e.target.value)}
                 className='w-full px-4 py-2.5 text-[14px] text-ink bg-card border border-line rounded-xl focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none transition-colors' />
-            <input type="text" placeholder="Experience level (e.g. 2 years)" value={assignedExperience} onChange={(e) => setAssignedExperience(e.target.value)}
-                className='w-full px-4 py-2.5 text-[14px] text-ink bg-card border border-line rounded-xl focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none transition-colors' />
+            <input type="number" inputMode="numeric" min={0} max={MAX_YEARS} step={1}
+                placeholder="Years of experience (e.g. 2, or 0 for fresher)"
+                value={parseYears(assignedExperience)}
+                onChange={(e) => setAssignedExperience(formatYears(clampYears(e.target.value)))}
+                onKeyDown={(e) => { if (["e", "E", "+", "-", "."].includes(e.key)) e.preventDefault() }}
+                className='w-full px-4 py-2.5 text-[14px] text-ink bg-card border border-line rounded-xl focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none' />
             <Dropdown value={assignedMode} onChange={setAssignedMode} options={MODE_OPTIONS} placeholder="Interview type" />
             <textarea placeholder="Interview context / job description (optional) - shapes the AI's questions" value={assignedContext} onChange={(e) => setAssignedContext(e.target.value)} rows={3}
                 className='w-full px-4 py-2.5 text-[14px] text-ink bg-card border border-line rounded-xl focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none transition-colors resize-none' />
