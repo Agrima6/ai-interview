@@ -50,9 +50,8 @@ function FeatureShowcase({ images }) {
                     >
                         <div className='relative'>
                             <div className='absolute -inset-6 bg-[radial-gradient(closest-side,rgba(196,22,31,0.10),transparent)] -z-10' />
-                            <div className='rounded-2xl border border-line bg-card shadow-[var(--shadow-soft)] p-3 hover:shadow-[var(--shadow-lift)] transition-shadow duration-300'>
-                                <img src={images[f.image]} alt={f.title} className='w-full h-auto object-contain max-h-[280px] mx-auto' />
-                            </div>
+                            <img src={images[f.image]} alt={f.title}
+                                className='w-full aspect-[4/3] object-cover rounded-2xl border border-line shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-lift)] transition-shadow duration-300' />
                         </div>
 
                         <div>
