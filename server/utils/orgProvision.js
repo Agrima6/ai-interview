@@ -5,7 +5,7 @@ import Organization from "../models/organization.model.js"
 // superadmin can still target another org explicitly via ?organizationId=.
 export const resolveConductOrgId = async (req) => {
     if (req.user.role === "superadmin") {
-        const requested = req.query.organizationId || req.body.organizationId
+        const requested = req.query.organizationId || req.body?.organizationId
         if (requested) return requested
     }
 
