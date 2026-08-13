@@ -242,7 +242,7 @@ function InviteLanding() {
                 className="w-full max-w-2xl bg-card border border-line rounded-3xl shadow-[var(--shadow-lift)] overflow-hidden">
 
                 <div className="relative bg-[#120f10] p-8 sm:p-10 text-white bg-noise">
-                    <div className="absolute top-[-80px] right-[-80px] w-[280px] h-[280px] rounded-full bg-[radial-gradient(closest-side,rgba(99,102,241,0.35),transparent)] blur-2xl" />
+                    <div className="absolute top-[-80px] right-[-80px] w-[280px] h-[280px] rounded-full bg-[radial-gradient(closest-side,rgba(196,22,31,0.35),transparent)] blur-2xl" />
                     <div className="relative inline-flex items-center gap-2 bg-white/10 text-[12.5px] px-3.5 py-1.5 rounded-full mb-5 w-fit">
                         <Sparkles size={12} className="text-accent" /> Interview Invitation
                     </div>

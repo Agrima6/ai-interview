@@ -21,7 +21,7 @@ const VIOLATION_MESSAGES = {
 // the screen for a sustained period. Reuses Step2Interview's existing
 // violation/warning system via onViolation - this is just another source
 // feeding into the same 3-strikes flow as tab-switching etc.
-function ProctoringCamera({ active, onViolation, className = "" }) {
+function ProctoringCamera({ active, onViolation, onStream, className = "" }) {
     const videoRef = useRef(null)
     const streamRef = useRef(null)
     const landmarkerRef = useRef(null)
@@ -70,13 +70,17 @@ function ProctoringCamera({ active, onViolation, className = "" }) {
 
         const init = async () => {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } })
+                // Also grabs audio so the same stream can double as the source for
+                // per-question answer recordings (see onStream) - proctoring itself
+                // only looks at the video track.
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 }, audio: true })
                 if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return }
                 streamRef.current = stream
                 if (videoRef.current) {
                     videoRef.current.srcObject = stream
                     await videoRef.current.play()
                 }
+                onStream?.(stream)
 
                 const { FilesetResolver, FaceLandmarker } = await import("@mediapipe/tasks-vision")
                 const filesetResolver = await FilesetResolver.forVisionTasks(

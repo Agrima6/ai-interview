@@ -10,6 +10,10 @@ const questionsSchema = new mongoose.Schema({
   confidence: { type: Number, default: 0 },
 communication: { type: Number, default: 0 },
 correctness: { type: Number, default: 0 },
+  // Filename (not a full URL) of this answer's audio/video recording under
+  // server/uploads/recordings - fetched via GET /api/interview/recording/:interviewId/:questionIndex,
+  // which checks ownership before streaming rather than serving the folder statically.
+  recordingFile: { type: String, default: null },
 })
 
 

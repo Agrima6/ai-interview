@@ -76,8 +76,62 @@ function Step2Interview({ interviewData, onFinish }) {
 
 
   const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const recordedChunksRef = useRef([]);
 
   const currentQuestion = questions[currentIndex];
+
+  // Records the candidate's own camera+mic for the current question only,
+  // so the report can play back exactly what they said/did for that answer.
+  const startRecording = () => {
+    if (!streamRef.current || typeof MediaRecorder === "undefined") return;
+    try {
+      recordedChunksRef.current = [];
+      const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus")
+        ? "video/webm;codecs=vp8,opus"
+        : "video/webm";
+      const recorder = new MediaRecorder(streamRef.current, { mimeType });
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunksRef.current.push(e.data) };
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+    } catch (error) {
+      console.log("Recording unavailable:", error);
+    }
+  };
+
+  // Stops the in-progress recording (if any) and uploads it against the
+  // given question index. Resolves once the upload attempt is done (or
+  // immediately if nothing was recording) so callers can await it before
+  // moving to the next question.
+  const stopRecordingAndUpload = (questionIndex) => {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state === "inactive") return Promise.resolve();
+
+    return new Promise((resolve) => {
+      recorder.onstop = async () => {
+        mediaRecorderRef.current = null;
+        const blob = new Blob(recordedChunksRef.current, { type: "video/webm" });
+        recordedChunksRef.current = [];
+        if (blob.size > 0 && interviewId) {
+          try {
+            const form = new FormData();
+            form.append("recording", blob, `q${questionIndex}.webm`);
+            form.append("interviewId", interviewId);
+            form.append("questionIndex", questionIndex);
+            await axios.post(ServerUrl + "/api/interview/recording", form, {
+              withCredentials: true,
+              headers: { "Content-Type": "multipart/form-data" },
+            });
+          } catch (error) {
+            console.log("Recording upload failed:", error);
+          }
+        }
+        resolve();
+      };
+      try { recorder.stop(); } catch { resolve(); }
+    });
+  };
 
   const registerViolation = (reason) => {
     if (violationCooldownRef.current || terminatedRef.current) return;
@@ -231,6 +285,8 @@ function Step2Interview({ interviewData, onFinish }) {
 
         await speakText(currentQuestion.question);
 
+        startRecording();
+
         if (isMicOn) {
           startMic();
         }
@@ -326,6 +382,7 @@ function Step2Interview({ interviewData, onFinish }) {
     if (isSubmitting) return;
     stopMic()
     setIsSubmitting(true)
+    await stopRecordingAndUpload(currentIndex)
 
     try {
       const result = await axios.post(ServerUrl + "/api/interview/submit-answer", {
@@ -374,6 +431,7 @@ setIsSubmitting(false)
   const finishInterview = async () => {
     stopMic()
     setIsMicOn(false)
+    await stopRecordingAndUpload(currentIndex)
     try {
       const result = await axios.post(ServerUrl+ "/api/interview/finish" , { interviewId} , {withCredentials:true})
 
@@ -542,6 +600,7 @@ setIsSubmitting(false)
           <ProctoringCamera
             active={proctoringStarted}
             onViolation={registerViolation}
+            onStream={(stream) => { streamRef.current = stream }}
             className="w-full max-w-md h-48 sm:h-56"
           />
 

@@ -7,6 +7,7 @@ import 'react-circular-progressbar/dist/styles.css';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend } from "recharts"
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
+import { ServerUrl } from '../App'
 
 function QuestionCard({ q, index }) {
   const [open, setOpen] = useState(index === 0);
@@ -16,7 +17,7 @@ function QuestionCard({ q, index }) {
     { metric: "Keywords", value: pq.rubricScores?.keywordCoverage || 0 },
     { metric: "Structure", value: pq.rubricScores?.structureScore || 0 },
     { metric: "Time Mgmt", value: pq.rubricScores?.timeManagementScore || 0 },
-    { metric: "Conciseness", value: 10 - (pq.rubricScores?.fillerWordRate || 0) },
+    { metric: "Conciseness", value: pq.rubricScores?.fillerWordRate || 0 },
     { metric: "Length Fit", value: pq.rubricScores?.lengthAppropriateness || 0 },
     { metric: "Correctness", value: pq.aiScore?.correctness || 0 },
     { metric: "Communication", value: pq.aiScore?.communication || 0 },
@@ -57,6 +58,13 @@ function QuestionCard({ q, index }) {
                 </div>
               )}
 
+              {q.recordingUrl && (
+                <div className='bg-card border border-line p-4 rounded-xl'>
+                  <p className='text-[11.5px] text-text-secondary font-semibold mb-2 uppercase tracking-wide'>Answer Recording</p>
+                  <video controls preload="metadata" className='w-full max-h-72 rounded-lg bg-black' src={`${ServerUrl}${q.recordingUrl}`} />
+                </div>
+              )}
+
               {radarData && (
                 <div className='h-64'>
                   <ResponsiveContainer width="100%" height="100%">
@@ -64,7 +72,7 @@ function QuestionCard({ q, index }) {
                       <PolarGrid stroke="var(--color-line)" />
                       <PolarAngleAxis dataKey="metric" tick={{ fontSize: 10.5, fill: 'var(--color-text-secondary)' }} />
                       <PolarRadiusAxis domain={[0, 10]} tick={false} axisLine={false} />
-                      <Radar name="Score" dataKey="value" stroke="#6366f1" fill="#6366f1" fillOpacity={0.35} />
+                      <Radar name="Score" dataKey="value" stroke="#c4161f" fill="#c4161f" fillOpacity={0.35} />
                       <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid var(--color-line)', fontSize: 12, background: 'var(--color-card)', color: 'var(--color-ink)' }} />
                     </RadarChart>
                   </ResponsiveContainer>
@@ -179,7 +187,7 @@ function Step3Report({ report }) {
   // ================= TITLE =================
   doc.setFont("helvetica", "bold");
   doc.setFontSize(20);
-  doc.setTextColor(99, 102, 241);
+  doc.setTextColor(196, 22, 31);
   doc.text("AI Interview Performance Report", pageWidth / 2, currentY, {
     align: "center",
   });
@@ -187,7 +195,7 @@ function Step3Report({ report }) {
   currentY += 5;
 
   // underline
-  doc.setDrawColor(99, 102, 241);
+  doc.setDrawColor(196, 22, 31);
   doc.line(margin, currentY + 2, pageWidth - margin, currentY + 2);
 
   currentY += 15;
@@ -214,7 +222,7 @@ function Step3Report({ report }) {
   }
 
   // ================= FINAL SCORE BOX =================
-  doc.setFillColor(238, 238, 253);
+  doc.setFillColor(250, 226, 226);
   doc.roundedRect(margin, currentY, contentWidth, 20, 4, 4, "F");
 
   doc.setFontSize(14);
@@ -345,7 +353,7 @@ function Step3Report({ report }) {
     valign: "top",
   },
   headStyles: {
-    fillColor: [99, 102, 241],
+    fillColor: [196, 22, 31],
     textColor: 255,
     halign: "center",
   },
@@ -443,7 +451,7 @@ function Step3Report({ report }) {
                 text={`${Number(score).toFixed(1)}/10`}
                 styles={buildStyles({
                   textSize: "16px",
-                  pathColor: "#6366f1",
+                  pathColor: "#c4161f",
                   textColor: "var(--color-ink)",
                   trailColor: "var(--color-line)",
                 })}
@@ -560,8 +568,8 @@ function Step3Report({ report }) {
                   <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid var(--color-line)', fontSize: 13, background: 'var(--color-card)', color: 'var(--color-ink)' }} />
                   <Area type="monotone"
                     dataKey="score"
-                    stroke="#6366f1"
-                    fill="#6366f1"
+                    stroke="#c4161f"
+                    fill="#c4161f"
                     fillOpacity={0.15}
                     strokeWidth={2.5} />
 

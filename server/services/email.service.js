@@ -46,7 +46,7 @@ export const sendInterviewInvite = async (invite, template) => {
       <p>You've been invited to complete an interview${description ? ` for <strong>${escapeHtml(title)}</strong>` : ""}.</p>
       ${description ? `<p style="color:#4b5563;">${escapeHtml(description)}</p>` : ""}
       <p style="margin: 24px 0;">
-        <a href="${inviteLink}" style="background:#4f46e5;color:#ffffff;padding:12px 20px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block;">
+        <a href="${inviteLink}" style="background:#c4161f;color:#ffffff;padding:12px 20px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block;">
           Start Interview
         </a>
       </p>

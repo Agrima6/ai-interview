@@ -149,7 +149,9 @@ export const scoreLengthAppropriateness = (answerText, expectedDurationSec) => {
  * Weighted blend of the deterministic rubric average and the AI's own
  * (correctness/communication/confidence) scores into one final number.
  * `aiScores` values are expected on a 0-10 scale (matching ai.service usage
- * elsewhere); rubric scores are 0-100. Result is 0-100.
+ * elsewhere); rubric scores are 0-100 internally. Result is 0-10, one
+ * decimal, to match every other score in the app (interview.finalScore,
+ * question.score, aiScore.*) - the UI renders everything as "x/10".
  */
 export const combineScores = (rubricScores = {}, aiScores = {}, weights = DEFAULT_WEIGHTS) => {
     const rubricValues = [
@@ -172,9 +174,9 @@ export const combineScores = (rubricScores = {}, aiScores = {}, weights = DEFAUL
         : 0
 
     const w = { ...DEFAULT_WEIGHTS, ...weights }
-    const final = rubricAvg * w.rubric + aiAvg * w.ai
+    const final = clamp(Math.round(rubricAvg * w.rubric + aiAvg * w.ai)) // 0-100
 
-    return clamp(Math.round(final))
+    return Number((final / 10).toFixed(1)) // 0-10
 }
 
 const extractSkillsFromText = (text = "") => {
@@ -204,7 +206,9 @@ export const buildReport = (interview, resumeText = "") => {
         const skillTags = q.skillTags || []
         skillTags.forEach((t) => allSkillTags.add(t))
 
-        const rubricScores = {
+        // 0-100 internally - used for the strengths/flaws thresholds below and
+        // fed into combineScores, which does its own final 0-10 conversion.
+        const rubricScoresRaw = {
             keywordCoverage: scoreKeywordCoverage(q.answer, resumeSkills, q.question),
             structureScore: scoreStructure(q.answer),
             timeManagementScore: scoreTimeManagement(timeTakenSec, q.timeLimit),
@@ -218,20 +222,30 @@ export const buildReport = (interview, resumeText = "") => {
             confidence: q.confidence || 0,
         }
 
-        const weightedFinalScore = combineScores(rubricScores, aiScore)
+        const weightedFinalScore = combineScores(rubricScoresRaw, aiScore)
+
+        // Stored/displayed on a 0-10 scale, matching aiScore and every other
+        // score in the app.
+        const rubricScores = {
+            keywordCoverage: Number((rubricScoresRaw.keywordCoverage / 10).toFixed(1)),
+            structureScore: Number((rubricScoresRaw.structureScore / 10).toFixed(1)),
+            timeManagementScore: Number((rubricScoresRaw.timeManagementScore / 10).toFixed(1)),
+            fillerWordRate: Number((rubricScoresRaw.fillerWordRate / 10).toFixed(1)),
+            lengthAppropriateness: Number((rubricScoresRaw.lengthAppropriateness / 10).toFixed(1)),
+        }
 
         const strengths = []
         const flaws = []
-        if (rubricScores.keywordCoverage >= 70) strengths.push("Used relevant terminology from the resume/question")
-        if (rubricScores.structureScore >= 75) strengths.push("Well-structured answer (STAR method evident)")
-        if (rubricScores.fillerWordRate >= 80) strengths.push("Minimal filler words")
-        if (rubricScores.timeManagementScore >= 80) strengths.push("Good time management")
+        if (rubricScoresRaw.keywordCoverage >= 70) strengths.push("Used relevant terminology from the resume/question")
+        if (rubricScoresRaw.structureScore >= 75) strengths.push("Well-structured answer (STAR method evident)")
+        if (rubricScoresRaw.fillerWordRate >= 80) strengths.push("Minimal filler words")
+        if (rubricScoresRaw.timeManagementScore >= 80) strengths.push("Good time management")
 
-        if (rubricScores.keywordCoverage < 40) flaws.push("Answer didn't reference relevant skills/keywords")
-        if (rubricScores.structureScore < 40) flaws.push("Lacked clear structure (Situation/Task/Action/Result)")
-        if (rubricScores.fillerWordRate < 50) flaws.push("Frequent filler words")
-        if (rubricScores.timeManagementScore < 40) flaws.push("Poor time management (too rushed or too long)")
-        if (rubricScores.lengthAppropriateness < 40) flaws.push("Answer length was not appropriate for the question")
+        if (rubricScoresRaw.keywordCoverage < 40) flaws.push("Answer didn't reference relevant skills/keywords")
+        if (rubricScoresRaw.structureScore < 40) flaws.push("Lacked clear structure (Situation/Task/Action/Result)")
+        if (rubricScoresRaw.fillerWordRate < 50) flaws.push("Frequent filler words")
+        if (rubricScoresRaw.timeManagementScore < 40) flaws.push("Poor time management (too rushed or too long)")
+        if (rubricScoresRaw.lengthAppropriateness < 40) flaws.push("Answer length was not appropriate for the question")
 
         return {
             questionIndex: index,
@@ -250,12 +264,12 @@ export const buildReport = (interview, resumeText = "") => {
     const overallFlaws = [...new Set(perQuestion.flatMap((p) => p.flaws))]
 
     const finalWeightedScore = perQuestion.length
-        ? Math.round(perQuestion.reduce((sum, p) => sum + p.weightedFinalScore, 0) / perQuestion.length)
+        ? Number((perQuestion.reduce((sum, p) => sum + p.weightedFinalScore, 0) / perQuestion.length).toFixed(1))
         : 0
 
     let recommendation
-    if (finalWeightedScore >= 75) recommendation = "Strong candidate - recommend advancing to the next round."
-    else if (finalWeightedScore >= 50) recommendation = "Mixed performance - consider a follow-up round to clarify weak areas."
+    if (finalWeightedScore >= 7.5) recommendation = "Strong candidate - recommend advancing to the next round."
+    else if (finalWeightedScore >= 5) recommendation = "Mixed performance - consider a follow-up round to clarify weak areas."
     else recommendation = "Below bar - not recommended to advance without significant improvement."
 
     return {

@@ -120,7 +120,7 @@ function AdminDashboard() {
                                                 <XAxis dataKey="stage" tick={{ fontSize: 12, fill: 'var(--color-text-secondary)' }} axisLine={{ stroke: 'var(--color-line)' }} tickLine={false} />
                                                 <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
                                                 <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid var(--color-line)', fontSize: 13, background: 'var(--color-card)', color: 'var(--color-ink)' }} />
-                                                <Bar dataKey="count" fill="#6366f1" radius={[6, 6, 0, 0]} />
+                                                <Bar dataKey="count" fill="#c4161f" radius={[6, 6, 0, 0]} />
                                             </BarChart>
                                         </ResponsiveContainer>
                                     )}

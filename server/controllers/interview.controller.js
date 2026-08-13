@@ -6,6 +6,7 @@ import { askAi, askAiJson } from "../services/ai.service.js";
 import { buildReport } from "../services/rulesEngine.service.js";
 import User from "../models/user.model.js";
 import Interview from "../models/interview.model.js";
+import { RECORDINGS_DIR } from "../middlewares/recordingUpload.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // Standard (non-embedded) font metrics - without this, pdf.js falls back to
@@ -427,13 +428,15 @@ export const finishInterview = async (req,res) => {
       confidence: Number(avgConfidence.toFixed(1)),
       communication: Number(avgCommunication.toFixed(1)),
       correctness: Number(avgCorrectness.toFixed(1)),
-      questionWiseScore: interview.questions.map((q) => ({
+      questionWiseScore: interview.questions.map((q, i) => ({
         question: q.question,
+        answer: q.answer || "",
         score: q.score || 0,
         feedback: q.feedback || "",
         confidence: q.confidence || 0,
         communication: q.communication || 0,
         correctness: q.correctness || 0,
+        recordingUrl: q.recordingFile ? `/api/interview/recording/${interview._id}/${i}` : null,
       })),
       report: interview.report || null,
       sessionMode: interview.sessionMode,
@@ -518,7 +521,10 @@ export const getInterviewReport = async (req,res) => {
       confidence: Number(avgConfidence.toFixed(1)),
       communication: Number(avgCommunication.toFixed(1)),
       correctness: Number(avgCorrectness.toFixed(1)),
-      questionWiseScore: interview.questions,
+      questionWiseScore: interview.questions.map((q, i) => ({
+        ...q.toObject(),
+        recordingUrl: q.recordingFile ? `/api/interview/recording/${interview._id}/${i}` : null,
+      })),
       report: interview.report || null,
       sessionMode: interview.sessionMode,
       templateId: interview.templateId,
@@ -528,6 +534,84 @@ export const getInterviewReport = async (req,res) => {
 
   } catch (error) {
     return res.status(500).json({message:`failed to find currentUser Interview report ${error}`})
+  }
+}
+
+// Stores the candidate's per-question audio/video answer recording. The
+// actual file goes to disk (see recordingUpload.js) - only its generated
+// filename is persisted on the question, never a public URL, so access is
+// always mediated by getRecording's ownership check below.
+export const uploadRecording = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: "Recording file required" })
+
+    const { interviewId, questionIndex } = req.body
+    const index = Number(questionIndex)
+
+    const interview = await Interview.findById(interviewId)
+    if (!interview) {
+      fs.unlinkSync(req.file.path)
+      return res.status(404).json({ message: "Interview not found" })
+    }
+    if (String(interview.userId) !== String(req.userId)) {
+      fs.unlinkSync(req.file.path)
+      return res.status(403).json({ message: "You don't have permission to modify this interview" })
+    }
+    const question = interview.questions[index]
+    if (!question) {
+      fs.unlinkSync(req.file.path)
+      return res.status(400).json({ message: "Invalid question index" })
+    }
+
+    // Replacing an earlier recording for the same question (e.g. a retry) -
+    // clean up the old file so uploads/recordings doesn't grow unbounded.
+    if (question.recordingFile) {
+      const oldPath = path.join(RECORDINGS_DIR, question.recordingFile)
+      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath)
+    }
+
+    question.recordingFile = req.file.filename
+    await interview.save()
+
+    return res.status(201).json({ recordingUrl: `/api/interview/recording/${interview._id}/${index}` })
+  } catch (error) {
+    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path)
+    return res.status(500).json({ message: `failed to upload recording ${error}` })
+  }
+}
+
+// Streams a recording back only to the interview's own candidate, or an
+// admin/superadmin permitted to view that candidate's report (mirrors
+// getInterviewReport's access rule) - recordings are never served statically.
+export const getRecording = async (req, res) => {
+  try {
+    const { interviewId, questionIndex } = req.params
+    const interview = await Interview.findById(interviewId)
+    if (!interview) return res.status(404).json({ message: "Interview not found" })
+
+    const isOwner = String(interview.userId) === String(req.userId)
+    if (!isOwner) {
+      if (req.user.role === "superadmin") {
+        // allowed
+      } else if (req.user.role === "admin") {
+        const candidate = await User.findById(interview.userId).select("organizationId")
+        if (!candidate || String(candidate.organizationId) !== String(req.user.organizationId)) {
+          return res.status(403).json({ message: "You don't have permission to view this recording." })
+        }
+      } else {
+        return res.status(403).json({ message: "You don't have permission to view this recording." })
+      }
+    }
+
+    const question = interview.questions[Number(questionIndex)]
+    if (!question?.recordingFile) return res.status(404).json({ message: "No recording for this question" })
+
+    const filePath = path.join(RECORDINGS_DIR, question.recordingFile)
+    if (!fs.existsSync(filePath)) return res.status(404).json({ message: "Recording file is no longer available" })
+
+    return res.sendFile(filePath)
+  } catch (error) {
+    return res.status(500).json({ message: `failed to get recording ${error}` })
   }
 }
 

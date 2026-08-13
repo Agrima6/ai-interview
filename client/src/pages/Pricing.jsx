@@ -94,7 +94,7 @@ function Pricing() {
 
       },
       theme:{
-        color: "#6366f1",
+        color: "#c4161f",
       },
 
       }
@@ -158,7 +158,7 @@ function Pricing() {
                 >
 
                   {plan.badge && (
-                    <div className="absolute -top-3 right-6 bg-accent text-white text-[11.5px] font-medium px-3.5 py-1.5 rounded-full shadow-[0_8px_20px_-8px_rgba(99,102,241,0.6)] inline-flex items-center gap-1">
+                    <div className="absolute -top-3 right-6 bg-accent text-white text-[11.5px] font-medium px-3.5 py-1.5 rounded-full shadow-[0_8px_20px_-8px_rgba(196,22,31,0.6)] inline-flex items-center gap-1">
                       <Sparkles size={11} /> {plan.badge}
                     </div>
                   )}
