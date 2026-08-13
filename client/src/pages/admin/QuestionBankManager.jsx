@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Plus, Trash2, Pencil, Upload, Library, X, Save } from 'lucide-react'
+import { Plus, Trash2, Pencil, Upload, Library, X, Save, Sparkles, ArrowRight } from 'lucide-react'
 import Navbar from '../../components/Navbar'
 import Footer from '../../components/Footer'
 import Button from '../../components/Button'
@@ -11,6 +11,7 @@ import {
     listQuestionBanks, getQuestionBank, createQuestionBank, updateQuestionBank,
     deleteQuestionBank, uploadQuestionBank,
 } from '../../utils/conductApi'
+import { QUESTION_BANK_TEMPLATES } from '../../data/questionBankTemplates'
 
 const QUESTION_TYPES = ["HR", "Technical", "Behavioral", "System Design", "Case Study", "Group Discussion", "Managerial Round"]
 const DIFFICULTIES = ["Easy", "Medium", "Hard"]
@@ -40,10 +41,11 @@ function QuestionRow({ question, onChange, onRemove }) {
     )
 }
 
-function BankFormModal({ bank, organizationId, onClose, onSaved }) {
+function BankFormModal({ bank, prefill, organizationId, onClose, onSaved }) {
     const isEdit = !!bank
-    const [title, setTitle] = useState(bank?.title || '')
-    const [questions, setQuestions] = useState(bank?.questions?.length ? bank.questions.map((q) => ({ ...q, skillTags: q.skillTags || [] })) : [emptyQuestion()])
+    const source = bank || prefill
+    const [title, setTitle] = useState(source?.title || '')
+    const [questions, setQuestions] = useState(source?.questions?.length ? source.questions.map((q) => ({ ...q, skillTags: q.skillTags || [] })) : [emptyQuestion()])
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState('')
 
@@ -146,6 +148,28 @@ function BulkUploadModal({ organizationId, onClose, onDone }) {
     )
 }
 
+function TemplatePickerModal({ onClose, onPick }) {
+    return (
+        <Modal onClose={onClose} maxWidth="max-w-2xl">
+            <ModalHeader title="Start from a role template" onClose={onClose} />
+            <p className='text-[13px] text-text-secondary -mt-2 mb-4'>Pick a role to pre-fill a question set - you can edit or remove anything before saving.</p>
+            <div className='grid sm:grid-cols-2 gap-3 max-h-[55vh] overflow-y-auto pr-1'>
+                {QUESTION_BANK_TEMPLATES.map((t) => (
+                    <button key={t.id} type="button" onClick={() => onPick(t)}
+                        className='text-left p-4 rounded-2xl border border-line hover:border-accent/50 hover:bg-accent/[0.04] transition-colors group'>
+                        <div className='flex items-center justify-between gap-2 mb-1.5'>
+                            <span className='font-semibold text-ink text-[14px]'>{t.role}</span>
+                            <ArrowRight size={14} className='text-text-secondary group-hover:text-accent transition-colors shrink-0' />
+                        </div>
+                        <p className='text-[12.5px] text-text-secondary leading-relaxed mb-2'>{t.description}</p>
+                        <span className='text-[11.5px] text-accent font-medium'>{t.questions.length} starter questions</span>
+                    </button>
+                ))}
+            </div>
+        </Modal>
+    )
+}
+
 function QuestionBankManager() {
     const navigate = useNavigate()
     const [searchParams] = useSearchParams()
@@ -156,7 +180,9 @@ function QuestionBankManager() {
     const [error, setError] = useState('')
     const [showForm, setShowForm] = useState(false)
     const [showUpload, setShowUpload] = useState(false)
+    const [showTemplates, setShowTemplates] = useState(false)
     const [editingBank, setEditingBank] = useState(null)
+    const [prefill, setPrefill] = useState(null)
     const [expandedId, setExpandedId] = useState(null)
     const [expandedBank, setExpandedBank] = useState(null)
     const [busyId, setBusyId] = useState(null)
@@ -211,10 +237,13 @@ function QuestionBankManager() {
                         onBack={() => navigate('/admin')}
                         actions={
                             <>
+                                <Button variant="secondary" onClick={() => setShowTemplates(true)} className='!px-5'>
+                                    <Sparkles size={16} /> Use a Template
+                                </Button>
                                 <Button variant="secondary" onClick={() => setShowUpload(true)} className='!px-5'>
                                     <Upload size={16} /> Bulk Upload
                                 </Button>
-                                <Button onClick={() => { setEditingBank(null); setShowForm(true) }} className='!px-5'>
+                                <Button onClick={() => { setEditingBank(null); setPrefill(null); setShowForm(true) }} className='!px-5'>
                                     <Plus size={16} /> New Bank
                                 </Button>
                             </>
@@ -232,7 +261,12 @@ function QuestionBankManager() {
                     ) : banks.length === 0 ? (
                         <EmptyState icon={Library} title="No question banks yet"
                             subtitle="Create your first question bank to start building interview templates."
-                            action={<Button onClick={() => setShowForm(true)} className='mt-2'><Plus size={15} /> New Bank</Button>} />
+                            action={
+                                <div className='flex items-center gap-2 mt-2'>
+                                    <Button onClick={() => setShowForm(true)}><Plus size={15} /> New Bank</Button>
+                                    <Button variant="secondary" onClick={() => setShowTemplates(true)}><Sparkles size={15} /> Use a Template</Button>
+                                </div>
+                            } />
                     ) : (
                         <div className='space-y-4'>
                             {banks.map((bank) => (
@@ -284,14 +318,24 @@ function QuestionBankManager() {
             <Footer />
 
             {showForm && (
-                <BankFormModal bank={editingBank} organizationId={organizationId}
-                    onClose={() => { setShowForm(false); setEditingBank(null) }}
-                    onSaved={() => { setShowForm(false); setEditingBank(null); setExpandedId(null); load() }} />
+                <BankFormModal bank={editingBank} prefill={prefill} organizationId={organizationId}
+                    onClose={() => { setShowForm(false); setEditingBank(null); setPrefill(null) }}
+                    onSaved={() => { setShowForm(false); setEditingBank(null); setPrefill(null); setExpandedId(null); load() }} />
             )}
             {showUpload && (
                 <BulkUploadModal organizationId={organizationId}
                     onClose={() => setShowUpload(false)}
                     onDone={() => { setShowUpload(false); load() }} />
+            )}
+            {showTemplates && (
+                <TemplatePickerModal
+                    onClose={() => setShowTemplates(false)}
+                    onPick={(t) => {
+                        setPrefill({ title: `${t.role} Interview Questions`, questions: t.questions })
+                        setEditingBank(null)
+                        setShowTemplates(false)
+                        setShowForm(true)
+                    }} />
             )}
         </div>
     )
