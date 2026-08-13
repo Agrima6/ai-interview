@@ -6,6 +6,7 @@ import {
     getInviteByToken,
     startInterviewFromInvite,
     advanceToNextRound,
+    resendInvite,
 } from "../controllers/invite.controller.js"
 
 const inviteRouter = express.Router()
@@ -18,5 +19,6 @@ inviteRouter.post("/token/:token/next-round", isAuth, advanceToNextRound)
 
 inviteRouter.post("/", isAuth, createInvite)
 inviteRouter.get("/", isAuth, listInvites)
+inviteRouter.post("/:id/resend", isAuth, resendInvite)
 
 export default inviteRouter

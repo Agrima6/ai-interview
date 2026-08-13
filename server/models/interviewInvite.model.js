@@ -59,6 +59,13 @@ const interviewInviteSchema = new mongoose.Schema({
     sentAt: {
         type: Date,
         default: null
+    },
+    // Set whenever sendInterviewInvite throws, cleared on a successful send -
+    // surfaced in the admin UI so a failed send is diagnosable without
+    // needing server log access.
+    lastEmailError: {
+        type: String,
+        default: null
     }
 }, { timestamps: true })
 

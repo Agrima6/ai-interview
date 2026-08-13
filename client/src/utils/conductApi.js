@@ -82,3 +82,8 @@ export const createInvite = async (payload, organizationId) => {
     const response = await axios.post(ServerUrl + "/api/invites", { ...payload, organizationId }, { withCredentials: true, ...withOrg(organizationId) })
     return response.data
 }
+
+export const resendInvite = async (id, organizationId) => {
+    const response = await axios.post(ServerUrl + `/api/invites/${id}/resend`, {}, { withCredentials: true, ...withOrg(organizationId) })
+    return response.data
+}

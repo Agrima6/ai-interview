@@ -7,7 +7,7 @@ import Button from '../../components/Button'
 import Dropdown from '../../components/Dropdown'
 import AdminNav from './AdminNav'
 import { Input, Card, Badge, PageHeader, EmptyState, Skeleton, ErrorText } from './adminUi'
-import { listInvites, createInvite, listInterviewTemplates } from '../../utils/conductApi'
+import { listInvites, createInvite, listInterviewTemplates, resendInvite } from '../../utils/conductApi'
 
 const emptyCandidate = () => ({ name: '', email: '' })
 
@@ -26,6 +26,7 @@ function InviteCandidates() {
     const [sending, setSending] = useState(false)
     const [sendError, setSendError] = useState('')
     const [sendResults, setSendResults] = useState(null)
+    const [resendingId, setResendingId] = useState(null)
 
     const load = async () => {
         setLoading(true)
@@ -42,6 +43,18 @@ function InviteCandidates() {
     }
 
     useEffect(() => { load() }, [organizationId])
+
+    const handleResend = async (id) => {
+        setResendingId(id)
+        try {
+            await resendInvite(id, organizationId)
+        } catch {
+            // error is persisted on the invite itself (lastEmailError) and shown inline after reload
+        } finally {
+            setResendingId(null)
+            load()
+        }
+    }
 
     const updateCandidateAt = (i, next) => setCandidates((cs) => cs.map((c, idx) => (idx === i ? next : c)))
     const removeCandidateAt = (i) => setCandidates((cs) => cs.filter((_, idx) => idx !== i))
@@ -166,7 +179,8 @@ function InviteCandidates() {
                                                     <th className='pb-3 pr-4 text-[12px] font-medium text-text-secondary uppercase tracking-wide'>Template</th>
                                                     <th className='pb-3 pr-4 text-[12px] font-medium text-text-secondary uppercase tracking-wide'>Status</th>
                                                     <th className='pb-3 pr-4 text-[12px] font-medium text-text-secondary uppercase tracking-wide'>Sent</th>
-                                                    <th className='pb-3 text-[12px] font-medium text-text-secondary uppercase tracking-wide'>Expires</th>
+                                                    <th className='pb-3 pr-4 text-[12px] font-medium text-text-secondary uppercase tracking-wide'>Expires</th>
+                                                    <th className='pb-3 text-[12px] font-medium text-text-secondary uppercase tracking-wide'></th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -177,9 +191,23 @@ function InviteCandidates() {
                                                             <p className='text-[12px] text-text-secondary'>{inv.candidateEmail}</p>
                                                         </td>
                                                         <td className='py-3 pr-4 text-[13.5px] text-ink'>{inv.templateId?.title || '—'}</td>
-                                                        <td className='py-3 pr-4'><Badge tone={inv.status}>{inv.status}</Badge></td>
+                                                        <td className='py-3 pr-4'>
+                                                            <Badge tone={inv.status}>{inv.status}</Badge>
+                                                            {inv.lastEmailError && (
+                                                                <p className='text-[11.5px] text-red-500 mt-1 max-w-[220px]'>{inv.lastEmailError}</p>
+                                                            )}
+                                                        </td>
                                                         <td className='py-3 pr-4 text-[12.5px] text-text-secondary'>{inv.sentAt ? new Date(inv.sentAt).toLocaleDateString() : '—'}</td>
-                                                        <td className='py-3 text-[12.5px] text-text-secondary'>{new Date(inv.expiresAt).toLocaleDateString()}</td>
+                                                        <td className='py-3 pr-4 text-[12.5px] text-text-secondary'>{new Date(inv.expiresAt).toLocaleDateString()}</td>
+                                                        <td className='py-3 text-right'>
+                                                            {inv.status !== 'completed' && (
+                                                                <button onClick={() => handleResend(inv._id)} disabled={resendingId === inv._id}
+                                                                    className='flex items-center gap-1 text-[12.5px] font-medium text-accent hover:underline disabled:opacity-50 whitespace-nowrap'>
+                                                                    <RefreshCw size={12} className={resendingId === inv._id ? 'animate-spin' : ''} />
+                                                                    {resendingId === inv._id ? 'Sending...' : 'Resend'}
+                                                                </button>
+                                                            )}
+                                                        </td>
                                                     </tr>
                                                 ))}
                                             </tbody>

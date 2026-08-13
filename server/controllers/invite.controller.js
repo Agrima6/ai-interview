@@ -119,17 +119,51 @@ export const createInvite = async (req, res) => {
             await sendInterviewInvite(invite, template)
             invite.status = "sent"
             invite.sentAt = new Date()
+            invite.lastEmailError = null
             await invite.save()
         } catch (emailError) {
             // Invite record still exists (status stays "pending") even if the
             // email failed to send - caller can retry/resend rather than losing it.
-            console.error("Failed to send invite email:", emailError.message)
-            return res.status(201).json({ invite, warning: "Invite created but the email failed to send." })
+            const detail = emailError.response || emailError.message || String(emailError)
+            console.error("Failed to send invite email:", detail)
+            invite.lastEmailError = String(detail).slice(0, 500)
+            await invite.save()
+            return res.status(201).json({ invite, warning: `Invite created but the email failed to send: ${invite.lastEmailError}` })
         }
 
         return res.status(201).json({ invite })
     } catch (error) {
         return res.status(500).json({ message: `failed to create invite ${error}` })
+    }
+}
+
+// Retries sending the email for an existing invite (e.g. after fixing SMTP
+// config) without creating a new token/invite record.
+export const resendInvite = async (req, res) => {
+    try {
+        const organizationId = await resolveConductOrgId(req)
+        const invite = await InterviewInvite.findOne({ _id: req.params.id, organizationId }).populate("templateId")
+        if (!invite) return res.status(404).json({ message: "Invite not found" })
+        if (invite.status === "completed") {
+            return res.status(409).json({ message: "This invite has already been completed." })
+        }
+
+        try {
+            await sendInterviewInvite(invite, invite.templateId)
+            invite.status = "sent"
+            invite.sentAt = new Date()
+            invite.lastEmailError = null
+            await invite.save()
+            return res.json({ invite })
+        } catch (emailError) {
+            const detail = emailError.response || emailError.message || String(emailError)
+            console.error("Failed to resend invite email:", detail)
+            invite.lastEmailError = String(detail).slice(0, 500)
+            await invite.save()
+            return res.status(502).json({ message: `Failed to send: ${invite.lastEmailError}` })
+        }
+    } catch (error) {
+        return res.status(500).json({ message: `failed to resend invite ${error}` })
     }
 }
 
