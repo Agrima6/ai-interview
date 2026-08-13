@@ -1,7 +1,7 @@
 import React from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { motion } from "motion/react"
-import { Coins, LogOut, LogIn, User, ShieldCheck } from "lucide-react";
+import { Coins, LogOut, LogIn, User, ShieldCheck, ClipboardList, Mic } from "lucide-react";
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -131,12 +131,20 @@ function Navbar() {
                                         className='absolute right-0 mt-3 w-52 bg-card shadow-[var(--shadow-lift)] border border-line rounded-2xl p-2 z-50'>
                                         <p className='text-[13px] font-medium text-ink px-3 pt-2 pb-2 border-b border-line mb-1'>{userData?.name}</p>
 
+                                        <button onClick={() => navigate("/interview")}
+                                            className='w-full text-left text-[13px] px-3 py-2.5 rounded-lg hover:bg-black/[0.04] dark:hover:bg-white/[0.06] flex items-center gap-2 text-text-secondary transition-colors'>
+                                            <Mic size={14} />
+                                            Give an Interview</button>
                                         <button onClick={() => navigate("/history")} className='w-full text-left text-[13px] px-3 py-2.5 rounded-lg hover:bg-black/[0.04] dark:hover:bg-white/[0.06] text-text-secondary transition-colors'>Interview History</button>
-                                        {(userData?.role === "admin" || userData?.role === "superadmin") && (
-                                            <button onClick={() => navigate("/admin")}
+                                        <button onClick={() => navigate("/admin")}
+                                            className='w-full text-left text-[13px] px-3 py-2.5 rounded-lg hover:bg-black/[0.04] dark:hover:bg-white/[0.06] flex items-center gap-2 text-text-secondary transition-colors'>
+                                            <ClipboardList size={14} />
+                                            Conduct an Interview</button>
+                                        {userData?.role === "superadmin" && (
+                                            <button onClick={() => navigate("/admin/employees")}
                                                 className='w-full text-left text-[13px] px-3 py-2.5 rounded-lg hover:bg-black/[0.04] dark:hover:bg-white/[0.06] flex items-center gap-2 text-text-secondary transition-colors'>
                                                 <ShieldCheck size={14} />
-                                                Admin Panel</button>
+                                                Manage Employees</button>
                                         )}
                                         {userData?.role === "superadmin" && (
                                             <button onClick={() => navigate("/superadmin")}

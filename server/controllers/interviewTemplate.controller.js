@@ -1,15 +1,10 @@
 import InterviewTemplate from "../models/interviewTemplate.model.js"
 import QuestionBank from "../models/questionBank.model.js"
+import { resolveConductOrgId } from "../utils/orgProvision.js"
 
 const VALID_ROUND_TYPES = ["HR", "Technical", "Behavioral", "System Design", "Case Study", "Group Discussion", "Managerial Round"]
 const VALID_SOURCES = ["bank", "ai-generated", "manual"]
 const VALID_DIFFICULTIES = ["Easy", "Medium", "Hard"]
-
-// admin -> always their own org; superadmin -> whichever org they ask for via ?organizationId= / body.organizationId
-const resolveOrgId = (req) => {
-    if (req.user.role === "admin") return req.user.organizationId
-    return req.query.organizationId || req.body.organizationId || null
-}
 
 const normalizeRound = async (raw, organizationId) => {
     const name = raw.name?.trim()
@@ -74,7 +69,7 @@ const normalizeRound = async (raw, organizationId) => {
 
 export const createInterviewTemplate = async (req, res) => {
     try {
-        const organizationId = resolveOrgId(req)
+        const organizationId = await resolveConductOrgId(req)
         if (!organizationId) return res.status(400).json({ message: "organizationId is required" })
 
         const title = req.body.title?.trim()
@@ -109,7 +104,7 @@ export const createInterviewTemplate = async (req, res) => {
 
 export const listInterviewTemplates = async (req, res) => {
     try {
-        const organizationId = resolveOrgId(req)
+        const organizationId = await resolveConductOrgId(req)
         if (!organizationId) return res.status(400).json({ message: "organizationId is required" })
 
         const templates = await InterviewTemplate.find({ organizationId })
@@ -124,7 +119,7 @@ export const listInterviewTemplates = async (req, res) => {
 
 export const getInterviewTemplate = async (req, res) => {
     try {
-        const organizationId = resolveOrgId(req)
+        const organizationId = await resolveConductOrgId(req)
         const template = await InterviewTemplate.findOne({ _id: req.params.id, organizationId })
         if (!template) return res.status(404).json({ message: "Interview template not found" })
 
@@ -136,7 +131,7 @@ export const getInterviewTemplate = async (req, res) => {
 
 export const updateInterviewTemplate = async (req, res) => {
     try {
-        const organizationId = resolveOrgId(req)
+        const organizationId = await resolveConductOrgId(req)
         const template = await InterviewTemplate.findOne({ _id: req.params.id, organizationId })
         if (!template) return res.status(404).json({ message: "Interview template not found" })
 
@@ -169,7 +164,7 @@ export const updateInterviewTemplate = async (req, res) => {
 
 export const deleteInterviewTemplate = async (req, res) => {
     try {
-        const organizationId = resolveOrgId(req)
+        const organizationId = await resolveConductOrgId(req)
         const template = await InterviewTemplate.findOneAndDelete({ _id: req.params.id, organizationId })
         if (!template) return res.status(404).json({ message: "Interview template not found" })
 

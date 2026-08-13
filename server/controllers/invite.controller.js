@@ -5,6 +5,7 @@ import QuestionBank from "../models/questionBank.model.js"
 import Interview from "../models/interview.model.js"
 import { sendInterviewInvite } from "../services/email.service.js"
 import { askAi } from "../services/ai.service.js"
+import { resolveConductOrgId } from "../utils/orgProvision.js"
 
 // Picks up to `count` random questions from the bank (Fisher-Yates partial shuffle).
 const pickRandom = (arr, count) => {
@@ -81,17 +82,11 @@ Strict Rules:
     throw Object.assign(new Error(`Unknown question source "${round.questionSource}".`), { status: 400 })
 }
 
-// admin -> always their own org; superadmin -> whichever org they ask for via ?organizationId=
-const resolveOrgId = (req) => {
-    if (req.user.role === "admin") return req.user.organizationId
-    return req.query.organizationId || req.body.organizationId || null
-}
-
 const DEFAULT_EXPIRY_DAYS = 7
 
 export const createInvite = async (req, res) => {
     try {
-        const organizationId = resolveOrgId(req)
+        const organizationId = await resolveConductOrgId(req)
         if (!organizationId) return res.status(400).json({ message: "organizationId is required" })
 
         const { templateId } = req.body
@@ -140,7 +135,7 @@ export const createInvite = async (req, res) => {
 
 export const listInvites = async (req, res) => {
     try {
-        const organizationId = resolveOrgId(req)
+        const organizationId = await resolveConductOrgId(req)
         if (!organizationId) return res.status(400).json({ message: "organizationId is required" })
 
         const invites = await InterviewInvite.find({ organizationId })

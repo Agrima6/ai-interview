@@ -1,6 +1,5 @@
 import express from "express"
 import isAuth from "../middlewares/isAuth.js"
-import requireRole from "../middlewares/requireRole.js"
 import {
     createInterviewTemplate,
     listInterviewTemplates,
@@ -11,7 +10,8 @@ import {
 
 const interviewTemplateRouter = express.Router()
 
-interviewTemplateRouter.use(isAuth, requireRole("admin", "superadmin"))
+// Any signed-in user can conduct interviews - see questionBank.route.js.
+interviewTemplateRouter.use(isAuth)
 
 interviewTemplateRouter.post("/", createInterviewTemplate)
 interviewTemplateRouter.get("/", listInterviewTemplates)

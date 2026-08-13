@@ -1,14 +1,9 @@
 import fs from "fs"
 import QuestionBank from "../models/questionBank.model.js"
+import { resolveConductOrgId } from "../utils/orgProvision.js"
 
 const VALID_TYPES = ["HR", "Technical", "Behavioral", "System Design", "Case Study", "Group Discussion", "Managerial Round"]
 const VALID_DIFFICULTIES = ["Easy", "Medium", "Hard"]
-
-// admin -> always their own org; superadmin -> whichever org they ask for via ?organizationId= / body.organizationId
-const resolveOrgId = (req) => {
-    if (req.user.role === "admin") return req.user.organizationId
-    return req.query.organizationId || req.body.organizationId || null
-}
 
 const normalizeQuestion = (raw, defaultSource = "manual") => {
     const text = raw.text?.trim()
@@ -40,7 +35,7 @@ const normalizeQuestion = (raw, defaultSource = "manual") => {
 
 export const createQuestionBank = async (req, res) => {
     try {
-        const organizationId = resolveOrgId(req)
+        const organizationId = await resolveConductOrgId(req)
         if (!organizationId) return res.status(400).json({ message: "organizationId is required" })
 
         const title = req.body.title?.trim()
@@ -75,7 +70,7 @@ export const uploadQuestionBank = async (req, res) => {
         if (!req.file) return res.status(400).json({ message: "File required" })
         const filepath = req.file.path
 
-        const organizationId = resolveOrgId(req)
+        const organizationId = await resolveConductOrgId(req)
         if (!organizationId) {
             fs.unlinkSync(filepath)
             return res.status(400).json({ message: "organizationId is required" })
@@ -138,7 +133,7 @@ export const uploadQuestionBank = async (req, res) => {
 
 export const listQuestionBanks = async (req, res) => {
     try {
-        const organizationId = resolveOrgId(req)
+        const organizationId = await resolveConductOrgId(req)
         if (!organizationId) return res.status(400).json({ message: "organizationId is required" })
 
         const banks = await QuestionBank.find({ organizationId })
@@ -153,7 +148,7 @@ export const listQuestionBanks = async (req, res) => {
 
 export const getQuestionBank = async (req, res) => {
     try {
-        const organizationId = resolveOrgId(req)
+        const organizationId = await resolveConductOrgId(req)
         const bank = await QuestionBank.findOne({ _id: req.params.id, organizationId })
         if (!bank) return res.status(404).json({ message: "Question bank not found" })
 
@@ -165,7 +160,7 @@ export const getQuestionBank = async (req, res) => {
 
 export const updateQuestionBank = async (req, res) => {
     try {
-        const organizationId = resolveOrgId(req)
+        const organizationId = await resolveConductOrgId(req)
         const bank = await QuestionBank.findOne({ _id: req.params.id, organizationId })
         if (!bank) return res.status(404).json({ message: "Question bank not found" })
 
@@ -194,7 +189,7 @@ export const updateQuestionBank = async (req, res) => {
 
 export const deleteQuestionBank = async (req, res) => {
     try {
-        const organizationId = resolveOrgId(req)
+        const organizationId = await resolveConductOrgId(req)
         const bank = await QuestionBank.findOneAndDelete({ _id: req.params.id, organizationId })
         if (!bank) return res.status(404).json({ message: "Question bank not found" })
 

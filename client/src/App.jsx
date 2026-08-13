@@ -56,11 +56,14 @@ function App() {
       <Route path='/pricing' element={<RequireAuth><Pricing/></RequireAuth>}/>
       <Route path='/report/:id' element={<RequireAuth><InterviewReport/></RequireAuth>}/>
       <Route path='/interview/invite/:token' element={<InviteLanding/>}/>
-      <Route path='/admin' element={<RequireAuth><RequireRole roles={["admin","superadmin"]}><AdminDashboard/></RequireRole></RequireAuth>}/>
+      {/* Conduct-Interview area: any signed-in user can access it now - each
+          user gets their own auto-provisioned workspace server-side. */}
+      <Route path='/admin' element={<RequireAuth><AdminDashboard/></RequireAuth>}/>
+      <Route path='/admin/question-banks' element={<RequireAuth><QuestionBankManager/></RequireAuth>}/>
+      <Route path='/admin/templates' element={<RequireAuth><TemplateBuilder/></RequireAuth>}/>
+      <Route path='/admin/invites' element={<RequireAuth><InviteCandidates/></RequireAuth>}/>
+      {/* Org/employee management stays role-gated - separate concern from conducting interviews. */}
       <Route path='/admin/employees' element={<RequireAuth><RequireRole roles={["admin","superadmin"]}><AdminPanel/></RequireRole></RequireAuth>}/>
-      <Route path='/admin/question-banks' element={<RequireAuth><RequireRole roles={["admin","superadmin"]}><QuestionBankManager/></RequireRole></RequireAuth>}/>
-      <Route path='/admin/templates' element={<RequireAuth><RequireRole roles={["admin","superadmin"]}><TemplateBuilder/></RequireRole></RequireAuth>}/>
-      <Route path='/admin/invites' element={<RequireAuth><RequireRole roles={["admin","superadmin"]}><InviteCandidates/></RequireRole></RequireAuth>}/>
       <Route path='/superadmin' element={<RequireAuth><RequireRole roles={["superadmin"]}><SuperAdminPanel/></RequireRole></RequireAuth>}/>
 
     </Routes>

@@ -1,6 +1,5 @@
 import express from "express"
 import isAuth from "../middlewares/isAuth.js"
-import requireRole from "../middlewares/requireRole.js"
 import { upload } from "../middlewares/multer.js"
 import {
     createQuestionBank,
@@ -13,7 +12,10 @@ import {
 
 const questionBankRouter = express.Router()
 
-questionBankRouter.use(isAuth, requireRole("admin", "superadmin"))
+// Any signed-in user can conduct interviews - no admin role required. Each
+// user gets a personal workspace auto-provisioned on first use (see
+// utils/orgProvision.js), so this only needs to confirm they're logged in.
+questionBankRouter.use(isAuth)
 
 questionBankRouter.post("/", createQuestionBank)
 questionBankRouter.post("/upload", upload.single("file"), uploadQuestionBank)

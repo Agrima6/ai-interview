@@ -1,6 +1,5 @@
 import express from "express"
 import isAuth from "../middlewares/isAuth.js"
-import requireRole from "../middlewares/requireRole.js"
 import {
     createInvite,
     listInvites,
@@ -17,7 +16,7 @@ inviteRouter.get("/token/:token", getInviteByToken)
 inviteRouter.post("/token/:token/start", isAuth, startInterviewFromInvite)
 inviteRouter.post("/token/:token/next-round", isAuth, advanceToNextRound)
 
-inviteRouter.post("/", isAuth, requireRole("admin", "superadmin"), createInvite)
-inviteRouter.get("/", isAuth, requireRole("admin", "superadmin"), listInvites)
+inviteRouter.post("/", isAuth, createInvite)
+inviteRouter.get("/", isAuth, listInvites)
 
 export default inviteRouter
