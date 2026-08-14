@@ -1,20 +1,33 @@
 import React, { useEffect, useRef } from 'react'
 
 // Renders the AI interviewer as a real-time canvas particle system - not a
-// video/GIF. Particles are sampled once from a head+shoulders silhouette and
-// animate from a single point of light into that shape (`formProgress`
-// 0 -> 1), then stay "alive" with a gentle breathing motion. `state` drives
-// how they behave once formed: speaking pulses/glows, listening reacts to
-// `audioLevel` (0-1, from a real mic AnalyserNode), thinking gets jittery.
-const PARTICLE_COUNT_DESKTOP = 2200
-const PARTICLE_COUNT_MOBILE = 900
+// video/GIF. Particles are sampled once from a head+shoulders silhouette,
+// weighted heavily toward the OUTLINE/contour (so it reads as flowing
+// strands tracing a figure, not a scattered dot-cloud), and animate from a
+// glowing point at the bottom into that shape (`formProgress` 0 -> 1), then
+// stay "alive" with a gentle breathing motion. `state` drives behavior once
+// formed: speaking pulses/glows, listening reacts to `audioLevel` (0-1, from
+// a real mic AnalyserNode), thinking gets jittery.
+const PARTICLE_COUNT_DESKTOP = 2600
+const PARTICLE_COUNT_MOBILE = 1100
+const EDGE_RATIO = 0.68 // fraction of particles sampled along the contour vs interior fill
+const ORIGIN_Y = 1.35 // bottom glow orb, in normalized -1..1 space
 
-// Builds target points inside + along the edge of a head/neck/shoulders
-// silhouette, in a normalized -1..1 space (x right, y down). Rejection
-// sampling against an offscreen canvas keeps this simple and fast enough to
-// run once per mount.
+// "Face" anchor used for the warm/cool color gradient - near here reads
+// warm amber (like the reference's glowing forehead), fading to cool
+// cyan/blue further out along the contour.
+const FACE_X = 0
+const FACE_Y = -0.32
+const WARM_RADIUS = 0.55
+
+// Builds target points from a head/neck/shoulders silhouette, in a
+// normalized -1..1 space (x right, y down). Rejection sampling against an
+// offscreen canvas keeps this simple and fast enough to run once per mount.
+// Most points are drawn from the silhouette's OUTLINE (a few px band around
+// the true edge, so contour strands have some thickness) rather than
+// uniformly filling the interior.
 const buildSilhouette = (count) => {
-    const RES = 300
+    const RES = 320
     const off = document.createElement('canvas')
     off.width = RES
     off.height = RES
@@ -43,10 +56,35 @@ const buildSilhouette = (count) => {
         if (px < 0 || py < 0 || px >= RES || py >= RES) return false
         return img[(py * RES + px) * 4 + 3] > 40
     }
+    // An interior pixel with at least one outside 8-neighbor is a contour pixel.
+    const isEdge = (px, py) => {
+        if (!inside(px, py)) return false
+        for (let dx = -2; dx <= 2; dx++) {
+            for (let dy = -2; dy <= 2; dy++) {
+                if (!inside(px + dx, py + dy)) return true
+            }
+        }
+        return false
+    }
 
+    const edgeCount = Math.round(count * EDGE_RATIO)
     const points = []
+
     let guard = 0
-    while (points.length < count && guard < count * 60) {
+    while (points.length < edgeCount && guard < edgeCount * 200) {
+        guard++
+        const px = Math.floor(Math.random() * RES)
+        const py = Math.floor(Math.random() * RES)
+        if (isEdge(px, py)) {
+            points.push({
+                tx: (px / RES - 0.5) * 2,
+                ty: (py / RES - 0.5) * 2,
+                edge: true,
+            })
+        }
+    }
+    guard = 0
+    while (points.length < count && guard < (count - edgeCount) * 60) {
         guard++
         const px = Math.floor(Math.random() * RES)
         const py = Math.floor(Math.random() * RES)
@@ -54,15 +92,37 @@ const buildSilhouette = (count) => {
             points.push({
                 tx: (px / RES - 0.5) * 2,
                 ty: (py / RES - 0.5) * 2,
+                edge: false,
             })
         }
     }
     return points
 }
 
+// A handful of "comet" trails that sweep in wide curved arcs from off-frame
+// toward the figure during formation - the single dramatic flowing line
+// seen in the reference, layered on top of the main particle cloud.
+const HERO_COUNT = 3
+const buildHeroPaths = () => {
+    const paths = []
+    for (let i = 0; i < HERO_COUNT; i++) {
+        const side = i % 2 === 0 ? -1 : 1
+        const startX = side * (1.6 + Math.random() * 0.5)
+        const startY = 0.8 + Math.random() * 0.6
+        const endAngle = -Math.PI / 2 + (Math.random() - 0.5) * 1.4
+        const endX = Math.cos(endAngle) * (0.35 + Math.random() * 0.25)
+        const endY = FACE_Y + Math.sin(endAngle) * 0.3
+        const ctrlX = side * (0.9 + Math.random() * 0.4)
+        const ctrlY = -0.2 + Math.random() * 0.6
+        paths.push({ startX, startY, ctrlX, ctrlY, endX, endY, offset: i * 0.12, trail: [] })
+    }
+    return paths
+}
+
 function AIInterviewerFigure({ state = 'idle', formProgress = 1, audioLevel = 0, className = '' }) {
     const canvasRef = useRef(null)
     const particlesRef = useRef(null)
+    const heroRef = useRef(null)
     const rafRef = useRef(null)
     const stateRef = useRef(state)
     const formProgressRef = useRef(formProgress)
@@ -76,18 +136,25 @@ function AIInterviewerFigure({ state = 'idle', formProgress = 1, audioLevel = 0,
         const isMobile = window.innerWidth < 640
         const count = isMobile ? PARTICLE_COUNT_MOBILE : PARTICLE_COUNT_DESKTOP
         const targets = buildSilhouette(count)
-        particlesRef.current = targets.map((t) => ({
-            tx: t.tx,
-            ty: t.ty,
-            // Starts collapsed at the origin (the "point of light") and
-            // eases outward as formProgress climbs.
-            x: 0,
-            y: 0,
-            size: 0.6 + Math.random() * 1.6,
-            phase: Math.random() * Math.PI * 2,
-            speed: 0.6 + Math.random() * 0.8,
-            jitterSeed: Math.random(),
-        }))
+        particlesRef.current = targets.map((t) => {
+            const distFromFace = Math.hypot(t.tx - FACE_X, t.ty - FACE_Y)
+            const warmth = Math.max(0, 1 - distFromFace / WARM_RADIUS)
+            return {
+                tx: t.tx,
+                ty: t.ty,
+                edge: t.edge,
+                warmth,
+                x: 0,
+                y: 0,
+                px: 0, py: 0, // previous frame's screen position, for motion trails
+                hasPrev: false,
+                size: t.edge ? 0.55 + Math.random() * 1.1 : 0.9 + Math.random() * 1.8,
+                phase: Math.random() * Math.PI * 2,
+                speed: 0.6 + Math.random() * 0.8,
+                jitterSeed: Math.random(),
+            }
+        })
+        heroRef.current = buildHeroPaths()
     }, [])
 
     useEffect(() => {
@@ -116,6 +183,7 @@ function AIInterviewerFigure({ state = 'idle', formProgress = 1, audioLevel = 0,
         const draw = (now) => {
             const t = (now - start) / 1000
             const particles = particlesRef.current || []
+            const heroes = heroRef.current || []
             const cx = width / 2
             const cy = height / 2
             const scale = Math.min(width, height) * 0.42
@@ -136,23 +204,46 @@ function AIInterviewerFigure({ state = 'idle', formProgress = 1, audioLevel = 0,
             ctx.fillStyle = grad
             ctx.fillRect(0, 0, width, height)
 
-            // Origin point particles rise from during formation - a glowing
-            // orb sitting below the figure, matching the reference imagery,
-            // rather than particles simply expanding from the center.
-            const ORIGIN_Y = 1.35
-
+            // Origin glow orb particles rise from during formation.
             if (fp < 1) {
                 const oy = cy + ORIGIN_Y * scale
                 const orbFade = 1 - eased
                 const orbR = scale * (0.14 + 0.05 * Math.sin(t * 4))
                 const orbGrad = ctx.createRadialGradient(cx, oy, 0, cx, oy, orbR * 3)
                 orbGrad.addColorStop(0, `rgba(255,255,255,${0.9 * orbFade})`)
-                orbGrad.addColorStop(0.3, `rgba(196,22,31,${0.5 * orbFade})`)
+                orbGrad.addColorStop(0.3, `rgba(120,200,255,${0.5 * orbFade})`)
                 orbGrad.addColorStop(1, 'rgba(196,22,31,0)')
                 ctx.fillStyle = orbGrad
                 ctx.beginPath()
                 ctx.arc(cx, oy, orbR * 3, 0, Math.PI * 2)
                 ctx.fill()
+            }
+
+            // Hero comet trails - a few bold flowing arcs sweeping into the
+            // figure while it forms.
+            if (fp < 0.97) {
+                for (const h of heroes) {
+                    const e = Math.min(1, eased + h.offset)
+                    const oneMinus = 1 - e
+                    // Quadratic bezier from off-frame start, through a wide
+                    // control point, into a spot along the head/shoulder edge.
+                    const bx = oneMinus * oneMinus * h.startX + 2 * oneMinus * e * h.ctrlX + e * e * h.endX
+                    const by = oneMinus * oneMinus * h.startY + 2 * oneMinus * e * h.ctrlY + e * e * h.endY
+                    const hx = cx + bx * scale
+                    const hy = cy + by * scale
+                    h.trail.push({ x: hx, y: hy })
+                    if (h.trail.length > 22) h.trail.shift()
+
+                    for (let i = 1; i < h.trail.length; i++) {
+                        const a = (i / h.trail.length) * (1 - e * 0.6) * 0.7
+                        ctx.strokeStyle = `rgba(150,215,255,${a})`
+                        ctx.lineWidth = 1.4
+                        ctx.beginPath()
+                        ctx.moveTo(h.trail[i - 1].x, h.trail[i - 1].y)
+                        ctx.lineTo(h.trail[i].x, h.trail[i].y)
+                        ctx.stroke()
+                    }
+                }
             }
 
             for (let i = 0; i < particles.length; i++) {
@@ -177,8 +268,8 @@ function AIInterviewerFigure({ state = 'idle', formProgress = 1, audioLevel = 0,
                 }
 
                 // During formation, particles rise from the bottom glow orb
-                // (0, ORIGIN_Y) up into their target position, rather than
-                // expanding outward from the figure's own center.
+                // up into their target position, rather than expanding
+                // outward from the figure's own center.
                 const targetX = fp < 1 ? p.tx * eased : p.tx + jitterX
                 const targetY = fp < 1 ? ORIGIN_Y + (p.ty - ORIGIN_Y) * eased : p.ty + jitterY
 
@@ -193,7 +284,7 @@ function AIInterviewerFigure({ state = 'idle', formProgress = 1, audioLevel = 0,
                 const px = cx + p.x * scale
                 const py = cy + p.y * scale
 
-                let alpha = 0.35 + 0.5 * Math.min(1, fp * 1.4)
+                let alpha = (p.edge ? 0.5 : 0.28) + (p.edge ? 0.45 : 0.3) * Math.min(1, fp * 1.4)
                 let size = p.size
                 if (s === 'speaking') {
                     const pulse = 0.5 + 0.5 * Math.sin(t * 8 + p.phase)
@@ -205,10 +296,32 @@ function AIInterviewerFigure({ state = 'idle', formProgress = 1, audioLevel = 0,
                     alpha *= 0.6 + 0.4 * Math.sin(t * 5 + p.jitterSeed * 10)
                 }
 
-                const isCore = p.ty < -0.55 // rough "face" band gets warmer light
-                ctx.fillStyle = isCore
-                    ? `rgba(255, 214, 170, ${alpha * 0.9})`
-                    : `rgba(255, 246, 244, ${alpha})`
+                // Warm amber near the "face" anchor, cooling to blue/cyan
+                // further out - matches the reference's glow gradient.
+                const r = Math.round(255 - p.warmth * 65)
+                const g = Math.round(200 + p.warmth * 30 - (1 - p.warmth) * 30)
+                const b = Math.round(150 + (1 - p.warmth) * 105 - p.warmth * 60)
+                const color = `rgba(${r},${g},${b},${alpha})`
+
+                // Motion trail: only visible while the particle is actually
+                // moving fast (formation swirl) - fades to a plain dot once
+                // settled, so idle breathing doesn't smear into mush.
+                if (p.hasPrev) {
+                    const moved = Math.hypot(px - p.px, py - p.py)
+                    if (moved > 0.6) {
+                        ctx.strokeStyle = p.edge ? `rgba(150,215,255,${Math.min(0.5, moved / 40)})` : `rgba(255,235,210,${Math.min(0.35, moved / 50)})`
+                        ctx.lineWidth = size * 0.7
+                        ctx.beginPath()
+                        ctx.moveTo(p.px, p.py)
+                        ctx.lineTo(px, py)
+                        ctx.stroke()
+                    }
+                }
+                p.px = px
+                p.py = py
+                p.hasPrev = true
+
+                ctx.fillStyle = color
                 ctx.beginPath()
                 ctx.arc(px, py, size * (dpr >= 2 ? 1 : 1.15), 0, Math.PI * 2)
                 ctx.fill()
