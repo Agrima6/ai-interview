@@ -136,6 +136,25 @@ function AIInterviewerFigure({ state = 'idle', formProgress = 1, audioLevel = 0,
             ctx.fillStyle = grad
             ctx.fillRect(0, 0, width, height)
 
+            // Origin point particles rise from during formation - a glowing
+            // orb sitting below the figure, matching the reference imagery,
+            // rather than particles simply expanding from the center.
+            const ORIGIN_Y = 1.35
+
+            if (fp < 1) {
+                const oy = cy + ORIGIN_Y * scale
+                const orbFade = 1 - eased
+                const orbR = scale * (0.14 + 0.05 * Math.sin(t * 4))
+                const orbGrad = ctx.createRadialGradient(cx, oy, 0, cx, oy, orbR * 3)
+                orbGrad.addColorStop(0, `rgba(255,255,255,${0.9 * orbFade})`)
+                orbGrad.addColorStop(0.3, `rgba(196,22,31,${0.5 * orbFade})`)
+                orbGrad.addColorStop(1, 'rgba(196,22,31,0)')
+                ctx.fillStyle = orbGrad
+                ctx.beginPath()
+                ctx.arc(cx, oy, orbR * 3, 0, Math.PI * 2)
+                ctx.fill()
+            }
+
             for (let i = 0; i < particles.length; i++) {
                 const p = particles[i]
 
@@ -157,8 +176,11 @@ function AIInterviewerFigure({ state = 'idle', formProgress = 1, audioLevel = 0,
                     jitterY -= p.ty * pull
                 }
 
+                // During formation, particles rise from the bottom glow orb
+                // (0, ORIGIN_Y) up into their target position, rather than
+                // expanding outward from the figure's own center.
                 const targetX = fp < 1 ? p.tx * eased : p.tx + jitterX
-                const targetY = fp < 1 ? p.ty * eased : p.ty + jitterY
+                const targetY = fp < 1 ? ORIGIN_Y + (p.ty - ORIGIN_Y) * eased : p.ty + jitterY
 
                 // Before formation completes, particles still drift a bit off
                 // their straight-line path so it reads as an energy field, not

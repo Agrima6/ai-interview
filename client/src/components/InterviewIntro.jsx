@@ -13,6 +13,25 @@ function InterviewIntro({ candidateName, isHinglish, speakText, onComplete }) {
     const [phase, setPhase] = useState('forming') // forming -> greeting -> done
     const [line, setLine] = useState('')
     const cancelledRef = useRef(false)
+    const startedRef = useRef(false)
+    const completedRef = useRef(false)
+
+    const complete = () => {
+        if (completedRef.current) return
+        completedRef.current = true
+        onComplete?.()
+    }
+
+    // Absolute failsafe: whatever else happens (a backgrounded/throttled tab
+    // stalling the formation animation, a browser TTS bug neither onend nor
+    // its own internal safety timer catches, anything), the candidate is
+    // never permanently stuck on this screen - it hands off to the actual
+    // interview on its own after a generous ceiling.
+    useEffect(() => {
+        const failsafe = setTimeout(complete, 15000)
+        return () => clearTimeout(failsafe)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
     useEffect(() => {
         const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
@@ -28,12 +47,23 @@ function InterviewIntro({ candidateName, isHinglish, speakText, onComplete }) {
                 if (p < 1 && !cancelledRef.current) raf = requestAnimationFrame(tick)
             }
             raf = requestAnimationFrame(tick)
-            return () => cancelAnimationFrame(raf)
+            // Own smaller failsafe: if rAF gets throttled/stalled (e.g. a
+            // backgrounded tab) long past the intended formation duration,
+            // snap to formed rather than leaving the "Initializing..." state
+            // up indefinitely - the master failsafe below still exists as a
+            // last resort for the greeting sequence itself.
+            const stallGuard = setTimeout(() => setFormProgress(1), FORM_DURATION_MS + 4000)
+            return () => { cancelAnimationFrame(raf); clearTimeout(stallGuard) }
         }
     }, [])
 
     useEffect(() => {
-        if (formProgress < 1 || phase !== 'forming') return
+        // Guarded by a ref, not `phase`, so setPhase('greeting') below doesn't
+        // re-trigger this same effect (which would run its own cleanup -
+        // cancelledRef.current = true - and kill the sequence after the
+        // first line).
+        if (formProgress < 1 || startedRef.current) return
+        startedRef.current = true
         cancelledRef.current = false
 
         const lines = isHinglish
@@ -65,13 +95,13 @@ function InterviewIntro({ candidateName, isHinglish, speakText, onComplete }) {
             setLine('')
             setPhase('done')
             await new Promise((r) => setTimeout(r, 500))
-            if (!cancelledRef.current) onComplete?.()
+            if (!cancelledRef.current) complete()
         }
         run()
 
         return () => { cancelledRef.current = true }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [formProgress, phase])
+    }, [formProgress])
 
     return (
         <div className='fixed inset-0 z-[200] bg-[#0a0507] flex items-center justify-center overflow-hidden'>

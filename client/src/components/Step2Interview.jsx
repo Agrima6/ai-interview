@@ -246,13 +246,11 @@ function Step2Interview({ interviewData, onFinish }) {
       utterance.pitch = 1.05;    // small warmth
       utterance.volume = 1;
 
-      utterance.onstart = () => {
-        setIsAIPlaying(true);
-        stopMic()
-      };
-
-
-      utterance.onend = () => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(safetyTimer);
         setIsAIPlaying(false);
 
         if (isMicOn) {
@@ -264,6 +262,22 @@ function Step2Interview({ interviewData, onFinish }) {
         }, 300);
       };
 
+      utterance.onstart = () => {
+        setIsAIPlaying(true);
+        stopMic()
+      };
+
+      utterance.onend = finish;
+      utterance.onerror = finish;
+
+      // Chrome/webkitSpeechSynthesis is known to silently drop an utterance
+      // (never firing onstart/onend) - most often right after a page
+      // navigation or when the queue was just cancel()'d. Without this, a
+      // dropped utterance would permanently hang every caller that awaits
+      // speakText (the intro greeting, every question, every answer's
+      // feedback) with no way to recover. Ceiling estimated from text
+      // length at a slow speaking pace, with a generous floor.
+      const safetyTimer = setTimeout(finish, Math.max(4000, humanText.length * 90));
 
       setSubtitle(text);
 
