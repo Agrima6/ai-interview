@@ -8,7 +8,6 @@ import {
     LineChart,
     Sparkles,
     Languages,
-    AudioLines,
 } from "lucide-react";
 import { useState } from 'react';
 import axios from "axios"
@@ -56,11 +55,6 @@ const LANGUAGE_OPTIONS = [
     { value: "English", label: "English" },
     { value: "Hinglish", label: "Hinglish" },
 ]
-const VOICE_OPTIONS = [
-    { value: "auto", label: "Interviewer Voice: Auto" },
-    { value: "female", label: "Interviewer Voice: Female" },
-    { value: "male", label: "Interviewer Voice: Male" },
-]
 
 // Finds the preset matching a role string (e.g. from resume analysis or
 // manual typing), so the interview-type dropdown can narrow to what's
@@ -80,7 +74,6 @@ function Step1SetUp({ onStart }) {
     const [experienceYears, setExperienceYears] = useState(parseYears(userData?.assignedExperience));
     const [mode, setMode] = useState(userData?.assignedMode || "Technical");
     const [language, setLanguage] = useState("English");
-    const [voicePreference, setVoicePreference] = useState("auto");
     const [resumeFile, setResumeFile] = useState(null);
     const [loading, setLoading] = useState(false);
     const [projects, setProjects] = useState([]);
@@ -100,12 +93,15 @@ function Step1SetUp({ onStart }) {
         }
     }
 
-    const handleUploadResume = async () => {
-        if (!resumeFile || analyzing) return;
+    // Fires immediately on file selection - there's no separate manual
+    // "Analyze Resume" step anymore, and a resume is required to start.
+    const handleUploadResume = async (file) => {
+        if (!file || analyzing) return;
         setAnalyzing(true)
+        setAnalysisDone(false)
 
         const formdata = new FormData()
-        formdata.append("resume", resumeFile)
+        formdata.append("resume", file)
 
         try {
             const result = await axios.post(ServerUrl + "/api/interview/resume", formdata, { withCredentials: true })
@@ -143,7 +139,7 @@ function Step1SetUp({ onStart }) {
             dispatch(setUserData({...userData , credits:result.data.creditsLeft}))
            }
            setLoading(false)
-           onStart({ ...result.data, voicePreference })
+           onStart(result.data)
 
         } catch (error) {
             console.log(error)
@@ -269,44 +265,37 @@ function Step1SetUp({ onStart }) {
                             options={LANGUAGE_OPTIONS}
                         />
 
-                        <Dropdown
-                            icon={AudioLines}
-                            value={voicePreference}
-                            onChange={setVoicePreference}
-                            options={VOICE_OPTIONS}
-                        />
-
                         {!isAssigned && !analysisDone && (
                             <motion.div
-                                whileHover={{ scale: 1.01 }}
-                                onClick={() => document.getElementById("resumeUpload").click()}
-                                className='border-2 border-dashed border-line rounded-2xl p-7 text-center cursor-pointer hover:border-accent/50 hover:bg-accent/[0.03] transition-colors'>
+                                whileHover={{ scale: analyzing ? 1 : 1.01 }}
+                                onClick={() => !analyzing && document.getElementById("resumeUpload").click()}
+                                className={`border-2 border-dashed rounded-2xl p-7 text-center transition-colors ${analyzing ? 'border-line cursor-wait' : 'border-line cursor-pointer hover:border-accent/50 hover:bg-accent/[0.03]'}`}>
 
-                                <UploadCloud size={28} strokeWidth={1.5} className='mx-auto text-accent mb-3' />
+                                {analyzing ? (
+                                    <div className='w-7 h-7 mx-auto mb-3 border-2 border-accent border-t-transparent rounded-full animate-spin' />
+                                ) : (
+                                    <UploadCloud size={28} strokeWidth={1.5} className='mx-auto text-accent mb-3' />
+                                )}
 
                                 <input type="file"
                                     accept="application/pdf"
                                     id="resumeUpload"
                                     className='hidden'
-                                    onChange={(e) => setResumeFile(e.target.files[0])} />
+                                    disabled={analyzing}
+                                    onChange={(e) => {
+                                        const file = e.target.files[0]
+                                        if (!file) return
+                                        setResumeFile(file)
+                                        handleUploadResume(file)
+                                    }} />
 
                                 <p className='text-text-secondary font-medium text-[14px]'>
-                                    {resumeFile ? resumeFile.name : "Click to upload resume (Optional)"}
+                                    {analyzing ? "Analyzing resume..." : resumeFile ? resumeFile.name : "Click to upload your resume (required)"}
                                 </p>
-
-                                {resumeFile && (
-                                    <Button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleUploadResume()
-                                        }}
-                                        className='mt-4 !px-5 !py-2 !text-[13.5px]'>
-                                        {analyzing ? "Analyzing..." : "Analyze Resume"}
-                                    </Button>)}
-
+                                {!resumeFile && !analyzing && (
+                                    <p className='text-text-secondary/70 text-[12px] mt-1.5'>PDF only - we use it to tailor your interview questions</p>
+                                )}
                             </motion.div>
-
-
                         )}
 
                         {analysisDone && (
@@ -349,11 +338,14 @@ function Step1SetUp({ onStart }) {
 
                         <Button
                             onClick={handleStart}
-                            disabled={!role || (!isAssigned && experienceYears === "") || loading}
+                            disabled={!role || (!isAssigned && (experienceYears === "" || !analysisDone)) || loading || analyzing}
                             size="lg"
                             className='w-full !rounded-xl'>
                             {loading ? "Starting..." : "Start Interview"}
                         </Button>
+                        {!isAssigned && !analysisDone && (
+                            <p className='text-center text-[12px] text-text-secondary'>Upload your resume to continue</p>
+                        )}
                     </div>
 
                 </motion.div>
