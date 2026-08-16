@@ -1,10 +1,10 @@
 import React from 'react'
+import maleVideo from "../assets/videos/male-ai.mp4"
+import femaleVideo from "../assets/videos/female-ai.mp4"
 import Timer from './Timer'
 import ProctoringCamera from './ProctoringCamera'
-import AIInterviewerFigure from './AIInterviewerFigure'
-import InterviewIntro from './InterviewIntro'
 import { motion, AnimatePresence } from "motion/react"
-import { Mic, MicOff, ArrowRight, Radio, Maximize, ShieldAlert } from "lucide-react";
+import { Mic, MicOff, ArrowRight, Radio, Maximize, ShieldAlert, ArrowLeftRight } from "lucide-react";
 import { useState } from 'react'
 import { useRef } from 'react'
 import { useEffect } from 'react'
@@ -34,8 +34,6 @@ const pickBestVoice = (voices, names) =>
 
 // Finds the best available voice for a specific gender, preferring a Hindi
 // voice first when speaking Hinglish since it handles Hindi words far better.
-// There's no user-facing gender choice anymore - this just picks whichever
-// gender actually has a usable voice installed, trying female first.
 const findVoiceForGender = (voices, gender, isHinglish) => {
   if (isHinglish) {
     const hindiNames = gender === "male" ? VOICE_NAMES.hindiMale : VOICE_NAMES.hindiFemale;
@@ -46,12 +44,11 @@ const findVoiceForGender = (voices, gender, isHinglish) => {
 };
 
 function Step2Interview({ interviewData, onFinish }) {
-  const { interviewId, questions, userName, language = "English", sessionMode = "real", roundLabel = null } = interviewData;
+  const { interviewId, questions, userName, language = "English", voicePreference = "auto", sessionMode = "real", roundLabel = null } = interviewData;
   const isHinglish = language === "Hinglish";
   const isPractice = sessionMode === "practice";
   const [answerRecorded, setAnswerRecorded] = useState(false);
-  // True until the cinematic AI-interviewer intro finishes greeting the candidate.
-  const [showIntro, setShowIntro] = useState(true);
+  const [isIntroPhase, setIsIntroPhase] = useState(true);
 
   const [isMicOn, setIsMicOn] = useState(true);
   const recognitionRef = useRef(null);
@@ -65,11 +62,11 @@ function Step2Interview({ interviewData, onFinish }) {
   );
   const [selectedVoice, setSelectedVoice] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [voiceGender, setVoiceGender] = useState("female");
   const [subtitle, setSubtitle] = useState("");
   const [micSupported, setMicSupported] = useState(true);
 
   const [proctoringStarted, setProctoringStarted] = useState(false);
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [violationCount, setViolationCount] = useState(0);
   const [violationMessage, setViolationMessage] = useState("");
   const [terminated, setTerminated] = useState(false);
@@ -77,47 +74,13 @@ function Step2Interview({ interviewData, onFinish }) {
   const fullscreenEnteredRef = useRef(false);
   const violationCooldownRef = useRef(false);
 
-  const [audioLevel, setAudioLevel] = useState(0);
-  const audioCtxRef = useRef(null);
-  const analyserRef = useRef(null);
-  const audioDataRef = useRef(null);
-  const audioRafRef = useRef(null);
 
+  const videoRef = useRef(null);
   const streamRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const recordedChunksRef = useRef([]);
 
   const currentQuestion = questions[currentIndex];
-
-  // Taps the candidate's own mic (already captured for proctoring) with a
-  // Web Audio AnalyserNode so the AI figure's "listening" state can react to
-  // real mic volume instead of just sitting there.
-  const handleStream = (stream) => {
-    streamRef.current = stream;
-    if (analyserRef.current) return;
-    try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      const audioCtx = new AudioCtx();
-      const source = audioCtx.createMediaStreamSource(stream);
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 256;
-      source.connect(analyser);
-      audioCtxRef.current = audioCtx;
-      analyserRef.current = analyser;
-      audioDataRef.current = new Uint8Array(analyser.frequencyBinCount);
-
-      const loop = () => {
-        if (!analyserRef.current || !audioDataRef.current) return;
-        analyserRef.current.getByteFrequencyData(audioDataRef.current);
-        const avg = audioDataRef.current.reduce((a, b) => a + b, 0) / audioDataRef.current.length;
-        setAudioLevel(Math.min(1, avg / 90));
-        audioRafRef.current = requestAnimationFrame(loop);
-      };
-      audioRafRef.current = requestAnimationFrame(loop);
-    } catch (error) {
-      console.log("Audio analyser unavailable:", error);
-    }
-  };
 
   // Records the candidate's own camera+mic for the current question only,
   // so the report can play back exactly what they said/did for that answer.
@@ -189,7 +152,6 @@ function Step2Interview({ interviewData, onFinish }) {
   };
 
   const enterFullscreenAndStart = async () => {
-    if (!agreedToTerms) return;
     try {
       if (document.documentElement.requestFullscreen) {
         // Some embedded/sandboxed contexts silently disallow fullscreen and
@@ -212,14 +174,31 @@ function Step2Interview({ interviewData, onFinish }) {
       const voices = window.speechSynthesis.getVoices();
       if (!voices.length) return;
 
-      const gender = findVoiceForGender(voices, "female", isHinglish) ? "female" : "male";
+      // An explicit preference from setup always wins; "auto" falls back to
+      // whichever gender actually has a usable voice installed, trying
+      // female first (matches the previous default behavior).
+      const gender = voicePreference === "male" || voicePreference === "female"
+        ? voicePreference
+        : (findVoiceForGender(voices, "female", isHinglish) ? "female" : "male");
+
       setSelectedVoice(findVoiceForGender(voices, gender, isHinglish));
+      setVoiceGender(gender);
     };
 
     loadVoices();
     window.speechSynthesis.onvoiceschanged = loadVoices;
 
-  }, [isHinglish])
+  }, [isHinglish, voicePreference])
+
+  const switchVoiceGender = () => {
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices.length) return;
+    const nextGender = voiceGender === "male" ? "female" : "male";
+    setSelectedVoice(findVoiceForGender(voices, nextGender, isHinglish));
+    setVoiceGender(nextGender);
+  };
+
+  const videoSource = voiceGender === "male" ? maleVideo : femaleVideo;
 
 
   /* ---------------- SPEAK FUNCTION ---------------- */
@@ -251,6 +230,8 @@ function Step2Interview({ interviewData, onFinish }) {
         if (settled) return;
         settled = true;
         clearTimeout(safetyTimer);
+        videoRef.current?.pause();
+        if (videoRef.current) videoRef.current.currentTime = 0;
         setIsAIPlaying(false);
 
         if (isMicOn) {
@@ -265,6 +246,7 @@ function Step2Interview({ interviewData, onFinish }) {
       utterance.onstart = () => {
         setIsAIPlaying(true);
         stopMic()
+        videoRef.current?.play();
       };
 
       utterance.onend = finish;
@@ -287,36 +269,52 @@ function Step2Interview({ interviewData, onFinish }) {
 
 
   useEffect(() => {
-    if (!selectedVoice || !proctoringStarted || showIntro) {
+    if (!selectedVoice || !proctoringStarted) {
       return;
     }
-    const askQuestion = async () => {
-      if (!currentQuestion) return;
-      await new Promise(r => setTimeout(r, 800));
+    const runIntro = async () => {
+      if (isIntroPhase) {
+        await speakText(
+          isHinglish
+            ? `Hi ${userName}, aapse milke accha laga. Hope aap confident aur ready feel kar rahe ho.`
+            : `Hi ${userName}, it's great to meet you today. I hope you're feeling confident and ready.`
+        );
 
-      // If last question (hard level)
-      if (currentIndex === questions.length - 1) {
-        await speakText(isHinglish ? "Chaliye, yeh thoda challenging ho sakta hai." : "Alright, this one might be a bit more challenging.");
+        await speakText(
+          isHinglish
+            ? "Main aapse kuch questions puchunga. Bas naturally answer dena, apna time lena. Chaliye shuru karte hain."
+            : "I'll ask you a few questions. Just answer naturally, and take your time. Let's begin."
+        );
+
+        setIsIntroPhase(false)
+      } else if (currentQuestion) {
+        await new Promise(r => setTimeout(r, 800));
+
+        // If last question (hard level)
+        if (currentIndex === questions.length - 1) {
+          await speakText(isHinglish ? "Chaliye, yeh thoda challenging ho sakta hai." : "Alright, this one might be a bit more challenging.");
+        }
+
+        await speakText(currentQuestion.question);
+
+        startRecording();
+
+        if (isMicOn) {
+          startMic();
+        }
       }
 
-      await speakText(currentQuestion.question);
-
-      startRecording();
-
-      if (isMicOn) {
-        startMic();
-      }
     }
 
-    askQuestion()
+    runIntro()
 
 
-  }, [selectedVoice, showIntro, currentIndex, proctoringStarted])
+  }, [selectedVoice, isIntroPhase, currentIndex, proctoringStarted])
 
 
 
   useEffect(() => {
-    if (showIntro) return;
+    if (isIntroPhase) return;
     if (!currentQuestion) return;
     if (!proctoringStarted) return;
 
@@ -333,10 +331,10 @@ function Step2Interview({ interviewData, onFinish }) {
 
     return () => clearInterval(timer)
 
-  }, [showIntro, currentIndex])
+  }, [isIntroPhase, currentIndex])
 
   useEffect(() => {
-  if (!showIntro && currentQuestion) {
+  if (!isIntroPhase && currentQuestion) {
     setTimeLeft(currentQuestion.timeLimit || 60);
   }
 }, [currentIndex]);
@@ -439,7 +437,7 @@ setIsSubmitting(false)
       if (isMicOn) startMic();
     }, 500);
 
-
+   
   }
 
   const finishInterview = async () => {
@@ -458,7 +456,7 @@ setIsSubmitting(false)
 
 
    useEffect(() => {
-    if (showIntro) return;
+    if (isIntroPhase) return;
     if (!currentQuestion) return;
 
     if (timeLeft === 0 && !isSubmitting && !feedback && !answerRecorded) {
@@ -474,9 +472,6 @@ setIsSubmitting(false)
       }
 
       window.speechSynthesis.cancel();
-
-      cancelAnimationFrame(audioRafRef.current);
-      audioCtxRef.current?.close().catch(() => {});
 
       if (document.fullscreenElement) {
         document.exitFullscreen().catch(() => {});
@@ -536,6 +531,11 @@ setIsSubmitting(false)
   }, [violationMessage, terminated]);
 
 
+
+
+
+
+
   if (!proctoringStarted) {
     return (
       <div className='min-h-screen bg-bg bg-noise flex items-center justify-center p-4 sm:p-6'>
@@ -543,71 +543,26 @@ setIsSubmitting(false)
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className='w-full max-w-lg bg-card border border-line rounded-3xl shadow-[var(--shadow-lift)] overflow-hidden'>
-
-          <div className='relative bg-[#120f10] p-8 text-white text-center bg-noise'>
-            <div className='absolute top-[-80px] left-1/2 -translate-x-1/2 w-[260px] h-[260px] rounded-full bg-[radial-gradient(closest-side,rgba(196,22,31,0.35),transparent)] blur-2xl' />
-            <div className='relative w-14 h-14 rounded-2xl bg-accent text-white flex items-center justify-center mx-auto mb-5'>
-              <ShieldAlert size={24} />
-            </div>
-            <h2 className='relative text-[21px] font-semibold'>This is a proctored interview</h2>
-            <p className='relative text-white/50 text-[13px] mt-1.5'>Please read carefully before you begin</p>
+          className='w-full max-w-md bg-card border border-line rounded-3xl shadow-[var(--shadow-lift)] p-8 text-center'>
+          <div className='w-12 h-12 rounded-2xl bg-accent text-white flex items-center justify-center mx-auto mb-5'>
+            <ShieldAlert size={22} />
           </div>
-
-          <div className='p-8'>
-            <ul className='text-[13.5px] text-text-secondary text-left space-y-3 mb-6 leading-relaxed'>
-              {[
-                "The interview runs in fullscreen.",
-                "Copy and paste are disabled on the answer box.",
-                "Your camera stays on - no face, more than one face, or looking away from the screen counts as a violation.",
-                "Switching tabs, windows, or exiting fullscreen also counts as a violation.",
-                "After 3 violations, the interview ends automatically.",
-                "Your answers (audio/video) are recorded and included in your report.",
-              ].map((rule, i) => (
-                <li key={i} className='flex items-start gap-2.5'>
-                  <span className='mt-1.5 w-1.5 h-1.5 rounded-full bg-accent shrink-0' />
-                  <span>{rule}</span>
-                </li>
-              ))}
-            </ul>
-
-            <label className='flex items-start gap-3 mb-6 p-4 bg-bg border border-line rounded-2xl cursor-pointer select-none'>
-              <input
-                type="checkbox"
-                checked={agreedToTerms}
-                onChange={(e) => setAgreedToTerms(e.target.checked)}
-                className='mt-0.5 w-4 h-4 accent-[color:var(--color-accent)] shrink-0'
-              />
-              <span className='text-[13px] text-text-secondary leading-relaxed'>
-                I have read and agree to the proctoring terms above, and consent to being recorded (camera, microphone, and answer video) for the duration of this interview.
-              </span>
-            </label>
-
-            <motion.button
-              whileTap={agreedToTerms ? { scale: 0.97 } : {}}
-              onClick={enterFullscreenAndStart}
-              disabled={!agreedToTerms}
-              className='w-full bg-accent hover:bg-accent-dark text-white py-3.5 rounded-2xl shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-lift)] hover:-translate-y-0.5 transition-all duration-300 font-medium flex items-center justify-center gap-2 disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-[var(--shadow-soft)]'>
-              <Maximize size={16} /> Enter Fullscreen & Start
-            </motion.button>
-          </div>
+          <h2 className='text-[20px] font-semibold text-ink mb-3'>This is a proctored interview</h2>
+          <ul className='text-[13.5px] text-text-secondary text-left space-y-2 mb-7 leading-relaxed'>
+            <li>&bull; The interview runs in fullscreen.</li>
+            <li>&bull; Copy and paste are disabled on the answer box.</li>
+            <li>&bull; Your camera stays on - no face, more than one face, or looking away from the screen counts as a violation.</li>
+            <li>&bull; Switching tabs, windows, or exiting fullscreen also counts as a violation.</li>
+            <li>&bull; After 3 violations, the interview ends automatically.</li>
+          </ul>
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={enterFullscreenAndStart}
+            className='w-full bg-accent hover:bg-accent-dark text-white py-3.5 rounded-2xl shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-lift)] hover:-translate-y-0.5 transition-all duration-300 font-medium flex items-center justify-center gap-2'>
+            <Maximize size={16} /> Enter Fullscreen & Start
+          </motion.button>
         </motion.div>
       </div>
-    )
-  }
-
-  if (showIntro) {
-    // Proctoring (camera/violations) intentionally doesn't start until the
-    // real interview UI mounts below - there's nowhere to surface a
-    // violation warning during this cinematic, so running face-detection
-    // against it could silently end the interview before it even begins.
-    return (
-      <InterviewIntro
-        candidateName={userName}
-        isHinglish={isHinglish}
-        speakText={selectedVoice ? speakText : null}
-        onComplete={() => setShowIntro(false)}
-      />
     )
   }
 
@@ -628,27 +583,36 @@ setIsSubmitting(false)
 
       <div className='w-full max-w-[1400px] min-h-[80vh] bg-card rounded-3xl border border-line shadow-[var(--shadow-lift)] flex flex-col lg:flex-row overflow-hidden'>
 
-        {/* AI interviewer + camera section */}
+        {/* video section */}
         <div className='w-full lg:w-[35%] bg-bg flex flex-col items-center p-6 space-y-5 border-r border-line'>
-          <div className='relative w-full max-w-md aspect-[4/3] rounded-2xl overflow-hidden border border-line shadow-[var(--shadow-soft)]'>
-            <AIInterviewerFigure
-              state={isAIPlaying ? "speaking" : isSubmitting ? "thinking" : (isMicOn && !isAIPlaying) ? "listening" : "idle"}
-              formProgress={1}
-              audioLevel={audioLevel}
-              className='w-full h-full'
+          <div className='relative w-full max-w-md rounded-2xl overflow-hidden border border-line shadow-[var(--shadow-soft)]'>
+            <video
+              src={videoSource}
+              key={videoSource}
+              ref={videoRef}
+              muted
+              playsInline
+              preload="auto"
+              className="w-full h-auto object-cover"
             />
             {isAIPlaying && (
               <div className='absolute top-3 left-3 flex items-center gap-1.5 bg-black/70 backdrop-blur-sm text-white text-[11.5px] font-medium px-2.5 py-1 rounded-full'>
                 <Radio size={11} className='text-accent animate-pulse' /> AI Speaking
               </div>
             )}
+            <button
+              onClick={switchVoiceGender}
+              title={`Switch to ${voiceGender === "male" ? "female" : "male"} voice`}
+              className='absolute top-3 right-3 flex items-center gap-1.5 bg-black/70 backdrop-blur-sm text-white text-[11.5px] font-medium px-2.5 py-1 rounded-full hover:bg-black/85 transition-colors'>
+              <ArrowLeftRight size={11} /> {voiceGender === "male" ? "Male" : "Female"}
+            </button>
           </div>
 
           {/* your camera - proctoring */}
           <ProctoringCamera
             active={proctoringStarted}
             onViolation={registerViolation}
-            onStream={handleStream}
+            onStream={(stream) => { streamRef.current = stream }}
             className="w-full max-w-md h-48 sm:h-56"
           />
 
@@ -709,7 +673,7 @@ setIsSubmitting(false)
           </div>
 
 
-          <div
+          {!isIntroPhase && (<div
             onCopy={(e) => e.preventDefault()}
             onContextMenu={(e) => e.preventDefault()}
             className='relative mb-6 bg-bg p-4 sm:p-6 rounded-2xl border border-line select-none'>
@@ -718,7 +682,8 @@ setIsSubmitting(false)
             </p>
 
             <div className='text-[15px] sm:text-[17px] font-semibold text-ink leading-relaxed'>{currentQuestion?.question}</div>
-          </div>
+          </div>)
+          }
           <textarea
             placeholder="Type your answer here..."
             onChange={(e) => setAnswer(e.target.value)}
