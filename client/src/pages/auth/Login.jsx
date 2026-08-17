@@ -75,20 +75,6 @@ function Login() {
                         Continue as Super Admin (dev)
                     </Button>
                 )}
-
-                <div className='flex items-center gap-3 my-6'>
-                    <div className='flex-1 h-px bg-line' />
-                    <span className='text-[11px] tracking-wide text-text-secondary uppercase'>Or continue with</span>
-                    <div className='flex-1 h-px bg-line' />
-                </div>
-                <div className='grid grid-cols-2 gap-3'>
-                    <Button variant='secondary' className='w-full'>Google</Button>
-                    <Button variant='secondary' className='w-full'>Microsoft</Button>
-                </div>
-
-                <p className='text-[13.5px] text-text-secondary text-center mt-8'>
-                    New to Workmate.IQ? <a href='/platform/register' className='text-accent font-medium hover:underline'>Create an account</a>
-                </p>
             </Card>
         </div>
     )

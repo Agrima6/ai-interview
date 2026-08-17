@@ -66,7 +66,8 @@ function WorkmateNav() {
                 </div>
 
                 <div className='hidden md:flex items-center gap-3'>
-                    <button onClick={() => navigate('/platform/login')} className='text-[13px] text-text-secondary hover:text-ink transition-colors'>Sign in for authorised members</button>
+                    <Button variant='ghost' size='sm' onClick={() => navigate('/login')}>Candidate Login</Button>
+                    <Button variant='ghost' size='sm' onClick={() => navigate('/platform/login')}>Admin Login</Button>
                     <Button variant='secondary' size='sm' onClick={jump('contact')}>Enquiry</Button>
                     <Button variant='primary' size='sm' onClick={() => navigate('/platform/register')}>Register</Button>
                 </div>
@@ -83,8 +84,11 @@ function WorkmateNav() {
                         <a key={l.id} href={`#${l.id}`} onClick={jump(l.id)}
                             className='block py-2.5 text-[14.5px] text-text-secondary hover:text-ink'>{l.label}</a>
                     ))}
-                    <button onClick={() => navigate('/platform/login')} className='block text-[13px] text-text-secondary hover:text-ink transition-colors pt-3'>Sign in for authorised members</button>
                     <div className='flex gap-2.5 pt-3'>
+                        <Button variant='ghost' size='sm' className='flex-1' onClick={() => navigate('/login')}>Candidate Login</Button>
+                        <Button variant='ghost' size='sm' className='flex-1' onClick={() => navigate('/platform/login')}>Admin Login</Button>
+                    </div>
+                    <div className='flex gap-2.5 pt-2.5'>
                         <Button variant='secondary' size='sm' className='flex-1' onClick={jump('contact')}>Enquiry</Button>
                         <Button variant='primary' size='sm' className='flex-1' onClick={() => navigate('/platform/register')}>Register</Button>
                     </div>

@@ -99,7 +99,12 @@ function OnboardingFlow() {
                 <Card className='max-w-[420px] p-8 text-center'>
                     <CheckCircle2 size={40} className='text-green-600 mx-auto mb-4' />
                     <h1 className='font-display text-[22px] font-bold text-ink mb-2'>Onboarding submitted</h1>
-                    <p className='text-text-secondary text-[14px]'>Thanks — our team will review your submission and get back to you shortly.</p>
+                    <p className='text-text-secondary text-[14px] mb-6'>Thanks — our team will review your submission and get back to you shortly.</p>
+                    {type?.toLowerCase() === 'candidate' && (
+                        <a href='/login'>
+                            <Button className='w-full'>Sign in to get started</Button>
+                        </a>
+                    )}
                 </Card>
             </div>
         )

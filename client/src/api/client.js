@@ -22,7 +22,12 @@ client.interceptors.response.use(
     (res) => res,
     async (error) => {
         const { config, response } = error
-        if (response?.status === 401 && !config._retried && !config.url.includes("/auth/")) {
+        // Only attempt a refresh if we actually had a token that could have
+        // expired - a bare 401 on a public, unauthenticated request (e.g.
+        // registration/captcha) is a real error from that endpoint, not an
+        // expired session, and retrying it just replaces the real error
+        // with an unrelated "no refresh token" message.
+        if (response?.status === 401 && accessToken && !config._retried && !config.url.includes("/auth/")) {
             config._retried = true
             try {
                 refreshPromise = refreshPromise || client.post("/api/v1/auth/refresh")
