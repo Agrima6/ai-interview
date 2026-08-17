@@ -6,7 +6,7 @@ import useReveal, { useParallax } from './useReveal'
 import Button from '../../components/Button'
 import AIScorePanel from './AIScorePanel'
 import NetworkGraphic from './NetworkGraphic'
-import { submitEnquiry } from '../../utils/enquiryApi'
+import { submitPlatformEnquiry } from '../../api/enquiriesApi'
 import {
     ArrowRight, Building2, GraduationCap, User, ShieldCheck, Zap, LineChart,
     FileText, Users, Star, ChevronDown, Sparkles, Scale, Lock, TrendingUp,
@@ -319,10 +319,16 @@ function EnquiryForm() {
         setStatus('sending')
         setError('')
         try {
-            await submitEnquiry(form)
+            await submitPlatformEnquiry({
+                name: form.name,
+                email: form.email,
+                phone: form.mobile || undefined,
+                type: form.clientType.toUpperCase(),
+                message: form.subject ? `${form.subject}\n\n${form.message}` : form.message,
+            })
             setStatus('done')
         } catch (err) {
-            setError(err.response?.data?.message || 'Failed to submit enquiry.')
+            setError(err.message || 'Failed to submit enquiry.')
             setStatus('error')
         }
     }

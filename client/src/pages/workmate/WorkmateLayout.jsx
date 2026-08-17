@@ -13,9 +13,9 @@ const NAV_LINKS = [
     { label: 'Contact', id: 'contact' },
 ]
 
-// Enquiry/Register are visual placeholders only for now, per explicit
-// instruction - no onClick, no navigation. Wiring them up is separate,
-// later work once there's a real flow behind them.
+// Register stays a visual placeholder for now - no real registration flow
+// hooked up here yet. Enquiry now jumps to the real, backend-wired contact
+// form below.
 function WorkmateNav() {
     const [open, setOpen] = useState(false)
     const [active, setActive] = useState('home')
@@ -68,7 +68,7 @@ function WorkmateNav() {
 
                 <div className='hidden md:flex items-center gap-3'>
                     <span className='text-[13px] text-text-secondary'>Sign in for authorised members</span>
-                    <Button variant='secondary' size='sm'>Enquiry</Button>
+                    <Button variant='secondary' size='sm' onClick={jump('contact')}>Enquiry</Button>
                     <Button variant='primary' size='sm'>Register</Button>
                 </div>
 
@@ -86,7 +86,7 @@ function WorkmateNav() {
                     ))}
                     <p className='text-[13px] text-text-secondary pt-3'>Sign in for authorised members</p>
                     <div className='flex gap-2.5 pt-3'>
-                        <Button variant='secondary' size='sm' className='flex-1'>Enquiry</Button>
+                        <Button variant='secondary' size='sm' className='flex-1' onClick={jump('contact')}>Enquiry</Button>
                         <Button variant='primary' size='sm' className='flex-1'>Register</Button>
                     </div>
                 </div>
