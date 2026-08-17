@@ -7,27 +7,36 @@ import logo from '../../assets/logo.png'
 // Figma copy: "Welcome back / Enter your credentials to access your
 // recruitment desk." This is the staff/reviewer login - distinct from the
 // candidate-facing Google sign-in used elsewhere in the product.
+// Dev-only default credentials, seeded by `npm run seed` in auth-service.
+// Never shipped in a production build - import.meta.env.DEV is false once
+// the app is actually built, not just "not localhost".
+const DEV_ADMIN = { email: 'admin@workmateiq.local', password: 'ChangeMe123!' }
+
 function Login() {
     const navigate = useNavigate()
     const { login } = useAuth()
-    const [email, setEmail] = useState('')
-    const [password, setPassword] = useState('')
+    const [email, setEmail] = useState(import.meta.env.DEV ? DEV_ADMIN.email : '')
+    const [password, setPassword] = useState(import.meta.env.DEV ? DEV_ADMIN.password : '')
     const [remember, setRemember] = useState(true)
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
 
-    const submit = async (e) => {
-        e.preventDefault()
+    const doLogin = async (creds) => {
         setError('')
         setLoading(true)
         try {
-            await login(email, password)
+            await login(creds.email, creds.password)
             navigate('/platform/dashboard')
         } catch (err) {
             setError(err.message || 'Invalid email or password.')
         } finally {
             setLoading(false)
         }
+    }
+
+    const submit = (e) => {
+        e.preventDefault()
+        doLogin({ email, password })
     }
 
     return (
@@ -54,6 +63,18 @@ function Login() {
                     {error && <p className='text-[13px] text-red-500'>{error}</p>}
                     <Button type='submit' size='lg' disabled={loading} className='w-full'>{loading ? 'Signing in...' : 'Sign In'}</Button>
                 </form>
+
+                {import.meta.env.DEV && (
+                    <Button
+                        variant='secondary'
+                        size='sm'
+                        disabled={loading}
+                        onClick={() => doLogin(DEV_ADMIN)}
+                        className='w-full mt-3'
+                    >
+                        Continue as Super Admin (dev)
+                    </Button>
+                )}
 
                 <div className='flex items-center gap-3 my-6'>
                     <div className='flex-1 h-px bg-line' />
