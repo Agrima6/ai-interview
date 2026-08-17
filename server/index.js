@@ -12,6 +12,7 @@ import adminRouter from "./routes/admin.route.js"
 import questionBankRouter from "./routes/questionBank.route.js"
 import interviewTemplateRouter from "./routes/interviewTemplate.route.js"
 import inviteRouter from "./routes/invite.route.js"
+import enquiryRouter from "./routes/enquiry.route.js"
 import User from "./models/user.model.js"
 
 const app = express()
@@ -44,6 +45,7 @@ app.use("/api/admin" , adminRouter)
 app.use("/api/question-banks" , questionBankRouter)
 app.use("/api/interview-templates" , interviewTemplateRouter)
 app.use("/api/invites" , inviteRouter)
+app.use("/api/enquiries" , enquiryRouter)
 
 // Ensures the designated Super Admin account exists (pre-registered, same
 // mechanism an Admin uses to pre-register an Employee) so the first Google

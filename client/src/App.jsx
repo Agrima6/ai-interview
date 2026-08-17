@@ -19,6 +19,16 @@ import InviteCandidates from './pages/admin/InviteCandidates'
 import RequireAuth from './components/RequireAuth'
 import RequireRole from './components/RequireRole'
 import InviteLanding from './pages/InviteLanding'
+import WHome from './pages/workmate/WHome'
+import PlatformLogin from './pages/auth/Login'
+import RegisterTypeSelect from './pages/public/RegisterTypeSelect'
+import RegisterForm from './pages/public/RegisterForm'
+import OnboardingFlow from './pages/onboarding/OnboardingFlow'
+import RequirePlatformAuth from './components/RequirePlatformAuth'
+import PlatformDashboard from './pages/dashboard/AdminDashboard'
+import OnboardingReviewList from './pages/onboarding-admin/OnboardingReviewList'
+import OnboardingReviewDetail from './pages/onboarding-admin/OnboardingReviewDetail'
+import ClientList from './pages/clients/ClientList'
 import { ServerUrl } from './constants'
 
 export { ServerUrl }
@@ -50,7 +60,24 @@ function App() {
   return (
     <Routes>
       <Route path='/' element={<Home/>}/>
+      {/* New premium marketing site - separate, single-page, from the existing
+          Home, which stays as the interview-product homepage. Preview-only
+          for now; not linked from anywhere yet. */}
+      <Route path='/welcome' element={<WHome/>}/>
       <Route path='/login' element={<Login/>}/>
+
+      {/* New microservices-backed registration/onboarding platform (auth,
+          registration, onboarding services behind the API gateway). Namespaced
+          under /platform to avoid colliding with the existing Firebase-based
+          candidate login at /login. */}
+      <Route path='/platform/login' element={<PlatformLogin/>}/>
+      <Route path='/platform/register' element={<RegisterTypeSelect/>}/>
+      <Route path='/platform/register/:type' element={<RegisterForm/>}/>
+      <Route path='/platform/onboarding/:type/:token' element={<OnboardingFlow/>}/>
+      <Route path='/platform/dashboard' element={<RequirePlatformAuth><PlatformDashboard/></RequirePlatformAuth>}/>
+      <Route path='/platform/admin/onboarding' element={<RequirePlatformAuth><OnboardingReviewList/></RequirePlatformAuth>}/>
+      <Route path='/platform/admin/onboarding/:id' element={<RequirePlatformAuth><OnboardingReviewDetail/></RequirePlatformAuth>}/>
+      <Route path='/platform/admin/clients' element={<RequirePlatformAuth><ClientList/></RequirePlatformAuth>}/>
       <Route path='/interview' element={<RequireAuth><InterviewPage/></RequireAuth>}/>
       <Route path='/history' element={<RequireAuth><InterviewHistory/></RequireAuth>}/>
       <Route path='/pricing' element={<RequireAuth><Pricing/></RequireAuth>}/>

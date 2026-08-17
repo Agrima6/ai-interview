@@ -46,6 +46,13 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Display font for the Workmate.IQ marketing page's headings - a distinct
+   counterpoint to Inter body text, tighter tracking, heavier weight. */
+.font-display {
+  font-family: "Manrope", var(--font-sans);
+  letter-spacing: -0.02em;
+}
+
 body {
   background: var(--color-bg);
   color: var(--color-ink);
@@ -97,6 +104,63 @@ body {
 }
 .animate-float {
   animation: float-slow 6s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(196, 22, 31, 0.28); }
+  50% { box-shadow: 0 0 0 10px rgba(196, 22, 31, 0); }
+}
+.animate-pulse-glow {
+  animation: pulse-glow 2.6s ease-in-out infinite;
+}
+
+/* Slow-sweeping light around a card border - used on the featured pricing
+   plan so it reads as "premium" without a static, shouty glow. */
+@property --border-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+.gradient-border-sweep {
+  position: relative;
+}
+.gradient-border-sweep::before {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(from var(--border-angle), transparent 0deg, transparent 250deg, #c4161f 300deg, #f0938f 330deg, transparent 360deg);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: border-angle-spin 4s linear infinite;
+  pointer-events: none;
+}
+@keyframes border-angle-spin {
+  to { --border-angle: 360deg; }
+}
+
+/* Pure-CSS entrance fade - deliberately NOT GSAP-driven. A one-shot JS
+   tween (gsap.from opacity:0 -> 1) can get stuck at its start value if the
+   effect re-fires (HMR, StrictMode double-invoke, a backgrounded/throttled
+   tab) since .from() re-renders the 0-state every time it's called. A CSS
+   animation tied to the element's own lifecycle can't be re-triggered that
+   way, so it can't leave content invisible. */
+@keyframes fade-up-in {
+  from { opacity: 0; transform: translateY(28px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-fade-up-in {
+  animation: fade-up-in 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+.animate-breathe {
+  animation: breathe 3.4s ease-in-out infinite;
 }
 
 @keyframes shimmer {

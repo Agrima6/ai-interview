@@ -1,0 +1,14 @@
+// Path-prefix -> upstream service. The browser only ever talks to this
+// gateway; it never learns a service's real host/port.
+export const routeTable = [
+    { prefix: "/api/v1/auth", target: process.env.AUTH_SERVICE_URL },
+    { prefix: "/api/v1/me", target: process.env.AUTH_SERVICE_URL },
+    { prefix: "/api/v1/registration-types", target: process.env.REGISTRATION_SERVICE_URL },
+    { prefix: "/api/v1/captcha", target: process.env.REGISTRATION_SERVICE_URL },
+    { prefix: "/api/v1/registrations", target: process.env.REGISTRATION_SERVICE_URL },
+    { prefix: "/api/v1/forms", target: process.env.FORM_SERVICE_URL },
+    { prefix: "/api/v1/onboarding", target: process.env.ONBOARDING_SERVICE_URL },
+    { prefix: "/api/v1/onboardings", target: process.env.ONBOARDING_SERVICE_URL },
+    { prefix: "/api/v1/clients", target: process.env.CLIENT_SERVICE_URL },
+    { prefix: "/api/v1/dashboard", target: process.env.DASHBOARD_SERVICE_URL },
+]
