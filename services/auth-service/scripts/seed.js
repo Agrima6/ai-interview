@@ -23,7 +23,7 @@ const run = async () => {
     ])
 
     const email = process.argv[2] || "admin@workmateiq.local"
-    const password = process.argv[3] || "ChangeMe123!"
+    const password = process.argv[3] || "Agrima123"
 
     const existing = await userRepo.findByEmail(email)
     if (existing) {

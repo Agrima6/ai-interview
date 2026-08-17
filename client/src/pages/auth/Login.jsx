@@ -10,7 +10,7 @@ import logo from '../../assets/logo.png'
 // Dev-only default credentials, seeded by `npm run seed` in auth-service.
 // Never shipped in a production build - import.meta.env.DEV is false once
 // the app is actually built, not just "not localhost".
-const DEV_ADMIN = { email: 'admin@workmateiq.local', password: 'ChangeMe123!' }
+const DEV_ADMIN = { email: 'admin@workmateiq.local', password: 'Agrima123' }
 
 function Login() {
     const navigate = useNavigate()
