@@ -1,0 +1,242 @@
+# Workmate.IQ microservices - Render Blueprint
+#
+# Deploys all 9 backend services + the API gateway in one shot from this repo.
+# None of the secret values below are set by this file - Render will prompt
+# for each `sync: false` variable during setup, and nothing sensitive is
+# committed here.
+
+services:
+  - type: web
+    name: api-gateway
+    runtime: node
+    rootDir: services/api-gateway
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run start
+    envVars:
+      - key: SERVICE_NAME
+        value: api-gateway
+      - key: NODE_ENV
+        value: production
+      - key: AUTH_SERVICE_URL
+        sync: false
+      - key: FORM_SERVICE_URL
+        sync: false
+      - key: REGISTRATION_SERVICE_URL
+        sync: false
+      - key: ONBOARDING_SERVICE_URL
+        sync: false
+      - key: COMMUNICATION_SERVICE_URL
+        sync: false
+      - key: CLIENT_SERVICE_URL
+        sync: false
+      - key: DASHBOARD_SERVICE_URL
+        sync: false
+      - key: ENQUIRY_SERVICE_URL
+        sync: false
+
+  - type: web
+    name: auth-service
+    runtime: node
+    rootDir: services/auth-service
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run start
+    envVars:
+      - key: SERVICE_NAME
+        value: auth-service
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URL
+        sync: false
+      - key: ACCESS_TOKEN_SECRET
+        sync: false
+      - key: INCOMING_SERVICE_KEYS
+        value: "{}"
+      - key: SERVICE_PERMISSIONS
+        value: "{}"
+
+  - type: web
+    name: form-service
+    runtime: node
+    rootDir: services/form-service
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run start
+    envVars:
+      - key: SERVICE_NAME
+        value: form-service
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URL
+        sync: false
+      - key: INCOMING_SERVICE_KEYS
+        sync: false
+      - key: SERVICE_PERMISSIONS
+        value: '{"registration-service":["FORM_READ"],"onboarding-service":["FORM_READ"]}'
+
+  - type: web
+    name: registration-service
+    runtime: node
+    rootDir: services/registration-service
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run start
+    envVars:
+      - key: SERVICE_NAME
+        value: registration-service
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URL
+        sync: false
+      - key: FORM_SERVICE_URL
+        sync: false
+      - key: FORM_SERVICE_API_KEY
+        sync: false
+      - key: ONBOARDING_SERVICE_URL
+        sync: false
+      - key: ONBOARDING_SERVICE_API_KEY
+        sync: false
+      - key: COMMUNICATION_SERVICE_URL
+        sync: false
+      - key: COMMUNICATION_SERVICE_API_KEY
+        sync: false
+      - key: CAPTCHA_SECRET
+        sync: false
+      - key: ONBOARDING_BASE_URL
+        sync: false
+      - key: EXPOSE_LOCAL_ONBOARDING_URL
+        value: "false"
+      - key: INCOMING_SERVICE_KEYS
+        value: "{}"
+      - key: SERVICE_PERMISSIONS
+        value: "{}"
+
+  - type: web
+    name: onboarding-service
+    runtime: node
+    rootDir: services/onboarding-service
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run start
+    envVars:
+      - key: SERVICE_NAME
+        value: onboarding-service
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URL
+        sync: false
+      - key: FORM_SERVICE_URL
+        sync: false
+      - key: FORM_SERVICE_API_KEY
+        sync: false
+      - key: CLIENT_SERVICE_URL
+        sync: false
+      - key: CLIENT_SERVICE_API_KEY
+        sync: false
+      - key: ACCESS_TOKEN_SECRET
+        sync: false
+      - key: INCOMING_SERVICE_KEYS
+        sync: false
+      - key: SERVICE_PERMISSIONS
+        value: '{"registration-service":["INVITATION_CREATE"],"dashboard-service":["STATISTICS_READ"]}'
+
+  - type: web
+    name: communication-service
+    runtime: node
+    rootDir: services/communication-service
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run start
+    envVars:
+      - key: SERVICE_NAME
+        value: communication-service
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URL
+        sync: false
+      - key: EMAIL_MODE
+        value: mock
+      - key: WHATSAPP_MODE
+        value: mock
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_APP_PASSWORD
+        sync: false
+      - key: INCOMING_SERVICE_KEYS
+        sync: false
+      - key: SERVICE_PERMISSIONS
+        value: '{"registration-service":["COMMUNICATION_CREATE","TEMPLATE_READ"],"onboarding-service":["COMMUNICATION_CREATE","TEMPLATE_READ"]}'
+
+  - type: web
+    name: client-service
+    runtime: node
+    rootDir: services/client-service
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run start
+    envVars:
+      - key: SERVICE_NAME
+        value: client-service
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URL
+        sync: false
+      - key: ACCESS_TOKEN_SECRET
+        sync: false
+      - key: INCOMING_SERVICE_KEYS
+        sync: false
+      - key: SERVICE_PERMISSIONS
+        value: '{"onboarding-service":["CLIENT_WRITE"],"dashboard-service":["STATISTICS_READ"]}'
+
+  - type: web
+    name: dashboard-service
+    runtime: node
+    rootDir: services/dashboard-service
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run start
+    envVars:
+      - key: SERVICE_NAME
+        value: dashboard-service
+      - key: NODE_ENV
+        value: production
+      - key: ACCESS_TOKEN_SECRET
+        sync: false
+      - key: ONBOARDING_SERVICE_URL
+        sync: false
+      - key: ONBOARDING_SERVICE_API_KEY
+        sync: false
+      - key: CLIENT_SERVICE_URL
+        sync: false
+      - key: CLIENT_SERVICE_API_KEY
+        sync: false
+      - key: ENQUIRY_SERVICE_URL
+        sync: false
+      - key: ENQUIRY_SERVICE_API_KEY
+        sync: false
+      - key: INCOMING_SERVICE_KEYS
+        value: "{}"
+      - key: SERVICE_PERMISSIONS
+        value: "{}"
+
+  - type: web
+    name: enquiry-service
+    runtime: node
+    rootDir: services/enquiry-service
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run start
+    envVars:
+      - key: SERVICE_NAME
+        value: enquiry-service
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URL
+        sync: false
+      - key: ACCESS_TOKEN_SECRET
+        sync: false
+      - key: INCOMING_SERVICE_KEYS
+        sync: false
+      - key: SERVICE_PERMISSIONS
+        value: '{"dashboard-service":["STATISTICS_READ"]}'
