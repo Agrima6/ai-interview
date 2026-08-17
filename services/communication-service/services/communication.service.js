@@ -55,6 +55,7 @@ export const sendAndRecord = async ({ entityType, entityId, channel, eventType, 
         })
         return view(updated)
     } catch (error) {
+        console.error(`[${process.env.SERVICE_NAME}] ${channel} send failed:`, error.message)
         const updated = await communicationRepo.updateStatus(communication._id, {
             status: "FAILED",
             attempts: communication.attempts + 1,
