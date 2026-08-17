@@ -27,7 +27,7 @@ function AdminShell({ children }) {
             <aside className='w-[240px] shrink-0 border-r border-line bg-card flex flex-col'>
                 <div className='flex items-center gap-2.5 px-5 h-[64px] border-b border-line'>
                     <img src={logo} alt='' className='w-8 h-8 rounded-full' />
-                    <span className='font-display text-[14.5px] font-bold text-ink'>Workmate.IQ</span>
+                    <span className='font-display text-[14.5px] font-bold text-ink'>WorkmateIQ</span>
                 </div>
                 <nav className='flex-1 p-3 space-y-1'>
                     {NAV.filter((item) => hasPermission(item.permission)).map((item) => (

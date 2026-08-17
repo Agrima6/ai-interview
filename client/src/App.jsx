@@ -59,7 +59,7 @@ function App() {
 
   return (
     <Routes>
-      {/* Workmate.IQ marketing page is now the real landing page. The old
+      {/* WorkmateIQ marketing page is now the real landing page. The old
           Home.jsx design still exists in the codebase but is no longer
           routed anywhere. */}
       <Route path='/' element={<WHome/>}/>

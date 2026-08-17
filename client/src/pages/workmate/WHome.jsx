@@ -64,7 +64,7 @@ function Hero({ jump }) {
                 <div ref={heroRef}>
                     <p className={`reveal ${EYEBROW} inline-flex items-center gap-2`}>
                         <span className='w-1.5 h-1.5 rounded-full bg-accent animate-pulse-glow' />
-                        Workmate.IQ
+                        WorkmateIQ
                     </p>
                     <h1 className='reveal font-display text-[42px] sm:text-[62px] font-bold text-ink leading-[1.03] tracking-tight mb-6'>
                         Where <span className='gradient-brand-text'>better talent journeys</span> begin.
@@ -74,14 +74,14 @@ function Hero({ jump }) {
                     </p>
                     <div className='reveal flex flex-wrap gap-3'>
                         <CTAButton size='lg' onClick={jump('contact')}>Get Started</CTAButton>
-                        <Button size='lg' variant='secondary' onClick={jump('how-it-works')}>Explore Workmate.IQ</Button>
+                        <Button size='lg' variant='secondary' onClick={jump('how-it-works')}>Explore WorkmateIQ</Button>
                     </div>
                 </div>
 
                 <div ref={wrapRef} className='relative' style={{ perspective: '1200px' }}>
                     <div className='hero-tilt relative' style={{ transformStyle: 'preserve-3d' }}>
                         <div className='rounded-[28px] overflow-hidden border border-line shadow-[0_30px_80px_-24px_rgba(30,10,12,0.25)] bg-card'>
-                            <img src={handsConnect} alt='Organizations, colleges and candidates connected through Workmate.IQ' className='w-full h-auto' style={{ filter: 'contrast(1.12) saturate(1.18) brightness(1.02)' }} />
+                            <img src={handsConnect} alt='Organizations, colleges and candidates connected through WorkmateIQ' className='w-full h-auto' style={{ filter: 'contrast(1.12) saturate(1.18) brightness(1.02)' }} />
                         </div>
                     </div>
                 </div>
@@ -112,7 +112,7 @@ function About() {
                     <p className={EYEBROW}>About Us</p>
                     <h2 className={`${H2} mb-5`}>One hub for every side of hiring.</h2>
                     <p className='text-text-secondary text-[16px] leading-relaxed mb-4'>
-                        We believe hiring should be intelligent, fair and fast. Workmate.IQ brings organizations, colleges and candidates into one platform to evaluate and move talent forward — clearly, and without the usual friction.
+                        We believe hiring should be intelligent, fair and fast. WorkmateIQ brings organizations, colleges and candidates into one platform to evaluate and move talent forward — clearly, and without the usual friction.
                     </p>
                     <p className='text-text-secondary text-[15px] leading-relaxed'>
                         Every registration, onboarding link and review moves through the same connected hub — so nothing gets lost between the people trying to find each other.
@@ -120,7 +120,7 @@ function About() {
                 </div>
                 <div ref={imgRef} className='relative'>
                     <div className='absolute inset-0 scale-90 opacity-30 blur-2xl' style={{ background: 'radial-gradient(closest-side, #c4161f, transparent)' }} />
-                    <img src={isometricAudience} alt='Workmate.IQ connecting organizations, colleges and candidates around one hub' className='relative w-full h-auto animate-float' style={{ animationDuration: '8s' }} />
+                    <img src={isometricAudience} alt='WorkmateIQ connecting organizations, colleges and candidates around one hub' className='relative w-full h-auto animate-float' style={{ animationDuration: '8s' }} />
                 </div>
             </div>
         </section>
@@ -179,7 +179,7 @@ function HowItWorks() {
             <div ref={imgRef} className='relative'>
                 <div className='absolute inset-x-10 -bottom-6 top-10 rounded-[32px] opacity-40 blur-3xl' style={{ background: 'radial-gradient(closest-side, #f0938f, transparent)' }} />
                 <div className='relative rounded-[28px] overflow-hidden border border-line shadow-[0_30px_80px_-24px_rgba(30,10,12,0.2)]'>
-                    <img src={journeyPath} alt='The Workmate.IQ journey: discover, connect, register, onboard, review, move forward' className='w-full h-auto' />
+                    <img src={journeyPath} alt='The WorkmateIQ journey: discover, connect, register, onboard, review, move forward' className='w-full h-auto' />
                 </div>
             </div>
 
@@ -429,7 +429,7 @@ function WHome() {
                 <div className='absolute inset-0 bg-white/72' />
                 <div className='relative max-w-[900px] mx-auto px-6 text-center'>
                     <h2 className='font-display text-[28px] sm:text-[42px] font-bold text-ink mb-4 leading-[1.15]'>Potential is everywhere. The right connection changes everything.</h2>
-                    <p className='text-text-secondary text-[16px] mb-8'>Join the organizations, colleges and candidates already building better journeys with Workmate.IQ.</p>
+                    <p className='text-text-secondary text-[16px] mb-8'>Join the organizations, colleges and candidates already building better journeys with WorkmateIQ.</p>
                     <CTAButton size='lg' onClick={jump('contact')}>Get Started</CTAButton>
                 </div>
             </section>
@@ -471,7 +471,7 @@ function WHome() {
                 <div className='relative max-w-[900px] mx-auto px-6 text-center mb-14'>
                     <p className={`${EYEBROW} justify-center flex`}>Contact</p>
                     <h2 className={`${H2} mb-5`}>Let's build better talent journeys.</h2>
-                    <p className='text-text-secondary text-[16px]'>Start your Workmate.IQ journey today — tell us a bit about you below.</p>
+                    <p className='text-text-secondary text-[16px]'>Start your WorkmateIQ journey today — tell us a bit about you below.</p>
                 </div>
                 <div className='relative px-6'>
                     <div className='max-w-[640px] mx-auto bg-card border border-line rounded-3xl p-8 sm:p-10 shadow-lift'>

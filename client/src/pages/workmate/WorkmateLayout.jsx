@@ -53,7 +53,7 @@ function WorkmateNav() {
             <div className={`max-w-[1280px] mx-auto px-6 lg:px-8 flex items-center justify-between transition-all duration-300 ${scrolled ? 'h-[62px]' : 'h-[76px]'}`}>
                 <a href='#home' onClick={jump('home')} className='flex items-center gap-2.5 shrink-0 group'>
                     <img src={logo} alt='' className='w-9 h-9 rounded-full transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6' />
-                    <span className='font-display text-[16px] font-bold text-ink tracking-tight'>Workmate.IQ</span>
+                    <span className='font-display text-[16px] font-bold text-ink tracking-tight'>WorkmateIQ</span>
                 </a>
 
                 <div className='hidden lg:flex items-center gap-1'>
@@ -115,7 +115,7 @@ function WorkmateFooter() {
                     <div className='lg:col-span-1'>
                         <div className='flex items-center gap-2.5 mb-4'>
                             <img src={logo} alt='' className='w-9 h-9 rounded-full' />
-                            <span className='font-display text-[16px] font-bold'>Workmate.IQ</span>
+                            <span className='font-display text-[16px] font-bold'>WorkmateIQ</span>
                         </div>
                         <p className='text-white/50 text-[13.5px] leading-relaxed max-w-xs'>
                             A smarter platform for hiring, onboarding and building stronger professional journeys.
@@ -132,7 +132,7 @@ function WorkmateFooter() {
                         </div>
                     ))}
                 </div>
-                <p className='text-white/30 text-[12.5px] pt-8 border-t border-white/10'>© 2026 Workmate.IQ. All rights reserved.</p>
+                <p className='text-white/30 text-[12.5px] pt-8 border-t border-white/10'>© 2026 WorkmateIQ. All rights reserved.</p>
             </div>
         </footer>
     )

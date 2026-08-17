@@ -116,7 +116,7 @@ function OnboardingFlow() {
             <div className='min-h-screen bg-bg flex items-center justify-center px-6'>
                 <Card className='max-w-[480px] p-8 text-center'>
                     <img src={logo} alt='' className='w-12 h-12 rounded-full mx-auto mb-5' />
-                    <h1 className='font-display text-[22px] font-bold text-ink mb-2'>Welcome to Workmate.IQ</h1>
+                    <h1 className='font-display text-[22px] font-bold text-ink mb-2'>Welcome to WorkmateIQ</h1>
                     <p className='text-text-secondary text-[14px] mb-6'>
                         Let's finish setting up your {type} profile. This takes about {totalSteps * 2} minutes and you can save and come back anytime.
                     </p>
@@ -142,7 +142,7 @@ function OnboardingFlow() {
                 <div className='flex items-center justify-between mb-8'>
                     <div className='flex items-center gap-2.5'>
                         <img src={logo} alt='' className='w-8 h-8 rounded-full' />
-                        <span className='font-display text-[15px] font-bold text-ink'>Workmate.IQ Onboarding</span>
+                        <span className='font-display text-[15px] font-bold text-ink'>WorkmateIQ Onboarding</span>
                     </div>
                     <span className='text-[12.5px] text-text-secondary'>
                         {saveState === 'saving' && 'Saving...'}
@@ -182,7 +182,7 @@ function OnboardingFlow() {
                         extraFooter={
                             <label className='flex items-start gap-2 text-[13.5px] text-text-secondary border-t border-line pt-6'>
                                 <input type='checkbox' checked={consent} onChange={(e) => setConsent(e.target.checked)} className='mt-0.5' />
-                                I confirm the information provided is accurate and consent to Workmate.IQ processing it for onboarding review.
+                                I confirm the information provided is accurate and consent to WorkmateIQ processing it for onboarding review.
                             </label>
                         }
                     />

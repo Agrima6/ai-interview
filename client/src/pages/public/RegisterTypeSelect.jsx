@@ -25,7 +25,7 @@ function RegisterTypeSelect() {
     return (
         <div className='min-h-screen bg-bg flex items-center justify-center px-6 py-16'>
             <div className='w-full max-w-[720px]'>
-                <h1 className='font-display text-[30px] font-bold text-ink text-center mb-2'>Join Workmate.IQ</h1>
+                <h1 className='font-display text-[30px] font-bold text-ink text-center mb-2'>Join WorkmateIQ</h1>
                 <p className='text-text-secondary text-center mb-10'>Tell us who you are, and we'll set you up.</p>
 
                 {error && <p className='text-center text-red-500 text-[14px] mb-6'>{error}</p>}

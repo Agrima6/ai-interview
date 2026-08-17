@@ -32,7 +32,7 @@ function AdminDashboard() {
     return (
         <AdminShell>
             <h1 className='font-display text-[22px] font-bold text-ink mb-1'>Dashboard</h1>
-            <p className='text-text-secondary text-[14px] mb-8'>An overview of registrations moving through Workmate.IQ.</p>
+            <p className='text-text-secondary text-[14px] mb-8'>An overview of registrations moving through WorkmateIQ.</p>
 
             {error && <p className='text-[13.5px] text-red-500 mb-4'>{error}</p>}
 

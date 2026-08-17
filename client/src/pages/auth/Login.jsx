@@ -44,7 +44,7 @@ function Login() {
             <Card className='w-full max-w-[420px] p-8 sm:p-10'>
                 <div className='flex items-center gap-2.5 mb-8'>
                     <img src={logo} alt='' className='w-9 h-9 rounded-full' />
-                    <span className='font-display text-[16px] font-bold text-ink'>Workmate.IQ</span>
+                    <span className='font-display text-[16px] font-bold text-ink'>WorkmateIQ</span>
                 </div>
 
                 <h1 className='font-display text-[26px] font-bold text-ink mb-2'>Welcome back</h1>

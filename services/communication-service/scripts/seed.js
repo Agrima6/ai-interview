@@ -5,13 +5,13 @@ import * as templateRepo from "../repositories/template.repository.js"
 const templates = [
     {
         channel: "EMAIL", eventType: "ONBOARDING_LINK", name: "Onboarding link (email)",
-        subject: "Welcome to Workmate.IQ, {{recipientName}} - let's finish your onboarding",
-        body: "Hi {{recipientName}},\n\nThanks for registering {{clientName}} with Workmate.IQ. Continue your onboarding here:\n{{onboardingUrl}}\n\nThis link is valid for 7 days.\n\n- The Workmate.IQ team",
+        subject: "Welcome to WorkmateIQ, {{recipientName}} - let's finish your onboarding",
+        body: "Hi {{recipientName}},\n\nThanks for registering {{clientName}} with WorkmateIQ. Continue your onboarding here:\n{{onboardingUrl}}\n\nThis link is valid for 7 days.\n\n- The WorkmateIQ team",
         variables: ["recipientName", "clientName", "onboardingUrl"],
     },
     {
         channel: "WHATSAPP", eventType: "ONBOARDING_LINK", name: "Onboarding link (WhatsApp)",
-        body: "Hi {{recipientName}}! Continue your Workmate.IQ onboarding for {{clientName}}: {{onboardingUrl}}",
+        body: "Hi {{recipientName}}! Continue your WorkmateIQ onboarding for {{clientName}}: {{onboardingUrl}}",
         providerTemplateName: "onboarding_link_v1",
         variables: ["recipientName", "clientName", "onboardingUrl"],
     },

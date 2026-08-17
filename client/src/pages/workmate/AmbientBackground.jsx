@@ -3,7 +3,7 @@ import gsap from 'gsap'
 
 const REDUCE_MOTION = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
-// Rich, slow-drifting glow field used behind every Workmate.IQ page so
+// Rich, slow-drifting glow field used behind every WorkmateIQ page so
 // scrolling always feels alive. Pure CSS/GSAP - no external assets,
 // GPU-cheap (opacity + transform only), tuned to be visible without
 // competing with foreground content.

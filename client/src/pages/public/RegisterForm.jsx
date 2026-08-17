@@ -100,7 +100,7 @@ function RegisterForm() {
                                     )}
                                     <label className='flex items-start gap-2 text-[13.5px] text-text-secondary'>
                                         <input type='checkbox' checked={consent} onChange={(e) => setConsent(e.target.checked)} className='mt-0.5' />
-                                        I agree to be contacted by Workmate.IQ about this registration.
+                                        I agree to be contacted by WorkmateIQ about this registration.
                                     </label>
                                 </div>
                             }
