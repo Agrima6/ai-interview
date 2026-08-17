@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer"
+import axios from "axios"
 
 // EmailProvider interface: send({ to, subject, body }) -> { providerMessageId, status }
 // Swapped by EMAIL_MODE without the rest of the service knowing which one is active.
@@ -10,28 +10,20 @@ class MockEmailProvider {
     }
 }
 
-let transporter = null
-const getTransporter = () => {
-    if (transporter) return transporter
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_APP_PASSWORD) {
-        throw new Error("EMAIL_MODE=direct requires EMAIL_USER and EMAIL_APP_PASSWORD in .env")
-    }
-    transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_APP_PASSWORD },
-    })
-    return transporter
-}
-
+// Resend's API is plain HTTPS, so it isn't affected by hosts (like Render's
+// free tier) that block outbound SMTP ports - that's what was silently
+// hanging the old nodemailer/Gmail transport.
 class DirectEmailProvider {
     async send({ to, subject, body }) {
-        const info = await getTransporter().sendMail({
-            from: `"Workmate.IQ" <${process.env.EMAIL_USER}>`,
-            to,
-            subject,
-            text: body,
-        })
-        return { providerMessageId: info.messageId, status: "SENT" }
+        if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) {
+            throw new Error("EMAIL_MODE=direct requires RESEND_API_KEY and EMAIL_FROM in .env")
+        }
+        const { data } = await axios.post(
+            "https://api.resend.com/emails",
+            { from: process.env.EMAIL_FROM, to, subject, text: body },
+            { headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` } }
+        )
+        return { providerMessageId: data.id, status: "SENT" }
     }
 }
 
