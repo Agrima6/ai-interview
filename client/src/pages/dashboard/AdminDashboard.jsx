@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { FileText, Loader2, CheckCircle2, Building2, TrendingUp } from 'lucide-react'
+import { FileText, Loader2, CheckCircle2, Building2, TrendingUp, MessageCircleQuestion } from 'lucide-react'
 import AdminShell from '../../components/layout/AdminShell'
 import { StatCard } from '../../components/ui'
 import { usePermission } from '../../hooks/useAuth.jsx'
@@ -26,6 +26,7 @@ function AdminDashboard() {
         [TrendingUp, 'Pending review', summary?.pendingReview],
         [CheckCircle2, 'Completion rate', summary ? `${summary.completionRate}%` : undefined],
         [Building2, 'Active clients', summary?.activeClients],
+        [MessageCircleQuestion, 'New enquiries', summary?.newEnquiries],
     ]
 
     return (
@@ -37,7 +38,7 @@ function AdminDashboard() {
 
             <div className='grid sm:grid-cols-2 lg:grid-cols-3 gap-4'>
                 {cards.map(([Icon, label, value]) => (
-                    <StatCard key={label} icon={Icon} label={label} value={value === undefined ? '—' : value} />
+                    <StatCard key={label} icon={Icon} label={label} value={value === undefined || value === null ? '—' : value} />
                 ))}
             </div>
         </AdminShell>

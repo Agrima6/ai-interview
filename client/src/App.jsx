@@ -29,6 +29,7 @@ import PlatformDashboard from './pages/dashboard/AdminDashboard'
 import OnboardingReviewList from './pages/onboarding-admin/OnboardingReviewList'
 import OnboardingReviewDetail from './pages/onboarding-admin/OnboardingReviewDetail'
 import ClientList from './pages/clients/ClientList'
+import EnquiryList from './pages/enquiries/EnquiryList'
 import { ServerUrl } from './constants'
 
 export { ServerUrl }
@@ -78,6 +79,7 @@ function App() {
       <Route path='/platform/admin/onboarding' element={<RequirePlatformAuth><OnboardingReviewList/></RequirePlatformAuth>}/>
       <Route path='/platform/admin/onboarding/:id' element={<RequirePlatformAuth><OnboardingReviewDetail/></RequirePlatformAuth>}/>
       <Route path='/platform/admin/clients' element={<RequirePlatformAuth><ClientList/></RequirePlatformAuth>}/>
+      <Route path='/platform/admin/enquiries' element={<RequirePlatformAuth><EnquiryList/></RequirePlatformAuth>}/>
       <Route path='/interview' element={<RequireAuth><InterviewPage/></RequireAuth>}/>
       <Route path='/history' element={<RequireAuth><InterviewHistory/></RequireAuth>}/>
       <Route path='/pricing' element={<RequireAuth><Pricing/></RequireAuth>}/>

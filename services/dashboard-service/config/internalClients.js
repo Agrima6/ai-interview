@@ -18,3 +18,11 @@ export const clientServiceClient = {
             ...ctxHeaders(ctx),
         }),
 }
+
+export const enquiryServiceClient = {
+    getStatistics: (ctx) =>
+        client.get(`${process.env.ENQUIRY_SERVICE_URL}/internal/v1/enquiries/statistics`, {
+            apiKey: process.env.ENQUIRY_SERVICE_API_KEY,
+            ...ctxHeaders(ctx),
+        }),
+}
