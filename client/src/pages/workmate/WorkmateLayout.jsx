@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Button from '../../components/Button'
 import logo from '../../assets/logo.png'
 import AmbientBackground from './AmbientBackground'
@@ -13,10 +14,8 @@ const NAV_LINKS = [
     { label: 'Contact', id: 'contact' },
 ]
 
-// Register stays a visual placeholder for now - no real registration flow
-// hooked up here yet. Enquiry now jumps to the real, backend-wired contact
-// form below.
 function WorkmateNav() {
+    const navigate = useNavigate()
     const [open, setOpen] = useState(false)
     const [active, setActive] = useState('home')
     const [scrolled, setScrolled] = useState(false)
@@ -67,9 +66,9 @@ function WorkmateNav() {
                 </div>
 
                 <div className='hidden md:flex items-center gap-3'>
-                    <span className='text-[13px] text-text-secondary'>Sign in for authorised members</span>
+                    <button onClick={() => navigate('/platform/login')} className='text-[13px] text-text-secondary hover:text-ink transition-colors'>Sign in for authorised members</button>
                     <Button variant='secondary' size='sm' onClick={jump('contact')}>Enquiry</Button>
-                    <Button variant='primary' size='sm'>Register</Button>
+                    <Button variant='primary' size='sm' onClick={() => navigate('/platform/register')}>Register</Button>
                 </div>
 
                 <button className='lg:hidden text-ink' onClick={() => setOpen(!open)} aria-label='Menu'>
@@ -84,10 +83,10 @@ function WorkmateNav() {
                         <a key={l.id} href={`#${l.id}`} onClick={jump(l.id)}
                             className='block py-2.5 text-[14.5px] text-text-secondary hover:text-ink'>{l.label}</a>
                     ))}
-                    <p className='text-[13px] text-text-secondary pt-3'>Sign in for authorised members</p>
+                    <button onClick={() => navigate('/platform/login')} className='block text-[13px] text-text-secondary hover:text-ink transition-colors pt-3'>Sign in for authorised members</button>
                     <div className='flex gap-2.5 pt-3'>
                         <Button variant='secondary' size='sm' className='flex-1' onClick={jump('contact')}>Enquiry</Button>
-                        <Button variant='primary' size='sm' className='flex-1'>Register</Button>
+                        <Button variant='primary' size='sm' className='flex-1' onClick={() => navigate('/platform/register')}>Register</Button>
                     </div>
                 </div>
             )}
