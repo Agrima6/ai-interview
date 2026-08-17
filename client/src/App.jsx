@@ -1,6 +1,5 @@
 import React from 'react'
 import { Route, Routes } from 'react-router-dom'
-import Home from './pages/Home'
 import Login from './pages/Login'
 import { useEffect, useState } from 'react'
 import axios from 'axios'
@@ -60,10 +59,10 @@ function App() {
 
   return (
     <Routes>
-      <Route path='/' element={<Home/>}/>
-      {/* New premium marketing site - separate, single-page, from the existing
-          Home, which stays as the interview-product homepage. Preview-only
-          for now; not linked from anywhere yet. */}
+      {/* Workmate.IQ marketing page is now the real landing page. The old
+          Home.jsx design still exists in the codebase but is no longer
+          routed anywhere. */}
+      <Route path='/' element={<WHome/>}/>
       <Route path='/welcome' element={<WHome/>}/>
       <Route path='/login' element={<Login/>}/>
 
