@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Building2, GraduationCap, User } from 'lucide-react'
+import { Building2, GraduationCap, User, ArrowLeft } from 'lucide-react'
 import { Card } from '../../components/ui'
 import { getRegistrationTypes } from '../../api/registrationsApi'
+import AmbientBackground from '../workmate/AmbientBackground'
+import logo from '../../assets/logo.png'
 
 const ICONS = { ORGANIZATION: Building2, COLLEGE: GraduationCap, CANDIDATE: User }
 const COPY = {
@@ -23,8 +25,30 @@ function RegisterTypeSelect() {
     }, [])
 
     return (
-        <div className='min-h-screen bg-bg flex items-center justify-center px-6 py-16'>
-            <div className='w-full max-w-[720px]'>
+        <div className='min-h-screen bg-bg relative overflow-hidden flex items-center justify-center px-6 py-16'>
+            <AmbientBackground />
+
+            {/* Large faint logo watermark, decorative only */}
+            <img
+                src={logo}
+                alt=''
+                aria-hidden='true'
+                className='pointer-events-none select-none absolute -right-24 -bottom-24 w-[520px] h-[520px] opacity-[0.05] rotate-[-8deg]'
+            />
+
+            <button
+                onClick={() => navigate('/')}
+                className='absolute top-6 left-6 flex items-center gap-1.5 text-[13.5px] font-medium text-text-secondary hover:text-ink transition-colors'
+            >
+                <ArrowLeft size={16} /> Back to home
+            </button>
+
+            <div className='w-full max-w-[720px] relative'>
+                <div className='flex items-center justify-center gap-2.5 mb-6'>
+                    <img src={logo} alt='' className='w-10 h-10 rounded-full shadow-[var(--shadow-soft)]' />
+                    <span className='font-display text-[16px] font-bold text-ink tracking-tight'>WorkmateIQ</span>
+                </div>
+
                 <h1 className='font-display text-[30px] font-bold text-ink text-center mb-2'>Join WorkmateIQ</h1>
                 <p className='text-text-secondary text-center mb-10'>Tell us who you are, and we'll set you up.</p>
 
@@ -38,7 +62,7 @@ function RegisterTypeSelect() {
                             <Card
                                 key={t.key}
                                 hover
-                                className='p-6 cursor-pointer'
+                                className='p-6 cursor-pointer backdrop-blur-sm bg-card/90 border-line/80 hover:border-accent/40'
                                 onClick={() => navigate(`/platform/register/${t.key.toLowerCase()}`)}
                             >
                                 <div className='w-11 h-11 rounded-2xl bg-accent/10 text-accent flex items-center justify-center mb-4'>

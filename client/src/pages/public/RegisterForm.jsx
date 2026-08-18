@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Card, Button } from '../../components/ui'
-import { CheckCircle2, Mail, MessageCircle } from 'lucide-react'
+import { CheckCircle2, Mail, MessageCircle, ArrowLeft } from 'lucide-react'
 import DynamicForm from '../../components/forms/DynamicForm'
 import { getRegistrationForm } from '../../api/formsApi'
 import { getCaptcha, submitRegistration } from '../../api/registrationsApi'
+import AmbientBackground from '../workmate/AmbientBackground'
+import logo from '../../assets/logo.png'
 
 const STATUS_LABEL = { QUEUED: 'Queued', SENT: 'Sent', MOCK_SENT: 'Sent (test mode)', FAILED: 'Failed', DELIVERED: 'Delivered' }
 
@@ -48,8 +50,10 @@ function RegisterForm() {
 
     if (result) {
         return (
-            <div className='min-h-screen bg-bg flex items-center justify-center px-6 py-16'>
-                <Card className='w-full max-w-[480px] p-8 text-center'>
+            <div className='min-h-screen bg-bg relative overflow-hidden flex items-center justify-center px-6 py-16'>
+                <AmbientBackground />
+                <img src={logo} alt='' aria-hidden='true' className='pointer-events-none select-none absolute -right-24 -bottom-24 w-[520px] h-[520px] opacity-[0.05] rotate-[-8deg]' />
+                <Card className='w-full max-w-[480px] p-8 text-center relative backdrop-blur-sm bg-card/95'>
                     <CheckCircle2 size={40} className='text-green-600 mx-auto mb-4' />
                     <h1 className='font-display text-[22px] font-bold text-ink mb-2'>Registration received</h1>
                     <p className='text-text-secondary text-[14px] mb-6'>We've sent your onboarding link. Check the delivery status below.</p>
@@ -68,17 +72,32 @@ function RegisterForm() {
     }
 
     return (
-        <div className='min-h-screen bg-bg px-6 py-16'>
-            <div className='max-w-[720px] mx-auto'>
-                <h1 className='font-display text-[26px] font-bold text-ink mb-1'>{schema?.type ? `${schema.type.charAt(0)}${schema.type.slice(1).toLowerCase()} registration` : 'Registration'}</h1>
-                <p className='text-text-secondary text-[14px] mb-8'>Fields marked with <span className='text-red-500'>*</span> are required.</p>
+        <div className='min-h-screen bg-bg relative overflow-hidden px-6 py-16'>
+            <AmbientBackground />
+            <img src={logo} alt='' aria-hidden='true' className='pointer-events-none select-none absolute -right-24 -bottom-24 w-[520px] h-[520px] opacity-[0.05] rotate-[-8deg]' />
 
-                {error && <p className='text-[13.5px] text-red-500 mb-4'>{error}</p>}
+            <button
+                onClick={() => navigate('/platform/register')}
+                className='absolute top-6 left-6 flex items-center gap-1.5 text-[13.5px] font-medium text-text-secondary hover:text-ink transition-colors'
+            >
+                <ArrowLeft size={16} /> Back
+            </button>
+
+            <div className='max-w-[720px] mx-auto relative'>
+                <div className='flex items-center justify-center gap-2.5 mb-6'>
+                    <img src={logo} alt='' className='w-10 h-10 rounded-full shadow-[var(--shadow-soft)]' />
+                    <span className='font-display text-[16px] font-bold text-ink tracking-tight'>WorkmateIQ</span>
+                </div>
+
+                <h1 className='font-display text-[26px] font-bold text-ink mb-1 text-center'>{schema?.type ? `${schema.type.charAt(0)}${schema.type.slice(1).toLowerCase()} registration` : 'Registration'}</h1>
+                <p className='text-text-secondary text-[14px] mb-8 text-center'>Fields marked with <span className='text-red-500'>*</span> are required.</p>
+
+                {error && <p className='text-[13.5px] text-red-500 mb-4 text-center'>{error}</p>}
 
                 {!schema ? (
                     <Card className='p-8 h-[300px] animate-pulse' />
                 ) : (
-                    <Card className='p-8'>
+                    <Card className='p-8 backdrop-blur-sm bg-card/95'>
                         <DynamicForm
                             schema={schema}
                             onSubmit={onSubmit}
