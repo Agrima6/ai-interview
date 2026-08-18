@@ -54,7 +54,7 @@ function RegisterTypeSelect() {
 
                 <div className='flex justify-center mb-4'>
                     <div className='inline-flex items-center gap-2 bg-accent/10 text-accent rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold'>
-                        <Sparkles size={14} /> Get started in under 2 minutes
+                        <Sparkles size={14} /> Enquiry
                     </div>
                 </div>
 
