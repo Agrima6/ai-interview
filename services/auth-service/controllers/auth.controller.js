@@ -1,5 +1,5 @@
 import * as authService from "../services/auth.service.js"
-import { ok } from "../utils/response.js"
+import { ok, ApiError } from "../utils/response.js"
 
 const REFRESH_COOKIE = "workmate_refresh"
 const cookieOptions = {
@@ -43,5 +43,23 @@ export const me = async (req, res, next) => {
     try {
         const user = await authService.me(req.user.sub)
         ok(res, user)
+    } catch (error) { next(error) }
+}
+
+export const changePassword = async (req, res, next) => {
+    try {
+        const { currentPassword, newPassword } = req.body
+        const result = await authService.changePassword(req.user.sub, currentPassword, newPassword)
+        ok(res, result)
+    } catch (error) { next(error) }
+}
+
+export const googleLogin = async (req, res, next) => {
+    try {
+        const { idToken } = req.body
+        if (!idToken) return next(new ApiError(400, "MISSING_TOKEN", "idToken is required."))
+        const { user, accessToken, expiresIn, rawRefreshToken } = await authService.googleLogin(idToken)
+        setRefreshCookie(res, rawRefreshToken)
+        ok(res, { user, accessToken, expiresIn })
     } catch (error) { next(error) }
 }

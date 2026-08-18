@@ -4,6 +4,7 @@ import * as userRepo from "../repositories/user.repository.js"
 import * as roleRepo from "../repositories/role.repository.js"
 import * as refreshTokenRepo from "../repositories/refreshToken.repository.js"
 import { signAccessToken, generateRefreshToken, hashToken, refreshTokenExpiry } from "../utils/tokens.js"
+import { getFirebaseAuth } from "../config/firebaseAdmin.js"
 import { ApiError } from "../utils/response.js"
 
 const buildUserView = async (user) => {
@@ -15,8 +16,14 @@ const buildUserView = async (user) => {
         email: user.email,
         roles: user.roles,
         permissions,
+        tenantId: user.tenantId ? String(user.tenantId) : null,
+        mustChangePassword: Boolean(user.mustChangePassword),
     }
 }
+
+// Human-friendly one-time password sent by email - not meant to be
+// memorable long-term, just clearable at a glance when copy-pasting.
+const generateTempPassword = () => crypto.randomBytes(9).toString("base64url")
 
 const issueSession = async (user, deviceId) => {
     const view = await buildUserView(user)
@@ -83,4 +90,65 @@ export const me = async (userId) => {
     const user = await userRepo.findById(userId)
     if (!user || user.status !== "ACTIVE") throw new ApiError(401, "UNAUTHENTICATED", "Session no longer valid.")
     return buildUserView(user)
+}
+
+export const changePassword = async (userId, currentPassword, newPassword) => {
+    const user = await userRepo.findById(userId)
+    if (!user || user.status !== "ACTIVE") throw new ApiError(401, "UNAUTHENTICATED", "Session no longer valid.")
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash)
+    if (!valid) throw new ApiError(401, "INVALID_CREDENTIALS", "Current password is incorrect.")
+    if (!newPassword || newPassword.length < 8) throw new ApiError(400, "WEAK_PASSWORD", "New password must be at least 8 characters.")
+    const passwordHash = await bcrypt.hash(newPassword, 10)
+    await userRepo.setPassword(user._id, passwordHash, false)
+    return { changed: true }
+}
+
+// Called internally by onboarding-service when an ORGANIZATION/COLLEGE
+// onboarding is approved - creates the client's first login with a
+// generated password they're required to change on first sign-in.
+export const createClientUser = async ({ email, name, clientId }) => {
+    const existing = await userRepo.findByEmail(email)
+    if (existing) {
+        // Re-approval of an already-known contact - just re-link them to
+        // this client rather than erroring, and issue a fresh password.
+        const tempPassword = generateTempPassword()
+        const passwordHash = await bcrypt.hash(tempPassword, 10)
+        existing.tenantId = clientId
+        existing.roles = [...new Set([...existing.roles, "CLIENT_ADMIN"])]
+        existing.passwordHash = passwordHash
+        existing.mustChangePassword = true
+        await existing.save()
+        return { email: existing.email, password: tempPassword }
+    }
+    const tempPassword = generateTempPassword()
+    const passwordHash = await bcrypt.hash(tempPassword, 10)
+    const user = await userRepo.create({
+        email,
+        displayName: name,
+        passwordHash,
+        roles: ["CLIENT_ADMIN"],
+        tenantId: clientId,
+        mustChangePassword: true,
+    })
+    return { email: user.email, password: tempPassword }
+}
+
+// Firebase already verified the user owns this Google account - we just
+// check whether that email has a WorkmateIQ account and, if so, log them
+// in exactly as if they'd used a password.
+export const googleLogin = async (idToken) => {
+    let decoded
+    try {
+        decoded = await getFirebaseAuth().verifyIdToken(idToken)
+    } catch {
+        throw new ApiError(401, "INVALID_GOOGLE_TOKEN", "Invalid or expired Google sign-in token.")
+    }
+    const email = decoded.email?.toLowerCase()
+    if (!email) throw new ApiError(400, "NO_EMAIL", "Google account has no email.")
+    const user = await userRepo.findByEmail(email)
+    if (!user || user.status !== "ACTIVE") {
+        throw new ApiError(404, "NO_ACCOUNT", "No WorkmateIQ account found for this email. Ask an admin to approve your organization first.")
+    }
+    await userRepo.touchLastLogin(user._id)
+    return issueSession(user, null)
 }

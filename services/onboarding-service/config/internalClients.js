@@ -23,3 +23,19 @@ export const clientServiceClient = {
             ...ctxHeaders(ctx),
         }),
 }
+
+export const authServiceClient = {
+    createClientUser: (payload, ctx) =>
+        client.post(`${process.env.AUTH_SERVICE_URL}/internal/v1/client-users`, payload, {
+            apiKey: process.env.AUTH_SERVICE_API_KEY,
+            ...ctxHeaders(ctx),
+        }),
+}
+
+export const communicationServiceClient = {
+    send: (payload, ctx) =>
+        client.post(`${process.env.COMMUNICATION_SERVICE_URL}/internal/v1/communications`, payload, {
+            apiKey: process.env.COMMUNICATION_SERVICE_API_KEY,
+            ...ctxHeaders(ctx),
+        }),
+}

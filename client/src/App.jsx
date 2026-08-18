@@ -24,11 +24,15 @@ import RegisterTypeSelect from './pages/public/RegisterTypeSelect'
 import RegisterForm from './pages/public/RegisterForm'
 import OnboardingFlow from './pages/onboarding/OnboardingFlow'
 import RequirePlatformAuth from './components/RequirePlatformAuth'
+import RequireClientAuth from './components/RequireClientAuth'
 import PlatformDashboard from './pages/dashboard/AdminDashboard'
 import OnboardingReviewList from './pages/onboarding-admin/OnboardingReviewList'
 import OnboardingReviewDetail from './pages/onboarding-admin/OnboardingReviewDetail'
 import ClientList from './pages/clients/ClientList'
 import EnquiryList from './pages/enquiries/EnquiryList'
+import ClientLogin from './pages/clientPortal/ClientLogin'
+import ClientChangePassword from './pages/clientPortal/ChangePassword'
+import ClientDashboard from './pages/clientPortal/ClientDashboard'
 import { ServerUrl } from './constants'
 
 export { ServerUrl }
@@ -79,6 +83,12 @@ function App() {
       <Route path='/platform/admin/onboarding/:id' element={<RequirePlatformAuth><OnboardingReviewDetail/></RequirePlatformAuth>}/>
       <Route path='/platform/admin/clients' element={<RequirePlatformAuth><ClientList/></RequirePlatformAuth>}/>
       <Route path='/platform/admin/enquiries' element={<RequirePlatformAuth><EnquiryList/></RequirePlatformAuth>}/>
+
+      {/* Client portal: for approved organizations/colleges, separate from
+          both the staff admin login above and the candidate login at /login. */}
+      <Route path='/platform/client/login' element={<ClientLogin/>}/>
+      <Route path='/platform/client/change-password' element={<RequireClientAuth><ClientChangePassword/></RequireClientAuth>}/>
+      <Route path='/platform/client/dashboard' element={<RequireClientAuth><ClientDashboard/></RequireClientAuth>}/>
       <Route path='/interview' element={<RequireAuth><InterviewPage/></RequireAuth>}/>
       <Route path='/history' element={<RequireAuth><InterviewHistory/></RequireAuth>}/>
       <Route path='/pricing' element={<RequireAuth><Pricing/></RequireAuth>}/>

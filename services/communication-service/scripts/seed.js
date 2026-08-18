@@ -15,6 +15,12 @@ const templates = [
         providerTemplateName: "onboarding_link_v1",
         variables: ["recipientName", "clientName", "onboardingUrl"],
     },
+    {
+        channel: "EMAIL", eventType: "CLIENT_APPROVED", name: "Client approved (email)",
+        subject: "{{clientName}} is approved on WorkmateIQ - here's your login",
+        body: "Hi {{recipientName}},\n\nGreat news - {{clientName}} has been approved on WorkmateIQ. You can now sign in to your dashboard:\n{{loginUrl}}\n\nEmail: {{recipientEmail}}\nTemporary password: {{tempPassword}}\n\nYou'll be asked to set a new password the first time you sign in.\n\n- The WorkmateIQ team",
+        variables: ["recipientName", "recipientEmail", "clientName", "loginUrl", "tempPassword"],
+    },
 ]
 
 const run = async () => {

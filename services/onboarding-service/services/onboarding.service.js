@@ -3,7 +3,7 @@ import * as invitationRepo from "../repositories/invitation.repository.js"
 import * as sessionRepo from "../repositories/session.repository.js"
 import * as submissionRepo from "../repositories/submission.repository.js"
 import * as reviewItemRepo from "../repositories/reviewItem.repository.js"
-import { formServiceClient, clientServiceClient } from "../config/internalClients.js"
+import { formServiceClient, clientServiceClient, authServiceClient, communicationServiceClient } from "../config/internalClients.js"
 import { generateRawToken, hashToken, invitationExpiry } from "../utils/token.js"
 import { validateAgainstFormVersion } from "../utils/formValidator.js"
 import { ApiError } from "../utils/response.js"
@@ -186,13 +186,40 @@ export const approve = async (id, reviewerId, ctx) => {
 
     let client = null
     if (["ORGANIZATION", "COLLEGE"].includes(session.type)) {
+        const clientName = clientNameFor(session.type, session.data, session.contact)
         client = await clientServiceClient.upsertFromOnboarding({
             onboardingId: id,
             registrationId: session.registrationId,
             type: session.type,
-            name: clientNameFor(session.type, session.data, session.contact),
+            name: clientName,
             primaryContact: session.contact,
         }, ctx).catch(() => null)
+
+        // Give the client their first login, then email the credentials -
+        // best-effort on both: a reviewer can always re-trigger this via
+        // support if either downstream call has a transient failure, and it
+        // shouldn't block the approval itself from going through.
+        if (client) {
+            const credentials = await authServiceClient.createClientUser({
+                email: session.contact.email,
+                name: session.contact.name,
+                clientId: client.id,
+            }, ctx).catch(() => null)
+
+            if (credentials) {
+                await communicationServiceClient.send({
+                    entityType: "ONBOARDING", entityId: id, channel: "EMAIL",
+                    eventType: "CLIENT_APPROVED", recipient: session.contact.email,
+                    variables: {
+                        recipientName: session.contact.name,
+                        recipientEmail: session.contact.email,
+                        clientName,
+                        loginUrl: process.env.CLIENT_LOGIN_URL,
+                        tempPassword: credentials.password,
+                    },
+                }, ctx).catch(() => null)
+            }
+        }
     }
 
     return { ...listView(updated), client }

@@ -11,6 +11,7 @@ const userSchema = new mongoose.Schema({
     roles: [{ type: String }],
     permissionVersion: { type: Number, default: 1 },
     lastLoginAt: { type: Date, default: null },
+    mustChangePassword: { type: Boolean, default: false },
 }, { timestamps: true })
 
 userSchema.index({ tenantId: 1, status: 1 })

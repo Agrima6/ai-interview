@@ -3,6 +3,7 @@ import cors from "cors"
 import cookieParser from "cookie-parser"
 import { requestContext, errorHandler, notFoundHandler } from "./middlewares/requestContext.js"
 import authRoutes from "./routes/auth.routes.js"
+import internalRoutes from "./routes/internal.routes.js"
 
 const app = express()
 
@@ -14,6 +15,7 @@ app.use(requestContext)
 app.get("/healthz", (req, res) => res.json({ status: "ok", service: process.env.SERVICE_NAME }))
 
 app.use("/api/v1", authRoutes)
+app.use("/internal/v1", internalRoutes)
 
 app.use(notFoundHandler)
 app.use(errorHandler)
