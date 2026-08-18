@@ -1,6 +1,7 @@
 import React from 'react'
 import { Route, Routes } from 'react-router-dom'
 import Login from './pages/Login'
+import Home from './pages/Home'
 import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { useDispatch } from 'react-redux'
@@ -89,6 +90,7 @@ function App() {
       <Route path='/platform/client/login' element={<ClientLogin/>}/>
       <Route path='/platform/client/change-password' element={<RequireClientAuth><ClientChangePassword/></RequireClientAuth>}/>
       <Route path='/platform/client/dashboard' element={<RequireClientAuth><ClientDashboard/></RequireClientAuth>}/>
+      <Route path='/dashboard' element={<RequireAuth><Home/></RequireAuth>}/>
       <Route path='/interview' element={<RequireAuth><InterviewPage/></RequireAuth>}/>
       <Route path='/history' element={<RequireAuth><InterviewHistory/></RequireAuth>}/>
       <Route path='/pricing' element={<RequireAuth><Pricing/></RequireAuth>}/>
