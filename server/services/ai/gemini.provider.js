@@ -1,6 +1,8 @@
 import axios from "axios"
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash"
+// gemini-2.0-flash was retired by Google; gemini-3.6-flash is its current
+// replacement (confirmed against the live /v1beta/models list).
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash"
 
 // Gemini's REST shape differs from the OpenAI-style {role, content} messages
 // used everywhere else in this app: "system" messages become a separate
