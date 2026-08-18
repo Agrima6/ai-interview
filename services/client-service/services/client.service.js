@@ -9,6 +9,7 @@ const view = (c) => ({
     primaryContact: c.primaryContact,
     status: c.status,
     subdomain: c.subdomain,
+    branding: c.branding,
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
 })
@@ -24,6 +25,7 @@ export const upsertFromOnboarding = async (payload) => {
         primaryContact: payload.primaryContact,
         status: "ACTIVE",
         subdomain: payload.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40),
+        branding: payload.branding || {},
     })
     return view(client)
 }

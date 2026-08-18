@@ -30,6 +30,7 @@ import OnboardingReviewList from './pages/onboarding-admin/OnboardingReviewList'
 import OnboardingReviewDetail from './pages/onboarding-admin/OnboardingReviewDetail'
 import ClientList from './pages/clients/ClientList'
 import EnquiryList from './pages/enquiries/EnquiryList'
+import FormBuilderPage from './pages/admin/FormBuilderPage'
 import ClientLogin from './pages/clientPortal/ClientLogin'
 import ClientChangePassword from './pages/clientPortal/ChangePassword'
 import ClientDashboard from './pages/clientPortal/ClientDashboard'
@@ -79,6 +80,7 @@ function App() {
       <Route path='/platform/register/:type' element={<RegisterForm/>}/>
       <Route path='/platform/onboarding/:type/:token' element={<OnboardingFlow/>}/>
       <Route path='/platform/dashboard' element={<RequirePlatformAuth><PlatformDashboard/></RequirePlatformAuth>}/>
+      <Route path='/platform/admin/forms' element={<RequirePlatformAuth><FormBuilderPage/></RequirePlatformAuth>}/>
       <Route path='/platform/admin/onboarding' element={<RequirePlatformAuth><OnboardingReviewList/></RequirePlatformAuth>}/>
       <Route path='/platform/admin/onboarding/:id' element={<RequirePlatformAuth><OnboardingReviewDetail/></RequirePlatformAuth>}/>
       <Route path='/platform/admin/clients' element={<RequirePlatformAuth><ClientList/></RequirePlatformAuth>}/>
