@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { FileText, Loader2, CheckCircle2, Building2, TrendingUp, MessageCircleQuestion } from 'lucide-react'
 import AdminShell from '../../components/layout/AdminShell'
 import { StatCard } from '../../components/ui'
@@ -21,12 +22,12 @@ function AdminDashboard() {
     }
 
     const cards = [
-        [FileText, 'Total registrations', summary?.totalRegistrations],
-        [Loader2, 'Active onboarding', summary?.activeOnboarding],
-        [TrendingUp, 'Pending review', summary?.pendingReview],
-        [CheckCircle2, 'Completion rate', summary ? `${summary.completionRate}%` : undefined],
-        [Building2, 'Active clients', summary?.activeClients],
-        [MessageCircleQuestion, 'New enquiries', summary?.newEnquiries],
+        [FileText, 'Total registrations', summary?.totalRegistrations, '/platform/admin/onboarding'],
+        [Loader2, 'Active onboarding', summary?.activeOnboarding, '/platform/admin/onboarding'],
+        [TrendingUp, 'Pending review', summary?.pendingReview, '/platform/admin/onboarding'],
+        [CheckCircle2, 'Completion rate', summary ? `${summary.completionRate}%` : undefined, '/platform/admin/onboarding'],
+        [Building2, 'Active clients', summary?.activeClients, '/platform/admin/clients'],
+        [MessageCircleQuestion, 'New enquiries', summary?.newEnquiries, '/platform/admin/enquiries'],
     ]
 
     return (
@@ -37,8 +38,10 @@ function AdminDashboard() {
             {error && <p className='text-[13.5px] text-red-500 mb-4'>{error}</p>}
 
             <div className='grid sm:grid-cols-2 lg:grid-cols-3 gap-4'>
-                {cards.map(([Icon, label, value]) => (
-                    <StatCard key={label} icon={Icon} label={label} value={value === undefined || value === null ? '—' : value} />
+                {cards.map(([Icon, label, value, to]) => (
+                    <Link key={label} to={to}>
+                        <StatCard icon={Icon} label={label} value={value === undefined || value === null ? '—' : value} className='cursor-pointer' />
+                    </Link>
                 ))}
             </div>
         </AdminShell>
