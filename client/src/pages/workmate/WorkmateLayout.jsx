@@ -66,7 +66,7 @@ function WorkmateNav() {
                 </div>
 
                 <div className='hidden md:flex items-center gap-3'>
-                    <Button variant='ghost' size='sm' onClick={() => navigate('/login')}>Candidate Login</Button>
+                    <Button variant='ghost' size='sm' onClick={() => navigate('/login')}>Demo Login</Button>
                     <Button variant='ghost' size='sm' onClick={() => navigate('/platform/client/login')}>Client Login</Button>
                     <Button variant='ghost' size='sm' onClick={() => navigate('/platform/login')}>Admin Login</Button>
                     <Button variant='secondary' size='sm' onClick={jump('contact')}>Enquiry</Button>
@@ -86,7 +86,7 @@ function WorkmateNav() {
                             className='block py-2.5 text-[14.5px] text-text-secondary hover:text-ink'>{l.label}</a>
                     ))}
                     <div className='flex gap-2.5 pt-3'>
-                        <Button variant='ghost' size='sm' className='flex-1' onClick={() => navigate('/login')}>Candidate Login</Button>
+                        <Button variant='ghost' size='sm' className='flex-1' onClick={() => navigate('/login')}>Demo Login</Button>
                         <Button variant='ghost' size='sm' className='flex-1' onClick={() => navigate('/platform/client/login')}>Client Login</Button>
                     </div>
                     <div className='flex gap-2.5 pt-2.5'>
