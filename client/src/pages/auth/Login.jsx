@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { signInWithRedirect, getRedirectResult } from 'firebase/auth'
+import { signInWithPopup } from 'firebase/auth'
 import { Input, Button, Card } from '../../components/ui'
 import { useAuth } from '../../hooks/useAuth.jsx'
 import { auth, googleProvider } from '../../firebase'
@@ -18,7 +18,6 @@ function Login() {
     const [password, setPassword] = useState('')
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
-    const [checkingRedirect, setCheckingRedirect] = useState(true)
 
     const afterLogin = (user) => {
         if (user.tenantId) {
@@ -27,24 +26,6 @@ function Login() {
             navigate('/platform/dashboard')
         }
     }
-
-    // Google sign-in redirects away and back rather than using a popup -
-    // popups get blocked or fail silently in production often enough (popup
-    // blockers, third-party cookie restrictions) that this looked broken
-    // there while working fine locally. The result of a successful redirect
-    // only shows up here, on the next load of this page.
-    useEffect(() => {
-        getRedirectResult(auth)
-            .then(async (result) => {
-                if (!result) return
-                const idToken = await result.user.getIdToken()
-                const user = await loginWithGoogle(idToken)
-                afterLogin(user)
-            })
-            .catch((err) => setError(err.message || 'Google sign-in failed.'))
-            .finally(() => setCheckingRedirect(false))
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
 
     const submit = async (e) => {
         e.preventDefault()
@@ -60,12 +41,19 @@ function Login() {
         }
     }
 
-    const handleGoogle = () => {
+    const handleGoogle = async () => {
         setError('')
-        signInWithRedirect(auth, googleProvider).catch((err) => {
-            console.log(err)
+        setLoading(true)
+        try {
+            const result = await signInWithPopup(auth, googleProvider)
+            const idToken = await result.user.getIdToken()
+            const user = await loginWithGoogle(idToken)
+            afterLogin(user)
+        } catch (err) {
             setError(err.message || 'Google sign-in failed.')
-        })
+        } finally {
+            setLoading(false)
+        }
     }
 
     return (
@@ -92,7 +80,7 @@ function Login() {
                     <div className='h-px bg-line flex-1' />
                 </div>
 
-                <Button variant='secondary' size='lg' disabled={loading || checkingRedirect} onClick={handleGoogle} className='w-full'>
+                <Button variant='secondary' size='lg' disabled={loading} onClick={handleGoogle} className='w-full'>
                     Continue with Google
                 </Button>
             </Card>

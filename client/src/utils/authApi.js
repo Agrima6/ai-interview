@@ -1,20 +1,15 @@
 import axios from "axios"
-import { signInWithRedirect, getRedirectResult } from "firebase/auth"
+import { signInWithPopup } from "firebase/auth"
 import { auth, googleProvider } from "../firebase"
 import { ServerUrl } from "../constants"
 
-// Redirect instead of a popup - popups depend on window.open + postMessage
-// back to the opener, which production browsers block often enough (popup
-// blockers, third-party cookie restrictions) that Google sign-in looked
-// broken in prod while working fine in local dev. A full-page redirect has
-// none of that and needs no COOP/cookie cooperation from the browser.
-export const loginWithGoogle = () => signInWithRedirect(auth, googleProvider)
-
-// Call on mount of any page that can be a Google sign-in redirect target.
-// Returns null if the page load isn't the tail end of a redirect flow.
-export const completeGoogleRedirect = async () => {
-    const result = await getRedirectResult(auth)
-    if (!result) return null
+// Popup, not redirect: redirect relies on Firebase relaying the credential
+// from authDomain (a *.firebaseapp.com origin, different site from
+// workmateiq.com) back into this app's storage, which Chrome's cross-site
+// storage partitioning can silently drop - no error, just lands back on the
+// login page. Popup keeps everything in a same-window round trip instead.
+export const loginWithGoogle = async () => {
+    const result = await signInWithPopup(auth, googleProvider)
     const idToken = await result.user.getIdToken()
     const response = await axios.post(ServerUrl + "/api/auth/google", { idToken }, { withCredentials: true })
     return response.data
