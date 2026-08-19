@@ -1,10 +1,10 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useDispatch } from 'react-redux'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from "motion/react"
 import { LogIn } from "lucide-react"
 import { setUserData } from '../redux/userSlice'
-import { loginWithGoogle, loginAsGuest } from '../utils/authApi'
+import { loginWithGoogle, completeGoogleRedirect, loginAsGuest } from '../utils/authApi'
 import Button from '../components/Button'
 import ThemeToggle from '../components/ThemeToggle'
 import logo from '../assets/logo.png'
@@ -14,23 +14,32 @@ function Login() {
     const navigate = useNavigate()
     const location = useLocation()
     const [loading, setLoading] = useState(false)
+    const [checkingRedirect, setCheckingRedirect] = useState(true)
     const [error, setError] = useState("")
 
     const redirectTo = location.state?.from || "/dashboard"
 
-    const handleGoogle = async () => {
+    // Google sign-in now redirects away and back instead of using a popup,
+    // so the result of a successful sign-in only shows up here, on the next
+    // load of this page, once Firebase resolves the redirect.
+    useEffect(() => {
+        completeGoogleRedirect()
+            .then((user) => {
+                if (!user) return
+                dispatch(setUserData(user))
+                navigate(redirectTo, { replace: true })
+            })
+            .catch((err) => {
+                console.log(err)
+                setError("Google sign-in isn't available right now. You can continue as a guest instead.")
+            })
+            .finally(() => setCheckingRedirect(false))
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+
+    const handleGoogle = () => {
         setError("")
-        setLoading(true)
-        try {
-            const user = await loginWithGoogle()
-            dispatch(setUserData(user))
-            navigate(redirectTo, { replace: true })
-        } catch (err) {
-            console.log(err)
-            setError("Google sign-in isn't available right now. You can continue as a guest instead.")
-        } finally {
-            setLoading(false)
-        }
+        loginWithGoogle()
     }
 
     const handleGuest = async () => {
@@ -61,10 +70,10 @@ function Login() {
                 <h1 className='text-[22px] font-semibold text-ink mb-2'>Sign in to WorkMate IQ</h1>
                 <p className='text-[14px] text-text-secondary mb-7 leading-relaxed'>Practice interviews, get AI feedback, and track your progress.</p>
 
-                <Button size="lg" className='w-full !mb-3' onClick={handleGoogle} disabled={loading}>
+                <Button size="lg" className='w-full !mb-3' onClick={handleGoogle} disabled={loading || checkingRedirect}>
                     <LogIn size={17} /> Sign in with Google
                 </Button>
-                <Button variant="secondary" size="lg" className='w-full' onClick={handleGuest} disabled={loading}>
+                <Button variant="secondary" size="lg" className='w-full' onClick={handleGuest} disabled={loading || checkingRedirect}>
                     Continue as Guest
                 </Button>
 
