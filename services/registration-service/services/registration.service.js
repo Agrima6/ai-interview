@@ -36,6 +36,9 @@ export const submit = async (payload, ctx) => {
         phone: data.phone,
     }
 
+    const existing = await registrationRepo.findActiveByEmail(contact.email)
+    if (existing) throw new ApiError(409, "ALREADY_REGISTERED", "You have already registered with this email. Check your inbox for the onboarding link, or contact us if you can't find it.")
+
     const registration = await registrationRepo.create({
         type: normalizedType,
         contact,
