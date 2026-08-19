@@ -62,7 +62,10 @@ function Login() {
 
     const handleGoogle = () => {
         setError('')
-        signInWithRedirect(auth, googleProvider)
+        signInWithRedirect(auth, googleProvider).catch((err) => {
+            console.log(err)
+            setError(err.message || 'Google sign-in failed.')
+        })
     }
 
     return (

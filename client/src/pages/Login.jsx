@@ -39,7 +39,10 @@ function Login() {
 
     const handleGoogle = () => {
         setError("")
-        loginWithGoogle()
+        loginWithGoogle().catch((err) => {
+            console.log(err)
+            setError("Google sign-in isn't available right now. You can continue as a guest instead.")
+        })
     }
 
     const handleGuest = async () => {
