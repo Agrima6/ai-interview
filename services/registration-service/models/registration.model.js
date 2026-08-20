@@ -25,7 +25,15 @@ registrationSchema.index({ type: 1, status: 1, createdAt: -1 })
 // error instead of silently creating a second active registration.
 registrationSchema.index(
     { "contact.email": 1 },
-    { unique: true, partialFilterExpression: { status: { $in: ["SUBMITTED", "PROCESSING", "LINK_SENT"] } } }
+    {
+        // Explicit name - the auto-generated name would collide with the
+        // pre-existing plain (non-unique) index on the same field, and
+        // MongoDB silently refuses to change an existing index's options
+        // under an unchanged name rather than erroring loudly.
+        name: "contact_email_active_unique",
+        unique: true,
+        partialFilterExpression: { status: { $in: ["SUBMITTED", "PROCESSING", "LINK_SENT"] } },
+    }
 )
 
 export default mongoose.model("Registration", registrationSchema)
