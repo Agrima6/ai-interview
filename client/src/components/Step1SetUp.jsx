@@ -290,15 +290,24 @@ function Step1SetUp({ onStart }) {
                                     }} />
 
                                 <p className='text-text-secondary font-medium text-[14px]'>
-                                    {analyzing ? "Analyzing resume..." : resumeFile ? resumeFile.name : "Click to upload your resume (required)"}
+                                    {analyzing ? "Analyzing resume..." : resumeFile ? resumeFile.name : "Click to upload your resume (optional)"}
                                 </p>
                                 {!resumeFile && !analyzing && (
-                                    <p className='text-text-secondary/70 text-[12px] mt-1.5'>PDF only - we use it to tailor your interview questions</p>
+                                    <p className='text-text-secondary/70 text-[12px] mt-1.5'>PDF only - helps us tailor your interview questions, but you can skip it</p>
                                 )}
                             </motion.div>
                         )}
 
-                        {analysisDone && (
+                        {!isAssigned && !analysisDone && !analyzing && (
+                            <button
+                                type='button'
+                                onClick={() => setAnalysisDone(true)}
+                                className='block mx-auto text-[12.5px] text-text-secondary hover:text-ink underline underline-offset-2'>
+                                Skip and enter details manually
+                            </button>
+                        )}
+
+                        {analysisDone && resumeFile && (
                             <motion.div
                                 initial={{ opacity: 0, y: 16 }}
                                 animate={{ opacity: 1, y: 0 }}
@@ -344,7 +353,7 @@ function Step1SetUp({ onStart }) {
                             {loading ? "Starting..." : "Start Interview"}
                         </Button>
                         {!isAssigned && !analysisDone && (
-                            <p className='text-center text-[12px] text-text-secondary'>Upload your resume to continue</p>
+                            <p className='text-center text-[12px] text-text-secondary'>Upload your resume, or skip to enter details manually</p>
                         )}
                     </div>
 
