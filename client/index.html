@@ -11,14 +11,8 @@
     <script>
       (function () {
         try {
-          var saved = localStorage.getItem("theme");
-          var prefersLight = window.matchMedia("(prefers-color-scheme: light)").matches;
-          if (saved === "dark" || (!saved && !prefersLight) || (saved !== "light" && !saved)) {
-            document.documentElement.classList.add("dark");
-          }
-          if (saved === "light" || (!saved && prefersLight)) {
-            document.documentElement.classList.remove("dark");
-          }
+          document.documentElement.classList.remove("dark");
+          localStorage.setItem("theme", "light");
         } catch (e) {}
       })();
     </script>

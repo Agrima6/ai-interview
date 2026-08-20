@@ -3,6 +3,7 @@ import * as onboardingService from "../services/onboarding.service.js"
 import { writeFile } from "../utils/localFileStore.js"
 import { ok } from "../utils/response.js"
 import { ApiError } from "../utils/response.js"
+import { verifyCaptcha } from "../utils/captcha.js"
 
 // Client-reported Content-Type only (no magic-byte sniffing) - not a strong
 // guarantee, but at least rejects the obviously-wrong-category uploads that
@@ -92,6 +93,9 @@ export const completeFile = async (req, res, next) => {
 
 export const submit = async (req, res, next) => {
     try {
+        const { captchaToken, captchaAnswer } = req.body
+        verifyCaptcha(captchaToken, captchaAnswer)
+
         const result = await onboardingService.submit({
             onboardingId: req.params.id,
             rawToken: tokenFromRequest(req),
@@ -101,3 +105,13 @@ export const submit = async (req, res, next) => {
         ok(res, result)
     } catch (error) { next(error) }
 }
+
+export const viewFile = async (req, res, next) => {
+    try {
+        const { id, fileId } = req.params
+        const file = await onboardingService.getFileDetails(id, fileId)
+        res.setHeader("Content-Type", file.mimeType)
+        res.sendFile(file.path)
+    } catch (error) { next(error) }
+}
+

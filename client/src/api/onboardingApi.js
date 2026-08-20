@@ -10,19 +10,25 @@ export const getOnboarding = (type, token) => apiGet(`/api/v1/onboarding/${type}
 export const autosaveOnboarding = (onboardingId, token, { type, data, currentStep }) =>
     apiPatch(`/api/v1/onboardings/${onboardingId}`, { type, data, currentStep }, tokenHeaders(token))
 
-export const uploadOnboardingFile = async (onboardingId, token, { type, fieldKey, file }) => {
+export const uploadOnboardingFile = async (onboardingId, token, { type, fieldKey, file }, onProgress) => {
     const form = new FormData()
     form.append("type", type)
     form.append("fieldKey", fieldKey)
     form.append("file", file)
     const { data } = await client.post(`/api/v1/onboardings/${onboardingId}/files/upload`, form, {
         headers: { "X-Onboarding-Token": token, "Content-Type": "multipart/form-data" },
+        onUploadProgress: (progressEvent) => {
+            if (onProgress && progressEvent.total) {
+                const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+                onProgress(percentCompleted)
+            }
+        }
     })
     return data.data
 }
 
-export const submitOnboarding = (onboardingId, token, { type, consent }) =>
-    apiPost(`/api/v1/onboardings/${onboardingId}/submit`, { type, consent }, tokenHeaders(token))
+export const submitOnboarding = (onboardingId, token, { type, consent, captchaToken, captchaAnswer }) =>
+    apiPost(`/api/v1/onboardings/${onboardingId}/submit`, { type, consent, captchaToken, captchaAnswer }, tokenHeaders(token))
 
 /* ---- Authenticated admin/review endpoints (JWT, via client.js interceptor) ---- */
 export const listOnboardings = (params) => apiGetList("/api/v1/onboardings", params)

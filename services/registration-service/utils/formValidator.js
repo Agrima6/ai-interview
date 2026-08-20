@@ -24,7 +24,14 @@ export const validateAgainstFormVersion = (formVersion, data) => {
         }
         if (value !== undefined && value !== null && value !== "") {
             if (field.type === "EMAIL" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) errors.push({ fieldKey: field.key, message: `${field.label} must be a valid email.` })
-            if (field.type === "NUMBER" && typeof value !== "number") errors.push({ fieldKey: field.key, message: `${field.label} must be a number.` })
+            if (field.type === "NUMBER") {
+                const num = Number(value)
+                if (isNaN(num)) {
+                    errors.push({ fieldKey: field.key, message: `${field.label} must be a number.` })
+                } else {
+                    data[field.key] = num
+                }
+            }
             if (field.validation?.minLength && String(value).length < field.validation.minLength) errors.push({ fieldKey: field.key, message: `${field.label} is too short.` })
             const maxLength = field.validation?.maxLength || DEFAULT_MAX_LENGTH
             if (String(value).length > maxLength) errors.push({ fieldKey: field.key, message: `${field.label} is too long.` })

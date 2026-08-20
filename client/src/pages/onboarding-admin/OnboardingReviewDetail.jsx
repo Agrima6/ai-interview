@@ -6,6 +6,7 @@ import { Card, Badge, Button, Modal, Textarea } from '../../components/ui'
 import { usePermission } from '../../hooks/useAuth.jsx'
 import { actionPermissions } from '../../permissions/actionPermissions'
 import { getOnboardingForReview, approveOnboarding, rejectOnboarding, requestOnboardingChanges } from '../../api/onboardingApi'
+import { GatewayUrl } from '../../api/client'
 
 function OnboardingReviewDetail() {
     const { id } = useParams()
@@ -86,22 +87,72 @@ function OnboardingReviewDetail() {
                     {data.form.sections.map((section) => (
                         <Card key={section.key} className='p-6'>
                             <h3 className='font-display text-[15.5px] font-bold text-ink mb-4'>{section.title}</h3>
-                            <div className='grid sm:grid-cols-2 gap-4'>
+                            <div className='grid sm:grid-cols-2 gap-x-4 gap-y-6'>
                                 {section.fields.map((field) => {
                                     const isFile = ['FILE', 'IMAGE', 'MULTI_FILE'].includes(field.type)
-                                    const value = isFile
-                                        ? data.files?.find((f) => f.fieldKey === field.key)?.originalName
-                                        : data.data?.[field.key]
+                                    const fieldFiles = isFile
+                                        ? data.files?.filter((f) => f.fieldKey === field.key) || []
+                                        : []
+                                    const nonFileValue = isFile ? null : data.data?.[field.key]
                                     return (
-                                        <div key={field.key}>
-                                            <p className='text-[12px] text-text-secondary mb-0.5'>{field.label}</p>
-                                            {isFile && value ? (
-                                                <p className='text-[13.5px] text-ink flex items-center gap-1.5'><FileText size={13} className='text-accent' />{value}</p>
+                                        <div key={field.key} className={isFile ? 'sm:col-span-2' : ''}>
+                                            <p className='text-[12px] text-text-secondary mb-1'>{field.label}</p>
+                                            {isFile ? (
+                                                fieldFiles.length > 0 ? (
+                                                    <div className="grid sm:grid-cols-2 gap-3 mt-1">
+                                                        {fieldFiles.map((fileObj) => {
+                                                            const fileUrl = `${GatewayUrl}/api/v1/onboardings/${id}/files/${fileObj.fileId}/view`
+                                                            const isImg = fileObj.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fileObj.originalName)
+                                                            return (
+                                                                <div key={fileObj.fileId} className="p-3 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-between gap-3 group hover:bg-gray-100/60 transition-all">
+                                                                    <div className="flex items-center gap-3 min-w-0">
+                                                                        {isImg ? (
+                                                                            <div className="w-12 h-12 rounded-lg border border-gray-200 overflow-hidden bg-white shrink-0 flex items-center justify-center shadow-sm">
+                                                                                <img
+                                                                                    src={fileUrl}
+                                                                                    alt={fileObj.originalName}
+                                                                                    className="w-full h-full object-cover"
+                                                                                    onError={(e) => {
+                                                                                        e.target.style.display = 'none'
+                                                                                    }}
+                                                                                />
+                                                                            </div>
+                                                                        ) : (
+                                                                            <div className="w-12 h-12 rounded-lg bg-red-50 text-accent flex items-center justify-center shrink-0 border border-red-100/50">
+                                                                                <FileText size={22} />
+                                                                            </div>
+                                                                        )}
+                                                                        <div className="min-w-0">
+                                                                            <p className="text-[13px] font-semibold text-gray-900 truncate" title={fileObj.originalName}>
+                                                                                {fileObj.originalName}
+                                                                            </p>
+                                                                            <p className="text-[11px] text-gray-500">
+                                                                                {fileObj.size ? `${(fileObj.size / (1024 * 1024)).toFixed(2)} MB` : 'Unknown size'}
+                                                                                {fileObj.mimeType && ` • ${fileObj.mimeType.split('/')[1]?.toUpperCase()}`}
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+                                                                    
+                                                                    <a
+                                                                        href={fileUrl}
+                                                                        target="_blank"
+                                                                        rel="noreferrer"
+                                                                        className="px-3 py-1.5 text-[12px] font-semibold text-accent hover:text-accent-dark bg-white border border-gray-200 hover:border-gray-300 rounded-lg shadow-sm transition-all shrink-0"
+                                                                    >
+                                                                        View
+                                                                    </a>
+                                                                </div>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                ) : (
+                                                    <p className='text-[13.5px] text-gray-400 italic mt-1'>No file uploaded</p>
+                                                )
                                             ) : (
                                                 <p className='text-[13.5px] text-ink'>
-                                                    {Array.isArray(value)
-                                                        ? value.join(', ')
-                                                        : (value && typeof value === 'object' ? Object.values(value).filter(Boolean).join(', ') : (value ?? '—'))}
+                                                    {Array.isArray(nonFileValue)
+                                                        ? nonFileValue.join(', ')
+                                                        : (nonFileValue && typeof nonFileValue === 'object' ? Object.values(nonFileValue).filter(Boolean).join(', ') : (nonFileValue ?? '—'))}
                                                 </p>
                                             )}
                                         </div>

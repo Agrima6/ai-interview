@@ -70,6 +70,8 @@ const onboardingForms = [
                 key: "brand_documents", title: "Brand & Documents", order: 3,
                 fields: [
                     { key: "logo", label: "Company logo", type: "IMAGE", required: false, accept: ".png,.jpg,.jpeg", maxFileSizeMb: 5 },
+                    { key: "primary_color", label: "Primary Theme Color", type: "COLOR", required: false, placeholder: "#4F46E5" },
+                    { key: "secondary_color", label: "Secondary Theme Color", type: "COLOR", required: false, placeholder: "#10B981" },
                     { key: "incorporation_certificate", label: "Certificate of incorporation", type: "FILE", required: true, accept: ".pdf", maxFileSizeMb: 10 },
                 ],
             },
@@ -98,6 +100,8 @@ const onboardingForms = [
                 key: "brand_documents", title: "Brand & Documents", order: 3,
                 fields: [
                     { key: "logo", label: "Institution logo", type: "IMAGE", required: false, accept: ".png,.jpg,.jpeg", maxFileSizeMb: 5 },
+                    { key: "primary_color", label: "Primary Theme Color", type: "COLOR", required: false, placeholder: "#4F46E5" },
+                    { key: "secondary_color", label: "Secondary Theme Color", type: "COLOR", required: false, placeholder: "#10B981" },
                     { key: "accreditation_certificate", label: "Accreditation certificate", type: "FILE", required: false, accept: ".pdf", maxFileSizeMb: 10 },
                 ],
             },
