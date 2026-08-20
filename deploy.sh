@@ -70,3 +70,4 @@ else
 fi
 
 echo "Deploy complete: $AFTER_SHA"
+# CI/CD verified 2026-08-20T18:32:29Z
