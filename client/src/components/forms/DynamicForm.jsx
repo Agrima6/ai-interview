@@ -41,7 +41,7 @@ function FileField({ field, value, onUpload, uploading, error }) {
     )
 }
 
-function DynamicForm({ schema, defaultValues = {}, onSubmit, onFileUpload, uploadingField, files = {}, submitLabel = 'Continue', extraFooter = null, submitting = false, onValuesChange, onSectionChange }) {
+function DynamicForm({ schema, defaultValues = {}, onSubmit, onFileUpload, uploadingField, files = {}, submitLabel = 'Continue', extraFooter = null, submitting = false, onValuesChange, onSectionChange, submitDisabled = false }) {
     const { register, handleSubmit, watch, formState: { errors, isValid } } = useForm({
         mode: 'onChange',
         defaultValues,
@@ -61,6 +61,12 @@ function DynamicForm({ schema, defaultValues = {}, onSubmit, onFileUpload, uploa
     const registerRules = (field) => {
         const rules = { required: field.required ? `${field.label} is required.` : false }
         if (field.type === 'EMAIL') rules.pattern = { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter a valid email address.' }
+        if (field.type === 'PHONE') {
+            rules.pattern = { value: /^[0-9]{10}$/, message: 'Enter a valid 10-digit phone number.' }
+        }
+        if (field.type === 'NUMBER') {
+            rules.min = { value: 0, message: `${field.label} cannot be negative.` }
+        }
         if (field.validation?.minLength) rules.minLength = { value: field.validation.minLength, message: `${field.label} is too short.` }
         if (field.validation?.maxLength) rules.maxLength = { value: field.validation.maxLength, message: `${field.label} is too long.` }
         if (field.validation?.pattern) rules.pattern = { value: new RegExp(field.validation.pattern), message: `${field.label} format is invalid.` }
@@ -127,13 +133,50 @@ function DynamicForm({ schema, defaultValues = {}, onSubmit, onFileUpload, uploa
                     </label>
                 )
             case 'NUMBER':
-                return <Input key={field.key} type='number' {...commonProps} {...register(field.key, { ...registerRules(field), valueAsNumber: true })} />
+                return (
+                    <Input
+                        key={field.key}
+                        type='number'
+                        min={0}
+                        onKeyDown={(e) => {
+                            if (['e', 'E', '+', '-'].includes(e.key)) {
+                                e.preventDefault()
+                            }
+                        }}
+                        {...commonProps}
+                        {...register(field.key, { ...registerRules(field), valueAsNumber: true })}
+                    />
+                )
             case 'DATE':
                 return <Input key={field.key} type='date' {...commonProps} {...register(field.key, registerRules(field))} />
             case 'EMAIL':
                 return <Input key={field.key} type='email' {...commonProps} {...register(field.key, registerRules(field))} />
             case 'PHONE':
-                return <Input key={field.key} type='tel' {...commonProps} {...register(field.key, registerRules(field))} />
+                return (
+                    <Input
+                        key={field.key}
+                        type='tel'
+                        onKeyDown={(e) => {
+                            const isDigit = /[0-9]/.test(e.key)
+                            const isControl = [
+                                'Backspace',
+                                'Delete',
+                                'Tab',
+                                'ArrowLeft',
+                                'ArrowRight',
+                                'Home',
+                                'End'
+                            ].includes(e.key)
+                            const isMeta = e.metaKey || e.ctrlKey
+
+                            if (!isDigit && !isControl && !isMeta) {
+                                e.preventDefault()
+                            }
+                        }}
+                        {...commonProps}
+                        {...register(field.key, registerRules(field))}
+                    />
+                )
             case 'URL':
                 return <Input key={field.key} type='url' {...commonProps} {...register(field.key, registerRules(field))} />
             case 'ADDRESS':
@@ -179,7 +222,7 @@ function DynamicForm({ schema, defaultValues = {}, onSubmit, onFileUpload, uploa
             {extraFooter}
             <div className='flex items-center justify-between gap-4 pt-4'>
                 <div></div>
-                <Button type='submit' size='lg' disabled={!isValid || submitting} className=''>
+                <Button type='submit' size='lg' disabled={!isValid || submitting || submitDisabled} className=''>
                     {submitting ? (
                         <span className='flex items-center gap-2'>
                             <Loader2 size={16} className='animate-spin' />

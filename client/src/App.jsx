@@ -19,9 +19,6 @@ import RequireAuth from './components/RequireAuth'
 import RequireRole from './components/RequireRole'
 import InviteLanding from './pages/InviteLanding'
 import WHome from './pages/workmate/WHome'
-import PlatformLogin from './pages/auth/Login'
-import RegisterTypeSelect from './pages/public/RegisterTypeSelect'
-import RegisterForm from './pages/public/RegisterForm'
 import OnboardingFlow from './pages/onboarding/OnboardingFlow'
 import RequirePlatformAuth from './components/RequirePlatformAuth'
 import RequireClientAuth from './components/RequireClientAuth'
@@ -34,6 +31,7 @@ import FormBuilderPage from './pages/admin/FormBuilderPage'
 import ClientLogin from './pages/clientPortal/ClientLogin'
 import ClientChangePassword from './pages/clientPortal/ChangePassword'
 import ClientDashboard from './pages/clientPortal/ClientDashboard'
+import AuthPage from './pages/auth/AuthPage'
 import { ServerUrl } from './constants'
 
 export { ServerUrl }
@@ -75,9 +73,9 @@ function App() {
           registration, onboarding services behind the API gateway). Namespaced
           under /platform to avoid colliding with the existing Firebase-based
           candidate login at /login. */}
-      <Route path='/platform/login' element={<PlatformLogin/>}/>
-      <Route path='/platform/register' element={<RegisterTypeSelect/>}/>
-      <Route path='/platform/register/:type' element={<RegisterForm/>}/>
+      <Route path='/platform/login' element={<AuthPage/>}/>
+      <Route path='/platform/register' element={<AuthPage/>}/>
+      <Route path='/platform/register/:type' element={<AuthPage/>}/>
       <Route path='/platform/onboarding/:type/:token' element={<OnboardingFlow/>}/>
       <Route path='/platform/dashboard' element={<RequirePlatformAuth><PlatformDashboard/></RequirePlatformAuth>}/>
       <Route path='/platform/admin/forms' element={<RequirePlatformAuth><FormBuilderPage/></RequirePlatformAuth>}/>

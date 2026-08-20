@@ -207,6 +207,12 @@ function OnboardingFlow() {
                 if (field.type === 'EMAIL' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
                     errors[field.key] = 'Enter a valid email address.'
                 }
+                if (field.type === 'PHONE' && !/^[0-9]{10}$/.test(val)) {
+                    errors[field.key] = 'Enter a valid 10-digit phone number.'
+                }
+                if (field.type === 'NUMBER' && Number(val) < 0) {
+                    errors[field.key] = `${field.label} cannot be negative.`
+                }
                 if (field.type === 'URL' && !/^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/.test(val)) {
                     errors[field.key] = 'Enter a valid URL.'
                 }
@@ -709,11 +715,56 @@ function OnboardingFlow() {
                                                     </label>
                                                     {hasError && <p className="text-[11.5px] text-red-500 mt-1.5">{hasError}</p>}
                                                 </div>
-                                            ) : (
-                                                // Text / Email / Phone / URL / Number inputs
+                                            ) : field.type === 'NUMBER' ? (
                                                 <Input
                                                     id={field.key}
-                                                    type={field.type === 'NUMBER' ? 'number' : field.type === 'EMAIL' ? 'email' : 'text'}
+                                                    type="number"
+                                                    min={0}
+                                                    onKeyDown={(e) => {
+                                                        if (['e', 'E', '+', '-'].includes(e.key)) {
+                                                            e.preventDefault()
+                                                        }
+                                                    }}
+                                                    label={<>{field.label}{field.required && <span className="text-red-500 ml-0.5">*</span>}</>}
+                                                    placeholder={field.placeholder || undefined}
+                                                    value={formData[field.key] || ''}
+                                                    onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                                                    error={hasError}
+                                                    className="focus:ring-accent focus:border-accent"
+                                                />
+                                            ) : field.type === 'PHONE' ? (
+                                                <Input
+                                                    id={field.key}
+                                                    type="tel"
+                                                    onKeyDown={(e) => {
+                                                        const isDigit = /[0-9]/.test(e.key)
+                                                        const isControl = [
+                                                            'Backspace',
+                                                            'Delete',
+                                                            'Tab',
+                                                            'ArrowLeft',
+                                                            'ArrowRight',
+                                                            'Home',
+                                                            'End'
+                                                        ].includes(e.key)
+                                                        const isMeta = e.metaKey || e.ctrlKey
+
+                                                        if (!isDigit && !isControl && !isMeta) {
+                                                            e.preventDefault()
+                                                        }
+                                                    }}
+                                                    label={<>{field.label}{field.required && <span className="text-red-500 ml-0.5">*</span>}</>}
+                                                    placeholder={field.placeholder || undefined}
+                                                    value={formData[field.key] || ''}
+                                                    onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                                                    error={hasError}
+                                                    className="focus:ring-accent focus:border-accent"
+                                                />
+                                            ) : (
+                                                // Text / Email / URL inputs
+                                                <Input
+                                                    id={field.key}
+                                                    type={field.type === 'EMAIL' ? 'email' : 'text'}
                                                     label={<>{field.label}{field.required && <span className="text-red-500 ml-0.5">*</span>}</>}
                                                     placeholder={field.placeholder || undefined}
                                                     value={formData[field.key] || ''}
