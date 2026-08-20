@@ -7,8 +7,8 @@ const paymentSchema = new mongoose.Schema({
       required: true,
     },
     planId: String,
-    amount: Number,
-    credits: Number,
+    amount: { type: Number, min: 0 },
+    credits: { type: Number, min: 0 },
     razorpayOrderId: String,
     razorpayPaymentId: String,
     status: {

@@ -5,6 +5,10 @@ import { resolveConductOrgId } from "../utils/orgProvision.js"
 const VALID_ROUND_TYPES = ["HR", "Technical", "Behavioral", "System Design", "Case Study", "Group Discussion", "Managerial Round"]
 const VALID_SOURCES = ["bank", "ai-generated", "manual"]
 const VALID_DIFFICULTIES = ["Easy", "Medium", "Hard"]
+// Mirrors the 5-question cap generateQuestion applies to the AI-generated
+// path, so a manual round can't push an unbounded number of questions into
+// every Interview document created from this template.
+const MAX_MANUAL_QUESTIONS = 20
 
 const normalizeRound = async (raw, organizationId) => {
     const name = raw.name?.trim()
@@ -27,6 +31,9 @@ const normalizeRound = async (raw, organizationId) => {
     let manualQuestions = []
     if (questionSource === "manual") {
         const rawQuestions = Array.isArray(raw.manualQuestions) ? raw.manualQuestions : []
+        if (rawQuestions.length > MAX_MANUAL_QUESTIONS) {
+            throw { status: 400, message: `round "${name}" has ${rawQuestions.length} manual questions, max is ${MAX_MANUAL_QUESTIONS}` }
+        }
         manualQuestions = rawQuestions.map((q) => {
             const text = q.text?.trim()
             if (!text) throw { status: 400, message: `round "${name}" has a manual question with no text` }

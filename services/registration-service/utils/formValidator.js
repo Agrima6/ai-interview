@@ -1,3 +1,8 @@
+// A form definition can omit validation.maxLength on a text field entirely -
+// this is the backstop so a value still can't be arbitrarily long even when
+// the admin who built the form forgot to set one.
+const DEFAULT_MAX_LENGTH = 5000
+
 // Server-side re-validation against the exact published registration form.
 // Frontend validation is UX only.
 export const validateAgainstFormVersion = (formVersion, data) => {
@@ -28,7 +33,8 @@ export const validateAgainstFormVersion = (formVersion, data) => {
                 }
             }
             if (field.validation?.minLength && String(value).length < field.validation.minLength) errors.push({ fieldKey: field.key, message: `${field.label} is too short.` })
-            if (field.validation?.maxLength && String(value).length > field.validation.maxLength) errors.push({ fieldKey: field.key, message: `${field.label} is too long.` })
+            const maxLength = field.validation?.maxLength || DEFAULT_MAX_LENGTH
+            if (String(value).length > maxLength) errors.push({ fieldKey: field.key, message: `${field.label} is too long.` })
         }
     }
     return errors

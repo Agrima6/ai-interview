@@ -107,10 +107,19 @@ export const autosave = async ({ onboardingId, rawToken, type, data, currentStep
     return { savedAt: updated.lastSavedAt, currentStep: updated.currentStep }
 }
 
+// Files are deduped by fieldKey (re-uploading the same field replaces it),
+// but fieldKey is client-supplied and unchecked against the form - without a
+// cap, repeated calls with distinct made-up fieldKey values could grow this
+// array (and the files written to disk) without bound.
+const MAX_SESSION_FILES = 20
+
 export const registerFileUpload = async ({ onboardingId, rawToken, type, fieldKey, fileMeta }) => {
     const { session } = await resolveOwnedSession(onboardingId, rawToken, type)
-    const fileId = new mongoose.Types.ObjectId()
     const files = (session.files || []).filter((f) => f.fieldKey !== fieldKey)
+    if (files.length >= MAX_SESSION_FILES) {
+        throw new ApiError(400, "TOO_MANY_FILES", `A submission can have at most ${MAX_SESSION_FILES} uploaded files.`)
+    }
+    const fileId = new mongoose.Types.ObjectId()
     files.push({ fieldKey, fileId, ...fileMeta, status: "AVAILABLE" })
     await sessionRepo.update(onboardingId, { files })
     return { fileId: String(fileId), fieldKey, ...fileMeta, status: "AVAILABLE" }
@@ -219,7 +228,8 @@ export const approve = async (id, reviewerId, ctx) => {
         // best-effort on both: a reviewer can always re-trigger this via
         // support if either downstream call has a transient failure, and it
         // shouldn't block the approval itself from going through.
-        if (client) {
+        let credentialsIssued = false
+        if (client && session.contact?.email) {
             const credentials = await authServiceClient.createClientUser({
                 email: session.contact.email,
                 name: session.contact.name,
@@ -227,6 +237,7 @@ export const approve = async (id, reviewerId, ctx) => {
             }, ctx).catch(() => null)
 
             if (credentials) {
+                credentialsIssued = true
                 await communicationServiceClient.send({
                     entityType: "ONBOARDING", entityId: id, channel: "EMAIL",
                     eventType: "CLIENT_APPROVED", recipient: session.contact.email,
@@ -239,6 +250,13 @@ export const approve = async (id, reviewerId, ctx) => {
                     },
                 }, ctx).catch(() => null)
             }
+        }
+
+        // No email on file, or the login-account call failed - approval still
+        // goes through (the client record exists), but this must be visible
+        // to the reviewer instead of failing completely silently.
+        if (client && !credentialsIssued) {
+            return { ...listView(updated), client, warning: "Client approved, but no login account could be created - check the contact email and create credentials manually." }
         }
     }
 

@@ -1,3 +1,8 @@
+// A form definition can omit validation.maxLength on a text field entirely -
+// this is the backstop so a value still can't be arbitrarily long even when
+// the admin who built the form forgot to set one.
+const DEFAULT_MAX_LENGTH = 5000
+
 // Server-side re-validation against the exact stored form version. Frontend
 // validation is UX only - this is the real gate before a submission is
 // accepted, per the spec's "never trust frontend validation" rule.
@@ -31,7 +36,8 @@ export const validateAgainstFormVersion = (formVersion, data, files = []) => {
             }
             if (field.type === "EMAIL" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) errors.push({ fieldKey: field.key, message: `${field.label} must be a valid email.` })
             if (field.validation?.minLength && String(value).length < field.validation.minLength) errors.push({ fieldKey: field.key, message: `${field.label} is too short.` })
-            if (field.validation?.maxLength && String(value).length > field.validation.maxLength) errors.push({ fieldKey: field.key, message: `${field.label} is too long.` })
+            const maxLength = field.validation?.maxLength || DEFAULT_MAX_LENGTH
+            if (String(value).length > maxLength) errors.push({ fieldKey: field.key, message: `${field.label} is too long.` })
             if (field.validation?.pattern && !new RegExp(field.validation.pattern).test(value)) errors.push({ fieldKey: field.key, message: `${field.label} is not a valid format.` })
         }
     }

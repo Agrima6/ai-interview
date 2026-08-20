@@ -8,11 +8,15 @@ const userSchema = new mongoose.Schema({
     email:{
         type:String,
         unique:true,
-        required:true
+        required:true,
+        trim:true,
+        lowercase:true,
+        match:[/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Invalid email address"]
     },
     credits:{
         type:Number,
-        default:1000
+        default:1000,
+        min:0
     },
     role:{
         type:String,

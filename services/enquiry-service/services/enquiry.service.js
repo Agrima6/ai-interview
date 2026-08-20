@@ -32,7 +32,12 @@ export const getById = async (id) => {
     return view(enquiry)
 }
 
+const VALID_STATUSES = ["NEW", "CONTACTED", "IN_PROGRESS", "PENDING", "COMPLETED"]
+
 export const updateStatus = async (id, status, assignedTo) => {
+    if (status !== undefined && !VALID_STATUSES.includes(status)) {
+        throw new ApiError(400, "INVALID_STATUS", `status must be one of ${VALID_STATUSES.join(", ")}.`)
+    }
     const patch = { status }
     if (status === "CONTACTED" && !patch.contactedAt) patch.contactedAt = new Date()
     if (status === "COMPLETED") patch.completedAt = new Date()
