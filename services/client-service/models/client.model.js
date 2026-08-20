@@ -11,7 +11,11 @@ const clientSchema = new mongoose.Schema({
         email: { type: String, required: true },
         phone: { type: String, required: true },
     },
-    branding: { logoFileId: { type: mongoose.Schema.Types.ObjectId, default: null } },
+    branding: {
+        logoFileId: { type: mongoose.Schema.Types.ObjectId, default: null },
+        primaryColor: { type: String, default: null },
+        secondaryColor: { type: String, default: null },
+    },
     status: { type: String, enum: ["PENDING", "ACTIVE", "SUSPENDED", "REJECTED"], default: "PENDING" },
     subdomain: { type: String, default: null },
 }, { timestamps: true })

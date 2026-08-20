@@ -7,6 +7,8 @@ import { formServiceClient, clientServiceClient, authServiceClient, communicatio
 import { generateRawToken, hashToken, invitationExpiry } from "../utils/token.js"
 import { validateAgainstFormVersion } from "../utils/formValidator.js"
 import { ApiError } from "../utils/response.js"
+import { filePathFor } from "../utils/localFileStore.js"
+
 
 // Called internally by registration-service right after a registration is
 // created. Owns token generation because this service owns
@@ -71,6 +73,9 @@ export const getByToken = async (type, rawToken, ctx) => {
     const formVersion = await formServiceClient.getVersion(session.formVersionId, ctx)
     const reviewItems = await reviewItemRepo.findOpenForOnboarding(session._id)
 
+    const logoFile = session.files?.find((f) => f.fieldKey === "logo")
+    const logoUrl = logoFile ? `/api/v1/onboardings/${session._id}/files/${logoFile.fileId}/view` : null
+
     return {
         onboarding: {
             id: String(session._id),
@@ -84,6 +89,11 @@ export const getByToken = async (type, rawToken, ctx) => {
         },
         data: session.data || {},
         files: session.files || [],
+        branding: {
+            logoUrl,
+            primaryColor: session.data?.primary_color || null,
+            secondaryColor: session.data?.secondary_color || null,
+        },
         reviewItems: reviewItems.map((r) => ({ sectionKey: r.sectionKey, fieldKey: r.fieldKey, message: r.message })),
     }
 }
@@ -187,12 +197,22 @@ export const approve = async (id, reviewerId, ctx) => {
     let client = null
     if (["ORGANIZATION", "COLLEGE"].includes(session.type)) {
         const clientName = clientNameFor(session.type, session.data, session.contact)
+        const logoFile = session.files?.find((f) => f.fieldKey === "logo")
+        const logoFileId = logoFile ? logoFile.fileId : null
+        const primaryColor = session.data?.primary_color || null
+        const secondaryColor = session.data?.secondary_color || null
+
         client = await clientServiceClient.upsertFromOnboarding({
             onboardingId: id,
             registrationId: session.registrationId,
             type: session.type,
             name: clientName,
             primaryContact: session.contact,
+            branding: {
+                logoFileId,
+                primaryColor,
+                secondaryColor,
+            },
         }, ctx).catch(() => null)
 
         // Give the client their first login, then email the credentials -
@@ -263,5 +283,17 @@ export const statistics = async () => {
     return {
         byStatus,
         recent: recent.map((s) => ({ id: String(s._id), type: s.type, status: s.status, updatedAt: s.updatedAt, name: listView(s).name })),
+    }
+}
+
+export const getFileDetails = async (onboardingId, fileId) => {
+    const session = await sessionRepo.findById(onboardingId)
+    if (!session) throw new ApiError(404, "ONBOARDING_NOT_FOUND", "Onboarding not found.")
+    const fileRecord = session.files?.find((f) => String(f.fileId) === String(fileId))
+    if (!fileRecord) throw new ApiError(404, "FILE_NOT_FOUND", "File not found.")
+    return {
+        path: filePathFor(onboardingId, fileId, fileRecord.originalName),
+        mimeType: fileRecord.mimeType,
+        originalName: fileRecord.originalName,
     }
 }

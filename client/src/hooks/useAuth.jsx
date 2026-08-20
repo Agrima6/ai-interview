@@ -69,5 +69,5 @@ export const useAuth = () => {
 // what this returns.
 export const usePermission = () => {
     const { user } = useAuth()
-    return (permission) => Boolean(user?.permissions?.includes(permission))
+    return useCallback((permission) => Boolean(user?.permissions?.includes(permission)), [user])
 }

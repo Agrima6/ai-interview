@@ -41,11 +41,12 @@ function FileField({ field, value, onUpload, uploading, error }) {
     )
 }
 
-function DynamicForm({ schema, defaultValues = {}, onSubmit, onFileUpload, uploadingField, files = {}, submitLabel = 'Continue', extraFooter = null, submitting = false, onValuesChange }) {
+function DynamicForm({ schema, defaultValues = {}, onSubmit, onFileUpload, uploadingField, files = {}, submitLabel = 'Continue', extraFooter = null, submitting = false, onValuesChange, onSectionChange, submitDisabled = false }) {
     const { register, handleSubmit, watch, formState: { errors, isValid } } = useForm({
         mode: 'onChange',
         defaultValues,
     })
+    const [activeSection, setActiveSection] = React.useState(0)
 
     useEffect(() => {
         if (!onValuesChange) return
@@ -53,9 +54,19 @@ function DynamicForm({ schema, defaultValues = {}, onSubmit, onFileUpload, uploa
         return () => subscription.unsubscribe()
     }, [watch, onValuesChange])
 
+    useEffect(() => {
+        if (onSectionChange) onSectionChange(activeSection)
+    }, [activeSection, onSectionChange])
+
     const registerRules = (field) => {
         const rules = { required: field.required ? `${field.label} is required.` : false }
         if (field.type === 'EMAIL') rules.pattern = { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter a valid email address.' }
+        if (field.type === 'PHONE') {
+            rules.pattern = { value: /^[0-9]{10}$/, message: 'Enter a valid 10-digit phone number.' }
+        }
+        if (field.type === 'NUMBER') {
+            rules.min = { value: 0, message: `${field.label} cannot be negative.` }
+        }
         if (field.validation?.minLength) rules.minLength = { value: field.validation.minLength, message: `${field.label} is too short.` }
         if (field.validation?.maxLength) rules.maxLength = { value: field.validation.maxLength, message: `${field.label} is too long.` }
         if (field.validation?.pattern) rules.pattern = { value: new RegExp(field.validation.pattern), message: `${field.label} format is invalid.` }
@@ -74,11 +85,15 @@ function DynamicForm({ schema, defaultValues = {}, onSubmit, onFileUpload, uploa
 
         switch (field.type) {
             case 'TEXTAREA':
-                return <Textarea key={field.key} {...commonProps} {...register(field.key, registerRules(field))} />
+                return (
+                    <div className='space-y-2'>
+                        <Textarea key={field.key} {...commonProps} {...register(field.key, registerRules(field))} className='min-h-[120px]' />
+                    </div>
+                )
             case 'SELECT':
                 return (
                     <Select key={field.key} {...commonProps} {...register(field.key, registerRules(field))}>
-                        <option value=''>Select...</option>
+                        <option value=''>Select an option...</option>
                         {field.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </Select>
                 )
@@ -90,38 +105,82 @@ function DynamicForm({ schema, defaultValues = {}, onSubmit, onFileUpload, uploa
                 )
             case 'RADIO':
                 return (
-                    <div key={field.key} className='w-full'>
-                        <p className='text-[13px] font-medium text-ink mb-1.5'>{field.label}{field.required && REQUIRED_MARK}</p>
-                        <div className='flex flex-wrap gap-4'>
+                    <div key={field.key} className='w-full space-y-3'>
+                        <p className='text-[13px] font-semibold text-ink'>{field.label}{field.required && REQUIRED_MARK}</p>
+                        <div className='space-y-2.5'>
                             {field.options.map((o) => (
-                                <label key={o.value} className='flex items-center gap-2 text-[14px] text-ink'>
-                                    <input type='radio' value={o.value} {...register(field.key, registerRules(field))} />
+                                <label key={o.value} className='flex items-center gap-3 text-[14px] text-ink cursor-pointer group'>
+                                    <div className='w-5 h-5 rounded-full border-2 border-line group-hover:border-accent/60 transition-colors flex items-center justify-center'>
+                                        <input type='radio' value={o.value} {...register(field.key, registerRules(field))} className='opacity-0 absolute cursor-pointer' />
+                                        {/* Visual radio indicator */}
+                                        <div className='w-2 h-2 rounded-full bg-accent scale-0 group-has-[:checked] scale-100 transition-transform' />
+                                    </div>
                                     {o.label}
                                 </label>
                             ))}
                         </div>
-                        {error && <p className='text-[12px] text-red-500 mt-1.5'>{error}</p>}
+                        {error && <p className='text-[12px] text-red-500 mt-2'>{error}</p>}
                     </div>
                 )
             case 'CHECKBOX':
                 return (
-                    <label key={field.key} className='flex items-center gap-2 text-[14px] text-ink w-full'>
-                        <input type='checkbox' {...register(field.key, registerRules(field))} />
+                    <label key={field.key} className='flex items-center gap-3 text-[14px] text-ink cursor-pointer group'>
+                        <div className='w-5 h-5 rounded-lg border-2 border-line group-hover:border-accent/60 transition-colors flex items-center justify-center bg-white'>
+                            <input type='checkbox' {...register(field.key, registerRules(field))} className='opacity-0 absolute cursor-pointer' />
+                            <CheckCircle2 size={16} className='text-accent scale-0 group-has-[:checked]:scale-100 transition-transform' />
+                        </div>
                         {field.label}{field.required && REQUIRED_MARK}
                     </label>
                 )
             case 'NUMBER':
-                return <Input key={field.key} type='number' {...commonProps} {...register(field.key, { ...registerRules(field), valueAsNumber: true })} />
+                return (
+                    <Input
+                        key={field.key}
+                        type='number'
+                        min={0}
+                        onKeyDown={(e) => {
+                            if (['e', 'E', '+', '-'].includes(e.key)) {
+                                e.preventDefault()
+                            }
+                        }}
+                        {...commonProps}
+                        {...register(field.key, { ...registerRules(field), valueAsNumber: true })}
+                    />
+                )
             case 'DATE':
                 return <Input key={field.key} type='date' {...commonProps} {...register(field.key, registerRules(field))} />
             case 'EMAIL':
                 return <Input key={field.key} type='email' {...commonProps} {...register(field.key, registerRules(field))} />
             case 'PHONE':
-                return <Input key={field.key} type='tel' {...commonProps} {...register(field.key, registerRules(field))} />
+                return (
+                    <Input
+                        key={field.key}
+                        type='tel'
+                        onKeyDown={(e) => {
+                            const isDigit = /[0-9]/.test(e.key)
+                            const isControl = [
+                                'Backspace',
+                                'Delete',
+                                'Tab',
+                                'ArrowLeft',
+                                'ArrowRight',
+                                'Home',
+                                'End'
+                            ].includes(e.key)
+                            const isMeta = e.metaKey || e.ctrlKey
+
+                            if (!isDigit && !isControl && !isMeta) {
+                                e.preventDefault()
+                            }
+                        }}
+                        {...commonProps}
+                        {...register(field.key, registerRules(field))}
+                    />
+                )
             case 'URL':
                 return <Input key={field.key} type='url' {...commonProps} {...register(field.key, registerRules(field))} />
             case 'ADDRESS':
-                return <Textarea key={field.key} {...commonProps} placeholder='Street, city, state, postal code' {...register(field.key, registerRules(field))} />
+                return <Textarea key={field.key} {...commonProps} placeholder='Street, city, state, postal code' {...register(field.key, registerRules(field))} className='min-h-[100px]' />
             case 'FILE':
             case 'IMAGE':
             case 'MULTI_FILE':
@@ -142,13 +201,18 @@ function DynamicForm({ schema, defaultValues = {}, onSubmit, onFileUpload, uploa
     }
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className='space-y-8'>
-            {schema.sections.map((section) => (
-                <div key={section.key}>
-                    <h3 className='font-display text-[18px] font-bold text-ink mb-4'>{section.title}</h3>
-                    <div className='grid sm:grid-cols-2 gap-5'>
+        <form onSubmit={handleSubmit(onSubmit)} className='space-y-10'>
+            {schema.sections.map((section, sectionIdx) => (
+                <div key={section.key} className='space-y-6'>
+                    <div className='border-b border-line pb-4'>
+                        <h3 className='font-display text-[20px] font-bold text-ink mb-1'>{section.title}</h3>
+                        {section.description && (
+                            <p className='text-[14px] text-text-secondary'>{section.description}</p>
+                        )}
+                    </div>
+                    <div className='grid sm:grid-cols-2 gap-6'>
                         {section.fields.map((field) => (
-                            <div key={field.key} className={['TEXTAREA', 'ADDRESS', 'RADIO', 'MULTI_SELECT'].includes(field.type) ? 'sm:col-span-2' : ''}>
+                            <div key={field.key} className={['TEXTAREA', 'ADDRESS', 'RADIO', 'MULTI_SELECT', 'CHECKBOX'].includes(field.type) ? 'sm:col-span-2' : ''}>
                                 {renderField(field)}
                             </div>
                         ))}
@@ -156,9 +220,17 @@ function DynamicForm({ schema, defaultValues = {}, onSubmit, onFileUpload, uploa
                 </div>
             ))}
             {extraFooter}
-            <Button type='submit' size='lg' disabled={!isValid || submitting} className='w-full sm:w-auto'>
-                {submitting ? 'Submitting...' : submitLabel}
-            </Button>
+            <div className='flex items-center justify-between gap-4 pt-4'>
+                <div></div>
+                <Button type='submit' size='lg' disabled={!isValid || submitting || submitDisabled} className=''>
+                    {submitting ? (
+                        <span className='flex items-center gap-2'>
+                            <Loader2 size={16} className='animate-spin' />
+                            {submitLabel}...
+                        </span>
+                    ) : submitLabel}
+                </Button>
+            </div>
         </form>
     )
 }
