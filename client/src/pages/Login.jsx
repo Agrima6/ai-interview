@@ -16,7 +16,7 @@ function Login() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
 
-    const redirectTo = location.state?.from || "/"
+    const redirectTo = location.state?.from || "/dashboard"
 
     const handleGoogle = async () => {
         setError("")

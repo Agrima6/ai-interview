@@ -1,32 +1,39 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { signInWithPopup } from 'firebase/auth'
 import { Input, Button, Card } from '../../components/ui'
 import { useAuth } from '../../hooks/useAuth.jsx'
+import { auth, googleProvider } from '../../firebase'
 import logo from '../../assets/logo.png'
 
-// Figma copy: "Welcome back / Enter your credentials to access your
-// recruitment desk." This is the staff/reviewer login - distinct from the
-// candidate-facing Google sign-in used elsewhere in the product.
-// Dev-only default credentials, seeded by `npm run seed` in auth-service.
-// Never shipped in a production build - import.meta.env.DEV is false once
-// the app is actually built, not just "not localhost".
-const DEV_ADMIN = { email: 'admin@workmateiq.local', password: 'Agrima123' }
-
+// Single login for both staff/admin and approved organizations/colleges -
+// one form, no separate "Admin Login" / "Client Login" split. The backend
+// tells us which kind of account it is (tenantId set = a client account),
+// so we route to the right dashboard after a successful sign-in instead of
+// making the user pick a login type up front.
 function Login() {
     const navigate = useNavigate()
-    const { login } = useAuth()
-    const [email, setEmail] = useState(import.meta.env.DEV ? DEV_ADMIN.email : '')
-    const [password, setPassword] = useState(import.meta.env.DEV ? DEV_ADMIN.password : '')
-    const [remember, setRemember] = useState(true)
+    const { login, loginWithGoogle } = useAuth()
+    const [email, setEmail] = useState('')
+    const [password, setPassword] = useState('')
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
 
-    const doLogin = async (creds) => {
+    const afterLogin = (user) => {
+        if (user.tenantId) {
+            navigate(user.mustChangePassword ? '/platform/client/change-password' : '/platform/client/dashboard')
+        } else {
+            navigate('/platform/dashboard')
+        }
+    }
+
+    const submit = async (e) => {
+        e.preventDefault()
         setError('')
         setLoading(true)
         try {
-            await login(creds.email, creds.password)
-            navigate('/platform/dashboard')
+            const user = await login(email, password)
+            afterLogin(user)
         } catch (err) {
             setError(err.message || 'Invalid email or password.')
         } finally {
@@ -34,9 +41,19 @@ function Login() {
         }
     }
 
-    const submit = (e) => {
-        e.preventDefault()
-        doLogin({ email, password })
+    const handleGoogle = async () => {
+        setError('')
+        setLoading(true)
+        try {
+            const result = await signInWithPopup(auth, googleProvider)
+            const idToken = await result.user.getIdToken()
+            const user = await loginWithGoogle(idToken)
+            afterLogin(user)
+        } catch (err) {
+            setError(err.message || 'Google sign-in failed.')
+        } finally {
+            setLoading(false)
+        }
     }
 
     return (
@@ -47,34 +64,25 @@ function Login() {
                     <span className='font-display text-[16px] font-bold text-ink'>WorkmateIQ</span>
                 </div>
 
-                <h1 className='font-display text-[26px] font-bold text-ink mb-2'>Welcome back</h1>
-                <p className='text-text-secondary text-[14px] mb-8'>Enter your credentials to access your recruitment desk.</p>
+                <h1 className='font-display text-[26px] font-bold text-ink mb-2'>Log in</h1>
+                <p className='text-text-secondary text-[14px] mb-8'>Enter your credentials to continue.</p>
 
                 <form onSubmit={submit} className='space-y-4'>
                     <Input label='Email address' type='email' placeholder='you@company.com' value={email} onChange={(e) => setEmail(e.target.value)} required />
-                    <div>
-                        <Input label='Password' type='password' value={password} onChange={(e) => setPassword(e.target.value)} required />
-                        <button type='button' className='text-[12.5px] text-accent hover:underline mt-1.5'>Forgot password?</button>
-                    </div>
-                    <label className='flex items-center gap-2 text-[13.5px] text-text-secondary'>
-                        <input type='checkbox' checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-                        Remember me on this browser
-                    </label>
+                    <Input label='Password' type='password' value={password} onChange={(e) => setPassword(e.target.value)} required />
                     {error && <p className='text-[13px] text-red-500'>{error}</p>}
-                    <Button type='submit' size='lg' disabled={loading} className='w-full'>{loading ? 'Signing in...' : 'Sign In'}</Button>
+                    <Button type='submit' size='lg' disabled={loading} className='w-full'>{loading ? 'Signing in...' : 'Log in'}</Button>
                 </form>
 
-                {import.meta.env.DEV && (
-                    <Button
-                        variant='secondary'
-                        size='sm'
-                        disabled={loading}
-                        onClick={() => doLogin(DEV_ADMIN)}
-                        className='w-full mt-3'
-                    >
-                        Continue as Super Admin (dev)
-                    </Button>
-                )}
+                <div className='flex items-center gap-3 my-5'>
+                    <div className='h-px bg-line flex-1' />
+                    <span className='text-[12px] text-text-secondary'>or</span>
+                    <div className='h-px bg-line flex-1' />
+                </div>
+
+                <Button variant='secondary' size='lg' disabled={loading} onClick={handleGoogle} className='w-full'>
+                    Continue with Google
+                </Button>
             </Card>
         </div>
     )

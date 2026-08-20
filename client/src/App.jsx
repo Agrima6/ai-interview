@@ -1,6 +1,7 @@
 import React from 'react'
-import { Route, Routes } from 'react-router-dom'
+import { Route, Routes, Navigate } from 'react-router-dom'
 import Login from './pages/Login'
+import Home from './pages/Home'
 import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { useDispatch } from 'react-redux'
@@ -28,7 +29,6 @@ import OnboardingReviewDetail from './pages/onboarding-admin/OnboardingReviewDet
 import ClientList from './pages/clients/ClientList'
 import EnquiryList from './pages/enquiries/EnquiryList'
 import FormBuilderPage from './pages/admin/FormBuilderPage'
-import ClientLogin from './pages/clientPortal/ClientLogin'
 import ClientChangePassword from './pages/clientPortal/ChangePassword'
 import ClientDashboard from './pages/clientPortal/ClientDashboard'
 import AuthPage from './pages/auth/AuthPage'
@@ -86,9 +86,10 @@ function App() {
 
       {/* Client portal: for approved organizations/colleges, separate from
           both the staff admin login above and the candidate login at /login. */}
-      <Route path='/platform/client/login' element={<ClientLogin/>}/>
+      <Route path='/platform/client/login' element={<Navigate to='/platform/login' replace/>}/>
       <Route path='/platform/client/change-password' element={<RequireClientAuth><ClientChangePassword/></RequireClientAuth>}/>
       <Route path='/platform/client/dashboard' element={<RequireClientAuth><ClientDashboard/></RequireClientAuth>}/>
+      <Route path='/dashboard' element={<RequireAuth><Home/></RequireAuth>}/>
       <Route path='/interview' element={<RequireAuth><InterviewPage/></RequireAuth>}/>
       <Route path='/history' element={<RequireAuth><InterviewHistory/></RequireAuth>}/>
       <Route path='/pricing' element={<RequireAuth><Pricing/></RequireAuth>}/>
