@@ -15,7 +15,10 @@ export const list = async ({ status, search, cursor, limit = 25 }) => {
     return { items, hasNext, nextCursor: hasNext ? String(items[items.length - 1]._id) : null }
 }
 
-export const update = (id, patch) => Enquiry.findByIdAndUpdate(id, patch, { new: true })
+// runValidators is required here - Mongoose skips schema validators
+// (including the `enum` on status) on findByIdAndUpdate by default, so
+// without it a caller could persist a status value outside the enum.
+export const update = (id, patch) => Enquiry.findByIdAndUpdate(id, patch, { new: true, runValidators: true })
 
 export const countByStatus = async () => {
     const rows = await Enquiry.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }])

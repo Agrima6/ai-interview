@@ -1,3 +1,4 @@
+import mongoose from "mongoose"
 import * as templateRepo from "../repositories/template.repository.js"
 import * as communicationRepo from "../repositories/communication.repository.js"
 import { getEmailProvider } from "../providers/emailProvider.js"
@@ -27,6 +28,9 @@ const view = (c) => ({
 // there's no SQS hop - we just call the provider directly and record the
 // resulting status, exactly as the local dev flow in the spec describes.
 export const sendAndRecord = async ({ entityType, entityId, channel, eventType, recipient, variables }) => {
+    if (!recipient) throw new ApiError(400, "RECIPIENT_REQUIRED", "recipient is required.")
+    if (!mongoose.isValidObjectId(entityId)) throw new ApiError(400, "INVALID_ENTITY_ID", "entityId must be a valid id.")
+
     const template = await templateRepo.findPublished(channel, eventType)
     if (!template) throw new ApiError(404, "TEMPLATE_NOT_FOUND", `No published ${channel} template for ${eventType}.`)
 

@@ -7,9 +7,15 @@ const clientSchema = new mongoose.Schema({
     type: { type: String, enum: ["ORGANIZATION", "COLLEGE"], required: true },
     name: { type: String, required: true },
     primaryContact: {
-        name: { type: String, required: true },
-        email: { type: String, required: true },
-        phone: { type: String, required: true },
+        name: { type: String, required: true, trim: true },
+        email: {
+            type: String,
+            required: true,
+            trim: true,
+            lowercase: true,
+            match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Invalid email address"],
+        },
+        phone: { type: String, required: true, trim: true },
     },
     branding: { logoFileId: { type: mongoose.Schema.Types.ObjectId, default: null } },
     status: { type: String, enum: ["PENDING", "ACTIVE", "SUSPENDED", "REJECTED"], default: "PENDING" },

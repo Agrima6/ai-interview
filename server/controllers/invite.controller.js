@@ -100,9 +100,16 @@ export const createInvite = async (req, res) => {
         const template = await InterviewTemplate.findOne({ _id: templateId, organizationId })
         if (!template) return res.status(404).json({ message: "Interview template not found" })
 
-        const expiresAt = req.body.expiresAt
-            ? new Date(req.body.expiresAt)
-            : new Date(Date.now() + DEFAULT_EXPIRY_DAYS * 24 * 60 * 60 * 1000)
+        let expiresAt = new Date(Date.now() + DEFAULT_EXPIRY_DAYS * 24 * 60 * 60 * 1000)
+        if (req.body.expiresAt) {
+            const parsed = new Date(req.body.expiresAt)
+            // An invalid or past date must not silently become an invite that
+            // never expires (Invalid Date < anything is always false).
+            if (Number.isNaN(parsed.getTime()) || parsed <= new Date()) {
+                return res.status(400).json({ message: "expiresAt must be a valid future date" })
+            }
+            expiresAt = parsed
+        }
 
         const invite = await InterviewInvite.create({
             templateId: template._id,

@@ -260,7 +260,18 @@ export const submitAnswer = async (req, res) => {
     const { interviewId, questionIndex, answer, timeTaken } = req.body
 
     const interview = await Interview.findById(interviewId)
+    if (!interview) {
+      return res.status(400).json({ message: "failed to find Interview" })
+    }
     const question = interview.questions[questionIndex]
+    if (!question) {
+      return res.status(400).json({ message: "Invalid question index" })
+    }
+    // A missing/non-numeric timeTaken must not silently bypass the time-limit
+    // check below (bare `undefined > number` is always false) - treat it as
+    // exceeding the limit instead, same as an over-time submission.
+    const timeTakenNum = Number(timeTaken)
+    const timeTakenValid = Number.isFinite(timeTakenNum)
 
     // If no answer
     if (!answer) {
@@ -275,8 +286,8 @@ export const submitAnswer = async (req, res) => {
       });
     }
 
-    // If time exceeded
-    if (timeTaken > question.timeLimit) {
+    // If time exceeded (or timeTaken wasn't sent at all)
+    if (!timeTakenValid || timeTakenNum > question.timeLimit) {
       question.score = 0;
       question.feedback = "Time limit exceeded. Answer not evaluated.";
       question.answer = answer;

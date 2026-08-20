@@ -41,6 +41,9 @@ const issueSession = async (user, deviceId) => {
 }
 
 export const login = async ({ email, password, deviceId }) => {
+    if (typeof email !== "string" || !email.trim() || typeof password !== "string" || !password) {
+        throw new ApiError(400, "MISSING_CREDENTIALS", "Email and password are required.")
+    }
     const user = await userRepo.findByEmail(email)
     if (!user || user.status !== "ACTIVE") throw new ApiError(401, "INVALID_CREDENTIALS", "Invalid email or password.")
     const valid = await bcrypt.compare(password, user.passwordHash)
@@ -143,7 +146,7 @@ export const googleLogin = async (idToken) => {
     } catch {
         throw new ApiError(401, "INVALID_GOOGLE_TOKEN", "Invalid or expired Google sign-in token.")
     }
-    const email = decoded.email?.toLowerCase()
+    const email = decoded.email?.trim().toLowerCase()
     if (!email) throw new ApiError(400, "NO_EMAIL", "Google account has no email.")
     const user = await userRepo.findByEmail(email)
     if (!user || user.status !== "ACTIVE") {
