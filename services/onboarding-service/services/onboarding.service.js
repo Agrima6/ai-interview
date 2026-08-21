@@ -305,6 +305,8 @@ export const statistics = async () => {
     }
 }
 
+export const trend = (since) => sessionRepo.dailyCountsSince(since)
+
 export const getFileDetails = async (onboardingId, fileId) => {
     const session = await sessionRepo.findById(onboardingId)
     if (!session) throw new ApiError(404, "ONBOARDING_NOT_FOUND", "Onboarding not found.")

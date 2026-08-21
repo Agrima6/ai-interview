@@ -16,5 +16,11 @@ router.get(
     requireServicePermission("STATISTICS_READ"),
     onboardingInternalController.statistics
 )
+router.get(
+    "/internal/v1/statistics/trend",
+    authenticateService,
+    requireServicePermission("STATISTICS_READ"),
+    onboardingInternalController.trend
+)
 
 export default router

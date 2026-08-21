@@ -58,3 +58,5 @@ export const logCall = async (id) => {
 }
 
 export const statistics = () => enquiryRepo.countByStatus()
+
+export const trend = (since) => enquiryRepo.dailyCountsSince(since)

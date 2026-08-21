@@ -22,6 +22,28 @@ export const countByStatus = async () => {
 
 export const recentlyUpdated = (limit = 10) => OnboardingSession.find().sort({ updatedAt: -1 }).limit(limit)
 
+// Daily registration counts (a session is created 1:1 with a registration,
+// see createInvitationForRegistration) since `since`, plus a total-by-type
+// breakdown over the same window - backs the dashboard trend chart and the
+// registrations-by-type donut.
+export const dailyCountsSince = async (since) => {
+    const [byDay, byType] = await Promise.all([
+        OnboardingSession.aggregate([
+            { $match: { createdAt: { $gte: since } } },
+            { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, count: { $sum: 1 } } },
+            { $sort: { _id: 1 } },
+        ]),
+        OnboardingSession.aggregate([
+            { $match: { createdAt: { $gte: since } } },
+            { $group: { _id: "$type", count: { $sum: 1 } } },
+        ]),
+    ])
+    return {
+        byDay: byDay.map((r) => ({ date: r._id, count: r.count })),
+        byType: Object.fromEntries(byType.map((r) => [r._id, r.count])),
+    }
+}
+
 export const mergeData = (id, dataPatch, currentStep) =>
     OnboardingSession.findByIdAndUpdate(
         id,
