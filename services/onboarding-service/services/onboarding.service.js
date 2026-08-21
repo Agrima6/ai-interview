@@ -14,8 +14,19 @@ import { filePathFor } from "../utils/localFileStore.js"
 // created. Owns token generation because this service owns
 // onboarding_invitations - the raw token is returned once, over the private
 // network, and never persisted here either.
-export const createInvitationForRegistration = async ({ registrationId, type, contact }, ctx) => {
+export const createInvitationForRegistration = async ({ registrationId, type, contact, data }, ctx) => {
     const form = await formServiceClient.getPublishedForm(type, "ONBOARDING", ctx)
+
+    // Carry over whatever the registration form already collected so the
+    // onboarding form doesn't ask the same questions twice - only fields
+    // the onboarding form actually knows about, since the two forms don't
+    // necessarily share the exact same field set and submit-time validation
+    // rejects unknown keys.
+    const onboardingKeys = new Set(form.sections.flatMap((s) => s.fields.map((f) => f.key)))
+    const prefillData = {}
+    for (const [key, value] of Object.entries(data || {})) {
+        if (onboardingKeys.has(key)) prefillData[key] = value
+    }
 
     const session = await sessionRepo.create({
         invitationId: new mongoose.Types.ObjectId(), // placeholder, patched below
@@ -23,6 +34,7 @@ export const createInvitationForRegistration = async ({ registrationId, type, co
         type,
         contact,
         formVersionId: form.versionId,
+        data: prefillData,
     })
 
     const rawToken = generateRawToken()
@@ -148,6 +160,15 @@ export const submit = async ({ onboardingId, rawToken, type, consent }, ctx) => 
     const status = nextVersion === 1 ? "SUBMITTED" : "RESUBMITTED"
     await sessionRepo.update(onboardingId, { status, submittedAt: new Date() })
     await invitationRepo.incrementUse(invitation._id)
+
+    if (session.contact?.email) {
+        const clientName = clientNameFor(session.type, session.data, session.contact)
+        await communicationServiceClient.send({
+            entityType: "ONBOARDING", entityId: onboardingId, channel: "EMAIL",
+            eventType: "ONBOARDING_SUBMITTED", recipient: session.contact.email,
+            variables: { recipientName: session.contact.name, clientName: clientName || session.contact.name },
+        }, ctx).catch((err) => console.error("[onboarding-service] onboarding-submitted email failed:", err.message))
+    }
 
     return { status, submissionVersion: nextVersion }
 }

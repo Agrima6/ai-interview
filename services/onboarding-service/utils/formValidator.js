@@ -21,7 +21,7 @@ export const validateAgainstFormVersion = (formVersion, data, files = []) => {
         const providedFile = files.find((f) => f.fieldKey === field.key)
 
         if (field.required) {
-            const missing = isFileType ? !providedFile : (value === undefined || value === null || value === "")
+            const missing = isFileType ? !providedFile : (value === undefined || value === null || String(value).trim() === "")
             if (missing) errors.push({ fieldKey: field.key, message: `${field.label} is required.` })
         }
 
@@ -31,7 +31,11 @@ export const validateAgainstFormVersion = (formVersion, data, files = []) => {
                 if (isNaN(num)) {
                     errors.push({ fieldKey: field.key, message: `${field.label} must be a number.` })
                 } else {
-                    data[field.key] = num
+                    const min = field.validation?.min ?? 0
+                    const max = field.validation?.max
+                    if (num < min) errors.push({ fieldKey: field.key, message: `${field.label} must be at least ${min}.` })
+                    else if (max !== undefined && num > max) errors.push({ fieldKey: field.key, message: `${field.label} must be at most ${max}.` })
+                    else data[field.key] = num
                 }
             }
             if (field.type === "EMAIL" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) errors.push({ fieldKey: field.key, message: `${field.label} must be a valid email.` })

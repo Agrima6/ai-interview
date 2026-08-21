@@ -19,7 +19,7 @@ export const validateAgainstFormVersion = (formVersion, data) => {
         const isFileType = ["FILE", "IMAGE", "MULTI_FILE"].includes(field.type)
         if (isFileType) continue // file upload isn't part of the registration step in this slice
 
-        if (field.required && (value === undefined || value === null || value === "")) {
+        if (field.required && (value === undefined || value === null || String(value).trim() === "")) {
             errors.push({ fieldKey: field.key, message: `${field.label} is required.` })
         }
         if (value !== undefined && value !== null && value !== "") {
@@ -29,7 +29,11 @@ export const validateAgainstFormVersion = (formVersion, data) => {
                 if (isNaN(num)) {
                     errors.push({ fieldKey: field.key, message: `${field.label} must be a number.` })
                 } else {
-                    data[field.key] = num
+                    const min = field.validation?.min ?? 0
+                    const max = field.validation?.max
+                    if (num < min) errors.push({ fieldKey: field.key, message: `${field.label} must be at least ${min}.` })
+                    else if (max !== undefined && num > max) errors.push({ fieldKey: field.key, message: `${field.label} must be at most ${max}.` })
+                    else data[field.key] = num
                 }
             }
             if (field.validation?.minLength && String(value).length < field.validation.minLength) errors.push({ fieldKey: field.key, message: `${field.label} is too short.` })

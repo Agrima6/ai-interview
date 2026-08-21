@@ -63,7 +63,7 @@ export const submit = async (payload, ctx) => {
     }
 
     const invitation = await onboardingServiceClient.createInvitation(
-        { registrationId: String(registration._id), type: normalizedType, contact },
+        { registrationId: String(registration._id), type: normalizedType, contact, data },
         ctx
     )
 

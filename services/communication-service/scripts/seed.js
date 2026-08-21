@@ -27,6 +27,12 @@ const templates = [
         body: "Hi {{recipientName}},\n\nGreat news - {{clientName}} has been approved on WorkmateIQ. You can now sign in to your dashboard:\n{{loginUrl}}\n\nEmail: {{recipientEmail}}\nTemporary password: {{tempPassword}}\n\nYou'll be asked to set a new password the first time you sign in.\n\n- The WorkmateIQ team",
         variables: ["recipientName", "recipientEmail", "clientName", "loginUrl", "tempPassword"],
     },
+    {
+        channel: "EMAIL", eventType: "ONBOARDING_SUBMITTED", name: "Onboarding submitted (email)",
+        subject: "We've received {{clientName}}'s onboarding application",
+        body: "Hi {{recipientName}},\n\nThanks - we've received your onboarding application for {{clientName}}. Our team will review it and get back to you with next steps.\n\n- The WorkmateIQ team",
+        variables: ["recipientName", "clientName"],
+    },
 ]
 
 const run = async () => {

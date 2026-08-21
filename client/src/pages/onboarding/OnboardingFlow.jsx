@@ -850,13 +850,31 @@ function OnboardingFlow() {
                                         <label className='block text-[13px] font-semibold text-ink mb-2.5'>
                                             {captcha.question} <span className='text-red-500'>*</span>
                                         </label>
-                                        <input
-                                            type='number'
-                                            value={captchaAnswer}
-                                            onChange={(e) => setCaptchaAnswer(e.target.value)}
-                                            className='w-full max-w-[280px] bg-bg border border-line rounded-xl px-4 py-3 text-[14px] text-ink outline-none focus:ring-2 focus:ring-accent/15 focus:border-accent transition-all'
-                                            placeholder='Enter your answer'
-                                        />
+                                        <div className="relative w-full max-w-[280px]">
+                                            <input
+                                                type='number'
+                                                value={captchaAnswer}
+                                                onChange={(e) => setCaptchaAnswer(e.target.value)}
+                                                className={`w-full bg-bg border rounded-xl px-4 py-3 text-[14px] text-ink outline-none transition-all ${
+                                                    isCaptchaCorrect
+                                                        ? '!border-green-500 focus:!ring-2 focus:!ring-green-500/15'
+                                                        : captchaAnswer
+                                                        ? '!border-red-500 focus:!ring-2 focus:!ring-red-500/15'
+                                                        : 'border-line focus:ring-2 focus:ring-accent/15 focus:border-accent'
+                                                }`}
+                                                placeholder='Enter your answer'
+                                            />
+                                            {isCaptchaCorrect && (
+                                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-green-600 font-medium text-[12px] flex items-center gap-1">
+                                                    <CheckCircle2 size={16} /> Verified
+                                                </span>
+                                            )}
+                                        </div>
+                                        {captchaAnswer && !isCaptchaCorrect && (
+                                            <p className="text-[12.5px] text-red-600 font-medium mt-2">
+                                                That's not the right answer. Please try again.
+                                            </p>
+                                        )}
                                     </div>
                                 )}
 
