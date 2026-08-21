@@ -10,6 +10,11 @@ const enquirySchema = new mongoose.Schema({
     assignedTo: { type: String, default: null },
     contactedAt: { type: Date, default: null },
     completedAt: { type: Date, default: null },
+    // Call log fields - logCall previously only set status+contactedAt with
+    // nowhere to record what actually happened on the call.
+    callNotes: { type: String, default: null, maxlength: 2000 },
+    callDurationSec: { type: Number, default: null, min: 0 },
+    nextFollowUpAt: { type: Date, default: null },
 }, { timestamps: true })
 
 enquirySchema.index({ status: 1, createdAt: -1 })

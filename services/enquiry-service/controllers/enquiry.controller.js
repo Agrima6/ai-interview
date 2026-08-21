@@ -30,5 +30,8 @@ export const update = async (req, res, next) => {
 }
 
 export const call = async (req, res, next) => {
-    try { ok(res, await enquiryService.logCall(req.params.id)) } catch (error) { next(error) }
+    try {
+        const { status, notes, durationSec, nextFollowUpAt } = req.body || {}
+        ok(res, await enquiryService.logCall(req.params.id, { status, notes, durationSec, nextFollowUpAt }))
+    } catch (error) { next(error) }
 }
