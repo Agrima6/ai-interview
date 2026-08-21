@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import AdminShell from '../../components/layout/AdminShell'
-import { Button, Card, Badge, Select } from '../../components/ui'
+import { Button, Card, Badge, Select, ConfirmModal, useToast } from '../../components/ui'
 import { listForms, getForm, saveForm, publishForm } from '../../api/formsAdminApi'
 import { usePermission } from '../../hooks/useAuth.jsx'
 import { featurePermissions } from '../../permissions/featurePermissions'
@@ -30,6 +30,7 @@ function FormBuilderPage() {
   const hasPermission = usePermission()
   const canEdit = hasPermission(actionPermissions.editForm)
   const canPublish = hasPermission(actionPermissions.publishForm)
+  const toast = useToast()
 
   const [type, setType] = useState('COLLEGE')
   const [stage, setStage] = useState('REGISTRATION')
@@ -39,6 +40,9 @@ function FormBuilderPage() {
   const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [error, setError] = useState('')
+  // Discriminated confirm target: { kind: 'section', sectionIndex }
+  // | { kind: 'field', sectionIndex, fieldIndex } | { kind: 'publish' }
+  const [confirmTarget, setConfirmTarget] = useState(null)
 
   const selectedKey = useMemo(() => `${type}:${stage}`, [type, stage])
 
@@ -168,8 +172,10 @@ function FormBuilderPage() {
       setForm({ ...form, ...next, sections: next.sections || form.sections })
       const refreshed = await listForms({})
       setForms(refreshed.items || [])
+      toast.success('Draft saved.')
     } catch (err) {
       setError(err.message)
+      toast.error(err.message)
     } finally {
       setSaving(false)
     }
@@ -184,10 +190,13 @@ function FormBuilderPage() {
       setForm((prev) => ({ ...prev, ...next, status: 'PUBLISHED' }))
       const refreshed = await listForms({})
       setForms(refreshed.items || [])
+      toast.success('Form published successfully.')
     } catch (err) {
       setError(err.message)
+      toast.error('Unable to publish the form.')
     } finally {
       setPublishing(false)
+      setConfirmTarget(null)
     }
   }
 
@@ -236,7 +245,7 @@ function FormBuilderPage() {
             </div>
             <div className='mt-4 flex flex-wrap gap-3'>
               <Button variant='secondary' onClick={handleSave} disabled={!canEdit || saving}>{saving ? 'Saving…' : 'Save draft'}</Button>
-              <Button onClick={handlePublish} disabled={!canPublish || publishing}>{publishing ? 'Publishing…' : 'Publish form'}</Button>
+              <Button onClick={() => setConfirmTarget({ kind: 'publish' })} disabled={!canPublish || publishing}>{publishing ? 'Publishing…' : 'Publish form'}</Button>
             </div>
           </Card>
 
@@ -250,7 +259,7 @@ function FormBuilderPage() {
                     className='w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-accent/60 focus:ring-2 focus:ring-accent/15'
                     placeholder='Section title'
                   />
-                  <Button variant='ghost' size='sm' onClick={() => removeSection(sectionIndex)} disabled={(form.sections || []).length === 1}>Remove</Button>
+                  <Button variant='ghost' size='sm' onClick={() => setConfirmTarget({ kind: 'section', sectionIndex })} disabled={(form.sections || []).length === 1}>Remove</Button>
                 </div>
 
                 <div className='space-y-4'>
@@ -362,7 +371,7 @@ function FormBuilderPage() {
                       )}
 
                       <div className='mt-4 flex justify-end'>
-                        <Button variant='ghost' size='sm' onClick={() => removeField(sectionIndex, fieldIndex)}>Remove field</Button>
+                        <Button variant='ghost' size='sm' onClick={() => setConfirmTarget({ kind: 'field', sectionIndex, fieldIndex })}>Remove field</Button>
                       </div>
                     </div>
                   ))}
@@ -380,6 +389,35 @@ function FormBuilderPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={!!confirmTarget}
+        onClose={() => setConfirmTarget(null)}
+        title={confirmTarget?.kind === 'publish' ? 'Publish this form?' : confirmTarget?.kind === 'section' ? 'Remove this section?' : 'Remove this field?'}
+        confirmLabel={confirmTarget?.kind === 'publish' ? 'Publish form' : 'Remove'}
+        danger={confirmTarget?.kind !== 'publish'}
+        onConfirm={async () => {
+          if (!confirmTarget) return
+          if (confirmTarget.kind === 'publish') {
+            await handlePublish()
+            return
+          }
+          if (confirmTarget.kind === 'section') {
+            removeSection(confirmTarget.sectionIndex)
+            toast.success('Section removed. Save the draft to keep this change.')
+          } else if (confirmTarget.kind === 'field') {
+            removeField(confirmTarget.sectionIndex, confirmTarget.fieldIndex)
+            toast.success('Field removed. Save the draft to keep this change.')
+          }
+          setConfirmTarget(null)
+        }}
+      >
+        {confirmTarget?.kind === 'publish'
+          ? 'Once published, this version can be used by new registrations. This can\'t be undone, though you can always publish a newer version later.'
+          : confirmTarget?.kind === 'section'
+            ? 'This removes the section and all of its fields from the draft. This only takes effect once you save the draft.'
+            : 'This removes the field from its section. This only takes effect once you save the draft.'}
+      </ConfirmModal>
     </AdminShell>
   )
 }

@@ -7,6 +7,7 @@ export const list = async ({ type, status, search, cursor, limit = 25 }) => {
     const query = {}
     if (type) query.type = type
     if (status) query.status = status
+    if (search) query.$or = [{ "contact.name": { $regex: search, $options: "i" } }, { "contact.email": { $regex: search, $options: "i" } }]
     if (cursor) query._id = { $lt: cursor }
 
     const docs = await OnboardingSession.find(query).sort({ _id: -1 }).limit(limit + 1)

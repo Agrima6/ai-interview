@@ -166,8 +166,8 @@ const listView = (s) => ({
     updatedAt: s.updatedAt,
 })
 
-export const listForReview = async ({ type, status, cursor, limit }) => {
-    const { items, hasNext, nextCursor } = await sessionRepo.list({ type, status, cursor, limit })
+export const listForReview = async ({ type, status, search, cursor, limit }) => {
+    const { items, hasNext, nextCursor } = await sessionRepo.list({ type, status, search, cursor, limit })
     return { items: items.map(listView), hasNext, nextCursor }
 }
 

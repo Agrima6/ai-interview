@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, CheckCircle2, XCircle, MessageSquareWarning, FileText } from 'lucide-react'
 import AdminShell from '../../components/layout/AdminShell'
-import { Card, Badge, Button, Modal, Textarea } from '../../components/ui'
+import { Card, Badge, Button, Modal, ConfirmModal, Textarea, useToast } from '../../components/ui'
 import { usePermission } from '../../hooks/useAuth.jsx'
 import { actionPermissions } from '../../permissions/actionPermissions'
 import { getOnboardingForReview, approveOnboarding, rejectOnboarding, requestOnboardingChanges } from '../../api/onboardingApi'
@@ -12,11 +12,12 @@ function OnboardingReviewDetail() {
     const { id } = useParams()
     const navigate = useNavigate()
     const hasPermission = usePermission()
+    const toast = useToast()
     const [data, setData] = useState(null)
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(true)
     const [busy, setBusy] = useState(false)
-    const [modal, setModal] = useState(null) // 'reject' | 'changes' | null
+    const [modal, setModal] = useState(null) // 'approve' | 'reject' | 'changes' | null
     const [reason, setReason] = useState('')
     const [changeItems, setChangeItems] = useState([{ fieldKey: '', message: '' }])
 
@@ -26,15 +27,17 @@ function OnboardingReviewDetail() {
     }
     useEffect(() => { load() }, [id])
 
-    const runAction = async (fn) => {
+    const runAction = async (fn, successMessage) => {
         setBusy(true)
         setError('')
         try {
             await fn()
             setModal(null)
+            if (successMessage) toast.success(successMessage)
             load()
         } catch (err) {
             setError(err.message)
+            toast.error(err.message)
         } finally {
             setBusy(false)
         }
@@ -62,7 +65,7 @@ function OnboardingReviewDetail() {
                 {canReview && (
                     <div className='flex gap-2'>
                         {hasPermission(actionPermissions.approveOnboarding) && (
-                            <Button onClick={() => runAction(() => approveOnboarding(id))} disabled={busy}>
+                            <Button onClick={() => setModal('approve')} disabled={busy}>
                                 <CheckCircle2 size={15} /> Approve
                             </Button>
                         )}
@@ -185,11 +188,21 @@ function OnboardingReviewDetail() {
                 </div>
             </div>
 
+            <ConfirmModal
+                open={modal === 'approve'}
+                onClose={() => setModal(null)}
+                title='Approve this onboarding?'
+                confirmLabel='Approve'
+                onConfirm={() => runAction(() => approveOnboarding(id), 'Onboarding approved.')}
+            >
+                This creates the client record and, once contact details are on file, issues their first login. This can't be undone from here.
+            </ConfirmModal>
+
             <Modal open={modal === 'reject'} onClose={() => setModal(null)} title='Reject this onboarding'>
                 <Textarea label='Reason (visible in the audit trail)' value={reason} onChange={(e) => setReason(e.target.value)} rows={3} />
                 <div className='flex justify-end gap-2 mt-5'>
                     <Button variant='secondary' onClick={() => setModal(null)}>Cancel</Button>
-                    <Button variant='danger' disabled={busy} onClick={() => runAction(() => rejectOnboarding(id, reason))}>Reject</Button>
+                    <Button variant='danger' disabled={busy} onClick={() => runAction(() => rejectOnboarding(id, reason), 'Onboarding rejected.')}>Reject</Button>
                 </div>
             </Modal>
 
@@ -217,7 +230,7 @@ function OnboardingReviewDetail() {
                 </div>
                 <div className='flex justify-end gap-2 mt-5'>
                     <Button variant='secondary' onClick={() => setModal(null)}>Cancel</Button>
-                    <Button disabled={busy} onClick={() => runAction(() => requestOnboardingChanges(id, changeItems.filter((i) => i.message.trim())))}>
+                    <Button disabled={busy} onClick={() => runAction(() => requestOnboardingChanges(id, changeItems.filter((i) => i.message.trim())), 'Change request sent to applicant.')}>
                         Send to applicant
                     </Button>
                 </div>
