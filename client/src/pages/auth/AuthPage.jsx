@@ -49,6 +49,15 @@ function AuthPage() {
         setError('')
     }, [location.pathname])
 
+    // A failed token refresh anywhere in the app hard-redirects here with
+    // this flag (see api/client.js) - show why the user landed back on the
+    // login screen instead of leaving it unexplained.
+    useEffect(() => {
+        if (new URLSearchParams(location.search).get('sessionExpired') === '1') {
+            setError('Your session has expired. Please sign in again.')
+        }
+    }, [])
+
     // Handle routing with type param (e.g. /platform/register/candidate)
     useEffect(() => {
         if (type) {

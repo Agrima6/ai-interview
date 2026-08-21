@@ -1,4 +1,5 @@
 import axios from "axios"
+import { getFriendlyMessage } from "./errorMessages"
 
 export const GatewayUrl = import.meta.env.VITE_GATEWAY_URL || "http://localhost:4000"
 
@@ -38,6 +39,17 @@ client.interceptors.response.use(
             } catch (refreshError) {
                 refreshPromise = null
                 setAccessToken(null)
+                // Refresh token is expired/revoked/invalid - there's no path
+                // back to a valid session short of signing in again. Redirect
+                // rather than leaving the user stuck on a page whose data
+                // will now 401 on every retry. A hard navigation (not
+                // router-based) since this interceptor lives outside React
+                // Router - simplest reliable way to guarantee it fires from
+                // any page. Guarded against loops on the login/register
+                // pages themselves, which fetch public data unauthenticated.
+                if (typeof window !== "undefined" && !window.location.pathname.startsWith("/platform/login") && !window.location.pathname.startsWith("/platform/register")) {
+                    window.location.assign("/platform/login?sessionExpired=1")
+                }
                 return Promise.reject(refreshError)
             }
         }
@@ -53,9 +65,11 @@ const unwrap = async (promise) => {
         return data.data
     } catch (error) {
         const envelope = error.response?.data
-        const wrapped = new Error(envelope?.error?.message || error.message)
-        wrapped.code = envelope?.error?.code || "NETWORK_ERROR"
-        wrapped.status = error.response?.status || 0
+        const status = error.response?.status || 0
+        const code = envelope?.error?.code || "NETWORK_ERROR"
+        const wrapped = new Error(getFriendlyMessage(code, envelope?.error?.message || error.message, status))
+        wrapped.code = code
+        wrapped.status = status
         throw wrapped
     }
 }
@@ -72,9 +86,11 @@ export const apiGetList = async (url, params) => {
         return { items: data.data, cursor: data.meta.cursor, hasNext: data.meta.hasNext }
     } catch (error) {
         const envelope = error.response?.data
-        const wrapped = new Error(envelope?.error?.message || error.message)
-        wrapped.code = envelope?.error?.code || "NETWORK_ERROR"
-        wrapped.status = error.response?.status || 0
+        const status = error.response?.status || 0
+        const code = envelope?.error?.code || "NETWORK_ERROR"
+        const wrapped = new Error(getFriendlyMessage(code, envelope?.error?.message || error.message, status))
+        wrapped.code = code
+        wrapped.status = status
         throw wrapped
     }
 }

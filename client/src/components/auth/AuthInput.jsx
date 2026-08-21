@@ -1,7 +1,7 @@
 import React, { forwardRef } from 'react'
 
 const AuthInput = forwardRef(function AuthInput(
-    { label, error, hint, id, icon: Icon, className = '', wrapperClassName = '', ...props },
+    { label, error, hint, id, icon: Icon, rightElement, className = '', wrapperClassName = '', ...props },
     ref
 ) {
     return (
@@ -11,6 +11,10 @@ const AuthInput = forwardRef(function AuthInput(
                     {label}
                 </label>
             )}
+            {/* rightElement (e.g. the password show/hide button) is positioned
+                relative to THIS wrapper, not the outer one - it stays
+                correctly centered on the input regardless of whether a
+                label is present or how tall it is. */}
             <div className="relative">
                 {Icon && (
                     <Icon
@@ -23,9 +27,14 @@ const AuthInput = forwardRef(function AuthInput(
                     id={id}
                     className={`w-full bg-white border border-gray-200 rounded-xl py-3 px-4 text-[14.5px] text-gray-900 placeholder:text-gray-400/80 outline-none transition-all duration-200 focus:border-accent focus:ring-4 focus:ring-accent/10 disabled:opacity-50 disabled:cursor-not-allowed ${
                         Icon ? 'pl-11' : ''
-                    } ${error ? '!border-red-500 focus:!ring-red-500/10' : ''} ${className}`}
+                    } ${rightElement ? 'pr-11' : ''} ${error ? '!border-red-500 focus:!ring-red-500/10' : ''} ${className}`}
                     {...props}
                 />
+                {rightElement && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {rightElement}
+                    </div>
+                )}
             </div>
             {error ? (
                 <p className="text-[12.5px] text-red-600 mt-2 font-medium leading-none animate-in fade-in duration-150">
