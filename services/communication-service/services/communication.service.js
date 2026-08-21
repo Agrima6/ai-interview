@@ -1,7 +1,7 @@
 import mongoose from "mongoose"
 import * as templateRepo from "../repositories/template.repository.js"
 import * as communicationRepo from "../repositories/communication.repository.js"
-import { getEmailProvider } from "../providers/emailProvider.js"
+import { getEmailProvider, resolveSender } from "../providers/emailProvider.js"
 import { getWhatsAppProvider } from "../providers/whatsappProvider.js"
 import { maskEmail, maskPhone } from "../utils/mask.js"
 import { ApiError } from "../utils/response.js"
@@ -47,7 +47,7 @@ export const sendAndRecord = async ({ entityType, entityId, channel, eventType, 
     try {
         const body = interpolate(template.body, variables)
         const result = channel === "EMAIL"
-            ? await getEmailProvider().send({ to: recipient, subject: interpolate(template.subject || "", variables), body })
+            ? await getEmailProvider().send({ to: recipient, subject: interpolate(template.subject || "", variables), body, from: resolveSender(eventType) })
             : await getWhatsAppProvider().send({ to: recipient, body })
 
         const sentLike = result.status === "SENT" || result.status === "MOCK_SENT"

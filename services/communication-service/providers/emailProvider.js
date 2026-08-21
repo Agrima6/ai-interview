@@ -1,12 +1,26 @@
 import axios from "axios"
 import nodemailer from "nodemailer"
 
-// EmailProvider interface: send({ to, subject, body }) -> { providerMessageId, status }
+// EmailProvider interface: send({ to, subject, body, from }) -> { providerMessageId, status }
 // Swapped by EMAIL_MODE without the rest of the service knowing which one is active.
+// `from` is optional - every provider falls back to EMAIL_FROM when the
+// caller doesn't override it, so this stays backward compatible with no
+// config changes.
+
+// Per-eventType sender override, e.g.
+// EMAIL_FROM_BY_EVENT={"PASSWORD_RESET":"WorkmateIQ Security <security@workmateiq.com>"}
+// Every address here must be on the same Resend-verified domain as
+// EMAIL_FROM - domain verification covers the whole domain, not one
+// address, so any @workmateiq.com sender works without extra setup.
+export const resolveSender = (eventType) => {
+    let byEvent = {}
+    try { byEvent = JSON.parse(process.env.EMAIL_FROM_BY_EVENT || "{}") } catch { byEvent = {} }
+    return (eventType && byEvent[eventType]) || process.env.EMAIL_FROM
+}
 
 class MockEmailProvider {
-    async send({ to, subject, body }) {
-        console.log(`[communication-service] MOCK EMAIL -> ${to}\nSubject: ${subject}\n${body}\n`)
+    async send({ to, subject, body, from }) {
+        console.log(`[communication-service] MOCK EMAIL -> ${to}\nFrom: ${from || process.env.EMAIL_FROM || "(unset)"}\nSubject: ${subject}\n${body}\n`)
         return { providerMessageId: `mock-email-${Date.now()}`, status: "MOCK_SENT" }
     }
 }
@@ -17,13 +31,14 @@ class MockEmailProvider {
 // onboarding@resend.dev sender can only deliver to the Resend account's own
 // email until a custom domain is verified.
 class ResendEmailProvider {
-    async send({ to, subject, body }) {
-        if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) {
+    async send({ to, subject, body, from }) {
+        const sender = from || process.env.EMAIL_FROM
+        if (!process.env.RESEND_API_KEY || !sender) {
             throw new Error("EMAIL_MODE=direct requires RESEND_API_KEY and EMAIL_FROM in .env")
         }
         const { data } = await axios.post(
             "https://api.resend.com/emails",
-            { from: process.env.EMAIL_FROM, to, subject, text: body },
+            { from: sender, to, subject, text: body },
             { headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` } }
         )
         return { providerMessageId: data.id, status: "SENT" }
