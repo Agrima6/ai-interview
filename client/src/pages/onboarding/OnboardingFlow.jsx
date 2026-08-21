@@ -668,15 +668,15 @@ function OnboardingFlow() {
                                                     <div className="flex gap-3">
                                                         <input
                                                             type="color"
-                                                            value={formData[field.key] || '#4F46E5'}
+                                                            value={formData[field.key] || field.placeholder || '#4F46E5'}
                                                             onChange={(e) => handleFieldChange(field.key, e.target.value)}
                                                             className="w-12 h-10 rounded-xl border border-line cursor-pointer p-0.5 bg-card shrink-0"
                                                         />
                                                         <Input
                                                             type="text"
-                                                            value={formData[field.key] || '#4F46E5'}
+                                                            value={formData[field.key] || ''}
                                                             onChange={(e) => handleFieldChange(field.key, e.target.value)}
-                                                            placeholder="#4F46E5"
+                                                            placeholder={field.placeholder || '#4F46E5'}
                                                             error={hasError}
                                                             className="focus:ring-accent focus:border-accent font-mono flex-1"
                                                         />
@@ -824,10 +824,14 @@ function OnboardingFlow() {
                                                                 <span className="text-[13px] text-text-secondary italic">Not uploaded</span>
                                                             )
                                                         ) : field.type === 'COLOR' ? (
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="w-5 h-5 rounded border border-line" style={{ backgroundColor: value || '#4F46E5' }} />
-                                                                <span className="text-[13px] font-mono text-ink font-semibold">{value || '#4F46E5'}</span>
-                                                            </div>
+                                                            value ? (
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="w-5 h-5 rounded border border-line" style={{ backgroundColor: value }} />
+                                                                    <span className="text-[13px] font-mono text-ink font-semibold">{value}</span>
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-[13px] text-text-secondary italic">Not specified</span>
+                                                            )
                                                         ) : (
                                                             <span className="text-[13px] text-ink font-semibold leading-relaxed">
                                                                 {value === true ? 'Yes' : value === false ? 'No' : value || <span className="text-text-secondary italic font-normal">Not specified</span>}
