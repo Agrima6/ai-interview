@@ -30,10 +30,10 @@ function AuthBrandPanel({ mode }) {
             <div className="space-y-8 max-w-[460px] w-full text-center flex flex-col items-center">
                 {/* Title & Description */}
                 <div className="space-y-3">
-                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-gray-900 leading-tight">
+                    <h1 className="font-display text-[32px] md:text-[38px] font-bold tracking-tight text-ink leading-tight">
                         {isLogin ? 'Welcome back!' : 'Join WorkmateIQ'}
                     </h1>
-                    <p className="text-[15.5px] text-gray-600 leading-relaxed max-w-sm mx-auto">
+                    <p className="text-[15px] text-text-secondary leading-relaxed max-w-sm mx-auto">
                         {isLogin
                             ? 'Enter your credentials to access your recruitment desk.'
                             : 'Get started with the ultimate AI-driven recruitment and evaluation platform.'}
@@ -50,8 +50,8 @@ function AuthBrandPanel({ mode }) {
                                     <IconComponent size={18} className="text-accent" />
                                 </div>
                                 <div className="space-y-0.5">
-                                    <h3 className="font-semibold text-[14px] text-gray-900">{feature.title}</h3>
-                                    <p className="text-[12.5px] text-gray-500 leading-relaxed">{feature.description}</p>
+                                    <h3 className="font-display font-semibold text-[14px] text-ink">{feature.title}</h3>
+                                    <p className="text-[12.5px] text-text-secondary leading-relaxed">{feature.description}</p>
                                 </div>
                             </div>
                         )

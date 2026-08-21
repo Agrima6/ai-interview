@@ -54,8 +54,8 @@ function ResetPasswordPage() {
                             <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto border border-red-100/50">
                                 <XCircle size={32} className="text-red-500" />
                             </div>
-                            <h2 className="text-[22px] font-bold text-gray-900">Invalid reset link</h2>
-                            <p className="text-[14px] text-gray-500 leading-relaxed">This password reset link is missing its token. Request a new one from the login screen.</p>
+                            <h2 className="font-display text-[22px] font-bold text-ink">Invalid reset link</h2>
+                            <p className="text-[14px] text-text-secondary leading-relaxed">This password reset link is missing its token. Request a new one from the login screen.</p>
                             <AuthButton type="button" onClick={() => navigate('/platform/login')} className="mt-2">
                                 Back to login
                             </AuthButton>
@@ -65,8 +65,8 @@ function ResetPasswordPage() {
                             <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto border border-red-100/50">
                                 <CheckCircle2 size={32} className="text-green-600" />
                             </div>
-                            <h2 className="text-[22px] font-bold text-gray-900">Password reset</h2>
-                            <p className="text-[14px] text-gray-500 leading-relaxed">Your password has been changed. All existing sessions have been signed out for your security.</p>
+                            <h2 className="font-display text-[22px] font-bold text-ink">Password reset</h2>
+                            <p className="text-[14px] text-text-secondary leading-relaxed">Your password has been changed. All existing sessions have been signed out for your security.</p>
                             <AuthButton type="button" onClick={() => navigate('/platform/login')} className="mt-2">
                                 Sign in
                             </AuthButton>
@@ -75,11 +75,11 @@ function ResetPasswordPage() {
                         <div className="space-y-6">
                             <div className="flex items-center gap-2.5">
                                 <img src={logo} alt="" className="w-9 h-9 rounded-full" />
-                                <span className="font-bold text-gray-900">WorkmateIQ</span>
+                                <span className="font-display text-[14.5px] font-bold text-ink">WorkmateIQ</span>
                             </div>
                             <div>
-                                <h2 className="text-[22px] font-bold text-gray-900 mb-1">Set a new password</h2>
-                                <p className="text-[14px] text-gray-500">Choose a new password for your account.</p>
+                                <h2 className="font-display text-[22px] font-bold text-ink mb-1">Set a new password</h2>
+                                <p className="text-[14px] text-text-secondary">Choose a new password for your account.</p>
                             </div>
                             <form onSubmit={submit} className="space-y-4">
                                 <AuthPasswordInput

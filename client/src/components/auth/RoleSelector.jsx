@@ -49,8 +49,8 @@ function RoleSelector({ selectedRole, onSelectRole, onContinue }) {
     return (
         <div className="space-y-6">
             <div className="text-center space-y-2">
-                <h2 className="text-[20px] font-bold text-gray-900">Choose how you want to join</h2>
-                <p className="text-[14.5px] text-gray-500">Select a role to create your WorkmateIQ account</p>
+                <h2 className="font-display text-[20px] font-bold text-ink">Choose how you want to join</h2>
+                <p className="text-[14.5px] text-text-secondary">Select a role to create your WorkmateIQ account</p>
             </div>
 
             {/* Role cards list */}

@@ -154,8 +154,8 @@ function AuthPage() {
                             <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-6 border border-red-100/50">
                                 <CheckCircle2 size={32} className="text-green-600" />
                             </div>
-                            <h2 className="text-2xl font-bold text-gray-900 mb-2">Registration received</h2>
-                            <p className="text-gray-500 text-[14.5px] mb-8 leading-relaxed">
+                            <h2 className="font-display text-[22px] font-bold text-ink mb-2">Registration received</h2>
+                            <p className="text-text-secondary text-[14.5px] mb-8 leading-relaxed">
                                 We've sent your onboarding link to the email address you provided. Check the delivery status below.
                             </p>
 
@@ -187,8 +187,8 @@ function AuthPage() {
                         <AuthCard className="animate-in fade-in duration-200">
                             <div className="space-y-6">
                                 <div className="space-y-1.5">
-                                    <h2 className="text-[22px] font-bold text-gray-900">Welcome back</h2>
-                                    <p className="text-[14.5px] text-gray-500">Sign in to your recruitment desk</p>
+                                    <h2 className="font-display text-[22px] font-bold text-ink">Welcome back</h2>
+                                    <p className="text-[14.5px] text-text-secondary">Sign in to your recruitment desk</p>
                                 </div>
 
                                 {error && (
@@ -292,9 +292,9 @@ function AuthPage() {
                                         >
                                             <ArrowLeft size={16} /> Back to Login
                                         </button>
-                                        <h2 className="text-[22px] font-bold text-gray-900 pt-2">Reset Password</h2>
-                                        <p className="text-[14px] text-gray-500 leading-normal">
-                                            Enter your email address and we'll send you an onboarding link to reset your password.
+                                        <h2 className="font-display text-[22px] font-bold text-ink pt-2">Reset Password</h2>
+                                        <p className="text-[14px] text-text-secondary leading-normal">
+                                            Enter your email address and we'll send you a link to reset your password.
                                         </p>
                                     </div>
 
@@ -319,9 +319,9 @@ function AuthPage() {
                                         <CheckCircle2 size={32} className="text-green-600" />
                                     </div>
                                     <div className="space-y-2">
-                                        <h2 className="text-2xl font-bold text-gray-900">Reset Link Sent</h2>
-                                        <p className="text-[14.5px] text-gray-500 leading-relaxed px-2">
-                                            We've sent a password reset link to <span className="font-semibold text-gray-800">{forgotPasswordEmail}</span>. Please check your inbox.
+                                        <h2 className="font-display text-[22px] font-bold text-ink">Reset Link Sent</h2>
+                                        <p className="text-[14.5px] text-text-secondary leading-relaxed px-2">
+                                            We've sent a password reset link to <span className="font-semibold text-ink">{forgotPasswordEmail}</span>. Please check your inbox.
                                         </p>
                                     </div>
                                     <AuthButton type="button" onClick={() => handleSwitchMode('login')} className="mt-4">

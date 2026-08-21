@@ -38,10 +38,10 @@ function RoleCard({ roleKey, label, selected, onClick }) {
 
             {/* Content area */}
             <div className="flex-1 space-y-1">
-                <h4 className="font-bold text-[15px] text-gray-900 leading-snug">
+                <h4 className="font-display font-bold text-[15px] text-ink leading-snug">
                     {label}
                 </h4>
-                <p className="text-[12.5px] text-gray-500 leading-normal">
+                <p className="text-[12.5px] text-text-secondary leading-normal">
                     {description}
                 </p>
             </div>
