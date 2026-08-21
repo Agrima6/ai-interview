@@ -8,6 +8,7 @@ import axios from "axios"
 // quota falls through to the next one automatically, same idea as the
 // provider-level fallback in ai.service.js but one level down.
 const _keys = [process.env.GROQ_API_KEY, ...(process.env.GROQ_API_KEYS_FALLBACK || "").split(",")]
+    .filter(Boolean)
     .map((k) => k.trim())
     .filter(Boolean)
 

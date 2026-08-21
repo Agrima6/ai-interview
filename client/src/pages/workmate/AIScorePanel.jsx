@@ -1,98 +1,108 @@
-import React, { useEffect, useRef } from 'react'
-import gsap from 'gsap'
-import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import React, { useState } from 'react'
 
-gsap.registerPlugin(ScrollTrigger)
 const REDUCE_MOTION = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
 const SKILLS = [
-    ['Communication', 91],
-    ['Problem Solving', 84],
-    ['Technical Skills', 88],
+    ['Communication', 62],
+    ['Problem Solving', 76],
+    ['Technical Skills', 90],
 ]
 
-// A live, self-animating "AI evaluation" card - score ring + skill bars that
-// draw themselves in on scroll. Built with real DOM/CSS, not a screenshot,
-// so it actually feels like the product evaluating someone.
+function scoreColor(score) {
+    if (score >= 90) return 'var(--color-success)'
+    if (score >= 70) return 'var(--color-accent-cyan)'
+    return '#f58b91'
+}
+
+function clampScore(value) {
+    const numericValue = Number(value)
+    if (Number.isNaN(numericValue)) return 0
+    return Math.min(100, Math.max(0, Math.round(numericValue)))
+}
+
 function AIScorePanel() {
-    const ref = useRef(null)
+    const [scores, setScores] = useState(() => SKILLS.map(([, score]) => score))
+    const overallScore = Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
+    const meterOffset = 1 - overallScore / 100
 
-    useEffect(() => {
-        if (!ref.current) return
-        const bars = ref.current.querySelectorAll('.skill-fill')
-        const ring = ref.current.querySelector('.score-ring')
-        const scoreText = ref.current.querySelector('.score-text')
-        const dots = ref.current.querySelectorAll('.orbit-dot')
-
-        if (REDUCE_MOTION) {
-            bars.forEach((b, i) => { b.style.width = `${SKILLS[i][1]}%` })
-            if (ring) ring.style.strokeDashoffset = `${2 * Math.PI * 54 * (1 - 0.92)}`
-            if (scoreText) scoreText.textContent = '92%'
-            return
-        }
-
-        const circumference = 2 * Math.PI * 54
-        gsap.set(ring, { strokeDasharray: circumference, strokeDashoffset: circumference })
-        gsap.set(bars, { width: '0%' })
-        gsap.set(dots, { opacity: 0, scale: 0 })
-
-        const ctx = gsap.context(() => {
-            ScrollTrigger.create({
-                trigger: ref.current,
-                start: 'top 78%',
-                once: true,
-                onEnter: () => {
-                    const obj = { val: 0 }
-                    gsap.to(ring, { strokeDashoffset: circumference * (1 - 0.92), duration: 1.6, ease: 'power2.out' })
-                    gsap.to(obj, {
-                        val: 92, duration: 1.6, ease: 'power2.out',
-                        onUpdate: () => { if (scoreText) scoreText.textContent = `${Math.round(obj.val)}%` },
-                    })
-                    gsap.to(bars, {
-                        width: (i) => `${SKILLS[i][1]}%`,
-                        duration: 1.2, ease: 'power3.out', stagger: 0.15, delay: 0.2,
-                    })
-                    gsap.to(dots, { opacity: 1, scale: 1, duration: 0.5, stagger: 0.1, delay: 0.8, ease: 'back.out(2)' })
-                },
-            })
-            gsap.to('.orbit-dot', {
-                rotation: 360, transformOrigin: '-70px 0px', duration: 20, repeat: -1, ease: 'none',
-            })
-        }, ref)
-        return () => ctx.revert()
-    }, [])
+    const updateScore = (index, value) => {
+        setScores((current) => current.map((score, scoreIndex) => scoreIndex === index ? clampScore(value) : score))
+    }
 
     return (
-        <div ref={ref} className='relative bg-card border border-line rounded-3xl p-8 shadow-lift overflow-hidden'>
-            <div className='absolute -top-16 -right-16 w-48 h-48 rounded-full opacity-[0.12] blur-2xl' style={{ background: 'radial-gradient(closest-side, #c4161f, transparent)' }} />
-            <div className='relative flex items-center gap-6 mb-8'>
-                <div className='relative w-[124px] h-[124px] shrink-0'>
-                    <svg viewBox='0 0 120 120' className='w-full h-full -rotate-90'>
-                        <circle cx='60' cy='60' r='54' fill='none' stroke='var(--color-line)' strokeWidth='8' />
-                        <circle className='score-ring' cx='60' cy='60' r='54' fill='none' stroke='#c4161f' strokeWidth='8' strokeLinecap='round' />
+        <div className='relative overflow-hidden rounded-3xl border border-line bg-card p-6 shadow-lift sm:p-8'>
+            <div className='absolute -right-16 -top-16 h-48 w-48 rounded-full opacity-[0.12] blur-2xl' style={{ background: 'radial-gradient(closest-side, #c4161f, transparent)' }} />
+
+            <div className='relative flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-7'>
+                <div className='relative h-[142px] w-[184px] shrink-0 self-center sm:self-auto' aria-label={`Overall Fit ${overallScore}%`} role='img'>
+                    <svg viewBox='0 0 180 116' className='h-auto w-full' aria-hidden='true'>
+                        <path d='M 18 92 A 72 72 0 0 1 162 92' fill='none' stroke='var(--color-line)' strokeWidth='16' strokeLinecap='round' />
+                        <path
+                            className='score-ring'
+                            d='M 18 92 A 72 72 0 0 1 162 92'
+                            fill='none'
+                            stroke='var(--color-accent)'
+                            strokeWidth='16'
+                            strokeLinecap='round'
+                            pathLength='1'
+                            strokeDasharray='1'
+                            strokeDashoffset={meterOffset}
+                            style={{ transition: REDUCE_MOTION ? 'none' : 'stroke-dashoffset 500ms ease-out' }}
+                        />
                     </svg>
-                    <div className='absolute inset-0 flex flex-col items-center justify-center'>
-                        <span className='score-text font-display text-[26px] font-bold text-ink tabular-nums'>0%</span>
-                        <span className='text-[10px] text-text-secondary'>Overall Fit</span>
+                    <div className='absolute inset-x-0 bottom-[34px] flex flex-col items-center justify-end'>
+                        <span className='score-num font-display text-[26px] font-bold tabular-nums text-accent'>{overallScore}%</span>
                     </div>
-                    <span className='orbit-dot absolute top-1/2 left-1/2 w-2.5 h-2.5 rounded-full bg-accent shadow-[0_0_8px_rgba(196,22,31,0.6)]' style={{ transform: 'translate(-70px, -50%)' }} />
                 </div>
+
                 <div>
-                    <p className='text-[13px] tracking-[0.14em] uppercase text-accent font-semibold mb-1.5'>AI Evaluation</p>
-                    <h3 className='font-display text-[20px] font-bold text-ink leading-snug'>Candidate Score, generated instantly.</h3>
+                    <p className='mb-1.5 text-[13px] font-semibold uppercase tracking-[0.14em] text-accent'>AI Evaluation</p>
+                    <h3 className='font-display text-[20px] font-bold leading-snug text-ink'>Candidate Score, generated instantly.</h3>
+                    <p className='mt-2 text-[12px] leading-relaxed text-text-secondary'>Adjust each skill score to see the overall meter respond.</p>
                 </div>
             </div>
-            <div className='relative space-y-5'>
-                {SKILLS.map(([label]) => (
-                    <div key={label}>
-                        <div className='flex justify-between mb-1.5'>
-                            <span className='text-[13.5px] font-medium text-ink'>{label}</span>
+
+            <div className='relative mt-8 space-y-5'>
+                {SKILLS.map(([label], index) => {
+                    const score = scores[index]
+                    const color = scoreColor(score)
+                    return (
+                        <div key={label}>
+                            <div className='mb-1.5 flex items-center justify-between gap-4'>
+                                <label htmlFor={`skill-score-${index}`} className='text-[13.5px] font-medium text-ink'>{label}</label>
+                                <div className='flex items-center gap-1'>
+                                    <input
+                                        id={`skill-score-${index}`}
+                                        type='number'
+                                        min='0'
+                                        max='100'
+                                        value={score}
+                                        onChange={(event) => updateScore(index, event.target.value)}
+                                        className='w-12 rounded-md border border-transparent bg-transparent text-right text-[12.5px] font-semibold tabular-nums text-ink outline-none transition-colors focus:border-accent/30 focus:bg-bg'
+                                        aria-label={`${label} percentage`}
+                                    />
+                                    <span className='text-[12.5px] font-semibold text-text-secondary'>%</span>
+                                </div>
+                            </div>
+                            <input
+                                type='range'
+                                min='0'
+                                max='100'
+                                value={score}
+                                onChange={(event) => updateScore(index, event.target.value)}
+                                className='score-range'
+                                style={{ '--score': `${score}%`, '--score-color': color }}
+                                aria-label={`Adjust ${label} score`}
+                            />
                         </div>
-                        <div className='h-2 rounded-full bg-bg overflow-hidden'>
-                            <div className='skill-fill h-full rounded-full bg-gradient-to-r from-accent to-accent-dark' />
-                        </div>
-                    </div>
-                ))}
+                    )
+                })}
+            </div>
+
+            <div className='mt-6 flex flex-wrap gap-x-4 gap-y-2 border-t border-line pt-4 text-[10px] text-text-secondary'>
+                <span className='inline-flex items-center gap-1.5'><i className='h-2 w-2 rounded-full bg-[#f58b91]' aria-hidden='true' />Below 70%</span>
+                <span className='inline-flex items-center gap-1.5'><i className='h-2 w-2 rounded-full bg-accent-cyan' aria-hidden='true' />70–89%</span>
+                <span className='inline-flex items-center gap-1.5'><i className='h-2 w-2 rounded-full bg-success' aria-hidden='true' />90%+</span>
             </div>
         </div>
     )

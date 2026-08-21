@@ -10,7 +10,6 @@ const NAV_LINKS = [
     { label: 'About', id: 'about' },
     { label: 'How It Works', id: 'how-it-works' },
     { label: 'Solutions', id: 'solutions' },
-    { label: 'Pricing', id: 'pricing' },
     { label: 'Contact', id: 'contact' },
 ]
 
@@ -48,6 +47,8 @@ function WorkmateNav() {
         setOpen(false)
     }
 
+    const goToPlatformLogin = () => navigate('/platform/login')
+
     return (
         <div className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${scrolled ? 'bg-card/80 backdrop-blur-xl border-b border-line shadow-soft' : 'bg-card/40 backdrop-blur-sm border-b border-transparent'}`}>
             <div className={`max-w-[1280px] mx-auto px-6 lg:px-8 flex items-center justify-between transition-all duration-300 ${scrolled ? 'h-[62px]' : 'h-[76px]'}`}>
@@ -67,8 +68,7 @@ function WorkmateNav() {
 
                 <div className='hidden md:flex items-center gap-3'>
                     <Button variant='ghost' size='sm' onClick={() => navigate('/login')}>Demo Login</Button>
-                    <Button variant='secondary' size='sm' onClick={() => navigate('/platform/login')}>Log In</Button>
-                    <Button variant='primary' size='sm' onClick={() => navigate('/platform/register')}>Register</Button>
+                    <Button variant='primary' size='sm' onClick={goToPlatformLogin}>Login</Button>
                 </div>
 
                 <button className='lg:hidden text-ink' onClick={() => setOpen(!open)} aria-label='Menu'>
@@ -85,10 +85,7 @@ function WorkmateNav() {
                     ))}
                     <div className='flex gap-2.5 pt-3'>
                         <Button variant='ghost' size='sm' className='flex-1' onClick={() => navigate('/login')}>Demo Login</Button>
-                        <Button variant='secondary' size='sm' className='flex-1' onClick={() => navigate('/platform/login')}>Log In</Button>
-                    </div>
-                    <div className='flex gap-2.5 pt-2.5'>
-                        <Button variant='primary' size='sm' className='flex-1' onClick={() => navigate('/platform/register')}>Register</Button>
+                        <Button variant='primary' size='sm' className='flex-1' onClick={goToPlatformLogin}>Login</Button>
                     </div>
                 </div>
             )}
@@ -107,40 +104,40 @@ function WorkmateFooter() {
         { h: 'Get Started', items: [['Pricing', 'pricing'], ['Enquiry', 'contact']] },
     ]
     return (
-        <footer className='bg-[#120f10] text-white pt-20 pb-10'>
+        <footer className='bg-card border-t border-line text-ink pt-20 pb-10'>
             <div className='max-w-[1280px] mx-auto px-6 lg:px-8'>
                 <div className='grid sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-16'>
                     <div className='lg:col-span-1'>
-                        <div className='flex items-center gap-2.5 mb-4'>
-                            <img src={logo} alt='' className='w-9 h-9 rounded-full' />
+                        <div className='flex items-center gap-3 mb-4'>
+                            <img src={logo} alt='' className='w-12 h-12 shrink-0 rounded-full' />
                             <span className='font-display text-[16px] font-bold'>WorkmateIQ</span>
                         </div>
-                        <p className='text-white/50 text-[13.5px] leading-relaxed max-w-xs'>
+                        <p className='text-text-secondary text-[13.5px] leading-relaxed max-w-xs'>
                             A smarter platform for hiring, onboarding and building stronger professional journeys.
                         </p>
                     </div>
                     {columns.map((col) => (
                         <div key={col.h}>
-                            <p className='text-white text-[13px] font-semibold mb-4'>{col.h}</p>
+                            <p className='text-ink text-[13px] font-semibold mb-4'>{col.h}</p>
                             <div className='space-y-2.5'>
                                 {col.items.map(([label, id]) => (
-                                    <a key={label} href={`#${id}`} onClick={jump(id)} className='block text-white/50 hover:text-white text-[13.5px] transition-colors cursor-pointer'>{label}</a>
+                                    <a key={label} href={`#${id}`} onClick={jump(id)} className='block text-text-secondary hover:text-ink text-[13.5px] transition-colors cursor-pointer'>{label}</a>
                                 ))}
                             </div>
                         </div>
                     ))}
                 </div>
-                <p className='text-white/30 text-[12.5px] pt-8 border-t border-white/10'>© 2026 WorkmateIQ. All rights reserved.</p>
+                <p className='text-text-secondary/70 text-[12.5px] pt-8 border-t border-line'>© 2026 WorkmateIQ. All rights reserved.</p>
             </div>
         </footer>
     )
 }
 
-function WorkmateLayout({ children }) {
+function WorkmateLayout({ children, showCursorSpotlight = true }) {
     return (
         <div className='min-h-screen bg-bg relative'>
             <AmbientBackground />
-            <CursorSpotlight />
+            {showCursorSpotlight && <CursorSpotlight />}
             <WorkmateNav />
             {children}
             <WorkmateFooter />

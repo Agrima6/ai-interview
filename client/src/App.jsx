@@ -20,6 +20,12 @@ import RequireAuth from './components/RequireAuth'
 import RequireRole from './components/RequireRole'
 import InviteLanding from './pages/InviteLanding'
 import WHome from './pages/workmate/WHome'
+import HeroGsapExperiment from './pages/workmate/HeroGsapExperiment'
+import HeroDotsExperiment from './pages/workmate/HeroDotsExperiment'
+import HeroEcosystem from './pages/workmate/HeroEcosystem'
+import HeroFlow from './pages/workmate/HeroFlow'
+import HeroDepth from './pages/workmate/HeroDepth'
+import WorkmateLayout from './pages/workmate/WorkmateLayout'
 import PlatformLogin from './pages/auth/Login'
 import RegisterTypeSelect from './pages/public/RegisterTypeSelect'
 import RegisterForm from './pages/public/RegisterForm'
@@ -68,6 +74,12 @@ function App() {
           routed anywhere. */}
       <Route path='/' element={<WHome/>}/>
       <Route path='/welcome' element={<WHome/>}/>
+      <Route path='/hero-gsap' element={<WorkmateLayout><HeroGsapExperiment/></WorkmateLayout>}/>
+      <Route path='/hero-threads' element={<Navigate to='/?hero=threads' replace/>}/>
+      <Route path='/hero-dots' element={<WorkmateLayout showCursorSpotlight={false}><HeroDotsExperiment/></WorkmateLayout>}/>
+      <Route path='/hero-ecosystem' element={<WorkmateLayout showCursorSpotlight={false}><HeroEcosystem/></WorkmateLayout>}/>
+      <Route path='/hero-flow' element={<WorkmateLayout showCursorSpotlight={false}><HeroFlow/></WorkmateLayout>}/>
+      <Route path='/hero-depth' element={<WorkmateLayout showCursorSpotlight={false}><HeroDepth/></WorkmateLayout>}/>
       <Route path='/login' element={<Login/>}/>
 
       {/* New microservices-backed registration/onboarding platform (auth,

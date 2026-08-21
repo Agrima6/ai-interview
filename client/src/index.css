@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:where(.dark, .dark *));
+/* Keep legacy dark: utilities inert. The product is intentionally light-only. */
+@custom-variant dark (&:where(.light-only-dark-variant, .light-only-dark-variant *));
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
@@ -20,17 +21,6 @@
   --shadow-lift: 0 4px 12px rgba(30, 10, 12, 0.06), 0 24px 48px -16px rgba(30, 10, 12, 0.18);
 }
 
-.dark {
-  --color-ink: #f7f1f1;
-  --color-bg: #0f0a0a;
-  --color-card: #1a1213;
-  --color-line: rgba(255, 255, 255, 0.09);
-  --color-text-secondary: #ab9c9d;
-
-  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.25), 0 8px 24px -8px rgba(0, 0, 0, 0.45);
-  --shadow-lift: 0 4px 16px rgba(0, 0, 0, 0.35), 0 24px 48px -16px rgba(196, 22, 31, 0.25);
-}
-
 /* gradient accent used sparingly - hero glows, CTA banners, score rings */
 .gradient-brand {
   background-image: linear-gradient(135deg, var(--color-accent), var(--color-accent-cyan));
@@ -44,6 +34,7 @@
 
 html {
   scroll-behavior: smooth;
+  color-scheme: light;
 }
 
 /* Display font for the Workmate.IQ marketing page's headings - a distinct
@@ -80,20 +71,11 @@ body {
   mix-blend-mode: multiply;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
-.dark .bg-noise::before {
-  mix-blend-mode: overlay;
-  opacity: 0.06;
-}
-
 .glass {
   background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(16px) saturate(160%);
   -webkit-backdrop-filter: blur(16px) saturate(160%);
 }
-.dark .glass {
-  background: rgba(26, 23, 24, 0.7);
-}
-
 .text-balance {
   text-wrap: balance;
 }
@@ -136,6 +118,39 @@ body {
   mask-composite: exclude;
   animation: border-angle-spin 4s linear infinite;
   pointer-events: none;
+}
+
+/* Pricing cards share the same restrained lift/glow language as the landing
+   page imagery, but only on devices that genuinely support hover. */
+.pricing-card {
+  transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 300ms ease,
+    border-color 300ms ease, background-color 300ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .pricing-card:hover {
+    transform: translateY(-6px) scale(1.01);
+    border-color: rgba(196, 22, 31, 0.35);
+    background-color: #fffafa;
+    box-shadow: 0 18px 42px -18px rgba(196, 22, 31, 0.32), 0 10px 22px -14px rgba(30, 10, 12, 0.14);
+  }
+  .pricing-card-growth:hover {
+    transform: translateY(-8px) scale(1.015);
+    border-color: rgba(196, 22, 31, 0.7);
+    background-color: rgba(196, 22, 31, 0.06);
+    box-shadow: 0 24px 54px -18px rgba(196, 22, 31, 0.46), 0 12px 28px -16px rgba(30, 10, 12, 0.18);
+  }
+  .pricing-card:not(.pricing-card-growth) .pricing-card-cta:hover {
+    border-color: rgba(196, 22, 31, 0.45);
+    background-color: rgba(196, 22, 31, 0.04);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pricing-card {
+    transition: box-shadow 300ms ease, border-color 300ms ease, background-color 300ms ease;
+  }
+  .pricing-card:hover {
+    transform: none;
+  }
 }
 @keyframes border-angle-spin {
   to { --border-angle: 360deg; }
@@ -182,4 +197,38 @@ body {
 .scrollbar-thin::-webkit-scrollbar-thumb {
   background: var(--color-line);
   border-radius: 4px;
+}
+
+/* Interactive score controls keep the branded red thumb while the filled
+   track changes tone with the selected skill percentage. */
+.score-range {
+  width: 100%;
+  height: 8px;
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+  background: linear-gradient(to right, var(--score-color) 0 var(--score), var(--color-bg) var(--score) 100%);
+}
+.score-range::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 2px solid var(--color-accent);
+  border-radius: 999px;
+  background: var(--color-card);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+.score-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--color-accent);
+  border-radius: 999px;
+  background: var(--color-card);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+.score-range:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 20%, transparent);
 }
