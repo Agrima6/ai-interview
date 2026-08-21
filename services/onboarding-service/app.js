@@ -7,6 +7,11 @@ import onboardingAdminRoutes from "./routes/onboarding.admin.routes.js"
 
 const app = express()
 
+// Behind nginx (X-Forwarded-For present on every request) - without this,
+// express-rate-limit can't safely derive the real client IP and throws on
+// every request through a rate-limited route.
+app.set("trust proxy", 1)
+
 // Origin allowlist instead of reflecting any Origin (origin: true) - that
 // combined with credentials:true was the maximally permissive CORS config,
 // letting any site make credentialed requests. ALLOWED_ORIGINS overrides

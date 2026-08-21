@@ -1,7 +1,7 @@
 import mongoose from "mongoose"
 
 const communicationSchema = new mongoose.Schema({
-    entityType: { type: String, enum: ["REGISTRATION", "ONBOARDING", "CLIENT", "ENQUIRY"], required: true },
+    entityType: { type: String, enum: ["REGISTRATION", "ONBOARDING", "CLIENT", "ENQUIRY", "USER"], required: true },
     entityId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true },
     channel: { type: String, enum: ["EMAIL", "WHATSAPP", "VOICE"], required: true },
     eventType: { type: String, required: true },

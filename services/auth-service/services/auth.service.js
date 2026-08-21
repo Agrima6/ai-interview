@@ -138,7 +138,7 @@ export const requestPasswordReset = async (email, ctx) => {
             eventType: "PASSWORD_RESET", recipient: user.email,
             variables: { recipientName: user.displayName, resetUrl },
         }, ctx)
-        .catch(() => null)
+        .catch((err) => console.error("[auth-service] password reset email failed to send:", err.message))
 }
 
 export const resetPassword = async (rawToken, newPassword) => {
