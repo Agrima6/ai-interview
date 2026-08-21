@@ -7,7 +7,22 @@ export const list = async ({ type, status, search, cursor, limit = 25 }) => {
     const query = {}
     if (type) query.type = type
     if (status) query.status = status
-    if (search) query.$or = [{ "contact.name": { $regex: search, $options: "i" } }, { "contact.email": { $regex: search, $options: "i" } }]
+    // Search must match what the reviewer actually sees in the Name column
+    // (listView's company_name/college_name/full_name fallback chain), not
+    // just the submitting contact's own name - those can be completely
+    // different people (e.g. an HR contact submitting on behalf of "IBM
+    // India"), so matching only contact.name/email silently misses the
+    // exact searches a reviewer would actually try.
+    if (search) {
+        const rx = { $regex: search, $options: "i" }
+        query.$or = [
+            { "contact.name": rx },
+            { "contact.email": rx },
+            { "data.company_name": rx },
+            { "data.college_name": rx },
+            { "data.full_name": rx },
+        ]
+    }
     if (cursor) query._id = { $lt: cursor }
 
     const docs = await OnboardingSession.find(query).sort({ _id: -1 }).limit(limit + 1)
