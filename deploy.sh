@@ -8,6 +8,22 @@
 # restarts only the pm2 processes whose service directory changed - mirrors
 # exactly what was being done by hand before this existed.
 set -euo pipefail
+
+# Relaunch from a private temp copy of this exact script before doing
+# anything else. This script does `git reset --hard` on the very checkout
+# that contains it, which can rewrite deploy.sh's own bytes mid-run - a
+# classic self-modifying-script hazard where bash can end up re-reading a
+# changed file partway through and skip/garble whatever comes after the
+# reset (this is the leading suspect for a real run where the restart step
+# silently never executed even though the script reported success).
+if [ -z "${DEPLOY_RELAUNCHED:-}" ]; then
+    TMP_COPY=$(mktemp /tmp/workmateiq-deploy.XXXXXX.sh)
+    cp "$0" "$TMP_COPY"
+    chmod +x "$TMP_COPY"
+    DEPLOY_RELAUNCHED=1 exec "$TMP_COPY" "$@"
+fi
+trap 'rm -f "$0"' EXIT
+
 cd /opt/workmateiq
 
 BEFORE_SHA=$(git rev-parse HEAD)
@@ -70,4 +86,3 @@ else
 fi
 
 echo "Deploy complete: $AFTER_SHA"
-# CI/CD verified 2026-08-20T18:32:29Z
