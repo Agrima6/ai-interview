@@ -54,6 +54,21 @@ export const changePassword = async (req, res, next) => {
     } catch (error) { next(error) }
 }
 
+export const forgotPassword = async (req, res, next) => {
+    try {
+        await authService.requestPasswordReset(req.body?.email, { requestId: req.requestId, correlationId: req.correlationId })
+        // Same response whether or not the email matched an account.
+        ok(res, { requested: true })
+    } catch (error) { next(error) }
+}
+
+export const resetPassword = async (req, res, next) => {
+    try {
+        const result = await authService.resetPassword(req.body?.token, req.body?.newPassword)
+        ok(res, result)
+    } catch (error) { next(error) }
+}
+
 export const googleLogin = async (req, res, next) => {
     try {
         const { idToken } = req.body

@@ -16,6 +16,12 @@ const templates = [
         variables: ["recipientName", "clientName", "onboardingUrl"],
     },
     {
+        channel: "EMAIL", eventType: "PASSWORD_RESET", name: "Password reset (email)",
+        subject: "Reset your WorkmateIQ password",
+        body: "Hi {{recipientName}},\n\nWe received a request to reset your WorkmateIQ password. Reset it here:\n{{resetUrl}}\n\nThis link is valid for 1 hour. If you didn't request this, you can safely ignore this email - your password won't be changed.\n\n- The WorkmateIQ team",
+        variables: ["recipientName", "resetUrl"],
+    },
+    {
         channel: "EMAIL", eventType: "CLIENT_APPROVED", name: "Client approved (email)",
         subject: "{{clientName}} is approved on WorkmateIQ - here's your login",
         body: "Hi {{recipientName}},\n\nGreat news - {{clientName}} has been approved on WorkmateIQ. You can now sign in to your dashboard:\n{{loginUrl}}\n\nEmail: {{recipientEmail}}\nTemporary password: {{tempPassword}}\n\nYou'll be asked to set a new password the first time you sign in.\n\n- The WorkmateIQ team",

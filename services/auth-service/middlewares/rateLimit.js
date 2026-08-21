@@ -30,3 +30,21 @@ export const refreshRateLimit = rateLimit({
     legacyHeaders: false,
     handler: tooManyRequests,
 })
+
+// Public and unauthenticated - the abuse surface is spamming reset emails
+// at an arbitrary address, or brute-forcing a reset token.
+export const forgotPasswordRateLimit = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: tooManyRequests,
+})
+
+export const resetPasswordRateLimit = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: tooManyRequests,
+})

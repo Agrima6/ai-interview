@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate, useLocation, useParams } from 'react-router-dom'
 import { Mail, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
+import { forgotPassword } from '../../api/authApi'
 import AuthLayout from '../../components/auth/AuthLayout'
 import AuthHeader from '../../components/auth/AuthHeader'
 import AuthBrandPanel from '../../components/auth/AuthBrandPanel'
@@ -113,16 +114,21 @@ function AuthPage() {
     }
 
     // Forgot Password Submit handler
-    const handleForgotPasswordSubmit = (e) => {
+    const handleForgotPasswordSubmit = async (e) => {
         e.preventDefault()
         if (!forgotPasswordEmail) return
         setError('')
-        // Simulate sending password reset email
         setLoading(true)
-        setTimeout(() => {
-            setLoading(false)
+        try {
+            await forgotPassword(forgotPasswordEmail)
+            // Same success state regardless of whether the email matched an
+            // account - the backend never reveals that either, on purpose.
             setForgotPasswordStep('success')
-        }, 1000)
+        } catch (err) {
+            setError(err.message)
+        } finally {
+            setLoading(false)
+        }
     }
 
     // Handle successful registration response from modal

@@ -3,9 +3,13 @@ import crypto from "crypto"
 import * as userRepo from "../repositories/user.repository.js"
 import * as roleRepo from "../repositories/role.repository.js"
 import * as refreshTokenRepo from "../repositories/refreshToken.repository.js"
+import * as resetTokenRepo from "../repositories/resetToken.repository.js"
 import { signAccessToken, generateRefreshToken, hashToken, refreshTokenExpiry } from "../utils/tokens.js"
 import { getFirebaseAuth } from "../config/firebaseAdmin.js"
+import { communicationServiceClient } from "../config/internalClients.js"
 import { ApiError } from "../utils/response.js"
+
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000 // 1 hour
 
 const buildUserView = async (user) => {
     const roles = await roleRepo.findByNames(user.roles)
@@ -104,6 +108,59 @@ export const changePassword = async (userId, currentPassword, newPassword) => {
     const passwordHash = await bcrypt.hash(newPassword, 10)
     await userRepo.setPassword(user._id, passwordHash, false)
     return { changed: true }
+}
+
+// Always resolves successfully regardless of whether the email matches an
+// account - the caller must never be able to tell known emails apart from
+// unknown ones via this endpoint's response (user enumeration). The actual
+// email only goes out when there's a real account to send it for.
+export const requestPasswordReset = async (email, ctx) => {
+    if (typeof email !== "string" || !email.trim()) return
+    const user = await userRepo.findByEmail(email)
+    if (!user || user.status !== "ACTIVE") return
+
+    await resetTokenRepo.invalidateActiveForUser(user._id)
+    const rawToken = crypto.randomBytes(32).toString("base64url")
+    await resetTokenRepo.create({
+        userId: user._id,
+        tokenHash: hashToken(rawToken),
+        expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
+    })
+
+    const resetUrl = `${process.env.PASSWORD_RESET_URL}?token=${rawToken}`
+    // Best-effort, matching the pattern elsewhere (onboarding/client-approval
+    // emails) - a transient provider failure shouldn't turn into a 500 for
+    // the user, and revealing delivery failure here would leak account
+    // existence just as much as a differing response would.
+    await communicationServiceClient
+        .send({
+            entityType: "USER", entityId: user._id, channel: "EMAIL",
+            eventType: "PASSWORD_RESET", recipient: user.email,
+            variables: { recipientName: user.displayName, resetUrl },
+        }, ctx)
+        .catch(() => null)
+}
+
+export const resetPassword = async (rawToken, newPassword) => {
+    if (!rawToken) throw new ApiError(400, "INVALID_RESET_TOKEN", "Reset link is invalid or has expired.")
+    if (!newPassword || newPassword.length < 8) throw new ApiError(400, "WEAK_PASSWORD", "New password must be at least 8 characters.")
+
+    const record = await resetTokenRepo.findByHash(hashToken(rawToken))
+    if (!record || record.usedAt || record.expiresAt < new Date()) {
+        throw new ApiError(400, "INVALID_RESET_TOKEN", "Reset link is invalid or has expired.")
+    }
+
+    const user = await userRepo.findById(record.userId)
+    if (!user || user.status !== "ACTIVE") throw new ApiError(400, "INVALID_RESET_TOKEN", "Reset link is invalid or has expired.")
+
+    const passwordHash = await bcrypt.hash(newPassword, 10)
+    await userRepo.setPassword(user._id, passwordHash, false)
+    await resetTokenRepo.markUsed(record._id)
+    // A password reset should end every existing session, including
+    // whatever session an attacker who had the old password was using.
+    await refreshTokenRepo.revokeAllForUser(user._id)
+
+    return { reset: true }
 }
 
 // Called internally by onboarding-service when an ORGANIZATION/COLLEGE

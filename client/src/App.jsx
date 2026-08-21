@@ -32,6 +32,7 @@ import FormBuilderPage from './pages/admin/FormBuilderPage'
 import ClientChangePassword from './pages/clientPortal/ChangePassword'
 import ClientDashboard from './pages/clientPortal/ClientDashboard'
 import AuthPage from './pages/auth/AuthPage'
+import ResetPasswordPage from './pages/auth/ResetPasswordPage'
 import { featurePermissions } from './permissions/featurePermissions'
 import { ServerUrl } from './constants'
 
@@ -77,6 +78,7 @@ function App() {
       <Route path='/platform/login' element={<AuthPage/>}/>
       <Route path='/platform/register' element={<AuthPage/>}/>
       <Route path='/platform/register/:type' element={<AuthPage/>}/>
+      <Route path='/platform/reset-password' element={<ResetPasswordPage/>}/>
       <Route path='/platform/onboarding/:type/:token' element={<OnboardingFlow/>}/>
       <Route path='/platform/dashboard' element={<RequirePlatformAuth permission={featurePermissions.dashboard}><PlatformDashboard/></RequirePlatformAuth>}/>
       <Route path='/platform/admin/forms' element={<RequirePlatformAuth permission={featurePermissions.formBuilder}><FormBuilderPage/></RequirePlatformAuth>}/>
