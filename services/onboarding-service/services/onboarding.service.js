@@ -126,7 +126,7 @@ export const registerFileUpload = async ({ onboardingId, rawToken, type, fieldKe
 }
 
 export const submit = async ({ onboardingId, rawToken, type, consent }, ctx) => {
-    const { session } = await resolveOwnedSession(onboardingId, rawToken, type)
+    const { session, invitation } = await resolveOwnedSession(onboardingId, rawToken, type)
     if (["SUBMITTED", "APPROVED"].includes(session.status)) {
         throw new ApiError(409, "ALREADY_SUBMITTED", "This onboarding has already been submitted.")
     }
@@ -147,6 +147,7 @@ export const submit = async ({ onboardingId, rawToken, type, consent }, ctx) => 
 
     const status = nextVersion === 1 ? "SUBMITTED" : "RESUBMITTED"
     await sessionRepo.update(onboardingId, { status, submittedAt: new Date() })
+    await invitationRepo.incrementUse(invitation._id)
 
     return { status, submissionVersion: nextVersion }
 }

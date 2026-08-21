@@ -32,6 +32,7 @@ import FormBuilderPage from './pages/admin/FormBuilderPage'
 import ClientChangePassword from './pages/clientPortal/ChangePassword'
 import ClientDashboard from './pages/clientPortal/ClientDashboard'
 import AuthPage from './pages/auth/AuthPage'
+import { featurePermissions } from './permissions/featurePermissions'
 import { ServerUrl } from './constants'
 
 export { ServerUrl }
@@ -77,12 +78,12 @@ function App() {
       <Route path='/platform/register' element={<AuthPage/>}/>
       <Route path='/platform/register/:type' element={<AuthPage/>}/>
       <Route path='/platform/onboarding/:type/:token' element={<OnboardingFlow/>}/>
-      <Route path='/platform/dashboard' element={<RequirePlatformAuth><PlatformDashboard/></RequirePlatformAuth>}/>
-      <Route path='/platform/admin/forms' element={<RequirePlatformAuth><FormBuilderPage/></RequirePlatformAuth>}/>
-      <Route path='/platform/admin/onboarding' element={<RequirePlatformAuth><OnboardingReviewList/></RequirePlatformAuth>}/>
-      <Route path='/platform/admin/onboarding/:id' element={<RequirePlatformAuth><OnboardingReviewDetail/></RequirePlatformAuth>}/>
-      <Route path='/platform/admin/clients' element={<RequirePlatformAuth><ClientList/></RequirePlatformAuth>}/>
-      <Route path='/platform/admin/enquiries' element={<RequirePlatformAuth><EnquiryList/></RequirePlatformAuth>}/>
+      <Route path='/platform/dashboard' element={<RequirePlatformAuth permission={featurePermissions.dashboard}><PlatformDashboard/></RequirePlatformAuth>}/>
+      <Route path='/platform/admin/forms' element={<RequirePlatformAuth permission={featurePermissions.formBuilder}><FormBuilderPage/></RequirePlatformAuth>}/>
+      <Route path='/platform/admin/onboarding' element={<RequirePlatformAuth permission={featurePermissions.onboarding}><OnboardingReviewList/></RequirePlatformAuth>}/>
+      <Route path='/platform/admin/onboarding/:id' element={<RequirePlatformAuth permission={featurePermissions.onboarding}><OnboardingReviewDetail/></RequirePlatformAuth>}/>
+      <Route path='/platform/admin/clients' element={<RequirePlatformAuth permission={featurePermissions.clients}><ClientList/></RequirePlatformAuth>}/>
+      <Route path='/platform/admin/enquiries' element={<RequirePlatformAuth permission={featurePermissions.enquiries}><EnquiryList/></RequirePlatformAuth>}/>
 
       {/* Client portal: for approved organizations/colleges, separate from
           both the staff admin login above and the candidate login at /login. */}

@@ -1,4 +1,15 @@
+import crypto from "crypto"
 import { ApiError } from "../utils/response.js"
+
+// Hash both sides to a fixed 32-byte digest before comparing - a plain
+// `!==` (or timingSafeEqual on raw strings, which throws on length
+// mismatch) leaks information about the secret via response timing /
+// early-exit behavior. Hashing first makes the comparison length-safe too.
+const safeEqual = (a, b) => {
+    const ah = crypto.createHash("sha256").update(String(a)).digest()
+    const bh = crypto.createHash("sha256").update(String(b)).digest()
+    return crypto.timingSafeEqual(ah, bh)
+}
 
 // Who is allowed to call ME, and what key must they present.
 // { "registration-service": "reg-service-secret", ... }
@@ -15,7 +26,7 @@ export const authenticateService = (req, res, next) => {
         return next(new ApiError(401, "SERVICE_UNAUTHENTICATED", "Missing service credentials."))
     }
     const expectedKey = incomingServiceKeys[serviceName]
-    if (!expectedKey || expectedKey !== apiKey) {
+    if (!expectedKey || !safeEqual(expectedKey, apiKey)) {
         return next(new ApiError(401, "SERVICE_UNAUTHENTICATED", "Invalid service credentials."))
     }
     req.callingService = serviceName
