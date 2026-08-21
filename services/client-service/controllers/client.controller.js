@@ -31,6 +31,14 @@ export const reject = async (req, res, next) => {
     try { ok(res, await clientService.setStatus(req.params.id, "REJECTED")) } catch (error) { next(error) }
 }
 
+export const suspend = async (req, res, next) => {
+    try { ok(res, await clientService.setStatus(req.params.id, "SUSPENDED")) } catch (error) { next(error) }
+}
+
+export const reactivate = async (req, res, next) => {
+    try { ok(res, await clientService.setStatus(req.params.id, "ACTIVE")) } catch (error) { next(error) }
+}
+
 export const upsertInternal = async (req, res, next) => {
     try { ok(res, await clientService.upsertFromOnboarding(req.body)) } catch (error) { next(error) }
 }
