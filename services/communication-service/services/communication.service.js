@@ -46,8 +46,9 @@ export const sendAndRecord = async ({ entityType, entityId, channel, eventType, 
 
     try {
         const body = interpolate(template.body, variables)
+        const html = template.htmlBody ? interpolate(template.htmlBody, variables) : undefined
         const result = channel === "EMAIL"
-            ? await getEmailProvider().send({ to: recipient, subject: interpolate(template.subject || "", variables), body, from: resolveSender(eventType) })
+            ? await getEmailProvider().send({ to: recipient, subject: interpolate(template.subject || "", variables), body, html, from: resolveSender(eventType) })
             : await getWhatsAppProvider().send({ to: recipient, body })
 
         const sentLike = result.status === "SENT" || result.status === "MOCK_SENT"

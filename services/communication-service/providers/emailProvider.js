@@ -19,8 +19,8 @@ export const resolveSender = (eventType) => {
 }
 
 class MockEmailProvider {
-    async send({ to, subject, body, from }) {
-        console.log(`[communication-service] MOCK EMAIL -> ${to}\nFrom: ${from || process.env.EMAIL_FROM || "(unset)"}\nSubject: ${subject}\n${body}\n`)
+    async send({ to, subject, body, html, from }) {
+        console.log(`[communication-service] MOCK EMAIL -> ${to}\nFrom: ${from || process.env.EMAIL_FROM || "(unset)"}\nSubject: ${subject}\n${body}${html ? "\n(html body also set)" : ""}\n`)
         return { providerMessageId: `mock-email-${Date.now()}`, status: "MOCK_SENT" }
     }
 }
@@ -31,14 +31,16 @@ class MockEmailProvider {
 // onboarding@resend.dev sender can only deliver to the Resend account's own
 // email until a custom domain is verified.
 class ResendEmailProvider {
-    async send({ to, subject, body, from }) {
+    async send({ to, subject, body, html, from }) {
         const sender = from || process.env.EMAIL_FROM
         if (!process.env.RESEND_API_KEY || !sender) {
             throw new Error("EMAIL_MODE=direct requires RESEND_API_KEY and EMAIL_FROM in .env")
         }
+        const payload = { from: sender, to, subject, text: body }
+        if (html) payload.html = html
         const { data } = await axios.post(
             "https://api.resend.com/emails",
-            { from: sender, to, subject, text: body },
+            payload,
             { headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` } }
         )
         return { providerMessageId: data.id, status: "SENT" }

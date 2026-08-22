@@ -23,6 +23,10 @@ import logo from '../../assets/logo.png'
 
 // Helper to check if a field is of file/image type
 const isFileType = (type) => ['FILE', 'IMAGE', 'MULTI_FILE'].includes(type)
+const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || 'support@workmateiq.com'
+const fieldLabelParts = (field) => field.required
+    ? <span className="text-red-500 ml-0.5">*</span>
+    : <span className="text-text-secondary font-normal ml-1">(optional)</span>
 
 function OnboardingFlow() {
     const { type, token } = useParams()
@@ -196,7 +200,11 @@ function OnboardingFlow() {
             const isFile = isFileType(field.type)
 
             if (field.required) {
-                const isMissing = isFile ? !file : (val === undefined || val === null || val === '')
+                const isMissing = isFile
+                    ? !file
+                    : Array.isArray(val)
+                        ? val.length === 0
+                        : (val === undefined || val === null || String(val).trim() === '')
                 if (isMissing) {
                     errors[field.key] = `${field.label} is required.`
                     continue
@@ -205,13 +213,22 @@ function OnboardingFlow() {
 
             if (!isFile && val !== undefined && val !== null && val !== '') {
                 if (field.type === 'EMAIL' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
-                    errors[field.key] = 'Enter a valid email address.'
+                    errors[field.key] = 'Please enter a valid email address.'
                 }
-                if (field.type === 'PHONE' && !/^[0-9]{10}$/.test(val)) {
-                    errors[field.key] = 'Enter a valid 10-digit phone number.'
+                if (field.type === 'PHONE' && !/^[6-9][0-9]{9}$/.test(val)) {
+                    errors[field.key] = 'Please enter a valid 10-digit mobile number.'
                 }
-                if (field.type === 'NUMBER' && Number(val) < 0) {
-                    errors[field.key] = `${field.label} cannot be negative.`
+                if (field.type === 'NUMBER') {
+                    const num = Number(val)
+                    const min = field.validation?.min ?? 0
+                    const max = field.validation?.max
+                    if (!Number.isInteger(num)) {
+                        errors[field.key] = `${field.label} must be a whole number.`
+                    } else if (num < min) {
+                        errors[field.key] = `${field.label} must be at least ${min}.`
+                    } else if (max !== undefined && num > max) {
+                        errors[field.key] = `${field.label} must be at most ${max}.`
+                    }
                 }
                 if (field.type === 'URL' && !/^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/.test(val)) {
                     errors[field.key] = 'Enter a valid URL.'
@@ -223,7 +240,7 @@ function OnboardingFlow() {
                     errors[field.key] = `${field.label} must be no more than ${field.validation.maxLength} characters.`
                 }
                 if (field.validation?.pattern && !new RegExp(field.validation.pattern).test(val)) {
-                    errors[field.key] = `${field.label} is invalid.`
+                    errors[field.key] = field.validation.patternMessage || `${field.label} is invalid.`
                 }
             }
         }
@@ -330,18 +347,24 @@ function OnboardingFlow() {
                     <div className='w-16 h-16 rounded-full bg-green-50 dark:bg-green-950/20 flex items-center justify-center mx-auto mb-6'>
                         <CheckCircle2 size={36} className='text-green-600' />
                     </div>
-                    <h1 className='font-display text-[26px] font-bold text-ink mb-3'>Submission Complete</h1>
-                    <p className='text-text-secondary text-[15px] mb-8 leading-relaxed'>
-                        Your onboarding details have been submitted for verification. We will review your application and send updates to your contact details.
+                    <h1 className='font-display text-[26px] font-bold text-ink mb-3'>Thank You!</h1>
+                    <p className='text-ink text-[15px] font-medium mb-2 leading-relaxed'>
+                        We've received your onboarding form successfully.
+                    </p>
+                    <p className='text-text-secondary text-[14.5px] mb-6 leading-relaxed'>
+                        Our team will review the information and send updates to your provided contact details.
+                    </p>
+                    <p className='text-[13px] text-text-secondary mb-8'>
+                        Need help? Contact <a href={`mailto:${SUPPORT_EMAIL}`} className='text-accent font-semibold hover:underline'>{SUPPORT_EMAIL}</a>.
                     </p>
                     {type?.toLowerCase() === 'candidate' ? (
                         <a href='/platform/login' className='w-full block'>
                             <Button className='w-full bg-accent hover:bg-accent-dark'>Sign in to Candidate Dashboard</Button>
                         </a>
                     ) : (
-                        <div className="text-[13px] text-text-secondary border-t border-line pt-6">
-                            You may close this window.
-                        </div>
+                        <a href='/' className='w-full block border-t border-line pt-6'>
+                            <Button variant='secondary' className='w-full'>Back to Home</Button>
+                        </a>
                     )}
                 </Card>
             </div>
@@ -556,7 +579,7 @@ function OnboardingFlow() {
                                             {isFileType(field.type) ? (
                                                 <div className="w-full">
                                                     <label className="block text-[13px] font-medium text-ink mb-1.5">
-                                                        {field.label}{field.required && <span className="text-red-500 ml-0.5">*</span>}
+                                                        {field.label}{fieldLabelParts(field)}
                                                     </label>
 
                                                     {files[field.key] ? (
@@ -641,7 +664,7 @@ function OnboardingFlow() {
                                             ) : field.type === 'TEXTAREA' || field.type === 'ADDRESS' ? (
                                                 <Textarea
                                                     id={field.key}
-                                                    label={<>{field.label}{field.required && <span className="text-red-500 ml-0.5">*</span>}</>}
+                                                    label={<>{field.label}{fieldLabelParts(field)}</>}
                                                     placeholder={field.placeholder || undefined}
                                                     value={formData[field.key] || ''}
                                                     onChange={(e) => handleFieldChange(field.key, e.target.value)}
@@ -651,7 +674,7 @@ function OnboardingFlow() {
                                             ) : field.type === 'SELECT' ? (
                                                 <Select
                                                     id={field.key}
-                                                    label={<>{field.label}{field.required && <span className="text-red-500 ml-0.5">*</span>}</>}
+                                                    label={<>{field.label}{fieldLabelParts(field)}</>}
                                                     value={formData[field.key] || ''}
                                                     onChange={(e) => handleFieldChange(field.key, e.target.value)}
                                                     error={hasError}
@@ -663,7 +686,7 @@ function OnboardingFlow() {
                                             ) : field.type === 'COLOR' ? (
                                                 <div className="w-full">
                                                     <label className="block text-[13px] font-medium text-ink mb-1.5">
-                                                        {field.label}{field.required && <span className="text-red-500 ml-0.5">*</span>}
+                                                        {field.label}{fieldLabelParts(field)}
                                                     </label>
                                                     <div className="flex gap-3">
                                                         <input
@@ -684,7 +707,7 @@ function OnboardingFlow() {
                                                 </div>
                                             ) : field.type === 'RADIO' ? (
                                                 <div className="space-y-2">
-                                                    <label className="block text-[13px] font-medium text-ink">{field.label}{field.required && <span className="text-red-500 ml-0.5">*</span>}</label>
+                                                    <label className="block text-[13px] font-medium text-ink">{field.label}{fieldLabelParts(field)}</label>
                                                     <div className="flex flex-wrap gap-4 pt-1">
                                                         {field.options?.map(o => (
                                                             <label key={o.value} className="flex items-center gap-2.5 text-[13.5px] text-ink cursor-pointer group">
@@ -702,6 +725,34 @@ function OnboardingFlow() {
                                                     </div>
                                                     {hasError && <p className="text-[11.5px] text-red-500 mt-1">{hasError}</p>}
                                                 </div>
+                                            ) : field.type === 'MULTI_SELECT' ? (
+                                                <div className="space-y-2">
+                                                    <label className="block text-[13px] font-medium text-ink">{field.label}{fieldLabelParts(field)}</label>
+                                                    <div className="flex flex-wrap gap-2.5 pt-1">
+                                                        {field.options?.map(o => {
+                                                            const selected = Array.isArray(formData[field.key]) && formData[field.key].includes(o.value)
+                                                            return (
+                                                                <label
+                                                                    key={o.value}
+                                                                    className={`flex items-center gap-2 text-[13px] font-medium px-3.5 py-2 rounded-full border cursor-pointer transition-colors ${selected ? 'bg-accent/10 border-accent text-accent' : 'border-line text-ink hover:border-accent/40'}`}
+                                                                >
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={selected}
+                                                                        onChange={() => {
+                                                                            const current = Array.isArray(formData[field.key]) ? formData[field.key] : []
+                                                                            const next = selected ? current.filter(v => v !== o.value) : [...current, o.value]
+                                                                            handleFieldChange(field.key, next)
+                                                                        }}
+                                                                        className="w-3.5 h-3.5 accent-accent"
+                                                                    />
+                                                                    {o.label}
+                                                                </label>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                    {hasError && <p className="text-[11.5px] text-red-500 mt-1">{hasError}</p>}
+                                                </div>
                                             ) : field.type === 'CHECKBOX' ? (
                                                 <div className="pt-2">
                                                     <label className="flex items-center gap-2.5 text-[13.5px] text-ink cursor-pointer">
@@ -711,7 +762,7 @@ function OnboardingFlow() {
                                                             onChange={(e) => handleFieldChange(field.key, e.target.checked)}
                                                             className="w-4.5 h-4.5 rounded border-line accent-accent"
                                                         />
-                                                        {field.label}{field.required && <span className="text-red-500 ml-0.5">*</span>}
+                                                        {field.label}{fieldLabelParts(field)}
                                                     </label>
                                                     {hasError && <p className="text-[11.5px] text-red-500 mt-1.5">{hasError}</p>}
                                                 </div>
@@ -725,7 +776,7 @@ function OnboardingFlow() {
                                                             e.preventDefault()
                                                         }
                                                     }}
-                                                    label={<>{field.label}{field.required && <span className="text-red-500 ml-0.5">*</span>}</>}
+                                                    label={<>{field.label}{fieldLabelParts(field)}</>}
                                                     placeholder={field.placeholder || undefined}
                                                     value={formData[field.key] || ''}
                                                     onChange={(e) => handleFieldChange(field.key, e.target.value)}
@@ -733,39 +784,46 @@ function OnboardingFlow() {
                                                     className="focus:ring-accent focus:border-accent"
                                                 />
                                             ) : field.type === 'PHONE' ? (
-                                                <Input
-                                                    id={field.key}
-                                                    type="tel"
-                                                    onKeyDown={(e) => {
-                                                        const isDigit = /[0-9]/.test(e.key)
-                                                        const isControl = [
-                                                            'Backspace',
-                                                            'Delete',
-                                                            'Tab',
-                                                            'ArrowLeft',
-                                                            'ArrowRight',
-                                                            'Home',
-                                                            'End'
-                                                        ].includes(e.key)
-                                                        const isMeta = e.metaKey || e.ctrlKey
+                                                <div className="relative">
+                                                    <Input
+                                                        id={field.key}
+                                                        type="tel"
+                                                        inputMode="numeric"
+                                                        maxLength={10}
+                                                        onKeyDown={(e) => {
+                                                            const isDigit = /[0-9]/.test(e.key)
+                                                            const isControl = [
+                                                                'Backspace',
+                                                                'Delete',
+                                                                'Tab',
+                                                                'ArrowLeft',
+                                                                'ArrowRight',
+                                                                'Home',
+                                                                'End'
+                                                            ].includes(e.key)
+                                                            const isMeta = e.metaKey || e.ctrlKey
 
-                                                        if (!isDigit && !isControl && !isMeta) {
-                                                            e.preventDefault()
-                                                        }
-                                                    }}
-                                                    label={<>{field.label}{field.required && <span className="text-red-500 ml-0.5">*</span>}</>}
-                                                    placeholder={field.placeholder || undefined}
-                                                    value={formData[field.key] || ''}
-                                                    onChange={(e) => handleFieldChange(field.key, e.target.value)}
-                                                    error={hasError}
-                                                    className="focus:ring-accent focus:border-accent"
-                                                />
+                                                            if (!isDigit && !isControl && !isMeta) {
+                                                                e.preventDefault()
+                                                            }
+                                                        }}
+                                                        label={<>{field.label}{fieldLabelParts(field)}</>}
+                                                        placeholder={field.placeholder || undefined}
+                                                        value={formData[field.key] || ''}
+                                                        onChange={(e) => handleFieldChange(field.key, e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                                        error={hasError}
+                                                        className="focus:ring-accent focus:border-accent"
+                                                    />
+                                                    <span className="absolute right-3 top-[38px] text-[11.5px] text-text-secondary">
+                                                        {(formData[field.key] || '').length}/10
+                                                    </span>
+                                                </div>
                                             ) : (
                                                 // Text / Email / URL inputs
                                                 <Input
                                                     id={field.key}
                                                     type={field.type === 'EMAIL' ? 'email' : 'text'}
-                                                    label={<>{field.label}{field.required && <span className="text-red-500 ml-0.5">*</span>}</>}
+                                                    label={<>{field.label}{fieldLabelParts(field)}</>}
                                                     placeholder={field.placeholder || undefined}
                                                     value={formData[field.key] || ''}
                                                     onChange={(e) => handleFieldChange(field.key, e.target.value)}
@@ -829,6 +887,14 @@ function OnboardingFlow() {
                                                                     <div className="w-5 h-5 rounded border border-line" style={{ backgroundColor: value }} />
                                                                     <span className="text-[13px] font-mono text-ink font-semibold">{value}</span>
                                                                 </div>
+                                                            ) : (
+                                                                <span className="text-[13px] text-text-secondary italic">Not specified</span>
+                                                            )
+                                                        ) : field.type === 'MULTI_SELECT' ? (
+                                                            Array.isArray(value) && value.length > 0 ? (
+                                                                <span className="text-[13px] text-ink font-semibold leading-relaxed">
+                                                                    {value.map(v => field.options?.find(o => o.value === v)?.label || v).join(', ')}
+                                                                </span>
                                                             ) : (
                                                                 <span className="text-[13px] text-text-secondary italic">Not specified</span>
                                                             )

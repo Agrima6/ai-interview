@@ -8,6 +8,7 @@ const templateSchema = new mongoose.Schema({
     status: { type: String, enum: ["DRAFT", "PUBLISHED", "ARCHIVED"], default: "PUBLISHED" },
     subject: { type: String, default: null },
     body: { type: String, required: true },
+    htmlBody: { type: String, default: null },
     providerTemplateName: { type: String, default: null },
     variables: [{ type: String }],
 }, { timestamps: true })

@@ -69,7 +69,13 @@ export const submit = async (payload, ctx) => {
 
     const onboardingUrl = `${process.env.ONBOARDING_BASE_URL}/${normalizedType.toLowerCase()}/${invitation.rawToken}`
     const clientName = clientNameFor(normalizedType, data)
-    const variables = { recipientName: contact.name, clientName, onboardingUrl }
+    const variables = {
+        recipientName: contact.name,
+        recipientGreeting: contact.name || "there",
+        clientName: clientName || "your institution",
+        onboardingUrl,
+        supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
+    }
 
     const [email, whatsapp] = await Promise.all([
         communicationServiceClient.send({

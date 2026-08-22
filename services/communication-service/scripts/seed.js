@@ -1,19 +1,59 @@
 import "dotenv/config"
 import connectDb from "../config/connectDb.js"
 import * as templateRepo from "../repositories/template.repository.js"
+import { wrapEmailBody, supportBox, button, ACCENT, INK } from "../utils/emailHtml.js"
+
+const onboardingLinkHtml = wrapEmailBody(`
+    <h1 style="margin:0 0 20px;font-size:22px;font-weight:800;color:${INK};line-height:1.3;">
+        Complete your WorkmateIQ <span style="color:${ACCENT};">onboarding</span>
+    </h1>
+    <p style="margin:0 0 4px;font-size:14.5px;font-weight:700;color:${ACCENT};">Hi {{recipientGreeting}},</p>
+    <p style="margin:0 0 4px;font-size:14px;color:${INK};line-height:1.6;">
+        Thank you for registering <strong>{{clientName}}</strong> with WorkmateIQ.
+    </p>
+    <p style="margin:0 0 4px;font-size:14px;color:${INK};line-height:1.6;">
+        You're almost there. Please complete the remaining onboarding details so our team can review your institution and get everything set up.
+    </p>
+    ${button("Complete Onboarding →", "{{onboardingUrl}}")}
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fdf1f1;border:1px solid #f7dcdc;border-radius:12px;margin:0 0 4px;">
+        <tr><td style="padding:14px 18px;font-size:13.5px;color:${INK};">This link is valid for <strong>7 days</strong>.</td></tr>
+    </table>
+    ${supportBox()}
+`)
+
+const onboardingSubmittedHtml = wrapEmailBody(`
+    <div style="text-align:center;margin-bottom:20px;">
+        <div style="width:64px;height:64px;border-radius:50%;background:#fdeaea;display:inline-block;line-height:64px;font-size:28px;color:${ACCENT};">&#10003;</div>
+    </div>
+    <h1 style="margin:0 0 20px;font-size:22px;font-weight:800;color:${INK};line-height:1.3;text-align:center;">
+        We've received your <span style="color:${ACCENT};">onboarding application!</span>
+    </h1>
+    <p style="margin:0 0 4px;font-size:14.5px;font-weight:700;color:${ACCENT};">Hi {{recipientGreeting}},</p>
+    <p style="margin:0 0 16px;font-size:14px;color:${INK};line-height:1.6;">
+        Thank you for completing the onboarding for <strong>{{clientName}}</strong>.
+    </p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eefaf1;border:1px solid #d3f0dc;border-radius:12px;margin:0 0 16px;">
+        <tr><td style="padding:14px 18px;font-size:13.5px;font-weight:600;color:#1a7a3d;">&#10003; We've received your onboarding form successfully.</td></tr>
+    </table>
+    <p style="margin:0 0 4px;font-size:14px;color:${INK};line-height:1.6;">
+        Our team will review the information and share the next update with you using your provided contact details.
+    </p>
+    ${supportBox()}
+`)
 
 const templates = [
     {
         channel: "EMAIL", eventType: "ONBOARDING_LINK", name: "Onboarding link (email)",
-        subject: "Welcome to WorkmateIQ, {{recipientName}} - let's finish your onboarding",
-        body: "Hi {{recipientName}},\n\nThanks for registering {{clientName}} with WorkmateIQ. Continue your onboarding here:\n{{onboardingUrl}}\n\nThis link is valid for 7 days.\n\n- The WorkmateIQ team",
-        variables: ["recipientName", "clientName", "onboardingUrl"],
+        subject: "Complete your WorkmateIQ onboarding",
+        body: "Hi {{recipientGreeting}},\n\nThank you for registering {{clientName}} with WorkmateIQ.\n\nYou're almost there. Please complete the remaining onboarding details so our team can review your institution and get everything set up.\n\nComplete Onboarding: {{onboardingUrl}}\n\nThis link is valid for 7 days.\n\nIf you have any questions or run into an issue while completing the form, please contact our support team at {{supportEmail}}.\n\nRegards,\nThe WorkmateIQ Team",
+        htmlBody: onboardingLinkHtml,
+        variables: ["recipientGreeting", "clientName", "onboardingUrl", "supportEmail"],
     },
     {
         channel: "WHATSAPP", eventType: "ONBOARDING_LINK", name: "Onboarding link (WhatsApp)",
-        body: "Hi {{recipientName}}! Continue your WorkmateIQ onboarding for {{clientName}}: {{onboardingUrl}}",
+        body: "Hi {{recipientGreeting}}! Continue your WorkmateIQ onboarding for {{clientName}}: {{onboardingUrl}}",
         providerTemplateName: "onboarding_link_v1",
-        variables: ["recipientName", "clientName", "onboardingUrl"],
+        variables: ["recipientGreeting", "clientName", "onboardingUrl"],
     },
     {
         channel: "EMAIL", eventType: "PASSWORD_RESET", name: "Password reset (email)",
@@ -29,9 +69,10 @@ const templates = [
     },
     {
         channel: "EMAIL", eventType: "ONBOARDING_SUBMITTED", name: "Onboarding submitted (email)",
-        subject: "We've received {{clientName}}'s onboarding application",
-        body: "Hi {{recipientName}},\n\nThanks - we've received your onboarding application for {{clientName}}. Our team will review it and get back to you with next steps.\n\n- The WorkmateIQ team",
-        variables: ["recipientName", "clientName"],
+        subject: "We've received your onboarding application",
+        body: "Hi {{recipientGreeting}},\n\nThank you for completing the onboarding for {{clientName}}.\n\nWe've received your onboarding form successfully.\n\nOur team will review the information and share the next update with you using your provided contact details.\n\nIf you have any questions or experience an issue, please contact our support team at {{supportEmail}}.\n\nRegards,\nThe WorkmateIQ Team",
+        htmlBody: onboardingSubmittedHtml,
+        variables: ["recipientGreeting", "clientName", "supportEmail"],
     },
 ]
 

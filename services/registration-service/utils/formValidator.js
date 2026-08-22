@@ -24,10 +24,11 @@ export const validateAgainstFormVersion = (formVersion, data) => {
         }
         if (value !== undefined && value !== null && value !== "") {
             if (field.type === "EMAIL" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) errors.push({ fieldKey: field.key, message: `${field.label} must be a valid email.` })
+            if (field.type === "PHONE" && !/^[6-9][0-9]{9}$/.test(value)) errors.push({ fieldKey: field.key, message: `${field.label} must be a valid 10-digit mobile number.` })
             if (field.type === "NUMBER") {
                 const num = Number(value)
-                if (isNaN(num)) {
-                    errors.push({ fieldKey: field.key, message: `${field.label} must be a number.` })
+                if (isNaN(num) || !Number.isInteger(num)) {
+                    errors.push({ fieldKey: field.key, message: `${field.label} must be a whole number.` })
                 } else {
                     const min = field.validation?.min ?? 0
                     const max = field.validation?.max
@@ -39,6 +40,9 @@ export const validateAgainstFormVersion = (formVersion, data) => {
             if (field.validation?.minLength && String(value).length < field.validation.minLength) errors.push({ fieldKey: field.key, message: `${field.label} is too short.` })
             const maxLength = field.validation?.maxLength || DEFAULT_MAX_LENGTH
             if (String(value).length > maxLength) errors.push({ fieldKey: field.key, message: `${field.label} is too long.` })
+            if (field.validation?.pattern && !new RegExp(field.validation.pattern).test(value)) {
+                errors.push({ fieldKey: field.key, message: field.validation.patternMessage || `${field.label} is not a valid format.` })
+            }
         }
     }
     return errors

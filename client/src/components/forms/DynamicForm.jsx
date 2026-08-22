@@ -9,13 +9,15 @@ import { Upload, CheckCircle2, Loader2 } from 'lucide-react'
 // driven entirely by the field schema the backend serves. Adding a field to
 // a form should be a form-config change, not a new page.
 const REQUIRED_MARK = <span className='text-red-500 ml-0.5'>*</span>
+const OPTIONAL_MARK = <span className='text-text-secondary font-normal ml-1'>(optional)</span>
+const fieldLabel = (field) => <>{field.label}{field.required ? REQUIRED_MARK : OPTIONAL_MARK}</>
 
 function FileField({ field, value, onUpload, uploading, error }) {
     const [localName, setLocalName] = useState(value?.originalName || null)
     return (
         <div className='w-full'>
             <label className='block text-[13px] font-medium text-ink mb-1.5'>
-                {field.label}{field.required && REQUIRED_MARK}
+                {fieldLabel(field)}
             </label>
             <label className='flex items-center gap-3 border border-dashed border-line rounded-xl px-4 py-3 cursor-pointer hover:border-accent/50 transition-colors'>
                 {uploading ? <Loader2 size={16} className='animate-spin text-accent shrink-0' />
@@ -60,16 +62,19 @@ function DynamicForm({ schema, defaultValues = {}, onSubmit, onFileUpload, uploa
 
     const registerRules = (field) => {
         const rules = { required: field.required ? `${field.label} is required.` : false }
-        if (field.type === 'EMAIL') rules.pattern = { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter a valid email address.' }
+        if (field.type === 'EMAIL') rules.pattern = { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Please enter a valid email address.' }
         if (field.type === 'PHONE') {
-            rules.pattern = { value: /^[0-9]{10}$/, message: 'Enter a valid 10-digit phone number.' }
+            rules.pattern = { value: /^[6-9][0-9]{9}$/, message: 'Please enter a valid 10-digit mobile number.' }
         }
         if (field.type === 'NUMBER') {
-            rules.min = { value: 0, message: `${field.label} cannot be negative.` }
+            const min = field.validation?.min ?? 0
+            rules.min = { value: min, message: `${field.label} must be at least ${min}.` }
+            if (field.validation?.max !== undefined) rules.max = { value: field.validation.max, message: `${field.label} must be at most ${field.validation.max}.` }
+            rules.validate = (v) => Number.isInteger(v) || `${field.label} must be a whole number.`
         }
-        if (field.validation?.minLength) rules.minLength = { value: field.validation.minLength, message: `${field.label} is too short.` }
-        if (field.validation?.maxLength) rules.maxLength = { value: field.validation.maxLength, message: `${field.label} is too long.` }
-        if (field.validation?.pattern) rules.pattern = { value: new RegExp(field.validation.pattern), message: `${field.label} format is invalid.` }
+        if (field.validation?.minLength) rules.minLength = { value: field.validation.minLength, message: `${field.label} must be at least ${field.validation.minLength} characters.` }
+        if (field.validation?.maxLength) rules.maxLength = { value: field.validation.maxLength, message: `${field.label} must be no more than ${field.validation.maxLength} characters.` }
+        if (field.validation?.pattern) rules.pattern = { value: new RegExp(field.validation.pattern), message: field.validation.patternMessage || `${field.label} is invalid.` }
         return rules
     }
 
@@ -77,7 +82,7 @@ function DynamicForm({ schema, defaultValues = {}, onSubmit, onFileUpload, uploa
         const error = errors[field.key]?.message
         const commonProps = {
             id: field.key,
-            label: <>{field.label}{field.required && REQUIRED_MARK}</>,
+            label: <>{fieldLabel(field)}</>,
             placeholder: field.placeholder || undefined,
             hint: field.helpText || undefined,
             error,
@@ -106,7 +111,7 @@ function DynamicForm({ schema, defaultValues = {}, onSubmit, onFileUpload, uploa
             case 'RADIO':
                 return (
                     <div key={field.key} className='w-full space-y-3'>
-                        <p className='text-[13px] font-semibold text-ink'>{field.label}{field.required && REQUIRED_MARK}</p>
+                        <p className='text-[13px] font-semibold text-ink'>{fieldLabel(field)}</p>
                         <div className='space-y-2.5'>
                             {field.options.map((o) => (
                                 <label key={o.value} className='flex items-center gap-3 text-[14px] text-ink cursor-pointer group'>
@@ -129,7 +134,7 @@ function DynamicForm({ schema, defaultValues = {}, onSubmit, onFileUpload, uploa
                             <input type='checkbox' {...register(field.key, registerRules(field))} className='opacity-0 absolute cursor-pointer' />
                             <CheckCircle2 size={16} className='text-accent scale-0 group-has-[:checked]:scale-100 transition-transform' />
                         </div>
-                        {field.label}{field.required && REQUIRED_MARK}
+                        {fieldLabel(field)}
                     </label>
                 )
             case 'NUMBER':
@@ -156,6 +161,8 @@ function DynamicForm({ schema, defaultValues = {}, onSubmit, onFileUpload, uploa
                     <Input
                         key={field.key}
                         type='tel'
+                        inputMode='numeric'
+                        maxLength={10}
                         onKeyDown={(e) => {
                             const isDigit = /[0-9]/.test(e.key)
                             const isControl = [

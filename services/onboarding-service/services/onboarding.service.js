@@ -166,7 +166,11 @@ export const submit = async ({ onboardingId, rawToken, type, consent }, ctx) => 
         await communicationServiceClient.send({
             entityType: "ONBOARDING", entityId: onboardingId, channel: "EMAIL",
             eventType: "ONBOARDING_SUBMITTED", recipient: session.contact.email,
-            variables: { recipientName: session.contact.name, clientName: clientName || session.contact.name },
+            variables: {
+                recipientGreeting: session.contact.name || "there",
+                clientName: clientName || "your institution",
+                supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
+            },
         }, ctx).catch((err) => console.error("[onboarding-service] onboarding-submitted email failed:", err.message))
     }
 
