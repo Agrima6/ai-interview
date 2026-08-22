@@ -21,10 +21,18 @@ function RegisterForm() {
     const [submitting, setSubmitting] = useState(false)
     const [result, setResult] = useState(null)
 
+    // Guarded against races: if `type` changes again before this resolves,
+    // a slower stale response must not overwrite the newer one.
     useEffect(() => {
+        let cancelled = false
         Promise.all([getRegistrationForm(type), getCaptcha()])
-            .then(([formRes, captchaRes]) => { setSchema(formRes); setCaptcha(captchaRes) })
-            .catch((err) => setError(err.message))
+            .then(([formRes, captchaRes]) => {
+                if (cancelled) return
+                setSchema(formRes)
+                setCaptcha(captchaRes)
+            })
+            .catch((err) => { if (!cancelled) setError(err.message) })
+        return () => { cancelled = true }
     }, [type])
 
     // Real-time client-side captcha check, mirrors RegistrationModal.jsx

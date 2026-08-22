@@ -21,9 +21,15 @@ function RegistrationModal({ open, role, onClose, onSubmitSuccess }) {
     const [error, setError] = useState('')
     const [submitting, setSubmitting] = useState(false)
 
-    // Load schema and captcha on open/role change
+    // Load schema and captcha on open/role change. Guarded against races:
+    // if role changes again before this fetch resolves (e.g. the user
+    // switches role quickly), a slower stale response must not overwrite
+    // the newer one - otherwise the modal title (bound directly to the
+    // current `role` prop) can show one role while `schema` silently holds
+    // a different role's fields, and submission fails with "Unknown field."
     useEffect(() => {
         if (!open || !role) return
+        let cancelled = false
 
         setSchema(null)
         setCaptcha(null)
@@ -36,12 +42,16 @@ function RegistrationModal({ open, role, onClose, onSubmitSuccess }) {
             getCaptcha()
         ])
             .then(([schemaRes, captchaRes]) => {
+                if (cancelled) return
                 setSchema(schemaRes)
                 setCaptcha(captchaRes)
             })
             .catch((err) => {
+                if (cancelled) return
                 setError(err.message || 'Failed to load form settings.')
             })
+
+        return () => { cancelled = true }
     }, [open, role])
 
     // Real-time client-side captcha check
