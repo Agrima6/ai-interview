@@ -20,3 +20,10 @@ export const markAccessed = async (id) => {
 export const incrementUse = (id) => OnboardingInvitation.findByIdAndUpdate(id, { $inc: { useCount: 1 }, consumedAt: new Date(), status: "USED" }, { new: true })
 export const revokeActiveForRegistration = (registrationId) =>
     OnboardingInvitation.updateMany({ registrationId, status: "ACTIVE" }, { status: "REVOKED" })
+
+// Issues a fresh raw token for an existing invitation (e.g. when
+// request-changes needs to hand the applicant a working resume link) -
+// the old raw token, wherever it was originally emailed, stops working
+// the moment this is called, since only the hash is ever stored.
+export const rotateToken = (id, { tokenHash, expiresAt }) =>
+    OnboardingInvitation.findByIdAndUpdate(id, { tokenHash, expiresAt, status: "ACTIVE" }, { new: true })

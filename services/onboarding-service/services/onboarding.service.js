@@ -320,9 +320,10 @@ export const requestChanges = async (id, reviewerId, items, ctx) => {
 
     const updated = await sessionRepo.update(id, { status: "CHANGES_REQUESTED" })
 
-    // The raw invitation token is never persisted (only its hash) - we
-    // can't regenerate a resume link here, so the email points the
-    // applicant back to whichever onboarding link they already have.
+    // The raw invitation token is never persisted (only its hash), so a
+    // working resume link can't be reconstructed from the original one -
+    // issue a fresh token for the same invitation instead, exactly like a
+    // password-reset token rotation, and email that one.
     if (session.contact?.email) {
         const clientName = clientNameFor(session.type, session.data, session.contact)
         const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -331,13 +332,20 @@ export const requestChanges = async (id, reviewerId, items, ctx) => {
         ).join("")
         const changesListText = items.map((item) => `- ${item.label ? `${item.label}: ` : ""}${item.message}`).join("\n")
 
+        const rawToken = generateRawToken()
+        await invitationRepo.rotateToken(session.invitationId, {
+            tokenHash: hashToken(rawToken),
+            expiresAt: invitationExpiry(),
+        })
+        const resumeUrl = `${process.env.ONBOARDING_BASE_URL}/${session.type.toLowerCase()}/${rawToken}`
+
         await communicationServiceClient.send({
             entityType: "ONBOARDING", entityId: id, channel: "EMAIL",
             eventType: "ONBOARDING_CHANGES_REQUESTED", recipient: session.contact.email,
             variables: {
                 recipientGreeting: session.contact.name || "there",
                 clientName: clientName || "your institution",
-                changesListHtml, changesListText,
+                changesListHtml, changesListText, resumeUrl,
                 supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
             },
         }, ctx).catch((err) => console.error("[onboarding-service] changes-requested email failed:", err.message))

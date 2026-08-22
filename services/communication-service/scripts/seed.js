@@ -94,8 +94,9 @@ const changesRequestedHtml = wrapEmailBody(`
         </td></tr>
     </table>
     <p style="margin:0 0 4px;font-size:14px;color:${INK};line-height:1.6;">
-        Please reopen the onboarding link we sent you earlier to make these updates and resubmit.
+        Everything else you already entered is saved - just update the items above and resubmit.
     </p>
+    ${button("Update Onboarding →", "{{resumeUrl}}")}
     ${supportBox()}
 `)
 
@@ -137,9 +138,9 @@ const templates = [
     {
         channel: "EMAIL", eventType: "ONBOARDING_CHANGES_REQUESTED", name: "Onboarding changes requested (email)",
         subject: "A few updates needed on your WorkmateIQ onboarding",
-        body: "Hi {{recipientGreeting}},\n\nOur team reviewed the onboarding application for {{clientName}} and needs a few things corrected before we can proceed:\n\n{{changesListText}}\n\nPlease reopen the onboarding link we sent you earlier to make these updates and resubmit.\n\nIf you have any questions, please contact our support team at {{supportEmail}}.\n\nRegards,\nThe WorkmateIQ Team",
+        body: "Hi {{recipientGreeting}},\n\nOur team reviewed the onboarding application for {{clientName}} and needs a few things corrected before we can proceed:\n\n{{changesListText}}\n\nUpdate your onboarding here: {{resumeUrl}}\n\nEverything else you already entered is saved - just update the items above and resubmit.\n\nIf you have any questions, please contact our support team at {{supportEmail}}.\n\nRegards,\nThe WorkmateIQ Team",
         htmlBody: changesRequestedHtml,
-        variables: ["recipientGreeting", "clientName", "changesListHtml", "changesListText", "supportEmail"],
+        variables: ["recipientGreeting", "clientName", "changesListHtml", "changesListText", "resumeUrl", "supportEmail"],
     },
 ]
 

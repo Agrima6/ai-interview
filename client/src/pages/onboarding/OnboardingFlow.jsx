@@ -536,24 +536,31 @@ function OnboardingFlow() {
                         </div>
                     )}
 
-                    {/* Show review feedback if present */}
+                    {/* Show review feedback if present - field-specific items are also
+                        flagged inline against the matching field below; this banner
+                        covers the summary plus any general (non-field) notes. */}
                     {reviewItems.length > 0 && !isReviewStep && (
                         <div className="bg-amber-50 dark:bg-amber-950/10 border border-amber-200 dark:border-amber-900/20 rounded-2xl p-5 mb-6">
                             <div className="flex items-start gap-3 mb-2.5">
                                 <AlertTriangle size={17} className="text-amber-700 shrink-0 mt-0.5" />
                                 <div>
                                     <h4 className="font-bold text-amber-800 dark:text-amber-400 text-[14px]">Verification Feedback</h4>
-                                    <p className="text-[12.5px] text-amber-700 dark:text-amber-500 mt-0.5">Please update the requested fields before resubmitting.</p>
+                                    <p className="text-[12.5px] text-amber-700 dark:text-amber-500 mt-0.5">
+                                        {reviewItems.some((i) => i.fieldKey)
+                                            ? 'Fields that need updating are highlighted below.'
+                                            : 'Please review the notes below before resubmitting.'}
+                                    </p>
                                 </div>
                             </div>
-                            <ul className="space-y-1.5 ml-6">
-                                {reviewItems.map((item, i) => (
-                                    <li key={i} className="text-[12.5px] text-amber-800 dark:text-amber-500 list-disc">
-                                        {item.fieldKey ? <span className="font-semibold">{item.fieldKey.replace('_', ' ')}: </span> : null}
-                                        {item.message}
-                                    </li>
-                                ))}
-                            </ul>
+                            {reviewItems.some((i) => !i.fieldKey) && (
+                                <ul className="space-y-1.5 ml-6">
+                                    {reviewItems.filter((i) => !i.fieldKey).map((item, i) => (
+                                        <li key={i} className="text-[12.5px] text-amber-800 dark:text-amber-500 list-disc">
+                                            {item.message}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
                         </div>
                     )}
 
@@ -572,9 +579,19 @@ function OnboardingFlow() {
                                     const hasError = validationErrors[field.key]
                                     const isFullWidth = ['TEXTAREA', 'ADDRESS', 'RADIO', 'MULTI_SELECT', 'CHECKBOX', 'FILE', 'IMAGE'].includes(field.type)
                                     const limitMb = field.maxFileSizeMb || 10
+                                    const flaggedItem = reviewItems.find((item) => item.fieldKey === field.key)
 
                                     return (
-                                        <div key={field.key} className={isFullWidth ? 'sm:col-span-2' : ''}>
+                                        <div
+                                            key={field.key}
+                                            className={`${isFullWidth ? 'sm:col-span-2' : ''} ${flaggedItem ? 'ring-1 ring-amber-300 bg-amber-50/50 rounded-2xl p-3 -m-3' : ''}`}
+                                        >
+                                            {flaggedItem && (
+                                                <p className="flex items-start gap-1.5 text-[12px] font-medium text-amber-700 mb-2">
+                                                    <AlertTriangle size={13} className="shrink-0 mt-0.5" />
+                                                    {flaggedItem.message}
+                                                </p>
+                                            )}
                                             {/* File/Image Field */}
                                             {isFileType(field.type) ? (
                                                 <div className="w-full">
