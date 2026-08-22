@@ -41,6 +41,45 @@ const onboardingSubmittedHtml = wrapEmailBody(`
     ${supportBox()}
 `)
 
+const passwordResetHtml = wrapEmailBody(`
+    <h1 style="margin:0 0 20px;font-size:22px;font-weight:800;color:${INK};line-height:1.3;">
+        Reset your <span style="color:${ACCENT};">WorkmateIQ password</span>
+    </h1>
+    <p style="margin:0 0 4px;font-size:14.5px;font-weight:700;color:${ACCENT};">Hi {{recipientGreeting}},</p>
+    <p style="margin:0 0 4px;font-size:14px;color:${INK};line-height:1.6;">
+        We received a request to reset your WorkmateIQ password.
+    </p>
+    ${button("Reset Password →", "{{resetUrl}}")}
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fdf1f1;border:1px solid #f7dcdc;border-radius:12px;margin:0 0 4px;">
+        <tr><td style="padding:14px 18px;font-size:13.5px;color:${INK};">This link is valid for <strong>1 hour</strong>. If you didn't request this, you can safely ignore this email - your password won't be changed.</td></tr>
+    </table>
+    ${supportBox()}
+`)
+
+const clientApprovedHtml = wrapEmailBody(`
+    <div style="text-align:center;margin-bottom:20px;">
+        <div style="width:64px;height:64px;border-radius:50%;background:#fdeaea;display:inline-block;line-height:64px;font-size:28px;color:${ACCENT};">&#10003;</div>
+    </div>
+    <h1 style="margin:0 0 20px;font-size:22px;font-weight:800;color:${INK};line-height:1.3;text-align:center;">
+        {{clientName}} is <span style="color:${ACCENT};">approved!</span>
+    </h1>
+    <p style="margin:0 0 4px;font-size:14.5px;font-weight:700;color:${ACCENT};">Hi {{recipientGreeting}},</p>
+    <p style="margin:0 0 16px;font-size:14px;color:${INK};line-height:1.6;">
+        Great news - <strong>{{clientName}}</strong> has been approved on WorkmateIQ. You can now sign in to your dashboard.
+    </p>
+    ${button("Sign In →", "{{loginUrl}}")}
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f7f5f5;border:1px solid #eee6e6;border-radius:12px;margin:0 0 20px;">
+        <tr><td style="padding:14px 18px;font-size:13.5px;color:${INK};line-height:1.8;">
+            <strong>Email:</strong> {{recipientEmail}}<br/>
+            <strong>Temporary password:</strong> {{tempPassword}}
+        </td></tr>
+    </table>
+    <p style="margin:0 0 4px;font-size:13px;color:${INK};line-height:1.6;">
+        You'll be asked to set a new password the first time you sign in.
+    </p>
+    ${supportBox()}
+`)
+
 const templates = [
     {
         channel: "EMAIL", eventType: "ONBOARDING_LINK", name: "Onboarding link (email)",
@@ -58,14 +97,16 @@ const templates = [
     {
         channel: "EMAIL", eventType: "PASSWORD_RESET", name: "Password reset (email)",
         subject: "Reset your WorkmateIQ password",
-        body: "Hi {{recipientName}},\n\nWe received a request to reset your WorkmateIQ password. Reset it here:\n{{resetUrl}}\n\nThis link is valid for 1 hour. If you didn't request this, you can safely ignore this email - your password won't be changed.\n\n- The WorkmateIQ team",
-        variables: ["recipientName", "resetUrl"],
+        body: "Hi {{recipientGreeting}},\n\nWe received a request to reset your WorkmateIQ password. Reset it here:\n{{resetUrl}}\n\nThis link is valid for 1 hour. If you didn't request this, you can safely ignore this email - your password won't be changed.\n\nIf you have any questions, please contact our support team at {{supportEmail}}.\n\nRegards,\nThe WorkmateIQ Team",
+        htmlBody: passwordResetHtml,
+        variables: ["recipientGreeting", "resetUrl", "supportEmail"],
     },
     {
         channel: "EMAIL", eventType: "CLIENT_APPROVED", name: "Client approved (email)",
         subject: "{{clientName}} is approved on WorkmateIQ - here's your login",
-        body: "Hi {{recipientName}},\n\nGreat news - {{clientName}} has been approved on WorkmateIQ. You can now sign in to your dashboard:\n{{loginUrl}}\n\nEmail: {{recipientEmail}}\nTemporary password: {{tempPassword}}\n\nYou'll be asked to set a new password the first time you sign in.\n\n- The WorkmateIQ team",
-        variables: ["recipientName", "recipientEmail", "clientName", "loginUrl", "tempPassword"],
+        body: "Hi {{recipientGreeting}},\n\nGreat news - {{clientName}} has been approved on WorkmateIQ. You can now sign in to your dashboard:\n{{loginUrl}}\n\nEmail: {{recipientEmail}}\nTemporary password: {{tempPassword}}\n\nYou'll be asked to set a new password the first time you sign in.\n\nIf you have any questions, please contact our support team at {{supportEmail}}.\n\nRegards,\nThe WorkmateIQ Team",
+        htmlBody: clientApprovedHtml,
+        variables: ["recipientGreeting", "recipientEmail", "clientName", "loginUrl", "tempPassword", "supportEmail"],
     },
     {
         channel: "EMAIL", eventType: "ONBOARDING_SUBMITTED", name: "Onboarding submitted (email)",

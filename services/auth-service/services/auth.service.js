@@ -136,7 +136,11 @@ export const requestPasswordReset = async (email, ctx) => {
         .send({
             entityType: "USER", entityId: user._id, channel: "EMAIL",
             eventType: "PASSWORD_RESET", recipient: user.email,
-            variables: { recipientName: user.displayName, resetUrl },
+            variables: {
+                recipientGreeting: user.displayName || "there",
+                resetUrl,
+                supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
+            },
         }, ctx)
         .catch((err) => console.error("[auth-service] password reset email failed to send:", err.message))
 }

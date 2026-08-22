@@ -16,6 +16,7 @@ import logo from '../../assets/logo.png'
 
 const DEV_ADMIN = { email: 'admin@workmateiq.local', password: 'Agrima123' }
 const STATUS_LABEL = { QUEUED: 'Queued', SENT: 'Sent', MOCK_SENT: 'Sent (test mode)', FAILED: 'Failed', DELIVERED: 'Delivered' }
+const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || 'support@workmateiq.com'
 
 function AuthPage() {
     const navigate = useNavigate()
@@ -151,25 +152,32 @@ function AuthPage() {
                     {/* Render registration success page if set */}
                     {registrationSuccessData ? (
                         <AuthCard className="text-center animate-in fade-in duration-300">
-                            <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-6 border border-red-100/50">
+                            <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-6">
                                 <CheckCircle2 size={32} className="text-green-600" />
                             </div>
-                            <h2 className="font-display text-[22px] font-bold text-ink mb-2">Registration received</h2>
-                            <p className="text-text-secondary text-[14.5px] mb-8 leading-relaxed">
+                            <h2 className="font-display text-[22px] font-bold text-ink mb-2">Thank You!</h2>
+                            <p className="text-ink text-[14.5px] font-medium mb-1 leading-relaxed">
+                                We've received your registration successfully.
+                            </p>
+                            <p className="text-text-secondary text-[14px] mb-6 leading-relaxed">
                                 We've sent your onboarding link to the email address you provided. Check the delivery status below.
                             </p>
 
-                            <div className="space-y-3.5 text-left bg-gray-50 border border-gray-100 rounded-2xl p-5 mb-8">
-                                <div className="flex items-center gap-3 text-[14px] text-gray-700">
+                            <div className="space-y-3.5 text-left bg-bg border border-line rounded-2xl p-5 mb-6">
+                                <div className="flex items-center gap-3 text-[14px] text-ink">
                                     <Mail size={16} className="text-accent shrink-0" />
                                     <div>
-                                        <span className="font-semibold text-gray-900">Email</span>
-                                        <span className="text-gray-500 ml-2">
+                                        <span className="font-semibold text-ink">Email</span>
+                                        <span className="text-text-secondary ml-2">
                                             — {STATUS_LABEL[registrationSuccessData.communications.email] || registrationSuccessData.communications.email}
                                         </span>
                                     </div>
                                 </div>
                             </div>
+
+                            <p className="text-[13px] text-text-secondary mb-6">
+                                Need help? Contact <a href={`mailto:${SUPPORT_EMAIL}`} className="text-accent font-semibold hover:underline">{SUPPORT_EMAIL}</a>.
+                            </p>
 
                             {registrationSuccessData.debugOnboardingUrl && (
                                 <a href={registrationSuccessData.debugOnboardingUrl} className="block mb-4">

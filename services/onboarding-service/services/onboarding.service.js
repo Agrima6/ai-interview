@@ -268,11 +268,12 @@ export const approve = async (id, reviewerId, ctx) => {
                     entityType: "ONBOARDING", entityId: id, channel: "EMAIL",
                     eventType: "CLIENT_APPROVED", recipient: session.contact.email,
                     variables: {
-                        recipientName: session.contact.name,
+                        recipientGreeting: session.contact.name || "there",
                         recipientEmail: session.contact.email,
-                        clientName,
+                        clientName: clientName || "your institution",
                         loginUrl: process.env.CLIENT_LOGIN_URL,
                         tempPassword: credentials.password,
+                        supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
                     },
                 }, ctx).catch(() => null)
             }
