@@ -67,10 +67,21 @@ function DynamicForm({ schema, defaultValues = {}, onSubmit, onFileUpload, uploa
             rules.pattern = { value: /^[6-9][0-9]{9}$/, message: 'Please enter a valid 10-digit mobile number.' }
         }
         if (field.type === 'NUMBER') {
+            // An optional NUMBER field with no value yet must not fail
+            // validation - react-hook-form runs `validate` (and min/max)
+            // on every change, including when the field is untouched/empty,
+            // so each check here has to explicitly let emptiness through
+            // and let the separate `required` rule handle that case.
+            const isEmpty = (v) => v === undefined || v === null || Number.isNaN(v)
             const min = field.validation?.min ?? 0
-            rules.min = { value: min, message: `${field.label} must be at least ${min}.` }
-            if (field.validation?.max !== undefined) rules.max = { value: field.validation.max, message: `${field.label} must be at most ${field.validation.max}.` }
-            rules.validate = (v) => Number.isInteger(v) || `${field.label} must be a whole number.`
+            const max = field.validation?.max
+            rules.validate = (v) => {
+                if (isEmpty(v)) return true
+                if (!Number.isInteger(v)) return `${field.label} must be a whole number.`
+                if (v < min) return `${field.label} must be at least ${min}.`
+                if (max !== undefined && v > max) return `${field.label} must be at most ${max}.`
+                return true
+            }
         }
         if (field.validation?.minLength) rules.minLength = { value: field.validation.minLength, message: `${field.label} must be at least ${field.validation.minLength} characters.` }
         if (field.validation?.maxLength) rules.maxLength = { value: field.validation.maxLength, message: `${field.label} must be no more than ${field.validation.maxLength} characters.` }
