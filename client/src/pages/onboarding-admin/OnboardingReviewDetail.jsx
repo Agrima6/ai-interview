@@ -19,7 +19,11 @@ function OnboardingReviewDetail() {
     const [busy, setBusy] = useState(false)
     const [modal, setModal] = useState(null) // 'approve' | 'reject' | 'changes' | null
     const [reason, setReason] = useState('')
-    const [changeItems, setChangeItems] = useState([{ fieldKey: '', message: '' }])
+    // Keyed by field.key -> { checked, message, sectionKey, label }. Built
+    // from the actual form schema so a reviewer picks real fields instead
+    // of typing a field key by hand and hoping it matches.
+    const [fieldChanges, setFieldChanges] = useState({})
+    const [generalNote, setGeneralNote] = useState('')
 
     const load = () => {
         setLoading(true)
@@ -70,7 +74,21 @@ function OnboardingReviewDetail() {
                             </Button>
                         )}
                         {hasPermission('ONBOARDING_REVIEW') && (
-                            <Button variant='secondary' onClick={() => setModal('changes')} disabled={busy}>
+                            <Button
+                                variant='secondary'
+                                onClick={() => {
+        const initial = {}
+                                    for (const section of data.form.sections) {
+                                        for (const field of section.fields) {
+                                            initial[field.key] = { checked: false, message: '', sectionKey: section.key, label: field.label }
+                                        }
+                                    }
+                                    setFieldChanges(initial)
+                                    setGeneralNote('')
+                                    setModal('changes')
+                                }}
+                                disabled={busy}
+                            >
                                 <MessageSquareWarning size={15} /> Request changes
                             </Button>
                         )}
@@ -206,31 +224,67 @@ function OnboardingReviewDetail() {
                 </div>
             </Modal>
 
-            <Modal open={modal === 'changes'} onClose={() => setModal(null)} title='Request changes'>
-                <div className='space-y-3'>
-                    {changeItems.map((item, i) => (
-                        <div key={i} className='grid grid-cols-[1fr_2fr] gap-2'>
-                            <input
-                                placeholder='Field key (optional)'
-                                value={item.fieldKey}
-                                onChange={(e) => setChangeItems((items) => items.map((it, idx) => idx === i ? { ...it, fieldKey: e.target.value } : it))}
-                                className='bg-card border border-line rounded-xl px-3 py-2 text-[13px] text-ink outline-none focus:border-accent/60'
-                            />
-                            <input
-                                placeholder='What needs to change?'
-                                value={item.message}
-                                onChange={(e) => setChangeItems((items) => items.map((it, idx) => idx === i ? { ...it, message: e.target.value } : it))}
-                                className='bg-card border border-line rounded-xl px-3 py-2 text-[13px] text-ink outline-none focus:border-accent/60'
-                            />
+            <Modal open={modal === 'changes'} onClose={() => setModal(null)} title='Request changes' size='lg'>
+                <p className='text-[13px] text-text-secondary mb-4'>
+                    Check each field that needs correcting and say what's wrong. The applicant gets one email listing everything you flag here.
+                </p>
+                <div className='space-y-5 max-h-[50vh] overflow-y-auto pr-1'>
+                    {data.form.sections.map((section) => (
+                        <div key={section.key}>
+                            <h4 className='text-[12px] font-semibold uppercase tracking-wide text-text-secondary mb-2'>{section.title}</h4>
+                            <div className='space-y-2'>
+                                {section.fields.map((field) => {
+                                    const state = fieldChanges[field.key] || { checked: false, message: '' }
+                                    return (
+                                        <div key={field.key} className={`rounded-xl border transition-colors ${state.checked ? 'border-accent/40 bg-accent/[0.03]' : 'border-line'}`}>
+                                            <label className='flex items-center gap-2.5 px-3.5 py-2.5 cursor-pointer'>
+                                                <input
+                                                    type='checkbox'
+                                                    checked={state.checked}
+                                                    onChange={(e) => setFieldChanges((prev) => ({ ...prev, [field.key]: { ...prev[field.key], checked: e.target.checked } }))}
+                                                    className='w-4 h-4 rounded border-line accent-accent shrink-0'
+                                                />
+                                                <span className='text-[13.5px] text-ink font-medium'>{field.label}</span>
+                                            </label>
+                                            {state.checked && (
+                                                <div className='px-3.5 pb-3.5'>
+                                                    <input
+                                                        autoFocus
+                                                        placeholder={`What needs to change about "${field.label}"?`}
+                                                        value={state.message}
+                                                        onChange={(e) => setFieldChanges((prev) => ({ ...prev, [field.key]: { ...prev[field.key], message: e.target.value } }))}
+                                                        className='w-full bg-card border border-line rounded-lg px-3 py-2 text-[13px] text-ink outline-none focus:border-accent/60'
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )
+                                })}
+                            </div>
                         </div>
                     ))}
-                    <button type='button' onClick={() => setChangeItems((items) => [...items, { fieldKey: '', message: '' }])} className='text-[12.5px] text-accent hover:underline'>
-                        + Add another item
-                    </button>
+                    <div>
+                        <h4 className='text-[12px] font-semibold uppercase tracking-wide text-text-secondary mb-2'>General note (optional)</h4>
+                        <Textarea
+                            placeholder='Anything not tied to a specific field...'
+                            value={generalNote}
+                            onChange={(e) => setGeneralNote(e.target.value)}
+                            rows={2}
+                        />
+                    </div>
                 </div>
-                <div className='flex justify-end gap-2 mt-5'>
+                <div className='flex justify-end gap-2 mt-5 pt-4 border-t border-line'>
                     <Button variant='secondary' onClick={() => setModal(null)}>Cancel</Button>
-                    <Button disabled={busy} onClick={() => runAction(() => requestOnboardingChanges(id, changeItems.filter((i) => i.message.trim())), 'Change request sent to applicant.')}>
+                    <Button
+                        disabled={busy || !(Object.values(fieldChanges).some((f) => f.checked && f.message.trim()) || generalNote.trim())}
+                        onClick={() => {
+                            const items = Object.entries(fieldChanges)
+                                .filter(([, f]) => f.checked && f.message.trim())
+                                .map(([fieldKey, f]) => ({ fieldKey, sectionKey: f.sectionKey, label: f.label, message: f.message.trim() }))
+                            if (generalNote.trim()) items.push({ fieldKey: null, sectionKey: null, label: null, message: generalNote.trim() })
+                            runAction(() => requestOnboardingChanges(id, items), 'Change request emailed to applicant.')
+                        }}
+                    >
                         Send to applicant
                     </Button>
                 </div>

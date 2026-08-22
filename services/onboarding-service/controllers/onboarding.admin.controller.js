@@ -34,6 +34,6 @@ export const reject = async (req, res, next) => {
 }
 
 export const requestChanges = async (req, res, next) => {
-    try { ok(res, await onboardingService.requestChanges(req.params.id, req.user.sub, req.body?.items)) }
+    try { ok(res, await onboardingService.requestChanges(req.params.id, req.user.sub, req.body?.items, { requestId: req.requestId, correlationId: req.correlationId })) }
     catch (error) { next(error) }
 }

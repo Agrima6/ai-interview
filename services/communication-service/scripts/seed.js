@@ -80,6 +80,25 @@ const clientApprovedHtml = wrapEmailBody(`
     ${supportBox()}
 `)
 
+const changesRequestedHtml = wrapEmailBody(`
+    <h1 style="margin:0 0 20px;font-size:22px;font-weight:800;color:${INK};line-height:1.3;">
+        A few <span style="color:${ACCENT};">updates needed</span> on your onboarding
+    </h1>
+    <p style="margin:0 0 4px;font-size:14.5px;font-weight:700;color:${ACCENT};">Hi {{recipientGreeting}},</p>
+    <p style="margin:0 0 16px;font-size:14px;color:${INK};line-height:1.6;">
+        Our team reviewed the onboarding application for <strong>{{clientName}}</strong> and needs a few things corrected before we can proceed:
+    </p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fdf1f1;border:1px solid #f7dcdc;border-radius:12px;margin:0 0 16px;">
+        <tr><td style="padding:16px 20px;">
+            <ul style="margin:0;padding-left:18px;font-size:13.5px;color:${INK};line-height:1.5;">{{changesListHtml}}</ul>
+        </td></tr>
+    </table>
+    <p style="margin:0 0 4px;font-size:14px;color:${INK};line-height:1.6;">
+        Please reopen the onboarding link we sent you earlier to make these updates and resubmit.
+    </p>
+    ${supportBox()}
+`)
+
 const templates = [
     {
         channel: "EMAIL", eventType: "ONBOARDING_LINK", name: "Onboarding link (email)",
@@ -114,6 +133,13 @@ const templates = [
         body: "Hi {{recipientGreeting}},\n\nThank you for completing the onboarding for {{clientName}}.\n\nWe've received your onboarding form successfully.\n\nOur team will review the information and share the next update with you using your provided contact details.\n\nIf you have any questions or experience an issue, please contact our support team at {{supportEmail}}.\n\nRegards,\nThe WorkmateIQ Team",
         htmlBody: onboardingSubmittedHtml,
         variables: ["recipientGreeting", "clientName", "supportEmail"],
+    },
+    {
+        channel: "EMAIL", eventType: "ONBOARDING_CHANGES_REQUESTED", name: "Onboarding changes requested (email)",
+        subject: "A few updates needed on your WorkmateIQ onboarding",
+        body: "Hi {{recipientGreeting}},\n\nOur team reviewed the onboarding application for {{clientName}} and needs a few things corrected before we can proceed:\n\n{{changesListText}}\n\nPlease reopen the onboarding link we sent you earlier to make these updates and resubmit.\n\nIf you have any questions, please contact our support team at {{supportEmail}}.\n\nRegards,\nThe WorkmateIQ Team",
+        htmlBody: changesRequestedHtml,
+        variables: ["recipientGreeting", "clientName", "changesListHtml", "changesListText", "supportEmail"],
     },
 ]
 

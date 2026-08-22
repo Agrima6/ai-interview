@@ -304,7 +304,7 @@ export const reject = async (id, reason) => {
 // Creates the review items the candidate/org will see prefilled against
 // their existing data, and flips status so the same link becomes editable
 // again on next visit.
-export const requestChanges = async (id, reviewerId, items) => {
+export const requestChanges = async (id, reviewerId, items, ctx) => {
     if (!items?.length) throw new ApiError(400, "ITEMS_REQUIRED", "At least one review item is required.")
     const session = await sessionRepo.findById(id)
     if (!session) throw new ApiError(404, "ONBOARDING_NOT_FOUND", "Onboarding not found.")
@@ -319,6 +319,30 @@ export const requestChanges = async (id, reviewerId, items) => {
     })))
 
     const updated = await sessionRepo.update(id, { status: "CHANGES_REQUESTED" })
+
+    // The raw invitation token is never persisted (only its hash) - we
+    // can't regenerate a resume link here, so the email points the
+    // applicant back to whichever onboarding link they already have.
+    if (session.contact?.email) {
+        const clientName = clientNameFor(session.type, session.data, session.contact)
+        const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        const changesListHtml = items.map((item) =>
+            `<li style="margin-bottom:8px;">${item.label ? `<strong>${esc(item.label)}:</strong> ` : ""}${esc(item.message)}</li>`
+        ).join("")
+        const changesListText = items.map((item) => `- ${item.label ? `${item.label}: ` : ""}${item.message}`).join("\n")
+
+        await communicationServiceClient.send({
+            entityType: "ONBOARDING", entityId: id, channel: "EMAIL",
+            eventType: "ONBOARDING_CHANGES_REQUESTED", recipient: session.contact.email,
+            variables: {
+                recipientGreeting: session.contact.name || "there",
+                clientName: clientName || "your institution",
+                changesListHtml, changesListText,
+                supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
+            },
+        }, ctx).catch((err) => console.error("[onboarding-service] changes-requested email failed:", err.message))
+    }
+
     return listView(updated)
 }
 
