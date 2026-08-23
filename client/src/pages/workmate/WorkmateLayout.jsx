@@ -9,7 +9,7 @@ const NAV_LINKS = [
     { label: 'Home', id: 'home' },
     { label: 'About', id: 'about' },
     { label: 'Who It Works For', id: 'who-it-works-for' },
-    { label: 'How It Works', id: 'how-it-works' },
+    { label: 'Solution', id: 'how-it-works' },
     { label: 'Contact', id: 'contact' },
 ]
 
@@ -100,7 +100,7 @@ function WorkmateFooter() {
     }
     const columns = [
         { h: 'Solutions', items: [['For Organizations', 'organizations'], ['For Colleges', 'colleges'], ['For Candidates', 'candidates']] },
-        { h: 'Company', items: [['About', 'about'], ['How It Works', 'how-it-works'], ['Contact', 'contact']] },
+        { h: 'Company', items: [['About', 'about'], ['Solution', 'how-it-works'], ['Contact', 'contact']] },
         { h: 'Get Started', items: [['Pricing', 'pricing'], ['Enquiry', 'contact']] },
     ]
     return (
