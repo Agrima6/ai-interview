@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { AnimatePresence, motion as Motion } from 'motion/react'
+import { useNavigate } from 'react-router-dom'
 import WorkmateLayout from './WorkmateLayout'
 import useReveal from './useReveal'
 import Button from '../../components/Button'
@@ -11,19 +12,23 @@ import JourneySection from './JourneySection'
 import HeroThreadsBackground from './HeroThreadsBackground'
 import FiberBurstCanvas from './FiberBurstCanvas'
 import MarketingIllustration from '../../components/MarketingIllustration'
+import NexaChatbot from '../../components/NexaChatbot'
+import InterviewPreview from './InterviewPreview'
+import VerticalScrollShowcase from './VerticalScrollShowcase'
+import PowerfulFeatures from './PowerfulFeatures'
+import audienceCollegesImage from '../../assets/workmate/audience-colleges.png'
+import audienceCandidatesImage from '../../assets/workmate/audience-candidates.png'
+import audienceOrganizationsImage from '../../assets/workmate/audience-organizations.png'
 import { submitPlatformEnquiry } from '../../api/enquiriesApi'
 import {
-    ArrowRight, ChevronDown,
+    ArrowRight, Building2, Check, ChevronDown, GraduationCap, Network, ShieldCheck, UserRound,
 } from 'lucide-react'
 
 gsap.registerPlugin(ScrollTrigger)
 const REDUCE_MOTION = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
-import heroWorkmate from '../../assets/workmate/hero-workmate.png'
-import isometricAudience from '../../assets/workmate/isometric-audience.jpg'
-
-const H2 = 'font-display text-[30px] sm:text-[42px] font-bold text-ink leading-[1.1] tracking-tight'
-const EYEBROW = 'text-[13px] tracking-[0.16em] uppercase text-accent font-semibold mb-4'
+const H2 = 'type-h2 text-ink'
+const EYEBROW = 'type-eyebrow text-accent mb-4'
 
 function CTAButton({ children, ...props }) {
     return (
@@ -34,11 +39,52 @@ function CTAButton({ children, ...props }) {
     )
 }
 
+function HeroFeatureIcon({ type }) {
+    return (
+        <svg width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.9' strokeLinecap='round' strokeLinejoin='round' className='shrink-0 text-accent' aria-hidden='true'>
+            {type === 'secure' && (
+                <>
+                    <path d='M12 3 4.5 6v5.2c0 4.7 3.1 7.9 7.5 9.8 4.4-1.9 7.5-5.1 7.5-9.8V6L12 3Z' />
+                    <path d='m8.7 12 2.1 2.1 4.5-4.5' />
+                </>
+            )}
+            {type === 'scalable' && (
+                <>
+                    <path d='M4 19.5V5.5' />
+                    <path d='M4 19.5h16' />
+                    <path d='m7.5 15 3.2-3.8 2.8 2.4L20 7' />
+                    <path d='M16 7h4v4' />
+                </>
+            )}
+            {type === 'smart' && (
+                <>
+                    <path d='m12 3 1.4 4.1a2 2 0 0 0 1.2 1.2L18.7 9.7l-4.1 1.4a2 2 0 0 0-1.2 1.2L12 16.4l-1.4-4.1a2 2 0 0 0-1.2-1.2L5.3 9.7l4.1-1.4a2 2 0 0 0 1.2-1.2L12 3Z' />
+                    <path d='m5 16 .5 1.5L7 18l-1.5.5L5 20l-.5-1.5L3 18l1.5-.5L5 16Z' />
+                </>
+            )}
+        </svg>
+    )
+}
+
+function AboutPointer({ icon: IconComponent, children }) {
+    const PointerIcon = IconComponent
+
+    return (
+        <div className='about-pointer group flex min-h-[82px] items-start gap-3 transition-transform duration-300 hover:-translate-y-0.5'>
+            <span className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/[0.07] text-accent transition-all duration-300 group-hover:bg-accent/[0.12] group-hover:shadow-[0_8px_18px_-12px_rgba(196,22,31,0.5)]'>
+                <PointerIcon size={19} strokeWidth={1.8} aria-hidden='true' />
+            </span>
+            <p className='type-body-small pt-0.5 leading-relaxed text-ink'>{children}</p>
+        </div>
+    )
+}
+
 /* ============================================================ HERO ============================================================ */
 function Hero({ jump, experimental = false }) {
     const heroRef = useReveal('.reveal')
     const heroAreaRef = useRef(null)
     const wrapRef = useRef(null)
+    const navigate = useNavigate()
 
     useEffect(() => {
         if (REDUCE_MOTION || !wrapRef.current) return
@@ -83,28 +129,41 @@ function Hero({ jump, experimental = false }) {
             <div className={`absolute top-[60px] right-[-160px] w-[380px] h-[380px] rounded-full ${experimental ? 'opacity-[0.12]' : 'opacity-[0.07]'} blur-3xl pointer-events-none`}
                 style={{ background: 'radial-gradient(closest-side, #e0271b, transparent)' }} />
 
-            <div className='relative max-w-[1280px] mx-auto px-6 lg:px-8 pt-32 sm:pt-36 pb-24 grid lg:grid-cols-[1fr_1.05fr] gap-14 items-center'>
+            <div className='relative max-w-[1280px] mx-auto px-6 lg:px-8 pt-24 sm:pt-28 pb-16 grid lg:grid-cols-[1fr_1.05fr] gap-14 items-center'>
                 <div ref={heroRef}>
                     <p className={`reveal ${EYEBROW} inline-flex items-center gap-2`}>
                         <span className='w-1.5 h-1.5 rounded-full bg-accent animate-pulse-glow' />
                         WorkmateIQ
                     </p>
-                    <h1 className='reveal font-display text-[42px] sm:text-[62px] font-bold text-ink leading-[1.03] tracking-tight mb-6'>
-                        Where <span className='gradient-brand-text'>better talent journeys</span> begin.
+                    <h1 className='reveal type-display text-ink mb-6'>
+                        AI Interviews. <span className='text-accent'>Better Decisions.</span> Faster Hiring.
                     </h1>
-                    <p className='reveal text-[18px] text-text-secondary leading-relaxed max-w-lg mb-9'>
-                        One intelligent platform for hiring, onboarding and connecting people with opportunity — from first interaction to first day.
+                    <p className='reveal type-lead text-text-secondary max-w-lg mb-6'>
+                        WorkmateIQ helps organizations, colleges, and candidates conduct AI-powered interviews with full security, evaluate performance, and benchmark results to find the right people faster and fairer.
                     </p>
+                    <div className='reveal mb-8 flex flex-wrap gap-2.5' aria-label='WorkmateIQ platform benefits'>
+                        <span className='inline-flex items-center gap-2 rounded-full border border-accent/15 bg-accent/[0.04] px-3 py-2 type-body-small font-semibold text-ink transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/35 hover:bg-accent/[0.07]'>
+                            <HeroFeatureIcon type='secure' />
+                            Secure
+                        </span>
+                        <span className='inline-flex items-center gap-2 rounded-full border border-accent/15 bg-accent/[0.04] px-3 py-2 type-body-small font-semibold text-ink transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/35 hover:bg-accent/[0.07]'>
+                            <HeroFeatureIcon type='scalable' />
+                            Scalable
+                        </span>
+                        <span className='inline-flex items-center gap-2 rounded-full border border-accent/15 bg-accent/[0.04] px-3 py-2 type-body-small font-semibold text-ink transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/35 hover:bg-accent/[0.07]'>
+                            <HeroFeatureIcon type='smart' />
+                            Smart
+                        </span>
+                    </div>
                     <div className='reveal flex flex-wrap gap-3'>
-                        <CTAButton size='lg' onClick={jump('contact')}>Get Started</CTAButton>
-                        <Button size='lg' variant='secondary' onClick={jump('how-it-works')}>Explore WorkmateIQ</Button>
+                        <CTAButton size='lg' onClick={jump('contact')}>Send an Enquiry</CTAButton>
+                        <Button size='lg' variant='secondary' className='hover:!border-accent hover:!bg-accent hover:!text-white hover:!shadow-[0_8px_20px_-12px_rgba(196,22,31,0.5)] hover:-translate-y-0.5 !duration-200' onClick={() => navigate('/platform/register')}>Register</Button>
+                        <Button size='lg' variant='secondary' className='!border-accent/15 !bg-accent/[0.025] backdrop-blur-sm hover:!border-accent/30 hover:!bg-accent/[0.06] !duration-200' onClick={jump('how-it-works')}>Explore WorkmateIQ</Button>
                     </div>
                 </div>
                 <div ref={wrapRef} className='relative' style={{ perspective: '1200px' }}>
                     <div className='hero-tilt relative' style={{ transformStyle: 'preserve-3d' }}>
-                        <div className='rounded-[28px] overflow-hidden border border-line shadow-[0_30px_80px_-24px_rgba(30,10,12,0.25)] bg-card transition-all duration-500 hover:scale-[1.04] hover:border-accent/60 hover:shadow-[0_30px_90px_-10px_rgba(196,22,31,0.55)] group cursor-pointer'>
-                            <img src={heroWorkmate} alt='Organizations, colleges and candidates connected through WorkmateIQ' className='w-full h-auto transition-transform duration-500 group-hover:scale-[1.01]' />
-                        </div>
+                        <InterviewPreview />
                     </div>
                 </div>
             </div>
@@ -118,10 +177,10 @@ function QuoteStrip() {
     return (
         <section ref={ref} className='relative max-w-[1280px] mx-auto px-6 lg:px-8 py-4 sm:py-6'>
             <div className='quote-reveal max-w-[820px] mx-auto rounded-2xl border border-accent/40 bg-accent/[0.03] px-7 py-6 sm:px-10 sm:py-8 text-center shadow-[0_0_35px_rgba(196,22,31,0.18),inset_0_0_15px_rgba(196,22,31,0.05)] transition-all duration-300 hover:scale-[1.015] hover:border-accent/80 hover:shadow-[0_0_55px_rgba(196,22,31,0.42),inset_0_0_20px_rgba(196,22,31,0.12)] group cursor-default'>
-                <blockquote className='font-display text-[22px] sm:text-[30px] lg:text-[34px] font-bold text-ink leading-[1.25] tracking-tight text-balance'>
+                <blockquote className='type-h3 text-ink text-balance'>
                     &ldquo;Success is where preparation and opportunity meet.&rdquo;
                 </blockquote>
-                <p className='text-[14px] sm:text-[15.5px] text-accent font-medium tracking-wide mt-3 transition-colors duration-300'>
+                <p className='type-body-small text-accent font-medium tracking-wide mt-3 transition-colors duration-300'>
                     &mdash; Bobby Unser
                 </p>
             </div>
@@ -132,58 +191,29 @@ function QuoteStrip() {
 /* ============================================================ ABOUT ============================================================ */
 function About() {
     const ref = useReveal('.about-reveal', { blur: true, y: 18, stagger: 0.1 })
-    const imgRef = useRef(null)
-    useEffect(() => {
-        if (REDUCE_MOTION || !imgRef.current) return
-        const ctx = gsap.context(() => {
-            gsap.fromTo(imgRef.current, { opacity: 0, scale: 0.9, y: 30 }, {
-                opacity: 1, scale: 1, y: 0, duration: 1, ease: 'power3.out',
-                scrollTrigger: { trigger: imgRef.current, start: 'top 82%', once: true },
-            })
-        }, imgRef)
-        return () => ctx.revert()
-    }, [])
-
-    return (
-        <section id='about' ref={ref} className='scroll-mt-20 max-w-[1280px] mx-auto px-6 lg:px-8 pt-10 pb-16 sm:pb-20'>
-            <div className='grid lg:grid-cols-[0.85fr_1.15fr] gap-16 items-center'>
-                <div className='about-reveal'>
-                    <p className={EYEBROW}>About Us</p>
-                    <h2 className={`${H2} mb-5`}>One hub for every side of hiring.</h2>
-                    <p className='text-text-secondary text-[16px] leading-relaxed mb-4'>
-                        We believe hiring should be intelligent, fair and fast. WorkmateIQ brings organizations, colleges and candidates into one platform to evaluate and move talent forward — clearly, and without the usual friction.
-                    </p>
-                    <p className='text-text-secondary text-[15px] leading-relaxed'>
-                        Every registration, onboarding link and review moves through the same connected hub — so nothing gets lost between the people trying to find each other.
-                    </p>
-                </div>
-                <div ref={imgRef} className='relative group cursor-pointer'>
-                    <div className='absolute inset-0 scale-90 opacity-30 blur-2xl transition-opacity duration-500 group-hover:opacity-70' style={{ background: 'radial-gradient(closest-side, #c4161f, transparent)' }} />
-                    <img src={isometricAudience} alt='WorkmateIQ connecting organizations, colleges and candidates around one hub' className='relative w-full h-auto animate-float transition-all duration-500 group-hover:scale-[1.04] group-hover:drop-shadow-[0_25px_50px_rgba(196,22,31,0.55)]' style={{ animationDuration: '8s' }} />
-                </div>
-            </div>
-        </section>
-    )
-}
-
-function ValuesStrip() {
-    const ref = useReveal('.value-item', { stagger: 0.06, y: 14 })
-    const values = [
-        ['intelligence', 'Intelligence First', 'We build for clarity, not complexity — every feature earns its place.'],
-        ['fairness', 'Fairness & Inclusion', 'Every organization, college and candidate is treated with the same rigor.'],
-        ['speed', 'Speed & Efficiency', 'A journey that used to take weeks should take days.'],
-        ['security', 'Security & Trust', 'Professional information is handled with real, structured care.'],
+    const valuePoints = [
+        [Building2, 'Intelligent and efficient hiring for organizations'],
+        [GraduationCap, 'Better preparation and career connections for colleges'],
+        [UserRound, 'Skill improvement and personalized feedback for candidates'],
+        [Network, 'All workflows connected in one seamless platform'],
+        [ShieldCheck, 'Committed to fairness, transparency and a better hiring experience'],
     ]
+
     return (
-        <section ref={ref} className='bg-card border-y border-line py-10 sm:py-12'>
-            <div className='max-w-[1280px] mx-auto px-6 lg:px-8 grid sm:grid-cols-2 lg:grid-cols-4 gap-6'>
-                {values.map(([illustration, t, d]) => (
-                    <div key={t} className='value-item p-5 rounded-2xl transition-all duration-300 hover:bg-bg hover:-translate-y-1'>
-                        <MarketingIllustration type={illustration} className='h-14 w-20 mb-2' />
-                        <h4 className='font-display text-ink text-[15px] font-bold mb-2'>{t}</h4>
-                        <p className='text-text-secondary text-[13.5px] leading-relaxed'>{d}</p>
-                    </div>
-                ))}
+        <section id='about' ref={ref} className='scroll-mt-20 mx-auto max-w-[1280px] px-6 pt-8 pb-12 sm:pb-16 lg:px-8'>
+            <div className='about-reveal rounded-[28px] border border-accent/[0.08] bg-white/55 px-6 py-9 shadow-[0_24px_70px_-52px_rgba(125,39,49,0.35)] sm:px-10 sm:py-12 lg:px-14 lg:py-14'>
+                <p className={EYEBROW}>About Us</p>
+                <h2 className={`${H2} mb-6`}>One hub for every side of hiring.</h2>
+                <p className='type-body max-w-none text-text-secondary'>
+                    We believe hiring should be intelligent, fair and fast. WorkmateIQ brings organizations, colleges and candidates into one platform to evaluate and move talent forward clearly, without the usual friction. Every registration, onboarding link and review happens through the same connected hub, so nothing gets lost between the people trying to find each other.
+                </p>
+                <div className='my-8 h-px bg-accent/15 sm:my-9' aria-hidden='true' />
+                <p className='type-body max-w-none text-text-secondary'>
+                    Organizations can discover and evaluate the right talent through a structured and efficient hiring process. Colleges can help students prepare better and connect them with relevant career opportunities. Candidates can practice, improve and showcase their skills with personalized feedback that truly helps them grow. By keeping registration, evaluation, feedback and hiring workflows connected in one place, we make the entire journey smooth, transparent and efficient for everyone involved. We are committed to using technology to make hiring more intelligent, fair and fast for all.
+                </p>
+                <div className='mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5 lg:gap-7'>
+                    {valuePoints.map(([icon, text]) => <AboutPointer key={text} icon={icon}>{text}</AboutPointer>)}
+                </div>
             </div>
         </section>
     )
@@ -204,6 +234,7 @@ const enterpriseCapabilities = [
 function EnterpriseAI() {
     const ref = useReveal('.ent-item', { stagger: 0.08, y: 18 })
     const [activeCapability, setActiveCapability] = useState(0)
+    const [overallScore, setOverallScore] = useState(76)
 
     useEffect(() => {
         if (REDUCE_MOTION) return
@@ -216,40 +247,34 @@ function EnterpriseAI() {
     const [illustration, title, description] = enterpriseCapabilities[activeCapability]
 
     return (
-        <section className='bg-card border-y border-line py-28 overflow-hidden relative'>
-            <FiberBurstCanvas />
-            <div ref={ref} className='relative z-10 max-w-[1280px] mx-auto px-6 lg:px-8'>
-                <div className='grid lg:grid-cols-2 gap-16 items-center mb-20'>
-                    <div className='ent-item'>
-                        <p className={EYEBROW}>Enterprise capabilities</p>
-                        <h2 className={`${H2} mb-5`}>Built for real screening speed.</h2>
-                        <p className='text-text-secondary text-[16px] leading-relaxed max-w-md'>
-                            Every score, note and decision is generated the moment an interview ends — organizations see clear, comparable insight instead of a pile of recordings to review later.
-                        </p>
-                    </div>
-                    <div className='ent-item'>
-                        <AIScorePanel />
-                    </div>
+        <section id='ai-evaluation' className='relative overflow-hidden border-y border-line bg-card py-12 sm:py-16'>
+            <FiberBurstCanvas overallScore={overallScore} />
+            <div ref={ref} className='relative z-10 mx-auto w-full max-w-[1440px] px-6 sm:px-8 lg:px-10'>
+                <div className='ent-item mx-auto w-full'>
+                    <AIScorePanel onOverallScoreChange={setOverallScore} />
                 </div>
-                <div className='mx-auto max-w-[720px]'>
-                    <div className='relative min-h-[265px]'>
-                        <AnimatePresence mode='wait' initial={false}>
+                <div className='mx-auto mt-10 max-w-[720px] sm:mt-12'>
+                    <div className='relative min-h-[220px]'>
+                        <AnimatePresence mode='sync' initial={false}>
                             <Motion.article
                                 key={title}
                                 initial={{ opacity: 0, y: 22, scale: 0.98 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
+                                whileHover={!REDUCE_MOTION ? { y: -8, scale: 1.015 } : undefined}
                                 exit={{ opacity: 0, y: -18, scale: 0.98 }}
-                                transition={{ duration: REDUCE_MOTION ? 0 : 0.55, ease: [0.16, 1, 0.3, 1] }}
-                                className='capability-card mx-auto flex min-h-[250px] w-full max-w-[520px] flex-col justify-center rounded-2xl border border-line bg-bg p-7 shadow-[0_24px_70px_-35px_rgba(125,39,49,0.38)] sm:p-9'
+                                transition={{ duration: REDUCE_MOTION ? 0 : 0.28, ease: [0.16, 1, 0.3, 1] }}
+                                className='capability-card group absolute inset-x-0 top-0 isolate mx-auto flex min-h-[210px] w-full max-w-[520px] flex-col justify-center overflow-hidden rounded-2xl border border-line bg-bg p-7 shadow-[0_24px_70px_-35px_rgba(125,39,49,0.38)] transition-[border-color,background-color,box-shadow] duration-300 ease-out hover:border-accent/35 hover:bg-white hover:shadow-[0_34px_78px_-28px_rgba(125,39,49,0.46),0_10px_28px_-18px_rgba(196,22,31,0.24)] sm:p-9'
                                 aria-live='polite'
                             >
-                                <MarketingIllustration type={illustration} className='mb-4 h-16 w-24 animate-breathe' />
-                                <h3 className='font-display text-[21px] font-bold text-ink sm:text-[23px]'>{title}</h3>
-                                <p className='mt-2 max-w-[580px] text-[15px] leading-relaxed text-text-secondary'>{description}</p>
+                                <span className='pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-accent/[0.1] opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-100' aria-hidden='true' />
+                                <span className='pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-accent/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100' aria-hidden='true' />
+                                <MarketingIllustration type={illustration} className='relative z-10 mb-4 h-16 w-24 animate-breathe transition-transform duration-300 ease-out group-hover:-translate-y-1.5 group-hover:scale-110' />
+                                <h3 className='relative z-10 type-card-title text-ink transition-colors duration-300 group-hover:text-accent'>{title}</h3>
+                                <p className='relative z-10 mt-2 max-w-[580px] type-body-small text-text-secondary transition-colors duration-300 group-hover:text-ink/75'>{description}</p>
                             </Motion.article>
                         </AnimatePresence>
                     </div>
-                    <div className='mt-6 flex justify-center gap-2' aria-label='Enterprise capability rotation'>
+                    <div className='mt-4 flex justify-center gap-2' aria-label='Enterprise capability rotation'>
                         {enterpriseCapabilities.map(([, capabilityTitle], index) => (
                             <span key={capabilityTitle} className={`h-1.5 rounded-full transition-all duration-500 ${index === activeCapability ? 'w-9 bg-accent' : 'w-1.5 bg-accent/20'}`} aria-hidden='true' />
                         ))}
@@ -261,100 +286,27 @@ function EnterpriseAI() {
 }
 
 /* ============================================================ SOLUTIONS ============================================================ */
-const workflowModules = {
-    colleges: {
-        eyebrow: 'Placement pipeline',
-        steps: ['Students', 'Verified roles', 'Placement', 'Outcome'],
-        note: 'A connected path from campus to opportunity.',
-        tags: ['Structured', 'Connected', 'Visible'],
-    },
-    candidates: {
-        eyebrow: 'Candidate journey',
-        steps: ['Profile', 'Discover', 'Interview', 'Grow'],
-        note: 'Keep every important step in one professional story.',
-        tags: ['Experience', 'Potential', 'Progress'],
-    },
-    organizations: {
-        eyebrow: 'Talent workflow',
-        steps: ['Discover', 'Screen', 'Interview', 'Onboard'],
-        note: 'Move qualified people forward with less friction.',
-        tags: ['Clarity', 'Momentum', 'Team fit'],
-    },
-}
-
-function WorkflowModule({ type }) {
-    const module = workflowModules[type]
-
-    return (
-        <div className='solution-module relative overflow-hidden rounded-[24px] border border-accent/15 bg-white/55 p-5 sm:p-6'>
-            <div className='flex items-center justify-between gap-4'>
-                <span className='font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-accent'>{module.eyebrow}</span>
-                <span className='inline-flex items-center gap-2 rounded-full border border-accent/15 bg-accent/[0.04] px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.16em] text-text-secondary'>
-                    <span className='h-1.5 w-1.5 rounded-full bg-accent' aria-hidden='true' />
-                    Connected path
-                </span>
-            </div>
-
-            <div className='relative mt-7'>
-                <div className='absolute left-[7%] right-[7%] top-4 hidden h-px bg-accent/15 sm:block' aria-hidden='true' />
-                <div className='absolute left-[7%] top-4 hidden h-px w-[29%] bg-accent/65 sm:block' aria-hidden='true' />
-                <ol className='relative grid grid-cols-2 gap-5 sm:grid-cols-4 sm:gap-2'>
-                    {module.steps.map((step, index) => (
-                        <li key={step} className='group flex items-center gap-3 sm:flex-col sm:gap-2 sm:text-center'>
-                            <span className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-[10px] font-semibold transition-all duration-300 group-hover:-translate-y-0.5 ${index === 0 ? 'border-accent bg-accent text-white shadow-[0_0_0_5px_rgba(196,22,31,0.08)]' : 'border-accent/25 bg-[#fffafa] text-accent group-hover:border-accent/60'}`}>
-                                {String(index + 1).padStart(2, '0')}
-                            </span>
-                            <span className='text-[12px] font-semibold leading-tight text-ink'>{step}</span>
-                        </li>
-                    ))}
-                </ol>
-            </div>
-
-            <div className='mt-7 flex flex-wrap items-center justify-between gap-4 border-t border-line/70 pt-4'>
-                <p className='max-w-[360px] text-[12px] leading-relaxed text-text-secondary'>{module.note}</p>
-                <div className='flex flex-wrap gap-2'>
-                    {module.tags.map((tag) => <span key={tag} className='rounded-full bg-accent/[0.06] px-2.5 py-1 text-[10px] font-medium text-accent/80'>{tag}</span>)}
-                </div>
-            </div>
-        </div>
-    )
-}
-
-function FeaturePoint({ feature, index }) {
-    const [illustration, title, description] = feature
-    return (
-        <div className='solution-feature group rounded-2xl border border-line/80 bg-white/45 p-4 transition-all duration-300 hover:-translate-y-1 hover:border-accent/30 hover:bg-white hover:shadow-[0_16px_34px_-24px_rgba(125,39,49,0.45)]'>
-            <div className='flex items-start justify-between gap-3'>
-                <MarketingIllustration type={illustration} className='h-11 w-14 text-accent transition-transform duration-300 group-hover:scale-[1.04]' />
-                <span className='font-mono text-[10px] font-semibold tracking-[0.16em] text-accent/65'>{String(index + 1).padStart(2, '0')}</span>
-            </div>
-            <h4 className='mt-3 font-display text-[15px] font-bold leading-tight text-ink'>{title}</h4>
-            <p className='mt-1.5 text-[12.5px] leading-relaxed text-text-secondary'>{description}</p>
-        </div>
-    )
-}
-
-function SolutionPanel({ p, i, jump }) {
+function SolutionPanel({ p, i }) {
     const panelRef = useRef(null)
     const cardRef = useRef(null)
 
     useEffect(() => {
-        if (REDUCE_MOTION || !panelRef.current || !cardRef.current) return
+        if (REDUCE_MOTION || !panelRef.current || !cardRef.current) return undefined
 
-        const ctx = gsap.context(() => {
+        const context = gsap.context(() => {
             const introItems = cardRef.current.querySelectorAll('.solution-intro > *')
-            const featureItems = cardRef.current.querySelectorAll('.solution-feature')
-            const module = cardRef.current.querySelector('.solution-module')
+            const pointerItems = cardRef.current.querySelectorAll('.solution-pointer')
+            const visual = cardRef.current.querySelector('.solution-audience-visual')
 
-            gsap.set([...introItems, ...featureItems, module], { opacity: 0, y: 18 })
+            gsap.set([...introItems, ...pointerItems, visual], { opacity: 0, y: 18 })
             ScrollTrigger.create({
                 trigger: panelRef.current,
                 start: 'top 78%',
                 once: true,
                 onEnter: () => {
                     gsap.to(introItems, { opacity: 1, y: 0, duration: 0.65, stagger: 0.07, ease: 'power3.out' })
-                    gsap.to(featureItems, { opacity: 1, y: 0, duration: 0.55, delay: 0.16, stagger: 0.08, ease: 'power3.out' })
-                    gsap.to(module, { opacity: 1, y: 0, duration: 0.7, delay: 0.1, ease: 'power3.out' })
+                    gsap.to(pointerItems, { opacity: 1, y: 0, duration: 0.55, delay: 0.16, stagger: 0.08, ease: 'power3.out' })
+                    gsap.to(visual, { opacity: 1, y: 0, duration: 0.7, delay: 0.1, ease: 'power3.out' })
                 },
             })
             gsap.to(cardRef.current, {
@@ -371,38 +323,52 @@ function SolutionPanel({ p, i, jump }) {
             })
         }, panelRef)
 
-        return () => ctx.revert()
+        return () => context.revert()
     }, [])
 
     return (
-        <article ref={panelRef} id={p.id} className={`panel sticky top-24 relative scroll-mt-20 pt-4 lg:top-28 ${i < 2 ? 'min-h-[86vh] lg:min-h-[90vh]' : 'min-h-0'}`} style={{ zIndex: i + 1 }}>
-                <div ref={cardRef} className={`solution-card relative overflow-hidden rounded-[28px] border border-line/80 p-6 shadow-[0_24px_70px_-42px_rgba(125,39,49,0.48)] sm:p-8 lg:p-10 xl:p-12 ${p.surface}`}>
-                    <div className='pointer-events-none absolute right-[-80px] top-[-100px] h-[250px] w-[250px] rounded-full border border-accent/10' aria-hidden='true' />
-                    <div className='pointer-events-none absolute bottom-[-120px] left-[32%] h-[220px] w-[220px] rounded-full bg-accent/[0.035] blur-3xl' aria-hidden='true' />
+        <article ref={panelRef} id={p.id} className={`panel sticky top-24 scroll-mt-20 pt-4 lg:top-28 ${i < 2 ? 'min-h-[86vh] lg:min-h-[90vh]' : 'min-h-0'}`} style={{ zIndex: i + 1 }}>
+            <div ref={cardRef} className={`solution-card relative overflow-hidden rounded-[28px] border border-line/80 p-6 shadow-[0_24px_70px_-42px_rgba(125,39,49,0.48)] sm:p-8 lg:p-10 xl:p-12 ${p.surface}`}>
+                <div className='pointer-events-none absolute right-[-80px] top-[-100px] h-[250px] w-[250px] rounded-full border border-accent/10' aria-hidden='true' />
+                <div className='pointer-events-none absolute bottom-[-120px] left-[32%] h-[220px] w-[220px] rounded-full bg-accent/[0.035] blur-3xl' aria-hidden='true' />
 
-                    <div className='relative grid gap-9 lg:grid-cols-[0.82fr_1.18fr] lg:gap-12 xl:gap-16'>
-                        <div className='solution-intro flex flex-col'>
-                            <div className='flex items-start justify-between gap-5'>
-                                <MarketingIllustration type={p.icon} className='h-16 w-24' />
-                                <span className='rounded-full border border-accent/15 bg-white/55 px-3 py-1.5 font-mono text-[10px] font-semibold tracking-[0.16em] text-accent'>0{i + 1} / AUDIENCE</span>
-                            </div>
-                            <p className='mt-7 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-accent/75'>{p.eyebrow}</p>
-                            <h3 className='mt-3 max-w-[460px] font-display text-[29px] font-bold leading-[1.08] tracking-tight text-ink sm:text-[36px]'>{p.label}</h3>
-                            <p className='mt-5 max-w-[480px] text-[15.5px] leading-relaxed text-text-secondary'>{p.copy}</p>
-                            <div className='mt-8 lg:mt-auto lg:pt-12'>
-                                <CTAButton variant='secondary' onClick={jump('contact')}>{p.label}</CTAButton>
-                            </div>
+                <div className='relative grid gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:gap-12 xl:gap-16'>
+                    <div className='solution-intro flex flex-col'>
+                        <div className='flex items-start justify-end'>
+                            <span className='rounded-full border border-accent/15 bg-white/55 px-3 py-1.5 type-caption font-semibold tracking-[0.16em] text-accent'>0{i + 1} / AUDIENCE</span>
                         </div>
+                        <p className='mt-7 type-eyebrow text-accent/75'>{p.eyebrow}</p>
+                        <h3 className='mt-3 max-w-[460px] type-h3 text-ink'>{p.label}</h3>
+                        <p className='mt-5 max-w-[480px] type-component-title font-semibold text-ink'>{p.statement}</p>
+                        <ul className='mt-6 grid gap-3.5'>
+                            {p.features.map((feature) => (
+                                <li key={feature} className='solution-pointer flex items-start gap-3 type-body-small text-text-secondary'>
+                                    <span className='mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/[0.09] text-accent'>
+                                        <Check size={13} strokeWidth={2.5} aria-hidden='true' />
+                                    </span>
+                                    <span>{feature}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
 
-                        <div className='min-w-0'>
-                            <WorkflowModule type={p.module} />
-                            <div className='mt-4 grid gap-3 sm:grid-cols-3'>
-                                {p.features.map((feature, index) => <FeaturePoint key={feature[1]} feature={feature} index={index} />)}
-                            </div>
-                        </div>
+                    <div className='solution-audience-visual relative flex min-h-[360px] items-end justify-center overflow-hidden rounded-[24px] bg-[#fff8f8] px-4 pt-6 lg:min-h-[470px]'>
+                        <div className='pointer-events-none absolute inset-x-10 bottom-8 h-24 rounded-full bg-accent/[0.06] blur-2xl' aria-hidden='true' />
+                        <img className='relative z-10 block h-full max-h-[470px] w-full max-w-[520px] object-contain object-bottom' src={p.image} alt={p.imageAlt} />
                     </div>
                 </div>
+            </div>
         </article>
+    )
+}
+
+function AudienceCards({ panels }) {
+    return (
+        <section id='who-it-works-for' className='scroll-mt-20 max-w-[1280px] mx-auto px-6 lg:px-8 pb-28 space-y-0' aria-label='Who it works for'>
+            {panels.map((panel, index) => (
+                <SolutionPanel key={panel.id} p={panel} i={index} />
+            ))}
+        </section>
     )
 }
 
@@ -412,14 +378,14 @@ function FaqItem({ q, a }) {
     return (
         <div className='faq-item border-b border-line'>
             <button onClick={() => setOpen(!open)} className='w-full flex items-center justify-between text-left py-5 px-3 -mx-3 rounded-xl transition-colors hover:bg-card cursor-pointer group'>
-                <span className='text-[15.5px] font-medium text-ink group-hover:text-accent transition-colors'>{q}</span>
+                <span className='type-component-title text-ink group-hover:text-accent transition-colors'>{q}</span>
                 <span className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 ${open ? 'bg-accent text-white rotate-180' : 'bg-accent/10 text-accent'}`}>
                     <ChevronDown size={14} />
                 </span>
             </button>
             <div className='grid transition-[grid-template-rows] duration-300 ease-out' style={{ gridTemplateRows: open ? '1fr' : '0fr' }}>
                 <div className='overflow-hidden'>
-                    <p className='text-text-secondary text-[14.5px] leading-relaxed pb-5 px-3 -mx-3 max-w-2xl'>{a}</p>
+                    <p className='type-body text-text-secondary pb-5 px-3 -mx-3 max-w-2xl'>{a}</p>
                 </div>
             </div>
         </div>
@@ -433,7 +399,7 @@ function EnquiryForm() {
     const [status, setStatus] = useState('idle')
     const [error, setError] = useState('')
     const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
-    const inputCls = 'w-full bg-bg border border-line rounded-xl px-4 py-3.5 text-[15px] text-ink placeholder-text-secondary/60 focus:ring-2 focus:ring-accent/25 focus:border-accent outline-none transition-all'
+    const inputCls = 'type-body w-full bg-bg border border-line rounded-xl px-4 py-3.5 text-ink placeholder-text-secondary/60 focus:ring-2 focus:ring-accent/25 focus:border-accent outline-none transition-all'
 
     const submit = async (e) => {
         e.preventDefault()
@@ -459,8 +425,8 @@ function EnquiryForm() {
         <div ref={ref} className='max-w-[640px] mx-auto'>
             {status === 'done' ? (
                 <div className='form-el bg-bg border border-line rounded-2xl p-8 text-center'>
-                    <p className='text-ink text-[19px] font-semibold mb-2'>Thank you, {form.name}.</p>
-                    <p className='text-text-secondary text-[14.5px]'>Your enquiry has been received. Our team will contact you shortly.</p>
+                    <p className='type-card-title text-ink mb-2'>Thank you, {form.name}.</p>
+                    <p className='type-body-small text-text-secondary'>Your enquiry has been received. Our team will contact you shortly.</p>
                 </div>
             ) : (
                 <form onSubmit={submit} className='form-el space-y-4'>
@@ -478,7 +444,7 @@ function EnquiryForm() {
                     </div>
                     <input placeholder='Subject' value={form.subject} onChange={set('subject')} className={inputCls} />
                     <textarea required rows={4} placeholder='Message' value={form.message} onChange={set('message')} className={`${inputCls} resize-none`} />
-                    {status === 'error' && <p className='text-[13px] text-red-500'>{error}</p>}
+                    {status === 'error' && <p className='type-body-small text-red-500'>{error}</p>}
                     <Button type='submit' size='lg' disabled={status === 'sending'} className='w-full'>
                         {status === 'sending' ? 'Submitting...' : 'Submit Enquiry'}
                     </Button>
@@ -500,19 +466,34 @@ function WHome() {
 
     const panels = [
         {
-            id: 'colleges', icon: 'college', eyebrow: 'For education', module: 'colleges', surface: 'bg-[#fff8f8]', label: 'For Colleges & Institutions',
-            copy: 'Connect students with organizations and create structured pathways from education to opportunity.',
-            features: [['resume', 'Student Opportunities', 'Connect students to verified organizations and roles.'], ['organization', 'Institutional Tools', 'Manage placements, drives and communications.'], ['candidate', 'Better Outcomes', 'Improve placement rates and student success.']],
+            id: 'colleges', eyebrow: 'For education', surface: 'bg-[#fff8f8]', label: 'For Colleges & Institutions',
+            statement: 'Prepare students for real success.', image: audienceCollegesImage, imageAlt: 'Student with a backpack holding books',
+            features: [
+                'Identify interview-ready students',
+                'Track progress and improve placement outcomes',
+                'Provide real interview environment for practice',
+                'Help students build confidence and skills',
+            ],
         },
         {
-            id: 'candidates', icon: 'candidate', eyebrow: 'For people building what is next', module: 'candidates', surface: 'bg-[#fffafa]', label: 'For Candidates',
-            copy: 'Present your potential, experience and aspirations in one professional journey.',
-            features: [['resume', 'Build Your Profile', 'Highlight skills, experience and achievements.'], ['speed', 'Discover Opportunities', 'Find relevant roles at verified organizations.'], ['analytics', 'Grow Your Career', 'Track progress and unlock new possibilities.']],
+            id: 'candidates', eyebrow: 'For people building what is next', surface: 'bg-[#fffafa]', label: 'For Candidates',
+            statement: 'Practice. Improve. Get hired.', image: audienceCandidatesImage, imageAlt: 'Candidate in a maroon hoodie working beside a monitor',
+            features: [
+                'Practice role-specific AI interviews',
+                'Get instant feedback on answers & communication',
+                'Know your strengths and gaps',
+                'Improve and get interview ready',
+            ],
         },
         {
-            id: 'organizations', icon: 'organization', eyebrow: 'For teams that move talent forward', module: 'organizations', surface: 'bg-[#fbf7f7]', label: 'For Organizations',
-            copy: 'Build stronger talent pipelines, simplify onboarding and create a clearer path from candidate to contributor.',
-            features: [['speed', 'Streamline Hiring', 'End-to-end hiring workflow that saves time.'], ['security', 'Smart Onboarding', 'Personalized onboarding that boosts engagement.'], ['analytics', 'Stronger Teams', 'Data-driven insights for better team decisions.']],
+            id: 'organizations', eyebrow: 'For teams that move talent forward', surface: 'bg-[#fbf7f7]', label: 'For Organizations',
+            statement: 'Hire the right talent, faster.', image: audienceOrganizationsImage, imageAlt: 'Professional working on a laptop',
+            features: [
+                'Screen large volumes of candidates with AI interviews',
+                'Benchmark candidates against role-specific criteria',
+                'Get AI scores, rank, and detailed reports',
+                'Shortlist the best, save time and hiring cost',
+            ],
         },
     ]
 
@@ -533,58 +514,50 @@ function WHome() {
             <Hero jump={jump} experimental={showThreadsHero} />
             <QuoteStrip />
             <About />
-            <ValuesStrip />
+            <VerticalScrollShowcase />
+            <AudienceCards panels={panels} />
             <HowItWorks />
+            <PowerfulFeatures />
             <EnterpriseAI />
 
-            {/* ============ SOLUTIONS ============ */}
-            <section id='solutions' className='scroll-mt-20 max-w-[1280px] mx-auto px-6 lg:px-8 pt-28 pb-10'>
-                <p className={`${EYEBROW} justify-center flex`}>Solutions</p>
-                <h2 className={`${H2} max-w-2xl mx-auto text-center`}>Built around the people who move work forward.</h2>
-            </section>
-
-            <div className='max-w-[1280px] mx-auto px-6 lg:px-8 pb-28 space-y-0'>
-                {panels.map((p, i) => <SolutionPanel key={p.id} p={p} i={i} jump={jump} />)}
-            </div>
-
             {/* ============ PRICING ============ */}
-            <section id='pricing' className='scroll-mt-20 max-w-[1280px] mx-auto px-6 lg:px-8 py-28'>
+            <section id='pricing' className='scroll-mt-20 max-w-[1280px] mx-auto px-6 lg:px-8 pt-16 pb-12 sm:pt-20 sm:pb-14'>
                 <p className={`${EYEBROW} justify-center flex`}>Pricing</p>
                 <h2 className={`${H2} mb-4 text-center`}>Simple, transparent pricing.</h2>
-                <p className='text-text-secondary text-[16px] mb-16 text-center'>Choose the plan that fits how you hire, place or apply.</p>
+                <p className='type-body text-text-secondary mb-16 text-center'>Choose the plan that fits how you hire, place or apply.</p>
 
-                <div ref={planRef} className='grid md:grid-cols-3 gap-6 mb-20'>
+                <div ref={planRef} className='grid md:grid-cols-3 gap-6 mb-14'>
                     {plans.map((p) => (
                         <div key={p.name} className={`plan pricing-card rounded-2xl p-8 border ${p.featured ? 'pricing-card-growth gradient-border-sweep border-transparent bg-accent/[0.03]' : 'border-line bg-card'}`}>
-                            {p.featured && <p className='text-[11px] text-accent font-semibold uppercase tracking-wide mb-3'>Most popular</p>}
-                            <h3 className='font-display text-ink text-[19px] font-bold mb-1'>{p.name}</h3>
-                            <p className='text-text-secondary text-[13.5px] mb-5'>{p.desc}</p>
-                            <p className='font-display text-ink text-[34px] font-bold mb-6'>{p.price}<span className='text-[15px] text-text-secondary font-normal'>{p.period}</span></p>
+                            {p.featured && <p className='type-eyebrow text-accent mb-3'>Most popular</p>}
+                            <h3 className='type-card-title text-ink mb-1'>{p.name}</h3>
+                            <p className='type-body-small text-text-secondary mb-5'>{p.desc}</p>
+                            <p className='type-metric text-ink mb-6'>{p.price}<span className='type-body-small text-text-secondary'>{p.period}</span></p>
                             <ul className='space-y-2.5 mb-8'>
-                                {p.features.map((f) => <li key={f} className='text-text-secondary text-[13.5px] flex items-start gap-2'><span className='text-accent mt-0.5'>—</span>{f}</li>)}
+                                {p.features.map((f) => <li key={f} className='type-body-small text-text-secondary flex items-start gap-2'><span className='text-accent mt-0.5'>—</span>{f}</li>)}
                             </ul>
                             <Button variant={p.featured ? 'primary' : 'secondary'} className={`pricing-card-cta w-full`} onClick={jump('contact')}>
-                                {p.name === 'Enterprise' ? 'Talk to us' : 'Get Started'}
+                                {p.name === 'Enterprise' ? 'Talk to us' : 'Send an Enquiry'}
                             </Button>
                         </div>
                     ))}
                 </div>
 
                 <div ref={faqRef} className='max-w-[720px] mx-auto'>
-                    <h3 className='font-display text-[20px] font-bold text-ink mb-6'>Frequently asked questions</h3>
+                    <h3 className='type-card-title text-ink mb-6'>Frequently asked questions</h3>
                     {faqs.map(([q, a]) => <FaqItem key={q} q={q} a={a} />)}
                 </div>
             </section>
 
             {/* ============ CONTACT ============ */}
-            <section id='contact' className='scroll-mt-20 relative pt-28 pb-28 overflow-hidden'>
+            <section id='contact' className='scroll-mt-20 relative pt-16 pb-20 sm:pt-20 sm:pb-24 overflow-hidden'>
                 <div className='absolute -top-32 left-1/2 -translate-x-1/2 w-[700px] h-[460px] rounded-full opacity-[0.10] blur-3xl pointer-events-none'
                     style={{ background: 'radial-gradient(closest-side, #c4161f, transparent)' }} />
                 <NetworkGraphic className='absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[420px] opacity-60 pointer-events-none' />
-                <div className='relative max-w-[900px] mx-auto px-6 text-center mb-14'>
+                <div className='relative max-w-[900px] mx-auto px-6 text-center mb-10'>
                     <p className={`${EYEBROW} justify-center flex`}>Contact</p>
                     <h2 className={`${H2} mb-5`}>Let's build better talent journeys.</h2>
-                    <p className='text-text-secondary text-[16px]'>Start your WorkmateIQ journey today — tell us a bit about you below.</p>
+                    <p className='type-body text-text-secondary'>Start your WorkmateIQ journey today — tell us a bit about you below.</p>
                 </div>
                 <div className='relative px-6'>
                     <div className='max-w-[640px] mx-auto bg-card border border-line rounded-3xl p-8 sm:p-10 shadow-lift'>
@@ -592,6 +565,7 @@ function WHome() {
                     </div>
                 </div>
             </section>
+            <NexaChatbot />
         </WorkmateLayout>
     )
 }

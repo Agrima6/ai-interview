@@ -2,6 +2,35 @@ import React, { useEffect, useRef } from 'react'
 
 const REDUCE_MOTION = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
+const SCORE_PALETTES = {
+    low: {
+        primary: [231, 111, 111],
+        dark: [194, 72, 79],
+    },
+    medium: {
+        primary: [217, 138, 43],
+        dark: [174, 98, 27],
+    },
+    high: {
+        primary: [47, 158, 91],
+        dark: [31, 116, 67],
+    },
+}
+
+function getScorePalette(score) {
+    if (score < 60) return SCORE_PALETTES.low
+    if (score < 80) return SCORE_PALETTES.medium
+    return SCORE_PALETTES.high
+}
+
+function mixColor(from, to, amount) {
+    return from.map((channel, index) => channel + (to[index] - channel) * amount)
+}
+
+function rgbString(color) {
+    return color.map((channel) => Math.round(channel)).join(', ')
+}
+
 /**
  * FiberBurstCanvas - Radiating fiber-optic burst background effect
  * inspired by Stripe's radiant light burst, adapted to the WorkMate IQ maroon palette.
@@ -10,8 +39,14 @@ const REDUCE_MOTION = typeof window !== 'undefined' && window.matchMedia?.('(pre
  * - Traveling light pulses along strands.
  * - Performance optimized with IntersectionObserver, RAF sleep, and DPR scaling.
  */
-function FiberBurstCanvas() {
+function FiberBurstCanvas({ overallScore = 76 }) {
     const canvasRef = useRef(null)
+    const targetPaletteRef = useRef(getScorePalette(overallScore))
+    const currentPaletteRef = useRef(getScorePalette(overallScore))
+
+    useEffect(() => {
+        targetPaletteRef.current = getScorePalette(overallScore)
+    }, [overallScore])
 
     useEffect(() => {
         const canvas = canvasRef.current
@@ -26,17 +61,6 @@ function FiberBurstCanvas() {
         let isVisible = false
         let isRunning = false
         let isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches
-
-        const readRgbToken = (token, fallback) => {
-            const value = getComputedStyle(document.documentElement).getPropertyValue(token).trim()
-            const match = value.match(/^#([0-9a-f]{6})$/i)
-            if (!match) return fallback
-            const hex = match[1]
-            return `${parseInt(hex.slice(0, 2), 16)}, ${parseInt(hex.slice(2, 4), 16)}, ${parseInt(hex.slice(4, 6), 16)}`
-        }
-
-        const brandRgb = readRgbToken('--color-accent', '196, 22, 31')
-        const brandDarkRgb = readRgbToken('--color-accent-dark', '139, 14, 22')
 
         let width = 0
         let height = 0
@@ -124,6 +148,14 @@ function FiberBurstCanvas() {
 
         function drawFrame(updatePhysics = true) {
             ctx.clearRect(0, 0, width, height)
+
+            const targetPalette = targetPaletteRef.current
+            currentPaletteRef.current = {
+                primary: mixColor(currentPaletteRef.current.primary, targetPalette.primary, 0.08),
+                dark: mixColor(currentPaletteRef.current.dark, targetPalette.dark, 0.08),
+            }
+            const brandRgb = rgbString(currentPaletteRef.current.primary)
+            const brandDarkRgb = rgbString(currentPaletteRef.current.dark)
 
             const originX = width * 0.5
             const originY = height * 0.82

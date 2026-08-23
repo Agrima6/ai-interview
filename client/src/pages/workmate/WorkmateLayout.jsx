@@ -8,8 +8,8 @@ import CursorSpotlight from './CursorSpotlight'
 const NAV_LINKS = [
     { label: 'Home', id: 'home' },
     { label: 'About', id: 'about' },
+    { label: 'Who It Works For', id: 'who-it-works-for' },
     { label: 'How It Works', id: 'how-it-works' },
-    { label: 'Solutions', id: 'solutions' },
     { label: 'Contact', id: 'contact' },
 ]
 
@@ -54,13 +54,13 @@ function WorkmateNav() {
             <div className={`max-w-[1280px] mx-auto px-6 lg:px-8 flex items-center justify-between transition-all duration-300 ${scrolled ? 'h-[62px]' : 'h-[76px]'}`}>
                 <a href='#home' onClick={jump('home')} className='flex items-center gap-2.5 shrink-0 group'>
                     <img src={logo} alt='' className='w-9 h-9 rounded-full transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6' />
-                    <span className='font-display text-[16px] font-bold text-ink tracking-tight'>WorkmateIQ</span>
+                    <span className='type-brand text-ink tracking-tight'>WorkmateIQ</span>
                 </a>
 
                 <div className='hidden lg:flex items-center gap-1'>
                     {NAV_LINKS.map((l) => (
                         <a key={l.id} href={`#${l.id}`} onClick={jump(l.id)}
-                            className={`px-4 py-2 text-[13.5px] rounded-full transition-colors ${active === l.id ? 'text-accent bg-accent/[0.08] font-medium' : 'text-text-secondary hover:text-ink hover:bg-black/[0.04]'}`}>
+                            className={`type-nav rounded-full px-4 py-2 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/25 ${active === l.id ? 'text-accent bg-accent/[0.08] font-semibold' : 'text-text-secondary hover:text-ink hover:bg-black/[0.04]'}`}>
                             {l.label}
                         </a>
                     ))}
@@ -81,7 +81,7 @@ function WorkmateNav() {
                 <div className='lg:hidden border-t border-line px-6 py-5 space-y-1 bg-card'>
                     {NAV_LINKS.map((l) => (
                         <a key={l.id} href={`#${l.id}`} onClick={jump(l.id)}
-                            className='block py-2.5 text-[14.5px] text-text-secondary hover:text-ink'>{l.label}</a>
+                            className='type-nav block py-2.5 text-text-secondary outline-none transition-colors hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/25'>{l.label}</a>
                     ))}
                     <div className='flex gap-2.5 pt-3'>
                         <Button variant='ghost' size='sm' className='flex-1' onClick={() => navigate('/login')}>Demo Login</Button>
@@ -110,24 +110,24 @@ function WorkmateFooter() {
                     <div className='lg:col-span-1'>
                         <div className='flex items-center gap-3 mb-4'>
                             <img src={logo} alt='' className='w-12 h-12 shrink-0 rounded-full' />
-                            <span className='font-display text-[16px] font-bold'>WorkmateIQ</span>
+                            <span className='type-brand'>WorkmateIQ</span>
                         </div>
-                        <p className='text-text-secondary text-[13.5px] leading-relaxed max-w-xs'>
+                        <p className='type-body-small text-text-secondary max-w-xs'>
                             A smarter platform for hiring, onboarding and building stronger professional journeys.
                         </p>
                     </div>
                     {columns.map((col) => (
                         <div key={col.h}>
-                            <p className='text-ink text-[13px] font-semibold mb-4'>{col.h}</p>
+                            <p className='type-footer-heading text-ink mb-4'>{col.h}</p>
                             <div className='space-y-2.5'>
                                 {col.items.map(([label, id]) => (
-                                    <a key={label} href={`#${id}`} onClick={jump(id)} className='block text-text-secondary hover:text-ink text-[13.5px] transition-colors cursor-pointer'>{label}</a>
+                                    <a key={label} href={`#${id}`} onClick={jump(id)} className='type-footer-link block text-text-secondary hover:text-ink transition-colors cursor-pointer'>{label}</a>
                                 ))}
                             </div>
                         </div>
                     ))}
                 </div>
-                <p className='text-text-secondary/70 text-[12.5px] pt-8 border-t border-line'>© 2026 WorkmateIQ. All rights reserved.</p>
+                <p className='type-caption text-text-secondary/70 pt-8 border-t border-line'>© 2026 WorkmateIQ. All rights reserved.</p>
             </div>
         </footer>
     )

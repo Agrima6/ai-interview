@@ -25,6 +25,9 @@ import HeroDotsExperiment from './pages/workmate/HeroDotsExperiment'
 import HeroEcosystem from './pages/workmate/HeroEcosystem'
 import HeroFlow from './pages/workmate/HeroFlow'
 import HeroDepth from './pages/workmate/HeroDepth'
+import HeroExperiment from './pages/workmate/HeroExperiment'
+import HeroMinimalExperiment from './pages/workmate/HeroMinimalExperiment'
+import HeroHoverExperiment from './pages/workmate/HeroHoverExperiment'
 import WorkmateLayout from './pages/workmate/WorkmateLayout'
 import PlatformLogin from './pages/auth/Login'
 import RegisterTypeSelect from './pages/public/RegisterTypeSelect'
@@ -74,6 +77,9 @@ function App() {
           routed anywhere. */}
       <Route path='/' element={<WHome/>}/>
       <Route path='/welcome' element={<WHome/>}/>
+      <Route path='/hero-minimal' element={<WorkmateLayout showCursorSpotlight={false}><HeroMinimalExperiment/></WorkmateLayout>}/>
+      <Route path='/hero-hover' element={<WorkmateLayout showCursorSpotlight={false}><HeroHoverExperiment/></WorkmateLayout>}/>
+      <Route path='/hero-experiment' element={<WorkmateLayout showCursorSpotlight={false}><HeroExperiment/></WorkmateLayout>}/>
       <Route path='/hero-gsap' element={<WorkmateLayout><HeroGsapExperiment/></WorkmateLayout>}/>
       <Route path='/hero-threads' element={<Navigate to='/?hero=threads' replace/>}/>
       <Route path='/hero-dots' element={<WorkmateLayout showCursorSpotlight={false}><HeroDotsExperiment/></WorkmateLayout>}/>

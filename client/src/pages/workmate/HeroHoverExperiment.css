@@ -1,0 +1,245 @@
+.hero-hover-area {
+    isolation: isolate;
+    --hover-x: 50%;
+    --hover-y: 40%;
+    --gradient-shift: 0px;
+    --background-shift-x: 0px;
+}
+
+.hero-hover-area::before {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    content: '';
+    pointer-events: none;
+    opacity: 0;
+    background: radial-gradient(circle 310px at var(--hover-x) var(--hover-y), rgba(224, 39, 27, 0.13), transparent 72%);
+    filter: blur(28px);
+    transition: opacity 450ms ease;
+}
+
+.hero-hover-area::after {
+    position: absolute;
+    inset: -8%;
+    z-index: 0;
+    content: '';
+    pointer-events: none;
+    opacity: 0.9;
+    background: radial-gradient(ellipse 60% 70% at calc(50% + var(--background-shift-x)) 35%, rgba(196, 22, 31, 0.055), transparent 70%);
+    filter: blur(26px);
+    transition: background-position 700ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hero-hover-pointer-active::before {
+    opacity: 0.42;
+}
+
+.hero-hover-ambient {
+    position: absolute;
+    z-index: 0;
+    pointer-events: none;
+    border-radius: 999px;
+    filter: blur(72px);
+}
+
+.hero-hover-ambient-left {
+    top: -160px;
+    left: 8%;
+    width: 620px;
+    height: 560px;
+    opacity: 0.14;
+    background: radial-gradient(closest-side, #c4161f, transparent);
+}
+
+.hero-hover-ambient-right {
+    top: 60px;
+    right: -160px;
+    width: 380px;
+    height: 380px;
+    opacity: 0.07;
+    background: radial-gradient(closest-side, #e0271b, transparent);
+}
+
+.hero-hover-entrance {
+    opacity: 0;
+    transform: translateY(14px);
+    animation: hero-hover-entrance 650ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.hero-hover-label {
+    animation-delay: 0ms;
+}
+
+.hero-hover-headline {
+    animation-delay: 30ms;
+}
+
+.hero-hover-copy {
+    transform: translateY(8px);
+    animation-delay: 150ms;
+}
+
+.hero-hover-actions {
+    transform: translateY(8px);
+    animation-delay: 235ms;
+}
+
+.hero-hover-image-reveal {
+    transform: translateY(12px);
+    animation-delay: 315ms;
+}
+
+.hero-hover-image-shell {
+    transform: translate3d(var(--image-x, 0px), var(--image-y, 0px), 0);
+    box-shadow: 0 30px 80px -24px rgba(30, 10, 12, 0.25);
+    transition: transform 320ms cubic-bezier(0.16, 1, 0.3, 1), border-color 280ms ease, box-shadow 320ms ease;
+    will-change: transform;
+}
+
+.hero-hover-image-shell:hover {
+    transform: translate3d(var(--image-x, 0px), var(--image-y, 0px), 0) translateY(-6px) scale(1.01);
+    border-color: rgba(196, 22, 31, 0.4);
+    box-shadow: 0 38px 96px -20px rgba(196, 22, 31, 0.36);
+}
+
+.hero-hover-neutral-word {
+    display: inline-block;
+    opacity: var(--word-opacity, 1);
+    transform: translate3d(var(--word-shift-x, 0px), var(--word-shift-y, 0px), 0);
+    transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1), opacity 260ms ease;
+}
+
+.hero-hover-gradient-wrap {
+    display: inline-block;
+}
+
+.hero-hover-gradient {
+    display: inline-block;
+    color: transparent;
+    background-image: linear-gradient(135deg, var(--color-accent), var(--color-accent-cyan));
+    background-position: calc(50% + var(--gradient-shift)) 50%;
+    background-size: 170% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    filter: saturate(1);
+    transition: background-position 180ms ease, filter 220ms ease;
+}
+
+.hero-hover-gradient-wrap:hover .hero-hover-gradient {
+    filter: saturate(1.05) brightness(1.04);
+}
+
+.hero-hover-label {
+    position: relative;
+}
+
+.hero-hover-label::after {
+    position: absolute;
+    bottom: -5px;
+    left: 0;
+    width: 0;
+    height: 1px;
+    content: '';
+    background: var(--color-accent-dark);
+    transition: width 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hero-hover-label:hover::after {
+    width: 100%;
+}
+
+.hero-hover-primary,
+.hero-hover-secondary {
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-hover-primary:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 30px -6px rgba(139, 14, 22, 0.62);
+}
+
+.hero-hover-primary::before {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    content: '';
+    pointer-events: none;
+    background: linear-gradient(110deg, transparent 34%, rgba(255, 255, 255, 0.18) 50%, transparent 66%);
+    transform: translateX(-130%);
+}
+
+.hero-hover-primary:hover::before {
+    animation: hero-hover-button-sheen 520ms cubic-bezier(0.16, 1, 0.3, 1) 1;
+}
+
+.hero-hover-primary > svg {
+    position: relative;
+    z-index: 1;
+}
+
+.hero-hover-secondary:hover {
+    transform: translateY(-2px);
+    border-color: rgba(196, 22, 31, 0.3);
+    background-color: rgba(196, 22, 31, 0.065);
+    color: var(--color-ink);
+}
+
+@keyframes hero-hover-entrance {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes hero-hover-button-sheen {
+    to {
+        transform: translateX(130%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hero-hover-area::before,
+    .hero-hover-area::after {
+        transition: none;
+    }
+
+    .hero-hover-entrance,
+    .hero-hover-image-reveal,
+    .hero-hover-image-shell:hover {
+        opacity: 1;
+        transform: none;
+        animation: none;
+        transition: border-color 220ms ease, box-shadow 220ms ease, background-color 220ms ease, filter 220ms ease;
+    }
+
+    .hero-hover-image-shell {
+        transform: none;
+        transition: border-color 220ms ease, box-shadow 220ms ease, background-color 220ms ease, filter 220ms ease;
+    }
+
+    .hero-hover-neutral-word {
+        opacity: 1;
+        transform: none;
+        transition: opacity 220ms ease, color 220ms ease;
+    }
+
+    .hero-hover-primary:hover,
+    .hero-hover-secondary:hover {
+        transform: none;
+    }
+
+    .hero-hover-primary:hover::before {
+        animation: none;
+    }
+}
+
+@media (max-width: 639px) {
+    .hero-hover-ambient-left {
+        left: -42%;
+    }
+
+    .hero-hover-ambient-right {
+        right: -48%;
+    }
+}

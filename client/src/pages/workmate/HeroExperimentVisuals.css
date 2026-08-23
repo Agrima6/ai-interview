@@ -64,7 +64,7 @@
   background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 25px 50px -22px rgba(88, 16, 23, 0.4), inset 0 0 0 7px rgba(196, 22, 31, 0.04);
   color: #241719;
-  font-family: Manrope, Inter, sans-serif;
+  font-family: Manrope, sans-serif;
   font-size: 10px;
   font-weight: 800;
   letter-spacing: -0.02em;
@@ -111,7 +111,7 @@
 .hero-flow-stage strong,
 .hero-depth-card-copy strong {
   display: block;
-  font-family: Manrope, Inter, sans-serif;
+  font-family: Manrope, sans-serif;
   font-size: 12px;
   font-weight: 800;
   letter-spacing: -0.02em;
@@ -207,13 +207,13 @@
 .hero-depth-browser-bar span { width: 5px; height: 5px; border-radius: 50%; background: rgba(196, 22, 31, 0.45); }
 .hero-depth-browser-bar small { margin-left: 8px; color: #927f80; font-size: 8px; }
 .hero-depth-dashboard-body { padding: 18px; }
-.hero-depth-dashboard-top { display: flex; justify-content: space-between; color: #241719; font: 800 11px Manrope, Inter, sans-serif; }
+.hero-depth-dashboard-top { display: flex; justify-content: space-between; color: #241719; font: 800 11px Manrope, sans-serif; }
 .hero-depth-dashboard-top b { padding: 4px 7px; border-radius: 99px; background: rgba(196, 22, 31, 0.08); color: #a71018; font-size: 8px; }
 .hero-depth-dashboard-panel { display: flex; justify-content: space-between; gap: 12px; margin-top: 20px; padding: 14px; border: 1px solid rgba(47, 23, 26, 0.08); border-radius: 13px; background: #fffafa; }
 .hero-depth-profile { display: flex; align-items: center; gap: 8px; }
 .hero-depth-profile i { width: 28px; height: 28px; border-radius: 9px; background: rgba(196, 22, 31, 0.16); }
 .hero-depth-profile b, .hero-depth-profile small { display: block; }
-.hero-depth-profile b { color: #241719; font: 800 9px Manrope, Inter, sans-serif; }
+.hero-depth-profile b { color: #241719; font: 800 9px Manrope, sans-serif; }
 .hero-depth-profile small { margin-top: 3px; color: #927f80; font-size: 8px; }
 .hero-depth-bars { display: flex; width: 68px; align-items: end; gap: 4px; }
 .hero-depth-bars span { width: 10px; border-radius: 4px 4px 0 0; background: rgba(196, 22, 31, 0.28); }
@@ -229,7 +229,7 @@
 .hero-depth-college { right: 0; top: 62%; transform: translateZ(16px); }
 .hero-depth-candidate { left: 35%; top: 75%; transform: translateZ(75px); }
 .hero-depth-score-ring { display: grid; width: 54px; height: 54px; place-items: center; border: 5px solid rgba(196, 22, 31, 0.16); border-top-color: #c4161f; border-radius: 50%; color: #a71018; }
-.hero-depth-score-ring b { font: 800 14px Manrope, Inter, sans-serif; }.hero-depth-score-ring span { position: absolute; margin-top: 42px; color: #927f80; font-size: 8px; }
+.hero-depth-score-ring b { font: 800 14px Manrope, sans-serif; }.hero-depth-score-ring span { position: absolute; margin-top: 42px; color: #927f80; font-size: 8px; }
 .hero-depth-progress-line { height: 7px; overflow: hidden; border-radius: 99px; background: rgba(196, 22, 31, 0.1); }.hero-depth-progress-line span { display: block; width: 72%; height: 100%; border-radius: inherit; background: #c4161f; }.hero-depth-progress small { display: block; margin-top: 8px; color: #927f80; font-size: 9px; }
 
 @media (max-width: 1023px) and (min-width: 768px) {
