@@ -15,6 +15,12 @@ export const onboardingServiceClient = {
             params: { days },
             ...ctxHeaders(ctx),
         }),
+    getActivity: ({ cursor, limit }, ctx) =>
+        client.get(`${process.env.ONBOARDING_SERVICE_URL}/internal/v1/activity`, {
+            apiKey: process.env.ONBOARDING_SERVICE_API_KEY,
+            params: { cursor, limit },
+            ...ctxHeaders(ctx),
+        }),
 }
 
 export const clientServiceClient = {

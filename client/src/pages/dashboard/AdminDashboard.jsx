@@ -38,6 +38,9 @@ function AdminDashboard() {
 
     const [activity, setActivity] = useState(null)
     const [activityError, setActivityError] = useState('')
+    const [activityCursor, setActivityCursor] = useState(null)
+    const [activityHasNext, setActivityHasNext] = useState(false)
+    const [activityLoadingMore, setActivityLoadingMore] = useState(false)
 
     const [range, setRange] = useState('30d')
     const [trends, setTrends] = useState(null)
@@ -55,8 +58,27 @@ function AdminDashboard() {
 
     useEffect(() => {
         if (!canViewActivity) return
-        getDashboardActivity().then(setActivity).catch((err) => setActivityError(err.message))
+        getDashboardActivity()
+            .then(({ items, cursor, hasNext }) => {
+                setActivity(items)
+                setActivityCursor(cursor)
+                setActivityHasNext(hasNext)
+            })
+            .catch((err) => setActivityError(err.message))
     }, [canViewActivity])
+
+    const loadMoreActivity = () => {
+        if (!activityCursor || activityLoadingMore) return
+        setActivityLoadingMore(true)
+        getDashboardActivity({ cursor: activityCursor })
+            .then(({ items, cursor, hasNext }) => {
+                setActivity((prev) => [...(prev || []), ...items])
+                setActivityCursor(cursor)
+                setActivityHasNext(hasNext)
+            })
+            .catch((err) => setActivityError(err.message))
+            .finally(() => setActivityLoadingMore(false))
+    }
 
     useEffect(() => {
         if (!canViewAnalytics) return
@@ -249,6 +271,16 @@ function AdminDashboard() {
                                     <Badge variant={ACTIVITY_STATUS_VARIANT[item.status] || 'neutral'}>{item.status?.replace(/_/g, ' ').toLowerCase()}</Badge>
                                 </Link>
                             ))}
+                            {activityHasNext && (
+                                <button
+                                    onClick={loadMoreActivity}
+                                    disabled={activityLoadingMore}
+                                    className='w-full flex items-center justify-center gap-2 py-2.5 mt-1 text-[13px] font-medium text-accent hover:text-accent-dark disabled:opacity-50 transition-colors'
+                                >
+                                    {activityLoadingMore ? <Loader2 size={14} className='animate-spin' /> : null}
+                                    {activityLoadingMore ? 'Loading...' : 'Load more'}
+                                </button>
+                            )}
                         </div>
                     )}
                 </Card>

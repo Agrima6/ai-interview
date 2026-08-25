@@ -38,6 +38,29 @@ export const countByStatus = async () => {
 
 export const recentlyUpdated = (limit = 10) => OnboardingSession.find().sort({ updatedAt: -1 }).limit(limit)
 
+// Cursor-based pagination for the dashboard's "Recent Activity" feed.
+// Sorted by updatedAt (not _id), so the cursor has to encode both
+// updatedAt and _id - updatedAt alone isn't unique enough to page past
+// a tie, and a plain skip/offset would re-scan and drift as sessions
+// keep updating underneath the paginated request.
+export const recentActivityPage = async ({ cursor, limit = 10 } = {}) => {
+    const query = {}
+    if (cursor) {
+        const [ts, id] = Buffer.from(cursor, "base64url").toString("utf8").split("|")
+        const cursorDate = new Date(ts)
+        query.$or = [
+            { updatedAt: { $lt: cursorDate } },
+            { updatedAt: cursorDate, _id: { $lt: id } },
+        ]
+    }
+    const docs = await OnboardingSession.find(query).sort({ updatedAt: -1, _id: -1 }).limit(limit + 1)
+    const hasNext = docs.length > limit
+    const items = hasNext ? docs.slice(0, limit) : docs
+    const last = items[items.length - 1]
+    const nextCursor = hasNext ? Buffer.from(`${last.updatedAt.toISOString()}|${last._id}`).toString("base64url") : null
+    return { items, hasNext, nextCursor }
+}
+
 // Daily registration counts (a session is created 1:1 with a registration,
 // see createInvitationForRegistration) since `since`, plus a total-by-type
 // breakdown over the same window - backs the dashboard trend chart and the

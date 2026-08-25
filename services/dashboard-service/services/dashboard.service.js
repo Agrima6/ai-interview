@@ -28,10 +28,8 @@ export const getSummary = async (ctx) => {
     }
 }
 
-export const getActivity = async (ctx) => {
-    const stats = await onboardingServiceClient.getStatistics(ctx)
-    return stats.recent || []
-}
+export const getActivity = async ({ cursor, limit } = {}, ctx) =>
+    onboardingServiceClient.getActivity({ cursor, limit }, ctx)
 
 const RANGE_TO_DAYS = { "7d": 7, "30d": 30, "90d": 90 }
 

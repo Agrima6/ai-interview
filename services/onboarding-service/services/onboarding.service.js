@@ -363,6 +363,18 @@ export const statistics = async () => {
     }
 }
 
+// Cursor-paginated version of the same "recent" feed, for the dashboard's
+// Recent Activity widget - kept separate from statistics() above so the
+// summary-card fetch never has to know about cursor/hasNext bookkeeping.
+export const activityPage = async ({ cursor, limit = 10 }) => {
+    const { items, hasNext, nextCursor } = await sessionRepo.recentActivityPage({ cursor, limit })
+    return {
+        items: items.map((s) => ({ id: String(s._id), type: s.type, status: s.status, updatedAt: s.updatedAt, name: listView(s).name })),
+        hasNext,
+        nextCursor,
+    }
+}
+
 export const trend = (since) => sessionRepo.dailyCountsSince(since)
 
 export const getFileDetails = async (onboardingId, fileId) => {
