@@ -1,6 +1,5 @@
 import React from 'react'
 import {
-    Activity,
     Camera,
     CircleCheck,
     Clock3,
@@ -12,6 +11,7 @@ import {
     Sparkles,
 } from 'lucide-react'
 import candidateImage from '../../assets/workmate/interview-candidate.png'
+import profileImage from '../../assets/workmate/profile.svg'
 import './InterviewPreview.css'
 
 const securityChecks = [
@@ -67,7 +67,7 @@ function QuestionPanel() {
     return (
         <div className='interview-preview-question'>
             <div className='interview-preview-panel-heading'>
-                <span className='interview-preview-activity'><Activity size={13} aria-hidden='true' /></span>
+                <img src={profileImage} alt='' className='interview-preview-activity' />
                 <div>
                     <p>Interview in Progress</p>
                     <span><i /> Live</span>

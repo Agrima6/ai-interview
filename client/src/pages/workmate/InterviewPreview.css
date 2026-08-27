@@ -184,14 +184,14 @@
 }
 
 .interview-preview-activity {
-    display: grid;
     width: 27px;
     height: 27px;
     flex: 0 0 auto;
-    place-items: center;
+    display: block;
+    overflow: hidden;
     border-radius: 50%;
     background: #8b0e16;
-    color: #fff;
+    object-fit: cover;
 }
 
 .interview-preview-panel-heading p,

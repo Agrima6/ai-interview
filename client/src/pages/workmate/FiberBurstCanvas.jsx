@@ -18,8 +18,8 @@ const SCORE_PALETTES = {
 }
 
 function getScorePalette(score) {
-    if (score < 60) return SCORE_PALETTES.low
-    if (score < 80) return SCORE_PALETTES.medium
+    if (score <= 70) return SCORE_PALETTES.low
+    if (score <= 89) return SCORE_PALETTES.medium
     return SCORE_PALETTES.high
 }
 

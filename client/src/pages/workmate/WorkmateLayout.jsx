@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { FaInstagram, FaWhatsapp } from 'react-icons/fa'
+import { SiGmail } from 'react-icons/si'
 import Button from '../../components/Button'
 import logo from '../../assets/logo.png'
+import logoFooter from '../../assets/logo-footer.png'
 import AmbientBackground from './AmbientBackground'
 import CursorSpotlight from './CursorSpotlight'
+import { NEXA_CONTACTS } from '../../components/interviewFaqConfig'
 
 const NAV_LINKS = [
     { label: 'Home', id: 'home' },
@@ -51,9 +55,9 @@ function WorkmateNav() {
 
     return (
         <div className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${scrolled ? 'bg-card/80 backdrop-blur-xl border-b border-line shadow-soft' : 'bg-card/40 backdrop-blur-sm border-b border-transparent'}`}>
-            <div className={`max-w-[1280px] mx-auto px-6 lg:px-8 flex items-center justify-between transition-all duration-300 ${scrolled ? 'h-[62px]' : 'h-[76px]'}`}>
+            <div className={`workmate-shell flex items-center justify-between transition-all duration-300 ${scrolled ? 'h-[62px] lg:h-[66px]' : 'h-[76px] lg:h-[80px]'}`}>
                 <a href='#home' onClick={jump('home')} className='flex items-center gap-2.5 shrink-0 group'>
-                    <img src={logo} alt='' className='w-9 h-9 rounded-full transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6' />
+                    <img src={logo} alt='' className='h-9 w-9 rounded-full transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6 lg:h-11 lg:w-11' />
                     <span className='type-brand text-ink tracking-tight'>WorkmateIQ</span>
                 </a>
 
@@ -67,8 +71,8 @@ function WorkmateNav() {
                 </div>
 
                 <div className='hidden md:flex items-center gap-3'>
-                    <Button variant='ghost' size='sm' onClick={() => navigate('/login')}>Demo Login</Button>
-                    <Button variant='primary' size='sm' onClick={goToPlatformLogin}>Login</Button>
+                    <Button variant='ghost' size='sm' className='lg:!px-5 lg:!py-2.5' onClick={() => navigate('/login')}>Demo Login</Button>
+                    <Button variant='primary' size='sm' className='lg:!px-5 lg:!py-2.5' onClick={goToPlatformLogin}>Login</Button>
                 </div>
 
                 <button className='lg:hidden text-ink' onClick={() => setOpen(!open)} aria-label='Menu'>
@@ -104,30 +108,62 @@ function WorkmateFooter() {
         { h: 'Get Started', items: [['Pricing', 'pricing'], ['Enquiry', 'contact']] },
     ]
     return (
-        <footer className='bg-card border-t border-line text-ink pt-20 pb-10'>
-            <div className='max-w-[1280px] mx-auto px-6 lg:px-8'>
+        <footer className='bg-accent-dark border-t border-white/20 text-bg pt-12 pb-10'>
+            <div className='workmate-shell'>
                 <div className='grid sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-16'>
                     <div className='lg:col-span-1'>
                         <div className='flex items-center gap-3 mb-4'>
-                            <img src={logo} alt='' className='w-12 h-12 shrink-0 rounded-full' />
-                            <span className='type-brand'>WorkmateIQ</span>
+                            <img src={logoFooter} alt='' className='w-12 h-12 shrink-0 rounded-full' />
+                            <span className='type-brand text-bg'>WorkmateIQ</span>
                         </div>
-                        <p className='type-body-small text-text-secondary max-w-xs'>
+                        <p className='type-body-small text-bg/75 max-w-xs'>
                             A smarter platform for hiring, onboarding and building stronger professional journeys.
                         </p>
                     </div>
                     {columns.map((col) => (
                         <div key={col.h}>
-                            <p className='type-footer-heading text-ink mb-4'>{col.h}</p>
+                            <p className='type-footer-heading text-bg mb-4'>{col.h}</p>
                             <div className='space-y-2.5'>
                                 {col.items.map(([label, id]) => (
-                                    <a key={label} href={`#${id}`} onClick={jump(id)} className='type-footer-link block text-text-secondary hover:text-ink transition-colors cursor-pointer'>{label}</a>
+                                    <a key={label} href={`#${id}`} onClick={jump(id)} className='type-footer-link block text-bg/75 hover:text-bg transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bg/60'>{label}</a>
                                 ))}
                             </div>
                         </div>
                     ))}
                 </div>
-                <p className='type-caption text-text-secondary/70 pt-8 border-t border-line'>© 2026 WorkmateIQ. All rights reserved.</p>
+                <div className='flex flex-col gap-4 border-t border-white/20 pt-8 sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center'>
+                    <p className='type-caption text-bg/60'>© 2026 WorkmateIQ. All rights reserved.</p>
+                    <nav className='flex items-center justify-self-center gap-4' aria-label='Social and contact links'>
+                        <a
+                            href='https://www.instagram.com/wcsplgroup'
+                            target='_blank'
+                            rel='noopener noreferrer'
+                            aria-label='Instagram'
+                            title='Instagram'
+                            className='flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#fffafa] text-accent transition-all duration-200 hover:scale-105 hover:bg-[#fff1f2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bg/70'
+                        >
+                            <FaInstagram size={34} aria-hidden='true' />
+                        </a>
+                        <a
+                            href={NEXA_CONTACTS.whatsapp.href}
+                            target='_blank'
+                            rel='noopener noreferrer'
+                            aria-label='WhatsApp'
+                            title='WhatsApp'
+                            className='flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#fffafa] text-accent transition-all duration-200 hover:scale-105 hover:bg-[#fff1f2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bg/70'
+                        >
+                            <FaWhatsapp size={34} aria-hidden='true' />
+                        </a>
+                        <a
+                            href={NEXA_CONTACTS.gmail.href}
+                            aria-label='Gmail'
+                            title='Gmail'
+                            className='flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#fffafa] text-accent transition-all duration-200 hover:scale-105 hover:bg-[#fff1f2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bg/70'
+                        >
+                            <SiGmail size={34} aria-hidden='true' />
+                        </a>
+                    </nav>
+                </div>
             </div>
         </footer>
     )
@@ -135,7 +171,7 @@ function WorkmateFooter() {
 
 function WorkmateLayout({ children, showCursorSpotlight = true }) {
     return (
-        <div className='min-h-screen bg-bg relative'>
+        <div className='workmate-marketing min-h-screen bg-bg relative'>
             <AmbientBackground />
             {showCursorSpotlight && <CursorSpotlight />}
             <WorkmateNav />

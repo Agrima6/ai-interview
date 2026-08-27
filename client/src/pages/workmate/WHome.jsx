@@ -16,9 +16,11 @@ import NexaChatbot from '../../components/NexaChatbot'
 import InterviewPreview from './InterviewPreview'
 import VerticalScrollShowcase from './VerticalScrollShowcase'
 import PowerfulFeatures from './PowerfulFeatures'
-import audienceCollegesImage from '../../assets/workmate/audience-colleges.png'
+import institutionImage from '../../assets/workmate/institution-student-screening.png'
 import audienceCandidatesImage from '../../assets/workmate/audience-candidates.png'
-import audienceOrganizationsImage from '../../assets/workmate/audience-organizations.png'
+import organizationRecruitmentImage from '../../assets/workmate/organization-recruitment.png'
+import securityIcon from '../../assets/workmate/security.png'
+import reliableIcon from '../../assets/workmate/security2.png'
 import { submitPlatformEnquiry } from '../../api/enquiriesApi'
 import {
     ArrowRight, Building2, Check, ChevronDown, GraduationCap, Network, ShieldCheck, UserRound,
@@ -40,22 +42,16 @@ function CTAButton({ children, ...props }) {
 }
 
 function HeroFeatureIcon({ type }) {
+    if (type === 'secure') {
+        return <img src={securityIcon} alt='' width='15' height='15' className='shrink-0 object-contain' />
+    }
+
+    if (type === 'reliable') {
+        return <img src={reliableIcon} alt='' width='15' height='15' className='shrink-0 object-contain' />
+    }
+
     return (
-        <svg width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.9' strokeLinecap='round' strokeLinejoin='round' className='shrink-0 text-accent' aria-hidden='true'>
-            {type === 'secure' && (
-                <>
-                    <path d='M12 3 4.5 6v5.2c0 4.7 3.1 7.9 7.5 9.8 4.4-1.9 7.5-5.1 7.5-9.8V6L12 3Z' />
-                    <path d='m8.7 12 2.1 2.1 4.5-4.5' />
-                </>
-            )}
-            {type === 'scalable' && (
-                <>
-                    <path d='M4 19.5V5.5' />
-                    <path d='M4 19.5h16' />
-                    <path d='m7.5 15 3.2-3.8 2.8 2.4L20 7' />
-                    <path d='M16 7h4v4' />
-                </>
-            )}
+        <svg width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.9' strokeLinecap='round' strokeLinejoin='round' className='shrink-0 text-[#ab2323]' aria-hidden='true'>
             {type === 'smart' && (
                 <>
                     <path d='m12 3 1.4 4.1a2 2 0 0 0 1.2 1.2L18.7 9.7l-4.1 1.4a2 2 0 0 0-1.2 1.2L12 16.4l-1.4-4.1a2 2 0 0 0-1.2-1.2L5.3 9.7l4.1-1.4a2 2 0 0 0 1.2-1.2L12 3Z' />
@@ -129,17 +125,13 @@ function Hero({ jump, experimental = false }) {
             <div className={`absolute top-[60px] right-[-160px] w-[380px] h-[380px] rounded-full ${experimental ? 'opacity-[0.12]' : 'opacity-[0.07]'} blur-3xl pointer-events-none`}
                 style={{ background: 'radial-gradient(closest-side, #e0271b, transparent)' }} />
 
-            <div className='relative max-w-[1280px] mx-auto px-6 lg:px-8 pt-24 sm:pt-28 pb-16 grid lg:grid-cols-[1fr_1.05fr] gap-14 items-center'>
+            <div className='workmate-shell relative grid items-center gap-14 pb-16 pt-24 sm:pt-28 lg:grid-cols-[1fr_1.05fr] lg:pb-20 lg:pt-32 xl:gap-16'>
                 <div ref={heroRef}>
-                    <p className={`reveal ${EYEBROW} inline-flex items-center gap-2`}>
-                        <span className='w-1.5 h-1.5 rounded-full bg-accent animate-pulse-glow' />
-                        WorkmateIQ
-                    </p>
-                    <h1 className='reveal type-display text-ink mb-6'>
-                        AI Interviews. <span className='text-accent'>Better Decisions.</span> Faster Hiring.
+                    <h1 className='reveal type-display mb-6 max-w-[760px] text-ink'>
+                        AI Interviews. <span className='whitespace-nowrap text-accent-dark'>Better Decisions.</span> Faster Hiring.
                     </h1>
-                    <p className='reveal type-lead text-text-secondary max-w-lg mb-6'>
-                        WorkmateIQ helps organizations, colleges, and candidates conduct AI-powered interviews with full security, evaluate performance, and benchmark results to find the right people faster and fairer.
+                    <p className='reveal type-lead mb-6 max-w-[640px] text-text-secondary'>
+                        WorkmateIQ helps organizations, colleges, and candidates conduct AI-powered interviews with full security, evaluate performance, and benchmark results to find the right people faster and and with greater transparency.
                     </p>
                     <div className='reveal mb-8 flex flex-wrap gap-2.5' aria-label='WorkmateIQ platform benefits'>
                         <span className='inline-flex items-center gap-2 rounded-full border border-accent/15 bg-accent/[0.04] px-3 py-2 type-body-small font-semibold text-ink transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/35 hover:bg-accent/[0.07]'>
@@ -147,8 +139,8 @@ function Hero({ jump, experimental = false }) {
                             Secure
                         </span>
                         <span className='inline-flex items-center gap-2 rounded-full border border-accent/15 bg-accent/[0.04] px-3 py-2 type-body-small font-semibold text-ink transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/35 hover:bg-accent/[0.07]'>
-                            <HeroFeatureIcon type='scalable' />
-                            Scalable
+                            <HeroFeatureIcon type='reliable' />
+                            Reliable
                         </span>
                         <span className='inline-flex items-center gap-2 rounded-full border border-accent/15 bg-accent/[0.04] px-3 py-2 type-body-small font-semibold text-ink transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/35 hover:bg-accent/[0.07]'>
                             <HeroFeatureIcon type='smart' />
@@ -156,9 +148,9 @@ function Hero({ jump, experimental = false }) {
                         </span>
                     </div>
                     <div className='reveal flex flex-wrap gap-3'>
-                        <CTAButton size='lg' onClick={jump('contact')}>Send an Enquiry</CTAButton>
-                        <Button size='lg' variant='secondary' className='hover:!border-accent hover:!bg-accent hover:!text-white hover:!shadow-[0_8px_20px_-12px_rgba(196,22,31,0.5)] hover:-translate-y-0.5 !duration-200' onClick={() => navigate('/platform/register')}>Register</Button>
-                        <Button size='lg' variant='secondary' className='!border-accent/15 !bg-accent/[0.025] backdrop-blur-sm hover:!border-accent/30 hover:!bg-accent/[0.06] !duration-200' onClick={jump('how-it-works')}>Explore WorkmateIQ</Button>
+                        <CTAButton size='lg' className='lg:!px-10 lg:!py-[17px]' onClick={jump('contact')}>Send an Enquiry</CTAButton>
+                        <Button size='lg' variant='secondary' className='!duration-200 hover:!border-accent hover:!bg-accent/[0.08] hover:!text-accent hover:!shadow-[0_8px_20px_-12px_rgba(196,22,31,0.24)] hover:-translate-y-0.5 lg:!px-10 lg:!py-[17px]' onClick={() => navigate('/platform/register')}>Register</Button>
+                        <Button size='lg' variant='secondary' className='!border-accent/15 !bg-accent/[0.025] !duration-200 backdrop-blur-sm hover:!border-accent/30 hover:!bg-accent/[0.06] lg:!px-10 lg:!py-[17px]' onClick={jump('how-it-works')}>Explore WorkmateIQ</Button>
                     </div>
                 </div>
                 <div ref={wrapRef} className='relative' style={{ perspective: '1200px' }}>
@@ -175,7 +167,7 @@ function Hero({ jump, experimental = false }) {
 function QuoteStrip() {
     const ref = useReveal('.quote-reveal', { blur: true, y: 14 })
     return (
-        <section ref={ref} className='relative max-w-[1280px] mx-auto px-6 lg:px-8 py-4 sm:py-6'>
+        <section ref={ref} className='workmate-shell relative py-4 sm:py-6 lg:py-8'>
             <div className='quote-reveal max-w-[820px] mx-auto rounded-2xl border border-accent/40 bg-accent/[0.03] px-7 py-6 sm:px-10 sm:py-8 text-center shadow-[0_0_35px_rgba(196,22,31,0.18),inset_0_0_15px_rgba(196,22,31,0.05)] transition-all duration-300 hover:scale-[1.015] hover:border-accent/80 hover:shadow-[0_0_55px_rgba(196,22,31,0.42),inset_0_0_20px_rgba(196,22,31,0.12)] group cursor-default'>
                 <blockquote className='type-h3 text-ink text-balance'>
                     &ldquo;Success is where preparation and opportunity meet.&rdquo;
@@ -200,7 +192,7 @@ function About() {
     ]
 
     return (
-        <section id='about' ref={ref} className='scroll-mt-20 mx-auto max-w-[1280px] px-6 pt-8 pb-12 sm:pb-16 lg:px-8'>
+        <section id='about' ref={ref} className='workmate-shell scroll-mt-20 pb-12 pt-8 sm:pb-16 lg:pb-20 lg:pt-10'>
             <div className='about-reveal rounded-[28px] border border-accent/[0.08] bg-white/55 px-6 py-9 shadow-[0_24px_70px_-52px_rgba(125,39,49,0.35)] sm:px-10 sm:py-12 lg:px-14 lg:py-14'>
                 <p className={EYEBROW}>About Us</p>
                 <h2 className={`${H2} mb-6`}>One hub for every side of hiring.</h2>
@@ -247,14 +239,14 @@ function EnterpriseAI() {
     const [illustration, title, description] = enterpriseCapabilities[activeCapability]
 
     return (
-        <section id='ai-evaluation' className='relative overflow-hidden border-y border-line bg-card py-12 sm:py-16'>
+        <section id='ai-evaluation' className='relative overflow-hidden border-y border-line bg-card py-12 sm:py-16 lg:py-8'>
             <FiberBurstCanvas overallScore={overallScore} />
             <div ref={ref} className='relative z-10 mx-auto w-full max-w-[1440px] px-6 sm:px-8 lg:px-10'>
                 <div className='ent-item mx-auto w-full'>
                     <AIScorePanel onOverallScoreChange={setOverallScore} />
                 </div>
-                <div className='mx-auto mt-10 max-w-[720px] sm:mt-12'>
-                    <div className='relative min-h-[220px]'>
+                <div className='mx-auto mt-10 max-w-[720px] sm:mt-12 lg:mt-5'>
+                    <div className='relative min-h-[220px] lg:min-h-[170px]'>
                         <AnimatePresence mode='sync' initial={false}>
                             <Motion.article
                                 key={title}
@@ -263,7 +255,7 @@ function EnterpriseAI() {
                                 whileHover={!REDUCE_MOTION ? { y: -8, scale: 1.015 } : undefined}
                                 exit={{ opacity: 0, y: -18, scale: 0.98 }}
                                 transition={{ duration: REDUCE_MOTION ? 0 : 0.28, ease: [0.16, 1, 0.3, 1] }}
-                                className='capability-card group absolute inset-x-0 top-0 isolate mx-auto flex min-h-[210px] w-full max-w-[520px] flex-col justify-center overflow-hidden rounded-2xl border border-line bg-bg p-7 shadow-[0_24px_70px_-35px_rgba(125,39,49,0.38)] transition-[border-color,background-color,box-shadow] duration-300 ease-out hover:border-accent/35 hover:bg-white hover:shadow-[0_34px_78px_-28px_rgba(125,39,49,0.46),0_10px_28px_-18px_rgba(196,22,31,0.24)] sm:p-9'
+                                className='capability-card group absolute inset-x-0 top-0 isolate mx-auto flex min-h-[210px] w-full max-w-[520px] flex-col justify-center overflow-hidden rounded-2xl border border-line bg-bg p-7 shadow-[0_24px_70px_-35px_rgba(125,39,49,0.38)] transition-[border-color,background-color,box-shadow] duration-300 ease-out hover:border-accent/35 hover:bg-white hover:shadow-[0_34px_78px_-28px_rgba(125,39,49,0.46),0_10px_28px_-18px_rgba(196,22,31,0.24)] sm:p-9 lg:min-h-[160px] lg:p-6'
                                 aria-live='polite'
                             >
                                 <span className='pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-accent/[0.1] opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-100' aria-hidden='true' />
@@ -282,6 +274,27 @@ function EnterpriseAI() {
                 </div>
             </div>
         </section>
+    )
+}
+
+function CategoryBadgeIcon({ type }) {
+    if (type === 'college') {
+        return (
+            <svg className='h-14 w-14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.7' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
+                <path d='m3 8.5 9-4 9 4-9 4-9-4Z' />
+                <path d='M6.5 10.3v4.2c3.6 2.7 7.4 2.7 11 0v-4.2' />
+                <path d='M21 9v5.2' />
+                <path d='M19.5 18.5c.8-1 1.2-2.1 1.2-3.3' />
+            </svg>
+        )
+    }
+
+    return (
+        <svg className='h-14 w-14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.7' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
+            <circle cx='12' cy='7.5' r='3.2' />
+            <path d='M5.2 20c.5-3.8 2.8-6 6.8-6s6.3 2.2 6.8 6' />
+            <path d='M18.2 4.8a3.2 3.2 0 0 1 0 5.4' />
+        </svg>
     )
 }
 
@@ -311,7 +324,6 @@ function SolutionPanel({ p, i }) {
             })
             gsap.to(cardRef.current, {
                 scale: 0.975,
-                opacity: 0.86,
                 y: -8,
                 ease: 'none',
                 scrollTrigger: {
@@ -331,8 +343,7 @@ function SolutionPanel({ p, i }) {
             <div ref={cardRef} className={`solution-card relative overflow-hidden rounded-[28px] border border-line/80 p-6 shadow-[0_24px_70px_-42px_rgba(125,39,49,0.48)] sm:p-8 lg:p-10 xl:p-12 ${p.surface}`}>
                 <div className='pointer-events-none absolute right-[-80px] top-[-100px] h-[250px] w-[250px] rounded-full border border-accent/10' aria-hidden='true' />
                 <div className='pointer-events-none absolute bottom-[-120px] left-[32%] h-[220px] w-[220px] rounded-full bg-accent/[0.035] blur-3xl' aria-hidden='true' />
-
-                <div className='relative grid gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:gap-12 xl:gap-16'>
+                <div className='relative z-10 grid gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:gap-12 xl:gap-16'>
                     <div className='solution-intro flex flex-col'>
                         <div className='flex items-start justify-end'>
                             <span className='rounded-full border border-accent/15 bg-white/55 px-3 py-1.5 type-caption font-semibold tracking-[0.16em] text-accent'>0{i + 1} / AUDIENCE</span>
@@ -352,9 +363,15 @@ function SolutionPanel({ p, i }) {
                         </ul>
                     </div>
 
-                    <div className='solution-audience-visual relative flex min-h-[360px] items-end justify-center overflow-hidden rounded-[24px] bg-[#fff8f8] px-4 pt-6 lg:min-h-[470px]'>
-                        <div className='pointer-events-none absolute inset-x-10 bottom-8 h-24 rounded-full bg-accent/[0.06] blur-2xl' aria-hidden='true' />
-                        <img className='relative z-10 block h-full max-h-[470px] w-full max-w-[520px] object-contain object-bottom' src={p.image} alt={p.imageAlt} />
+                    <div className='solution-audience-visual relative flex min-h-[360px] items-end justify-center overflow-hidden rounded-[24px] bg-[#fff8f8] px-4 pt-6 lg:min-h-[470px] xl:min-h-[560px]'>
+                        {p.category === 'candidate' && (
+                            <div className='solution-visual-decorations pointer-events-none absolute inset-0 z-[11] hidden sm:block' aria-hidden='true'>
+                                <span className='absolute right-[9%] top-[9%] flex h-28 w-28 items-center justify-center rounded-full bg-[#8b0e16] text-[#fff8f8] shadow-[0_8px_18px_-12px_rgba(30,8,12,0.65)]'>
+                                    <CategoryBadgeIcon type={p.category} />
+                                </span>
+                            </div>
+                        )}
+                        <img className={`relative z-10 block h-full max-h-[470px] w-full max-w-[520px] object-contain ${p.category === 'college' ? 'object-center mix-blend-multiply' : 'object-bottom'} xl:max-h-[560px] xl:max-w-[620px]`} src={p.image} alt={p.imageAlt} />
                     </div>
                 </div>
             </div>
@@ -364,7 +381,7 @@ function SolutionPanel({ p, i }) {
 
 function AudienceCards({ panels }) {
     return (
-        <section id='who-it-works-for' className='scroll-mt-20 max-w-[1280px] mx-auto px-6 lg:px-8 pb-28 space-y-0' aria-label='Who it works for'>
+        <section id='who-it-works-for' className='workmate-shell scroll-mt-20 space-y-0 pb-8 lg:pb-12' aria-label='Who it works for'>
             {panels.map((panel, index) => (
                 <SolutionPanel key={panel.id} p={panel} i={index} />
             ))}
@@ -467,32 +484,35 @@ function WHome() {
     const panels = [
         {
             id: 'colleges', eyebrow: 'For education', surface: 'bg-[#fff8f8]', label: 'For Colleges & Institutions',
-            statement: 'Prepare students for real success.', image: audienceCollegesImage, imageAlt: 'Student with a backpack holding books',
+            statement: 'Prepare students for real interview success.', image: institutionImage, imageAlt: 'Institution recruitment and candidate screening illustration', category: 'college',
             features: [
-                'Identify interview-ready students',
-                'Track progress and improve placement outcomes',
-                'Provide real interview environment for practice',
-                'Help students build confidence and skills',
+                'Identify interview-ready students through structured AI scores and reports',
+                'Give students timed, role-specific practice in a realistic interview environment',
+                'Assess answer quality, communication, confidence, and correctness consistently',
+                'Use personalized feedback to surface strengths and clear improvement areas',
+                'Support placement preparation with more consistent readiness signals',
             ],
         },
         {
             id: 'candidates', eyebrow: 'For people building what is next', surface: 'bg-[#fffafa]', label: 'For Candidates',
-            statement: 'Practice. Improve. Get hired.', image: audienceCandidatesImage, imageAlt: 'Candidate in a maroon hoodie working beside a monitor',
+            statement: 'Practice with purpose. Improve with clarity.', image: audienceCandidatesImage, imageAlt: 'Candidate in a maroon hoodie working beside a monitor', category: 'candidate',
             features: [
-                'Practice role-specific AI interviews',
-                'Get instant feedback on answers & communication',
-                'Know your strengths and gaps',
-                'Improve and get interview ready',
+                'Practice role- and experience-specific AI interviews using resume-informed questions',
+                'Prepare for HR and technical interview modes with realistic time limits',
+                'Receive personalized feedback on confidence, communication, and correctness',
+                'Review detailed scores, answer feedback, and past interview reports',
+                'Focus on strengths and gaps before the real interview',
             ],
         },
         {
             id: 'organizations', eyebrow: 'For teams that move talent forward', surface: 'bg-[#fbf7f7]', label: 'For Organizations',
-            statement: 'Hire the right talent, faster.', image: audienceOrganizationsImage, imageAlt: 'Professional working on a laptop',
+            statement: 'Evaluate the right talent, faster.', image: organizationRecruitmentImage, imageAlt: 'Professional reviewing candidate resumes on a laptop', category: 'organization',
             features: [
-                'Screen large volumes of candidates with AI interviews',
-                'Benchmark candidates against role-specific criteria',
-                'Get AI scores, rank, and detailed reports',
-                'Shortlist the best, save time and hiring cost',
+                'Build role-specific interview templates with structured rounds and question sources',
+                'Invite candidates and track progress from sent to completed',
+                'Run consistent AI interviews with timed questions and security checks',
+                'Review detailed scores, feedback, reports, and organization-level trends',
+                'Benchmark and shortlist candidates against the role’s evaluation criteria',
             ],
         },
     ]
@@ -521,7 +541,7 @@ function WHome() {
             <EnterpriseAI />
 
             {/* ============ PRICING ============ */}
-            <section id='pricing' className='scroll-mt-20 max-w-[1280px] mx-auto px-6 lg:px-8 pt-16 pb-12 sm:pt-20 sm:pb-14'>
+            <section id='pricing' className='workmate-shell scroll-mt-20 pb-12 pt-16 sm:pb-14 sm:pt-20 lg:pb-16 lg:pt-24'>
                 <p className={`${EYEBROW} justify-center flex`}>Pricing</p>
                 <h2 className={`${H2} mb-4 text-center`}>Simple, transparent pricing.</h2>
                 <p className='type-body text-text-secondary mb-16 text-center'>Choose the plan that fits how you hire, place or apply.</p>

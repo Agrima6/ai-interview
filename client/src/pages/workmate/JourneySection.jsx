@@ -6,24 +6,24 @@ gsap.registerPlugin(ScrollTrigger)
 
 const JOURNEY_STEPS = [
     {
-        title: 'User Account Creation',
-        description: 'Create a secure account and complete the essential setup for your journey.',
+        title: 'Discover',
+        description: 'See how WorkmateIQ fits your hiring, placement or interview-preparation flow.',
     },
     {
-        title: 'Goal Definition & Persona Selection',
-        description: 'Define the goal and choose whether the journey is for an organization, institution or candidate.',
+        title: 'Register',
+        description: 'Complete a short, structured registration based on whether you are joining as an organization, college or candidate.',
     },
     {
-        title: 'Customised Interview Setup',
-        description: 'Configure the interview around the selected role, objective and use case.',
+        title: 'Onboard',
+        description: 'Follow a personalized onboarding flow for your user type, including the required information and documents.',
     },
     {
-        title: 'AI Evaluation & Real-time Feedback',
-        description: 'Evaluate performance with structured scoring, personalized feedback and useful insights.',
+        title: 'Review',
+        description: 'Keep submitted information, documents and requested updates together for structured review.',
     },
     {
-        title: 'Data-driven Insights & Matching',
-        description: 'Use performance insights to support better preparation, shortlisting and opportunity matching.',
+        title: 'Begin Your Journey',
+        description: 'Once setup is approved or complete, continue into the relevant WorkmateIQ interview, hiring or placement workflow.',
     },
 ]
 
@@ -97,7 +97,7 @@ export default function JourneySection() {
 
     return (
         <section ref={sectionRef} id='how-it-works' className='relative overflow-visible border-y border-line bg-bg pt-14 pb-12 text-ink sm:pt-16 sm:pb-14 lg:pt-20 lg:pb-16'>
-            <div className='relative mx-auto max-w-[1280px] px-6 lg:px-8'>
+            <div className='workmate-shell relative'>
                 <JourneyHeader />
 
                 <div ref={timelineRef} className='relative mx-auto mt-14 max-w-[980px] md:mt-16' aria-label='Five-step WorkmateIQ process'>

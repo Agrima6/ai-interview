@@ -1,17 +1,17 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
     ArrowRight,
-    BarChart3,
     Check,
-    FileText,
-    Medal,
-    TrendingUp,
-    Users,
+    ChevronLeft,
+    ChevronRight,
 } from 'lucide-react'
-import collaborationImage from '../../assets/workmate/showcase-collaboration.png'
+import connectedEcosystemImage from '../../assets/workmate/showcase-connected-ecosystem.png'
+import interviewEvaluationImage from '../../assets/workmate/showcase-interview-evaluation.png'
+import candidateRankingImage from '../../assets/workmate/showcase-candidate-ranking.png'
 import './VerticalScrollShowcase.css'
 
 const REDUCE_MOTION = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+const AUTOPLAY_DELAY_MS = 10_000
 
 const STRIPS = [
     {
@@ -20,6 +20,9 @@ const STRIPS = [
         description: 'WorkmateIQ brings organizations, colleges and candidates together in one connected space to move from preparation to opportunity with clarity.',
         cta: 'Find Your Path',
         href: '#who-it-works-for',
+        image: connectedEcosystemImage,
+        variant: 'connected',
+        imageAlt: 'Three people collaborating around a laptop in a connected WorkmateIQ workspace',
         features: [
             'Faster hiring for organizations',
             'Better placement outcomes for colleges',
@@ -33,6 +36,8 @@ const STRIPS = [
         description: 'See the complete picture behind every response with focused scoring, answer analysis and clear performance signals.',
         cta: 'Explore Evaluation',
         href: '#ai-evaluation',
+        image: interviewEvaluationImage,
+        imageAlt: 'AI interview evaluation report with performance overview radar chart',
         features: [
             'Multi-dimensional interview scoring',
             'Personalized answer analysis',
@@ -44,6 +49,9 @@ const STRIPS = [
         eyebrow: 'Confident decisions',
         title: 'Rank Candidates. Hire with Confidence.',
         description: 'Compare candidates side by side, benchmark performance for each role and make shortlisting more consistent.',
+        image: candidateRankingImage,
+        variant: 'ranking',
+        imageAlt: 'Candidate ranking table with top performer summary',
         features: [
             'Side-by-side candidate comparison',
             'Role-based benchmarking',
@@ -53,99 +61,17 @@ const STRIPS = [
     },
 ]
 
-const REPORT_METRICS = [
-    ['Answer Quality', '88%'],
-    ['Communication', '85%'],
-    ['Speaking Skills', '82%'],
-    ['Technical Knowledge', '90%'],
-]
-
-const RANKED_CANDIDATES = [
-    ['Aarav Sharma', '92/100', 'Top match'],
-    ['Neha Verma', '89/100', 'Strong match'],
-    ['Rohan Singh', '86/100', 'Good match'],
-    ['Priya Patel', '82/100', 'Promising'],
-]
-
-function CollaborationVisual() {
+function ShowcaseCard({ strip, isClone }) {
     return (
-        <div className='showcase-visual showcase-visual-collaboration'>
-            <span className='showcase-visual-orbit showcase-visual-orbit-one' aria-hidden='true' />
-            <span className='showcase-visual-orbit showcase-visual-orbit-two' aria-hidden='true' />
-            <img src={collaborationImage} alt='Three people collaborating around a laptop' />
-        </div>
-    )
-}
-
-function EvaluationVisual() {
-    return (
-        <div className='showcase-visual showcase-window showcase-report-window' role='img' aria-label='Interview evaluation report preview'>
-            <div className='showcase-window-bar'><i /><i /><i /><span>Evaluation report</span></div>
-            <div className='showcase-report-body'>
-                <div className='showcase-report-list'>
-                    <p className='showcase-window-label'>Interview Evaluation</p>
-                    {REPORT_METRICS.map(([label, value]) => (
-                        <div className='showcase-report-row' key={label}>
-                            <span>{label}</span>
-                            <strong>{value}</strong>
-                            <em><b style={{ width: value }} /></em>
-                        </div>
-                    ))}
-                    <div className='showcase-report-total'><span>Overall Score</span><strong>87/100</strong></div>
-                </div>
-                <div className='showcase-radar-card'>
-                    <p className='showcase-window-label'>Performance Overview</p>
-                    <svg viewBox='0 0 120 104' aria-hidden='true'>
-                        <polygon points='60,12 101,42 85,91 35,91 19,42' fill='rgba(255,255,255,0.06)' stroke='rgba(255,255,255,0.38)' />
-                        <polygon points='60,25 88,45 77,77 43,77 31,45' fill='rgba(255,198,207,0.65)' stroke='#fff' strokeWidth='1.5' />
-                        <path d='M60 12v80M19 42l82 0M35 91l50-79M85 91 35 12' stroke='rgba(255,255,255,0.2)' />
-                    </svg>
-                    <strong>87</strong>
-                    <span>Great performance</span>
-                </div>
+        <article className={`showcase-card${strip.variant ? ` showcase-card--${strip.variant}` : ''}`} aria-hidden={isClone || undefined}>
+            <div className='showcase-visual'>
+                <img
+                    src={strip.image}
+                    alt={isClone ? '' : strip.imageAlt}
+                    loading='eager'
+                    decoding='async'
+                />
             </div>
-        </div>
-    )
-}
-
-function RankingVisual() {
-    return (
-        <div className='showcase-visual showcase-window showcase-ranking-window' role='img' aria-label='Candidate ranking preview'>
-            <div className='showcase-window-bar'><i /><i /><i /><span>Candidate ranking</span></div>
-            <div className='showcase-ranking-body'>
-                <div className='showcase-ranking-table'>
-                    <div className='showcase-ranking-heading'><span>Rank</span><span>Candidate</span><span>Overall score</span></div>
-                    {RANKED_CANDIDATES.map(([name, score, result], index) => (
-                        <div className='showcase-ranking-row' key={name}>
-                            <b>{index + 1}</b>
-                            <span className='showcase-candidate-name'><i>{name.slice(0, 1)}</i>{name}</span>
-                            <strong>{score}</strong>
-                            <em>{result}</em>
-                        </div>
-                    ))}
-                </div>
-                <div className='showcase-top-performer'>
-                    <span className='showcase-top-badge'><Medal size={18} aria-hidden='true' /></span>
-                    <p>Top performer</p>
-                    <strong>92/100</strong>
-                    <span>Excellent match</span>
-                    <div><TrendingUp size={13} aria-hidden='true' /> Top 5% performers</div>
-                </div>
-            </div>
-        </div>
-    )
-}
-
-function ShowcaseVisual({ index }) {
-    if (index === 0) return <CollaborationVisual />
-    if (index === 1) return <EvaluationVisual />
-    return <RankingVisual />
-}
-
-function ShowcaseCard({ strip, index }) {
-    return (
-        <article className='showcase-card'>
-            <ShowcaseVisual index={index} />
             <div className='showcase-copy'>
                 <p className='showcase-eyebrow'>{strip.eyebrow}</p>
                 <h2>{strip.title}</h2>
@@ -170,7 +96,6 @@ function ShowcaseCard({ strip, index }) {
 }
 
 function VerticalScrollShowcase() {
-    const trackRef = useRef(null)
     const timerRef = useRef(null)
     const pausedRef = useRef(false)
     const [physicalIndex, setPhysicalIndex] = useState(1)
@@ -189,17 +114,13 @@ function VerticalScrollShowcase() {
 
         timerRef.current = window.setTimeout(() => {
             timerRef.current = null
-            if (physicalIndex === STRIPS.length + 1) {
-                setTransitionEnabled(false)
-                setPhysicalIndex(1)
-                window.requestAnimationFrame(() => {
-                    window.requestAnimationFrame(() => setTransitionEnabled(true))
-                })
-            } else {
-                setPhysicalIndex((current) => current + 1)
-            }
-        }, physicalIndex === STRIPS.length + 1 ? 350 : 2200)
-    }, [clearAutoplay, physicalIndex])
+            setTransitionEnabled(true)
+            setPhysicalIndex((current) => {
+                const next = current + 1
+                return REDUCE_MOTION && next === STRIPS.length + 1 ? 1 : next
+            })
+        }, AUTOPLAY_DELAY_MS)
+    }, [clearAutoplay])
 
     useEffect(() => {
         const handleVisibilityChange = () => {
@@ -219,17 +140,28 @@ function VerticalScrollShowcase() {
         return clearAutoplay
     }, [clearAutoplay, scheduleAutoplay])
 
-    useEffect(() => {
-        if (!REDUCE_MOTION || physicalIndex !== STRIPS.length + 1) return
-
-        const frame = window.requestAnimationFrame(() => {
-            setTransitionEnabled(false)
-            setPhysicalIndex(1)
-            scheduleAutoplay()
+    const move = (direction) => {
+        clearAutoplay()
+        setTransitionEnabled(true)
+        setPhysicalIndex((current) => {
+            if (direction < 0 && current === 0) return current
+            if (direction > 0 && current === STRIPS.length + 1) return current
+            const next = current + direction
+            if (REDUCE_MOTION && next === 0) return STRIPS.length
+            if (REDUCE_MOTION && next === STRIPS.length + 1) return 1
+            return next
         })
+    }
 
-        return () => window.cancelAnimationFrame(frame)
-    }, [physicalIndex, scheduleAutoplay])
+    const handleTransitionEnd = (event) => {
+        if (event.target !== event.currentTarget || event.propertyName !== 'transform') return
+        if (physicalIndex === 0 || physicalIndex === STRIPS.length + 1) {
+            const normalizedIndex = physicalIndex === 0 ? STRIPS.length : 1
+            setTransitionEnabled(false)
+            setPhysicalIndex(normalizedIndex)
+            window.requestAnimationFrame(() => window.requestAnimationFrame(() => setTransitionEnabled(true)))
+        }
+    }
 
     const handleMouseEnter = () => {
         pausedRef.current = true
@@ -254,16 +186,22 @@ function VerticalScrollShowcase() {
             <div className='scroll-showcase-shell'>
                 <div className='scroll-showcase-stage'>
                     <div className='scroll-showcase-viewport' onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+                        <button className='showcase-arrow showcase-arrow-previous' type='button' onClick={() => move(-1)} aria-label='Previous insight'>
+                            <ChevronLeft size={20} aria-hidden='true' />
+                        </button>
                         <div
-                            ref={trackRef}
                             className='scroll-showcase-track'
+                            onTransitionEnd={handleTransitionEnd}
                             style={{
                                 transform: `translate3d(${trackOffset}%, 0, 0)`,
                                 transition: !REDUCE_MOTION && transitionEnabled ? 'transform 500ms cubic-bezier(0.22, 1, 0.36, 1)' : 'none',
                             }}
                         >
-                            {slides.map((strip, index) => <ShowcaseCard key={`${strip.title}-${index}`} strip={strip} index={STRIPS.indexOf(strip)} />)}
+                            {slides.map((strip, index) => <ShowcaseCard key={`${strip.title}-${index}`} strip={strip} isClone={index === 0 || index === slides.length - 1} />)}
                         </div>
+                        <button className='showcase-arrow showcase-arrow-next' type='button' onClick={() => move(1)} aria-label='Next insight'>
+                            <ChevronRight size={20} aria-hidden='true' />
+                        </button>
                     </div>
                     <div className='showcase-progress' aria-label={`Showcase ${activeIndex + 1} of 3`}>
                         {STRIPS.map((strip, index) => <span key={strip.title} className={index === activeIndex ? 'is-active' : ''} aria-hidden='true' />)}
