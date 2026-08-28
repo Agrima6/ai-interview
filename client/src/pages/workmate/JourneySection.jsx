@@ -41,7 +41,7 @@ function JourneyStep({ step, index }) {
     const isRight = index % 2 === 1
 
     return (
-        <li className='journey-step relative grid min-h-[142px] grid-cols-[34px_minmax(0,1fr)] items-center gap-4 md:min-h-[158px] md:grid-cols-[minmax(0,1fr)_56px_minmax(0,1fr)] md:gap-0'>
+        <li className='journey-step relative grid min-h-[142px] grid-cols-[34px_minmax(0,1fr)] items-center gap-4 pb-8 last:pb-0 md:min-h-[158px] md:grid-cols-[minmax(0,1fr)_56px_minmax(0,1fr)] md:gap-0 md:pb-0'>
             <div className='journey-step-marker relative z-10 col-start-1 row-start-1 flex h-8 w-8 items-center justify-center rounded-full border-4 border-bg bg-accent text-[11px] font-bold tracking-wide text-white shadow-[0_0_0_1px_rgba(196,22,31,0.35),0_8px_18px_-12px_rgba(125,39,49,0.7)] md:col-start-2 md:justify-self-center'>
                 {String(index + 1).padStart(2, '0')}
             </div>

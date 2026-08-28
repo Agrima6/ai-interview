@@ -10,7 +10,6 @@ import AIScorePanel from './AIScorePanel'
 import NetworkGraphic from './NetworkGraphic'
 import JourneySection from './JourneySection'
 import HeroThreadsBackground from './HeroThreadsBackground'
-import FiberBurstCanvas from './FiberBurstCanvas'
 import MarketingIllustration from '../../components/MarketingIllustration'
 import NexaChatbot from '../../components/NexaChatbot'
 import InterviewPreview from './InterviewPreview'
@@ -84,6 +83,7 @@ function Hero({ jump, experimental = false }) {
 
     useEffect(() => {
         if (REDUCE_MOTION || !wrapRef.current) return
+        if (!window.matchMedia('(min-width: 1024px) and (hover: hover) and (pointer: fine)').matches) return
         const el = experimental ? heroAreaRef.current : wrapRef.current
         const image = wrapRef.current.querySelector('.hero-tilt')
         if (!el || !image) return
@@ -118,42 +118,44 @@ function Hero({ jump, experimental = false }) {
     }, [experimental])
 
     return (
-        <section ref={heroAreaRef} id='home' className='scroll-mt-20 relative overflow-hidden'>
+        <section ref={heroAreaRef} id='home' className='workmate-hero scroll-mt-20 relative overflow-hidden'>
             {experimental && <HeroThreadsBackground />}
             <div className={`absolute top-[-160px] left-[8%] w-[620px] h-[560px] rounded-full ${experimental ? 'opacity-[0.08]' : 'opacity-[0.14]'} blur-3xl pointer-events-none`}
                 style={{ background: 'radial-gradient(closest-side, #c4161f, transparent)' }} />
             <div className={`absolute top-[60px] right-[-160px] w-[380px] h-[380px] rounded-full ${experimental ? 'opacity-[0.12]' : 'opacity-[0.07]'} blur-3xl pointer-events-none`}
                 style={{ background: 'radial-gradient(closest-side, #e0271b, transparent)' }} />
 
-            <div className='workmate-shell relative grid items-center gap-14 pb-16 pt-24 sm:pt-28 lg:grid-cols-[1fr_1.05fr] lg:pb-20 lg:pt-32 xl:gap-16'>
-                <div ref={heroRef}>
-                    <h1 className='reveal type-display mb-6 max-w-[760px] text-ink'>
-                        AI Interviews. <span className='whitespace-nowrap text-accent-dark'>Better Decisions.</span> Faster Hiring.
+            <div className='workmate-shell workmate-hero__shell relative grid items-center gap-14 pb-16 pt-24 sm:pt-28 lg:grid-cols-[1fr_1.05fr] lg:pb-20 lg:pt-32 xl:gap-16'>
+                <div ref={heroRef} className='workmate-hero__content'>
+                    <h1 className='reveal type-display workmate-hero__title mb-6 max-w-[760px] text-ink'>
+                        <span>AI Interviews.</span>{' '}
+                        <span className='text-accent-dark'>Better Decisions.</span>{' '}
+                        <span>Faster Hiring.</span>
                     </h1>
-                    <p className='reveal type-lead mb-6 max-w-[640px] text-text-secondary'>
+                    <p className='reveal type-lead workmate-hero__description mb-6 max-w-[640px] text-text-secondary'>
                         WorkmateIQ helps organizations, colleges, and candidates conduct AI-powered interviews with full security, evaluate performance, and benchmark results to find the right people faster and and with greater transparency.
                     </p>
-                    <div className='reveal mb-8 flex flex-wrap gap-2.5' aria-label='WorkmateIQ platform benefits'>
-                        <span className='inline-flex items-center gap-2 rounded-full border border-accent/15 bg-accent/[0.04] px-3 py-2 type-body-small font-semibold text-ink transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/35 hover:bg-accent/[0.07]'>
+                    <div className='reveal workmate-hero__benefits mb-8 flex flex-wrap gap-2.5' aria-label='WorkmateIQ platform benefits'>
+                        <span className='workmate-hero__benefit inline-flex items-center gap-2 rounded-full border border-accent/15 bg-accent/[0.04] px-3 py-2 type-body-small font-semibold text-ink transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/35 hover:bg-accent/[0.07]'>
                             <HeroFeatureIcon type='secure' />
                             Secure
                         </span>
-                        <span className='inline-flex items-center gap-2 rounded-full border border-accent/15 bg-accent/[0.04] px-3 py-2 type-body-small font-semibold text-ink transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/35 hover:bg-accent/[0.07]'>
+                        <span className='workmate-hero__benefit inline-flex items-center gap-2 rounded-full border border-accent/15 bg-accent/[0.04] px-3 py-2 type-body-small font-semibold text-ink transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/35 hover:bg-accent/[0.07]'>
                             <HeroFeatureIcon type='reliable' />
                             Reliable
                         </span>
-                        <span className='inline-flex items-center gap-2 rounded-full border border-accent/15 bg-accent/[0.04] px-3 py-2 type-body-small font-semibold text-ink transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/35 hover:bg-accent/[0.07]'>
+                        <span className='workmate-hero__benefit inline-flex items-center gap-2 rounded-full border border-accent/15 bg-accent/[0.04] px-3 py-2 type-body-small font-semibold text-ink transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/35 hover:bg-accent/[0.07]'>
                             <HeroFeatureIcon type='smart' />
                             Smart
                         </span>
                     </div>
-                    <div className='reveal flex flex-wrap gap-3'>
-                        <CTAButton size='lg' className='lg:!px-10 lg:!py-[17px]' onClick={jump('contact')}>Send an Enquiry</CTAButton>
-                        <Button size='lg' variant='secondary' className='!duration-200 hover:!border-accent hover:!bg-accent/[0.08] hover:!text-accent hover:!shadow-[0_8px_20px_-12px_rgba(196,22,31,0.24)] hover:-translate-y-0.5 lg:!px-10 lg:!py-[17px]' onClick={() => navigate('/platform/register')}>Register</Button>
-                        <Button size='lg' variant='secondary' className='!border-accent/15 !bg-accent/[0.025] !duration-200 backdrop-blur-sm hover:!border-accent/30 hover:!bg-accent/[0.06] lg:!px-10 lg:!py-[17px]' onClick={jump('how-it-works')}>Explore WorkmateIQ</Button>
+                    <div className='reveal workmate-hero__actions flex flex-wrap gap-3'>
+                        <CTAButton size='lg' className='workmate-hero__action lg:!px-10 lg:!py-[17px]' onClick={jump('contact')}>Send an Enquiry</CTAButton>
+                        <Button size='lg' variant='secondary' className='workmate-hero__action !duration-200 hover:!border-accent hover:!bg-accent/[0.08] hover:!text-accent hover:!shadow-[0_8px_20px_-12px_rgba(196,22,31,0.24)] hover:-translate-y-0.5 lg:!px-10 lg:!py-[17px]' onClick={() => navigate('/platform/register')}>Register</Button>
+                        <Button size='lg' variant='secondary' className='workmate-hero__action !border-accent/15 !bg-accent/[0.025] !duration-200 backdrop-blur-sm hover:!border-accent/30 hover:!bg-accent/[0.06] lg:!px-10 lg:!py-[17px]' onClick={jump('how-it-works')}>Explore WorkmateIQ</Button>
                     </div>
                 </div>
-                <div ref={wrapRef} className='relative' style={{ perspective: '1200px' }}>
+                <div ref={wrapRef} className='workmate-hero__visual relative' style={{ perspective: '1200px' }}>
                     <div className='hero-tilt relative' style={{ transformStyle: 'preserve-3d' }}>
                         <InterviewPreview />
                     </div>
@@ -226,7 +228,6 @@ const enterpriseCapabilities = [
 function EnterpriseAI() {
     const ref = useReveal('.ent-item', { stagger: 0.08, y: 18 })
     const [activeCapability, setActiveCapability] = useState(0)
-    const [overallScore, setOverallScore] = useState(76)
 
     useEffect(() => {
         if (REDUCE_MOTION) return
@@ -239,14 +240,13 @@ function EnterpriseAI() {
     const [illustration, title, description] = enterpriseCapabilities[activeCapability]
 
     return (
-        <section id='ai-evaluation' className='relative overflow-hidden border-y border-line bg-card py-12 sm:py-16 lg:py-8'>
-            <FiberBurstCanvas overallScore={overallScore} />
+        <section id='ai-evaluation' className='relative overflow-hidden border-y border-line bg-card py-6 md:py-8 lg:py-8'>
             <div ref={ref} className='relative z-10 mx-auto w-full max-w-[1440px] px-6 sm:px-8 lg:px-10'>
                 <div className='ent-item mx-auto w-full'>
-                    <AIScorePanel onOverallScoreChange={setOverallScore} />
+                    <AIScorePanel />
                 </div>
-                <div className='mx-auto mt-10 max-w-[720px] sm:mt-12 lg:mt-5'>
-                    <div className='relative min-h-[220px] lg:min-h-[170px]'>
+                <div className='mx-auto mt-4 max-w-[720px] md:mt-5 lg:mt-5'>
+                    <div className='relative min-h-[150px] md:min-h-[180px] lg:min-h-[170px]'>
                         <AnimatePresence mode='sync' initial={false}>
                             <Motion.article
                                 key={title}
@@ -255,18 +255,18 @@ function EnterpriseAI() {
                                 whileHover={!REDUCE_MOTION ? { y: -8, scale: 1.015 } : undefined}
                                 exit={{ opacity: 0, y: -18, scale: 0.98 }}
                                 transition={{ duration: REDUCE_MOTION ? 0 : 0.28, ease: [0.16, 1, 0.3, 1] }}
-                                className='capability-card group absolute inset-x-0 top-0 isolate mx-auto flex min-h-[210px] w-full max-w-[520px] flex-col justify-center overflow-hidden rounded-2xl border border-line bg-bg p-7 shadow-[0_24px_70px_-35px_rgba(125,39,49,0.38)] transition-[border-color,background-color,box-shadow] duration-300 ease-out hover:border-accent/35 hover:bg-white hover:shadow-[0_34px_78px_-28px_rgba(125,39,49,0.46),0_10px_28px_-18px_rgba(196,22,31,0.24)] sm:p-9 lg:min-h-[160px] lg:p-6'
+                                className='capability-card group absolute inset-x-0 top-0 isolate mx-auto grid min-h-[150px] w-full max-w-[520px] grid-cols-[64px_minmax(0,1fr)] grid-rows-[auto_auto] items-center gap-x-3 overflow-hidden rounded-2xl border border-line bg-bg p-4 shadow-[0_24px_70px_-35px_rgba(125,39,49,0.38)] transition-[border-color,background-color,box-shadow] duration-300 ease-out hover:border-accent/35 hover:bg-white hover:shadow-[0_34px_78px_-28px_rgba(125,39,49,0.46),0_10px_28px_-18px_rgba(196,22,31,0.24)] md:flex md:min-h-[144px] md:max-w-[480px] md:flex-col md:gap-0 md:p-5 lg:min-h-[160px] lg:max-w-[520px] lg:p-6'
                                 aria-live='polite'
                             >
                                 <span className='pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-accent/[0.1] opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-100' aria-hidden='true' />
                                 <span className='pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-accent/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100' aria-hidden='true' />
-                                <MarketingIllustration type={illustration} className='relative z-10 mb-4 h-16 w-24 animate-breathe transition-transform duration-300 ease-out group-hover:-translate-y-1.5 group-hover:scale-110' />
-                                <h3 className='relative z-10 type-card-title text-ink transition-colors duration-300 group-hover:text-accent'>{title}</h3>
-                                <p className='relative z-10 mt-2 max-w-[580px] type-body-small text-text-secondary transition-colors duration-300 group-hover:text-ink/75'>{description}</p>
+                                <MarketingIllustration type={illustration} className='relative z-10 row-span-2 mb-0 h-12 w-16 justify-self-center animate-breathe transition-transform duration-300 ease-out group-hover:-translate-y-1.5 group-hover:scale-110 md:mb-3 md:h-12 md:w-20 lg:mb-4 lg:h-16 lg:w-24' />
+                                <h3 className='relative z-10 col-start-2 row-start-1 type-card-title text-ink transition-colors duration-300 group-hover:text-accent'>{title}</h3>
+                                <p className='relative z-10 col-start-2 row-start-2 mt-1 max-w-[580px] type-body-small text-text-secondary transition-colors duration-300 group-hover:text-ink/75 md:mt-2'>{description}</p>
                             </Motion.article>
                         </AnimatePresence>
                     </div>
-                    <div className='mt-4 flex justify-center gap-2' aria-label='Enterprise capability rotation'>
+                    <div className='mt-2 flex justify-center gap-2 lg:mt-4' aria-label='Enterprise capability rotation'>
                         {enterpriseCapabilities.map(([, capabilityTitle], index) => (
                             <span key={capabilityTitle} className={`h-1.5 rounded-full transition-all duration-500 ${index === activeCapability ? 'w-9 bg-accent' : 'w-1.5 bg-accent/20'}`} aria-hidden='true' />
                         ))}
@@ -339,39 +339,39 @@ function SolutionPanel({ p, i }) {
     }, [])
 
     return (
-        <article ref={panelRef} id={p.id} className={`panel sticky top-24 scroll-mt-20 pt-4 lg:top-28 ${i < 2 ? 'min-h-[86vh] lg:min-h-[90vh]' : 'min-h-0'}`} style={{ zIndex: i + 1 }}>
+        <article ref={panelRef} id={p.id} className={`panel relative scroll-mt-20 pt-4 md:sticky md:top-24 lg:top-28 ${i < 2 ? 'min-h-0 md:min-h-[86vh] lg:min-h-[90vh]' : 'min-h-0'}`} style={{ zIndex: i + 1 }}>
             <div ref={cardRef} className={`solution-card relative overflow-hidden rounded-[28px] border border-line/80 p-6 shadow-[0_24px_70px_-42px_rgba(125,39,49,0.48)] sm:p-8 lg:p-10 xl:p-12 ${p.surface}`}>
                 <div className='pointer-events-none absolute right-[-80px] top-[-100px] h-[250px] w-[250px] rounded-full border border-accent/10' aria-hidden='true' />
                 <div className='pointer-events-none absolute bottom-[-120px] left-[32%] h-[220px] w-[220px] rounded-full bg-accent/[0.035] blur-3xl' aria-hidden='true' />
-                <div className='relative z-10 grid gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:gap-12 xl:gap-16'>
-                    <div className='solution-intro flex flex-col'>
+                <div className='relative z-10 grid gap-0 md:grid-cols-[minmax(0,1fr)_minmax(210px,240px)] md:items-center md:gap-6 lg:grid-cols-[0.92fr_1.08fr] lg:items-stretch lg:gap-12 xl:gap-16'>
+                    <div className='solution-intro min-w-0 flex flex-col'>
                         <div className='flex items-start justify-end'>
                             <span className='rounded-full border border-accent/15 bg-white/55 px-3 py-1.5 type-caption font-semibold tracking-[0.16em] text-accent'>0{i + 1} / AUDIENCE</span>
                         </div>
                         <p className='mt-7 type-eyebrow text-accent/75'>{p.eyebrow}</p>
-                        <h3 className='mt-3 max-w-[460px] type-h3 text-ink'>{p.label}</h3>
+                        <h3 className='mt-3 max-w-[460px] type-h3 text-ink md:max-w-none md:text-center lg:max-w-[460px] lg:text-left'>{p.label}</h3>
                         <p className='mt-5 max-w-[480px] type-component-title font-semibold text-ink'>{p.statement}</p>
                         <ul className='mt-6 grid gap-3.5'>
                             {p.features.map((feature) => (
-                                <li key={feature} className='solution-pointer flex items-start gap-3 type-body-small text-text-secondary'>
+                                <li key={feature} className='solution-pointer flex min-w-0 items-start gap-3 type-body-small text-text-secondary'>
                                     <span className='mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/[0.09] text-accent'>
                                         <Check size={13} strokeWidth={2.5} aria-hidden='true' />
                                     </span>
-                                    <span>{feature}</span>
+                                    <span className='min-w-0'>{feature}</span>
                                 </li>
                             ))}
                         </ul>
                     </div>
 
-                    <div className='solution-audience-visual relative flex min-h-[360px] items-end justify-center overflow-hidden rounded-[24px] bg-[#fff8f8] px-4 pt-6 lg:min-h-[470px] xl:min-h-[560px]'>
+                    <div className='solution-audience-visual relative hidden min-h-0 items-center justify-center overflow-hidden rounded-[24px] bg-[#fff8f8] md:flex md:w-full md:max-w-[240px] md:self-center md:justify-self-end md:p-3 lg:min-h-[470px] lg:max-w-none lg:self-stretch lg:justify-self-stretch lg:items-end lg:p-0 lg:px-4 lg:pt-6 xl:min-h-[560px]'>
                         {p.category === 'candidate' && (
-                            <div className='solution-visual-decorations pointer-events-none absolute inset-0 z-[11] hidden sm:block' aria-hidden='true'>
+                            <div className='solution-visual-decorations pointer-events-none absolute inset-0 z-[11] hidden lg:block' aria-hidden='true'>
                                 <span className='absolute right-[9%] top-[9%] flex h-28 w-28 items-center justify-center rounded-full bg-[#8b0e16] text-[#fff8f8] shadow-[0_8px_18px_-12px_rgba(30,8,12,0.65)]'>
                                     <CategoryBadgeIcon type={p.category} />
                                 </span>
                             </div>
                         )}
-                        <img className={`relative z-10 block h-full max-h-[470px] w-full max-w-[520px] object-contain ${p.category === 'college' ? 'object-center mix-blend-multiply' : 'object-bottom'} xl:max-h-[560px] xl:max-w-[620px]`} src={p.image} alt={p.imageAlt} />
+                        <img className={`relative z-10 block h-auto max-h-[280px] w-full max-w-[240px] object-contain lg:h-full lg:max-h-[470px] lg:max-w-[520px] ${p.category === 'college' ? 'object-center mix-blend-multiply' : 'object-bottom'} xl:max-h-[560px] xl:max-w-[620px]`} src={p.image} alt={p.imageAlt} />
                     </div>
                 </div>
             </div>
@@ -416,7 +416,10 @@ function EnquiryForm() {
     const [status, setStatus] = useState('idle')
     const [error, setError] = useState('')
     const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
-    const inputCls = 'type-body w-full bg-bg border border-line rounded-xl px-4 py-3.5 text-ink placeholder-text-secondary/60 focus:ring-2 focus:ring-accent/25 focus:border-accent outline-none transition-all'
+    const inputBaseCls = 'type-body w-full min-w-0 rounded-xl border border-line bg-bg text-ink placeholder-text-secondary/60 outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/25'
+    const inputCls = `${inputBaseCls} h-[50px] px-4 py-0 md:h-auto md:py-3.5`
+    const selectCls = `${inputCls} px-3 md:px-4`
+    const textareaCls = `${inputBaseCls} h-[116px] resize-none px-4 py-3 md:h-auto md:py-3.5`
 
     const submit = async (e) => {
         e.preventDefault()
@@ -446,21 +449,21 @@ function EnquiryForm() {
                     <p className='type-body-small text-text-secondary'>Your enquiry has been received. Our team will contact you shortly.</p>
                 </div>
             ) : (
-                <form onSubmit={submit} className='form-el space-y-4'>
-                    <div className='grid sm:grid-cols-2 gap-4'>
+                <form onSubmit={submit} className='form-el space-y-3 md:space-y-4'>
+                    <div className='grid gap-3 md:grid-cols-2 md:gap-4'>
                         <input required placeholder='Name' value={form.name} onChange={set('name')} className={inputCls} />
                         <input required type='email' placeholder='Email' value={form.email} onChange={set('email')} className={inputCls} />
                     </div>
-                    <div className='grid sm:grid-cols-2 gap-4'>
+                    <div className='grid gap-3 md:grid-cols-2 md:gap-4'>
                         <input placeholder='Mobile number' value={form.mobile} onChange={set('mobile')} className={inputCls} />
-                        <select value={form.clientType} onChange={set('clientType')} className={inputCls}>
+                        <select value={form.clientType} onChange={set('clientType')} className={selectCls}>
                             <option value='Organization'>Company / Organization</option>
                             <option value='College'>College / Institution</option>
                             <option value='Candidate'>Candidate</option>
                         </select>
                     </div>
                     <input placeholder='Subject' value={form.subject} onChange={set('subject')} className={inputCls} />
-                    <textarea required rows={4} placeholder='Message' value={form.message} onChange={set('message')} className={`${inputCls} resize-none`} />
+                    <textarea required rows={4} placeholder='Message' value={form.message} onChange={set('message')} className={textareaCls} />
                     {status === 'error' && <p className='type-body-small text-red-500'>{error}</p>}
                     <Button type='submit' size='lg' disabled={status === 'sending'} className='w-full'>
                         {status === 'sending' ? 'Submitting...' : 'Submit Enquiry'}
@@ -477,6 +480,12 @@ function WHome() {
         typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('hero') === 'threads'
     ))
     const planRef = useReveal('.plan')
+    const pricingTrackRef = useRef(null)
+    const pricingScrollFrameRef = useRef(null)
+    const [isMobilePricing, setIsMobilePricing] = useState(() => (
+        typeof window !== 'undefined' && window.matchMedia?.('(max-width: 767px)').matches
+    ))
+    const [activePricingIndex, setActivePricingIndex] = useState(0)
     const faqRef = useReveal('.faq-item', { y: 12 })
 
     const jump = (id) => (e) => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }) }
@@ -523,6 +532,89 @@ function WHome() {
         { name: 'Enterprise', price: 'Custom', period: '', desc: 'For organizations requiring a tailored deployment.', features: ['Dedicated onboarding', 'Custom integrations', 'SLA-backed support'] },
     ]
 
+    const displayedPlans = isMobilePricing ? [plans[1], plans[0], plans[2]] : plans
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined
+
+        const query = window.matchMedia('(max-width: 767px)')
+        const handleChange = (event) => {
+            setIsMobilePricing(event.matches)
+            if (event.matches) {
+                setActivePricingIndex(0)
+                window.requestAnimationFrame(() => {
+                    if (pricingTrackRef.current) pricingTrackRef.current.scrollLeft = 0
+                })
+            }
+        }
+
+        if (query.addEventListener) query.addEventListener('change', handleChange)
+        else query.addListener(handleChange)
+
+        return () => {
+            if (query.removeEventListener) query.removeEventListener('change', handleChange)
+            else query.removeListener(handleChange)
+        }
+    }, [])
+
+    useEffect(() => {
+        const track = pricingTrackRef.current
+        if (!track || !isMobilePricing) return undefined
+
+        const updateActivePlan = () => {
+            pricingScrollFrameRef.current = null
+            const cards = [...track.querySelectorAll('[data-pricing-plan]')]
+            if (!cards.length) return
+
+            const trackBounds = track.getBoundingClientRect()
+            const trackCenter = trackBounds.left + trackBounds.width / 2
+            let nearestIndex = 0
+            let nearestDistance = Number.POSITIVE_INFINITY
+
+            cards.forEach((card, index) => {
+                const bounds = card.getBoundingClientRect()
+                const distance = Math.abs(bounds.left + bounds.width / 2 - trackCenter)
+                if (distance < nearestDistance) {
+                    nearestDistance = distance
+                    nearestIndex = index
+                }
+            })
+
+            setActivePricingIndex((current) => current === nearestIndex ? current : nearestIndex)
+        }
+
+        const handleScroll = () => {
+            if (pricingScrollFrameRef.current === null) {
+                pricingScrollFrameRef.current = window.requestAnimationFrame(updateActivePlan)
+            }
+        }
+
+        track.addEventListener('scroll', handleScroll, { passive: true })
+        updateActivePlan()
+
+        return () => {
+            track.removeEventListener('scroll', handleScroll)
+            if (pricingScrollFrameRef.current !== null) {
+                window.cancelAnimationFrame(pricingScrollFrameRef.current)
+                pricingScrollFrameRef.current = null
+            }
+        }
+    }, [isMobilePricing])
+
+    const scrollToPricingPlan = (index) => {
+        const track = pricingTrackRef.current
+        const card = track?.querySelectorAll('[data-pricing-plan]')?.[index]
+        if (!track || !card) return
+
+        const targetLeft = Math.max(0, card.offsetLeft - (track.clientWidth - card.offsetWidth) / 2)
+        if (typeof track.scrollTo === 'function') {
+            track.scrollTo({ left: targetLeft, behavior: REDUCE_MOTION ? 'auto' : 'smooth' })
+        } else {
+            track.scrollLeft = targetLeft
+        }
+        setActivePricingIndex(index)
+    }
+
     const faqs = [
         ['Can I upgrade or downgrade my plan at any time?', 'Yes — changes take effect from your next billing cycle, and we\'ll prorate the difference.'],
         ['Do you offer special pricing for academic institutions?', 'Yes — mention your institution in the enquiry form below for tailored pricing.'],
@@ -541,25 +633,43 @@ function WHome() {
             <EnterpriseAI />
 
             {/* ============ PRICING ============ */}
-            <section id='pricing' className='workmate-shell scroll-mt-20 pb-12 pt-16 sm:pb-14 sm:pt-20 lg:pb-16 lg:pt-24'>
+            <section ref={planRef} id='pricing' className='workmate-shell scroll-mt-20 pb-12 pt-16 sm:pb-14 sm:pt-20 lg:pb-16 lg:pt-24'>
                 <p className={`${EYEBROW} justify-center flex`}>Pricing</p>
                 <h2 className={`${H2} mb-4 text-center`}>Simple, transparent pricing.</h2>
                 <p className='type-body text-text-secondary mb-16 text-center'>Choose the plan that fits how you hire, place or apply.</p>
 
-                <div ref={planRef} className='grid md:grid-cols-3 gap-6 mb-14'>
-                    {plans.map((p) => (
-                        <div key={p.name} className={`plan pricing-card rounded-2xl p-8 border ${p.featured ? 'pricing-card-growth gradient-border-sweep border-transparent bg-accent/[0.03]' : 'border-line bg-card'}`}>
+                <div ref={pricingTrackRef} tabIndex='0' aria-label='Pricing plans' className='pricing-track -mx-6 mb-3 flex snap-x snap-mandatory items-start gap-4 overflow-x-auto overscroll-x-contain px-6 pb-2 [scroll-padding-inline:1.5rem] md:mx-0 md:mb-14 md:grid md:grid-cols-3 md:items-stretch md:gap-4 md:overflow-visible md:overscroll-auto md:px-0 md:pb-0 md:snap-none'>
+                    {displayedPlans.map((p) => (
+                        <div key={p.name} data-pricing-plan={p.name} className={`plan pricing-card flex h-auto min-w-0 w-[86vw] max-w-[360px] shrink-0 snap-center flex-col rounded-2xl border px-6 py-7 md:h-full md:w-auto md:max-w-none md:p-5 lg:p-8 ${p.featured ? 'pricing-card-growth gradient-border-sweep border-transparent bg-accent/[0.03]' : 'border-line bg-card'}`}>
                             {p.featured && <p className='type-eyebrow text-accent mb-3'>Most popular</p>}
                             <h3 className='type-card-title text-ink mb-1'>{p.name}</h3>
-                            <p className='type-body-small text-text-secondary mb-5'>{p.desc}</p>
-                            <p className='type-metric text-ink mb-6'>{p.price}<span className='type-body-small text-text-secondary'>{p.period}</span></p>
-                            <ul className='space-y-2.5 mb-8'>
-                                {p.features.map((f) => <li key={f} className='type-body-small text-text-secondary flex items-start gap-2'><span className='text-accent mt-0.5'>—</span>{f}</li>)}
+                            <p className='type-body-small text-text-secondary mb-4 lg:mb-5'>{p.desc}</p>
+                            <div className='mb-5 inline-flex items-baseline gap-1 whitespace-nowrap lg:mb-6'>
+                                <span className='type-metric text-ink'>{p.price}</span>
+                                {p.period && <span className='type-body-small text-text-secondary'>{p.period}</span>}
+                            </div>
+                            <ul className='mb-7 space-y-3 lg:mb-8 lg:space-y-2.5'>
+                                {p.features.map((f) => <li key={f} className='type-body-small text-text-secondary flex min-w-0 items-start gap-2'><span aria-hidden='true' className='mt-0.5 shrink-0 text-accent'>—</span><span className='min-w-0'>{f}</span></li>)}
                             </ul>
-                            <Button variant={p.featured ? 'primary' : 'secondary'} className={`pricing-card-cta w-full`} onClick={jump('contact')}>
+                            <Button variant={p.featured ? 'primary' : 'secondary'} className='pricing-card-cta w-full whitespace-nowrap md:mt-auto' onClick={jump('contact')}>
                                 {p.name === 'Enterprise' ? 'Talk to us' : 'Send an Enquiry'}
                             </Button>
                         </div>
+                    ))}
+                </div>
+
+                <div className='pricing-pagination mb-14 flex justify-center gap-1.5 md:hidden' aria-label='Pricing plan navigation'>
+                    {displayedPlans.map((p, index) => (
+                        <button
+                            key={p.name}
+                            type='button'
+                            aria-label={`Show ${p.name} plan`}
+                            aria-current={activePricingIndex === index ? 'true' : undefined}
+                            onClick={() => scrollToPricingPlan(index)}
+                            className='flex h-8 w-8 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2'
+                        >
+                            <span className={`h-1.5 rounded-full transition-all duration-200 ${activePricingIndex === index ? 'w-6 bg-accent' : 'w-1.5 bg-accent/25'}`} aria-hidden='true' />
+                        </button>
                     ))}
                 </div>
 
@@ -570,17 +680,17 @@ function WHome() {
             </section>
 
             {/* ============ CONTACT ============ */}
-            <section id='contact' className='scroll-mt-20 relative pt-16 pb-20 sm:pt-20 sm:pb-24 overflow-hidden'>
+            <section id='contact' className='relative scroll-mt-20 overflow-hidden pt-10 pb-12 md:pt-20 md:pb-24'>
                 <div className='absolute -top-32 left-1/2 -translate-x-1/2 w-[700px] h-[460px] rounded-full opacity-[0.10] blur-3xl pointer-events-none'
                     style={{ background: 'radial-gradient(closest-side, #c4161f, transparent)' }} />
                 <NetworkGraphic className='absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[420px] opacity-60 pointer-events-none' />
-                <div className='relative max-w-[900px] mx-auto px-6 text-center mb-10'>
+                <div className='relative mx-auto mb-6 max-w-[900px] px-6 text-center md:mb-10'>
                     <p className={`${EYEBROW} justify-center flex`}>Contact</p>
                     <h2 className={`${H2} mb-5`}>Let's build better talent journeys.</h2>
                     <p className='type-body text-text-secondary'>Start your WorkmateIQ journey today — tell us a bit about you below.</p>
                 </div>
                 <div className='relative px-6'>
-                    <div className='max-w-[640px] mx-auto bg-card border border-line rounded-3xl p-8 sm:p-10 shadow-lift'>
+                    <div className='mx-auto max-w-[640px] rounded-3xl border border-line bg-card p-5 shadow-lift md:p-10'>
                         <EnquiryForm />
                     </div>
                 </div>

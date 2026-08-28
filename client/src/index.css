@@ -440,6 +440,18 @@ body {
   transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 300ms ease,
     border-color 300ms ease, background-color 300ms ease;
 }
+.workmate-marketing .pricing-track {
+  scrollbar-width: none;
+}
+.workmate-marketing .pricing-track::-webkit-scrollbar {
+  display: none;
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  .workmate-marketing .pricing-card-cta {
+    padding-inline: 0.75rem;
+    font-size: 14px;
+  }
+}
 @media (hover: hover) and (pointer: fine) {
   .pricing-card:hover {
     transform: translateY(-6px) scale(1.01);
@@ -468,6 +480,439 @@ body {
 }
 @keyframes border-angle-spin {
   to { --border-angle: 360deg; }
+}
+
+/* WorkmateIQ hero responsiveness. Keep this scoped so the marketing tokens
+   and layout used by the remaining landing sections stay unchanged. */
+.workmate-marketing .workmate-hero__shell {
+  width: min(100%, 1920px);
+  min-width: 0;
+  margin-inline: auto;
+  padding: 92px 20px 40px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
+.workmate-marketing .workmate-hero__shell > *,
+.workmate-marketing .workmate-hero__content,
+.workmate-marketing .workmate-hero__title,
+.workmate-marketing .workmate-hero__description,
+.workmate-marketing .workmate-hero__benefits,
+.workmate-marketing .workmate-hero__actions,
+.workmate-marketing .workmate-hero__visual {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.workmate-marketing .workmate-hero__title {
+  margin-bottom: 18px;
+  font-size: clamp(34px, 9vw, 38px);
+  line-height: 1.06;
+  letter-spacing: -0.028em;
+}
+
+.workmate-marketing .workmate-hero__title > span {
+  display: block;
+  max-width: 100%;
+}
+
+.workmate-marketing .workmate-hero__description {
+  width: 100%;
+  max-width: 640px;
+  margin-bottom: 20px;
+  overflow-wrap: break-word;
+  font-size: clamp(15.5px, 4vw, 17px);
+  line-height: 1.55;
+}
+
+.workmate-marketing .workmate-hero__benefits {
+  display: grid;
+  width: 100%;
+  max-width: 360px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.workmate-marketing .workmate-hero__benefit {
+  min-width: 0;
+  height: 42px;
+  justify-content: center;
+  gap: 6px;
+  padding-inline: 10px;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.workmate-marketing .workmate-hero__benefit > img,
+.workmate-marketing .workmate-hero__benefit > svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+.workmate-marketing .workmate-hero__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.workmate-marketing .workmate-hero__action {
+  width: min(100%, 320px);
+  min-width: 0;
+  min-height: 52px;
+  padding-inline: 20px;
+  font-size: 16px;
+  white-space: nowrap;
+}
+
+.workmate-marketing .workmate-hero__visual {
+  display: none;
+}
+
+@media (max-width: 375px) {
+  .workmate-marketing .workmate-hero__shell {
+    padding: 88px 16px 36px;
+  }
+
+  .workmate-marketing .workmate-hero__title {
+    margin-bottom: 16px;
+  }
+
+  .workmate-marketing .workmate-hero__description {
+    margin-bottom: 18px;
+    font-size: 15.5px;
+    line-height: 1.5;
+  }
+
+  .workmate-marketing .workmate-hero__benefits {
+    gap: 6px;
+  }
+
+  .workmate-marketing .workmate-hero__benefit {
+    height: 40px;
+    gap: 5px;
+    padding-inline: 7px;
+    font-size: 13px;
+  }
+
+  .workmate-marketing .workmate-hero__benefit > img,
+  .workmate-marketing .workmate-hero__benefit > svg {
+    width: 13px;
+    height: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .workmate-marketing .workmate-hero__action {
+    min-height: 50px;
+    font-size: 15.5px;
+  }
+}
+
+@media (min-width: 481px) {
+  .workmate-marketing .workmate-hero__title {
+    margin-bottom: 18px;
+    font-size: clamp(38px, 7.5vw, 44px);
+    letter-spacing: -0.03em;
+  }
+
+  .workmate-marketing .workmate-hero__description {
+    font-size: clamp(16px, 2.4vw, 17px);
+  }
+}
+
+@media (min-width: 768px) {
+  .workmate-marketing .workmate-hero__shell {
+    padding: 112px 24px 64px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 40px;
+  }
+
+  .workmate-marketing .workmate-hero__title {
+    max-width: 680px;
+    margin-bottom: 20px;
+    font-size: clamp(48px, 6.5vw, 56px);
+    letter-spacing: -0.03em;
+  }
+
+  .workmate-marketing .workmate-hero__description {
+    max-width: 620px;
+    margin-bottom: 22px;
+    font-size: 18px;
+    line-height: 1.55;
+  }
+
+  .workmate-marketing .workmate-hero__benefits {
+    display: flex;
+    max-width: none;
+    gap: 10px;
+    margin-bottom: 32px;
+  }
+
+  .workmate-marketing .workmate-hero__benefit {
+    height: auto;
+    justify-content: initial;
+    gap: 8px;
+    padding-inline: 12px;
+    font-size: 14px;
+  }
+
+  .workmate-marketing .workmate-hero__actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .workmate-marketing .workmate-hero__action {
+    width: auto;
+    min-height: 52px;
+    padding-inline: 28px;
+    font-size: 15px;
+  }
+
+  .workmate-marketing .workmate-hero__visual {
+    display: block;
+    width: min(100%, 620px);
+    justify-self: center;
+  }
+}
+
+@media (min-width: 1024px) {
+  .workmate-marketing .workmate-hero__shell {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    padding: 128px clamp(32px, 2.5vw, 40px) 80px;
+    gap: 56px;
+  }
+
+  .workmate-marketing .workmate-hero__title {
+    max-width: 760px;
+    margin-bottom: 24px;
+    font-size: 56px;
+    letter-spacing: -0.035em;
+  }
+
+  .workmate-marketing .workmate-hero__description {
+    max-width: 640px;
+    margin-bottom: 24px;
+    font-size: 18px;
+    line-height: 1.55;
+  }
+
+  .workmate-marketing .workmate-hero__visual {
+    width: 100%;
+    justify-self: stretch;
+  }
+}
+
+@media (min-width: 1280px) {
+  .workmate-marketing .workmate-hero__shell {
+    gap: 64px;
+  }
+
+  .workmate-marketing .workmate-hero__title {
+    font-size: clamp(72px, 4.2vw, 80px);
+  }
+
+  .workmate-marketing .workmate-hero__description {
+    font-size: 21px;
+    line-height: 1.6;
+  }
+
+  .workmate-marketing .workmate-hero__benefit {
+    font-size: 16px;
+  }
+
+  .workmate-marketing .workmate-hero__action {
+    min-height: 57px;
+    font-size: 16px;
+  }
+}
+
+/* Landing header keeps branding and auth controls aligned on small screens
+   without changing the desktop navigation layout. */
+.workmate-marketing .workmate-nav__shell {
+  height: 68px;
+  padding-inline: 20px;
+}
+
+.workmate-marketing .workmate-nav__shell--scrolled {
+  height: 60px;
+}
+
+.workmate-marketing .workmate-nav__logo {
+  width: 34px;
+  height: 34px;
+}
+
+.workmate-marketing .workmate-nav__brand {
+  font-size: 15px;
+}
+
+@media (min-width: 768px) {
+  .workmate-marketing .workmate-nav__shell {
+    height: 72px;
+    padding-inline: 24px;
+  }
+
+  .workmate-marketing .workmate-nav__shell--scrolled {
+    height: 64px;
+  }
+
+  .workmate-marketing .workmate-nav__logo {
+    width: 38px;
+    height: 38px;
+  }
+
+  .workmate-marketing .workmate-nav__brand {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 1023px) {
+  .workmate-marketing .workmate-nav__identity,
+  .workmate-marketing .workmate-nav__auth {
+    white-space: nowrap;
+  }
+
+  .workmate-marketing .workmate-nav__identity,
+  .workmate-marketing .workmate-nav__auth,
+  .workmate-marketing .workmate-nav__auth-button {
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .workmate-marketing .workmate-nav__shell {
+    padding-inline: 12px;
+  }
+
+  .workmate-marketing .workmate-nav__identity {
+    gap: 8px;
+  }
+
+  .workmate-marketing .workmate-nav__logo {
+    width: 30px;
+    height: 30px;
+  }
+
+  .workmate-marketing .workmate-nav__brand {
+    font-size: 14px;
+  }
+
+  .workmate-marketing .workmate-nav__auth {
+    gap: 6px;
+    margin-left: 8px;
+  }
+
+  .workmate-marketing .workmate-nav__auth-button {
+    min-height: 36px;
+    padding: 8px 12px;
+    font-size: 13px;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .workmate-marketing .workmate-nav__auth-button--demo {
+    padding-inline: 8px;
+  }
+}
+
+@media (max-width: 375px) {
+  .workmate-marketing .workmate-nav__shell {
+    height: 64px;
+    padding-inline: 12px;
+  }
+
+  .workmate-marketing .workmate-nav__shell--scrolled {
+    height: 58px;
+  }
+
+  .workmate-marketing .workmate-nav__identity {
+    gap: 6px;
+  }
+
+  .workmate-marketing .workmate-nav__logo {
+    width: 28px;
+    height: 28px;
+  }
+
+  .workmate-marketing .workmate-nav__brand {
+    font-size: 13px;
+  }
+
+  .workmate-marketing .workmate-nav__auth {
+    gap: 6px;
+    margin-left: 8px;
+  }
+
+  .workmate-marketing .workmate-nav__auth-button {
+    min-height: 36px;
+    padding-inline: 10px;
+    font-size: 12.5px;
+  }
+
+  .workmate-marketing .workmate-nav__auth-button--demo {
+    padding-inline: 6px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .workmate-marketing .workmate-nav__shell {
+    height: 80px;
+    padding-inline: clamp(32px, 2.5vw, 40px);
+  }
+
+  .workmate-marketing .workmate-nav__shell--scrolled {
+    height: 66px;
+  }
+
+  .workmate-marketing .workmate-nav__logo {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (min-width: 481px) {
+  .workmate-marketing .nexa-launcher__avatar {
+    display: block;
+    width: 42px;
+    height: 42px;
+  }
+
+  .workmate-marketing .nexa-launcher__avatar svg {
+    width: 42px;
+    height: 42px;
+  }
+}
+
+@media (max-width: 480px) {
+  .workmate-marketing .nexa-launcher-wrap {
+    right: 16px;
+    bottom: max(16px, env(safe-area-inset-bottom));
+  }
+
+  .workmate-marketing .nexa-launcher {
+    width: 52px;
+    height: 52px;
+  }
+
+  .workmate-marketing .nexa-launcher__avatar,
+  .workmate-marketing .nexa-launcher__avatar svg {
+    width: 38px;
+    height: 38px;
+  }
+
+  .workmate-marketing .nexa-launcher__status {
+    width: 14px;
+    height: 14px;
+  }
+
+  .workmate-marketing .nexa-panel {
+    width: min(360px, calc(100vw - 32px));
+    max-height: calc(100dvh - 120px);
+  }
 }
 
 /* Pure-CSS entrance fade - deliberately NOT GSAP-driven. A one-shot JS

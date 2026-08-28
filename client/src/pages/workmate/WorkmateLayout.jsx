@@ -19,7 +19,6 @@ const NAV_LINKS = [
 
 function WorkmateNav() {
     const navigate = useNavigate()
-    const [open, setOpen] = useState(false)
     const [active, setActive] = useState('home')
     const [scrolled, setScrolled] = useState(false)
 
@@ -48,17 +47,16 @@ function WorkmateNav() {
     const jump = (id) => (e) => {
         e.preventDefault()
         document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        setOpen(false)
     }
 
     const goToPlatformLogin = () => navigate('/platform/login')
 
     return (
         <div className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${scrolled ? 'bg-card/80 backdrop-blur-xl border-b border-line shadow-soft' : 'bg-card/40 backdrop-blur-sm border-b border-transparent'}`}>
-            <div className={`workmate-shell flex items-center justify-between transition-all duration-300 ${scrolled ? 'h-[62px] lg:h-[66px]' : 'h-[76px] lg:h-[80px]'}`}>
-                <a href='#home' onClick={jump('home')} className='flex items-center gap-2.5 shrink-0 group'>
-                    <img src={logo} alt='' className='h-9 w-9 rounded-full transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6 lg:h-11 lg:w-11' />
-                    <span className='type-brand text-ink tracking-tight'>WorkmateIQ</span>
+            <div className={`workmate-shell workmate-nav__shell ${scrolled ? 'workmate-nav__shell--scrolled' : ''} flex items-center justify-between transition-all duration-300 ${scrolled ? 'h-[62px] lg:h-[66px]' : 'h-[76px] lg:h-[80px]'}`}>
+                <a href='#home' onClick={jump('home')} className='workmate-nav__identity flex items-center gap-2.5 shrink-0 group'>
+                    <img src={logo} alt='' className='workmate-nav__logo h-9 w-9 rounded-full transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6 lg:h-11 lg:w-11' />
+                    <span className='workmate-nav__brand type-brand text-ink tracking-tight'>WorkmateIQ</span>
                 </a>
 
                 <div className='hidden lg:flex items-center gap-1'>
@@ -70,29 +68,11 @@ function WorkmateNav() {
                     ))}
                 </div>
 
-                <div className='hidden md:flex items-center gap-3'>
-                    <Button variant='ghost' size='sm' className='lg:!px-5 lg:!py-2.5' onClick={() => navigate('/login')}>Demo Login</Button>
-                    <Button variant='primary' size='sm' className='lg:!px-5 lg:!py-2.5' onClick={goToPlatformLogin}>Login</Button>
+                <div className='workmate-nav__auth flex items-center gap-3 ml-auto lg:ml-0 shrink-0'>
+                    <Button variant='ghost' size='sm' className='workmate-nav__auth-button workmate-nav__auth-button--demo lg:!px-5 lg:!py-2.5' onClick={() => navigate('/login')}>Demo Login</Button>
+                    <Button variant='primary' size='sm' className='workmate-nav__auth-button workmate-nav__auth-button--login lg:!px-5 lg:!py-2.5' onClick={goToPlatformLogin}>Login</Button>
                 </div>
-
-                <button className='lg:hidden text-ink' onClick={() => setOpen(!open)} aria-label='Menu'>
-                    <span className='block w-5 h-0.5 bg-current mb-1.5 rounded' />
-                    <span className='block w-5 h-0.5 bg-current rounded' />
-                </button>
             </div>
-
-            {open && (
-                <div className='lg:hidden border-t border-line px-6 py-5 space-y-1 bg-card'>
-                    {NAV_LINKS.map((l) => (
-                        <a key={l.id} href={`#${l.id}`} onClick={jump(l.id)}
-                            className='type-nav block py-2.5 text-text-secondary outline-none transition-colors hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/25'>{l.label}</a>
-                    ))}
-                    <div className='flex gap-2.5 pt-3'>
-                        <Button variant='ghost' size='sm' className='flex-1' onClick={() => navigate('/login')}>Demo Login</Button>
-                        <Button variant='primary' size='sm' className='flex-1' onClick={goToPlatformLogin}>Login</Button>
-                    </div>
-                </div>
-            )}
         </div>
     )
 }

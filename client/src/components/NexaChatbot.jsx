@@ -184,7 +184,7 @@ function NexaChatbot() {
     const toggleOpen = () => setIsOpen((open) => !open)
 
     return (
-        <div className='fixed bottom-5 right-5 z-[45] sm:bottom-7 sm:right-7'>
+        <div className='nexa-launcher-wrap fixed bottom-5 right-5 z-[45] sm:bottom-7 sm:right-7'>
             <AnimatePresence initial={false}>
                 {isOpen && (
                     <Motion.section
@@ -196,7 +196,7 @@ function NexaChatbot() {
                         exit={reduceMotion ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0, y: 10, scale: 0.97 }}
                         transition={{ duration: reduceMotion ? 0 : 0.24, ease: [0.16, 1, 0.3, 1] }}
                         aria-label='Nexa chatbot'
-                        className='absolute bottom-[calc(100%+16px)] right-0 w-[min(380px,calc(100vw-24px))] origin-bottom-right overflow-hidden rounded-[26px] border border-[#ead7d9] bg-[#fffdfc] shadow-[0_30px_82px_-28px_rgba(112,26,34,0.34),0_14px_28px_-18px_rgba(112,26,34,0.2)]'
+                        className='nexa-panel absolute bottom-[calc(100%+16px)] right-0 w-[min(380px,calc(100vw-24px))] origin-bottom-right overflow-hidden rounded-[26px] border border-[#ead7d9] bg-[#fffdfc] shadow-[0_30px_82px_-28px_rgba(112,26,34,0.34),0_14px_28px_-18px_rgba(112,26,34,0.2)]'
                     >
                         <ChatbotHeader isAnswerView={Boolean(selectedFaq)} onBack={() => setSelectedFaq(null)} onClose={() => setIsOpen(false)} />
                         <div className='max-h-[min(560px,calc(100dvh-144px))] overflow-y-auto px-4 py-5 sm:px-5'>
@@ -239,7 +239,7 @@ function NexaChatbot() {
                 aria-expanded={isOpen}
                 aria-controls='nexa-chatbot-panel'
                 aria-label={isOpen ? 'Close Nexa' : 'Open Nexa'}
-                className='group relative flex h-14 w-14 items-center justify-center rounded-full bg-[radial-gradient(circle_at_32%_24%,#d13a48_0%,#bd242b_36%,#8f1018_100%)] text-white shadow-[0_16px_32px_-14px_rgba(127,14,22,0.75),inset_0_1px_0_rgba(255,255,255,0.3)] transition-all duration-300 hover:scale-[1.07] hover:shadow-[0_20px_38px_-13px_rgba(127,14,22,0.86),0_0_0_7px_rgba(196,22,31,0.08)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/25 active:scale-[0.98] sm:h-16 sm:w-16'
+                className='nexa-launcher group relative flex h-14 w-14 items-center justify-center rounded-full bg-[radial-gradient(circle_at_32%_24%,#d13a48_0%,#bd242b_36%,#8f1018_100%)] text-white shadow-[0_16px_32px_-14px_rgba(127,14,22,0.75),inset_0_1px_0_rgba(255,255,255,0.3)] transition-all duration-300 hover:scale-[1.07] hover:shadow-[0_20px_38px_-13px_rgba(127,14,22,0.86),0_0_0_7px_rgba(196,22,31,0.08)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/25 active:scale-[0.98] sm:h-16 sm:w-16'
             >
                 <span className='absolute inset-1 rounded-full border border-white/20' aria-hidden='true' />
                 <span className='pointer-events-none absolute left-3 top-2.5 h-2 w-5 rounded-full bg-white/20 blur-[3px]' aria-hidden='true' />
@@ -252,11 +252,11 @@ function NexaChatbot() {
                         transition={{ duration: reduceMotion ? 0 : 0.18, ease: 'easeOut' }}
                         className='relative'
                     >
-                        {isOpen ? <X size={28} strokeWidth={1.8} /> : <NexaLauncherAvatar size={42} />}
+                        {isOpen ? <X size={28} strokeWidth={1.8} /> : <span className='nexa-launcher__avatar'><NexaLauncherAvatar size={38} /></span>}
                     </Motion.span>
                 </AnimatePresence>
                 {!isOpen && (
-                    <span className='absolute right-0 top-0 h-4 w-4 rounded-full border-2 border-[#fffaf9] bg-[#f1bf4c] shadow-[0_3px_8px_rgba(92,18,24,0.2)]' aria-label='New assistant message'>
+                    <span className='nexa-launcher__status absolute right-0 top-0 h-4 w-4 rounded-full border-2 border-[#fffaf9] bg-[#f1bf4c] shadow-[0_3px_8px_rgba(92,18,24,0.2)]' aria-label='New assistant message'>
                         <span className='motion-safe:animate-ping absolute inset-0 rounded-full bg-[#f1bf4c]/45' aria-hidden='true' />
                     </span>
                 )}

@@ -72,10 +72,20 @@ function ShowcaseCard({ strip, isClone }) {
                     decoding='async'
                 />
             </div>
-            <div className='showcase-copy'>
-                <p className='showcase-eyebrow'>{strip.eyebrow}</p>
-                <h2>{strip.title}</h2>
-                <p className='showcase-description'>{strip.description}</p>
+            <div className='showcase-content'>
+                <div className='showcase-copy'>
+                    <p className='showcase-eyebrow'>{strip.eyebrow}</p>
+                    <h2>{strip.title}</h2>
+                    <p className='showcase-description'>{strip.description}</p>
+                </div>
+                <ul className='showcase-features'>
+                    {strip.features.map((feature) => (
+                        <li key={feature}>
+                            <span><Check size={15} strokeWidth={2.4} aria-hidden='true' /></span>
+                            {feature}
+                        </li>
+                    ))}
+                </ul>
                 {strip.cta && (
                     <a className='showcase-cta' href={strip.href}>
                         {strip.cta}
@@ -83,14 +93,6 @@ function ShowcaseCard({ strip, isClone }) {
                     </a>
                 )}
             </div>
-            <ul className='showcase-features'>
-                {strip.features.map((feature) => (
-                    <li key={feature}>
-                        <span><Check size={15} strokeWidth={2.4} aria-hidden='true' /></span>
-                        {feature}
-                    </li>
-                ))}
-            </ul>
         </article>
     )
 }
