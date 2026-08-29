@@ -83,16 +83,16 @@ function WorkmateFooter() {
         document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
     const columns = [
-        { h: 'Solutions', items: [['For Organizations', 'organizations'], ['For Colleges', 'colleges'], ['For Candidates', 'candidates']] },
-        { h: 'Company', items: [['About', 'about'], ['Solution', 'how-it-works'], ['Contact', 'contact']] },
-        { h: 'Get Started', items: [['Pricing', 'pricing'], ['Enquiry', 'contact']] },
+        { key: 'solutions', h: 'Solutions', items: [['For Organizations', 'organizations'], ['For Colleges', 'colleges'], ['For Candidates', 'candidates']] },
+        { key: 'company', h: 'Company', items: [['About', 'about'], ['Solution', 'how-it-works'], ['Contact', 'contact']] },
+        { key: 'get-started', h: 'Get Started', items: [['Pricing', 'pricing'], ['Enquiry', 'contact']] },
     ]
     return (
-        <footer className='bg-accent-dark border-t border-white/20 text-bg pt-12 pb-10'>
+        <footer className='workmate-footer bg-accent-dark border-t border-white/20 text-bg pt-12 pb-10'>
             <div className='workmate-shell'>
-                <div className='grid sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-16'>
-                    <div className='lg:col-span-1'>
-                        <div className='flex items-center gap-3 mb-4'>
+                <div className='workmate-footer__main grid sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-16'>
+                    <div className='workmate-footer__identity lg:col-span-1'>
+                        <div className='workmate-footer__brand flex items-center gap-3 mb-4'>
                             <img src={logoFooter} alt='' className='w-12 h-12 shrink-0 rounded-full' />
                             <span className='type-brand text-bg'>WorkmateIQ</span>
                         </div>
@@ -101,9 +101,9 @@ function WorkmateFooter() {
                         </p>
                     </div>
                     {columns.map((col) => (
-                        <div key={col.h}>
+                        <div key={col.key} className={`workmate-footer__column workmate-footer__column--${col.key}`}>
                             <p className='type-footer-heading text-bg mb-4'>{col.h}</p>
-                            <div className='space-y-2.5'>
+                            <div className='workmate-footer__links space-y-2.5'>
                                 {col.items.map(([label, id]) => (
                                     <a key={label} href={`#${id}`} onClick={jump(id)} className='type-footer-link block text-bg/75 hover:text-bg transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bg/60'>{label}</a>
                                 ))}
@@ -111,16 +111,16 @@ function WorkmateFooter() {
                         </div>
                     ))}
                 </div>
-                <div className='flex flex-col gap-4 border-t border-white/20 pt-8 sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center'>
+                <div className='workmate-footer__bottom-row flex flex-col gap-4 border-t border-white/20 pt-8 sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center'>
                     <p className='type-caption text-bg/60'>© 2026 WorkmateIQ. All rights reserved.</p>
-                    <nav className='flex items-center justify-self-center gap-4' aria-label='Social and contact links'>
+                    <nav className='workmate-footer__social-nav flex items-center justify-self-center gap-4' aria-label='Social and contact links'>
                         <a
                             href='https://www.instagram.com/wcsplgroup'
                             target='_blank'
                             rel='noopener noreferrer'
                             aria-label='Instagram'
                             title='Instagram'
-                            className='flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#fffafa] text-accent transition-all duration-200 hover:scale-105 hover:bg-[#fff1f2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bg/70'
+                            className='workmate-footer__social-button flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#fffafa] text-accent transition-all duration-200 hover:scale-105 hover:bg-[#fff1f2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bg/70'
                         >
                             <FaInstagram size={34} aria-hidden='true' />
                         </a>
@@ -130,15 +130,17 @@ function WorkmateFooter() {
                             rel='noopener noreferrer'
                             aria-label='WhatsApp'
                             title='WhatsApp'
-                            className='flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#fffafa] text-accent transition-all duration-200 hover:scale-105 hover:bg-[#fff1f2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bg/70'
+                            className='workmate-footer__social-button flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#fffafa] text-accent transition-all duration-200 hover:scale-105 hover:bg-[#fff1f2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bg/70'
                         >
                             <FaWhatsapp size={34} aria-hidden='true' />
                         </a>
                         <a
                             href={NEXA_CONTACTS.gmail.href}
+                            target='_blank'
+                            rel='noopener noreferrer'
                             aria-label='Gmail'
                             title='Gmail'
-                            className='flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#fffafa] text-accent transition-all duration-200 hover:scale-105 hover:bg-[#fff1f2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bg/70'
+                            className='workmate-footer__social-button flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#fffafa] text-accent transition-all duration-200 hover:scale-105 hover:bg-[#fff1f2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bg/70'
                         >
                             <SiGmail size={34} aria-hidden='true' />
                         </a>

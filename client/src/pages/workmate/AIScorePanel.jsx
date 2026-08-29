@@ -1,4 +1,5 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
+import { getScoreBand } from './scoreBand'
 
 const REDUCE_MOTION = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
@@ -9,8 +10,9 @@ const SKILLS = [
 ]
 
 function scoreColor(score) {
-    if (score <= 70) return '#f58b91'
-    if (score <= 89) return 'var(--color-accent-cyan)'
+    const band = getScoreBand(score)
+    if (band === 'low') return '#f58b91'
+    if (band === 'mid') return 'var(--color-accent-cyan)'
     return 'var(--color-success)'
 }
 
@@ -20,10 +22,14 @@ function clampScore(value) {
     return Math.min(100, Math.max(0, Math.round(numericValue)))
 }
 
-function AIScorePanel() {
+function AIScorePanel({ onOverallScoreChange }) {
     const [scores, setScores] = useState(() => SKILLS.map(([, score]) => score))
     const overallScore = Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
     const meterOffset = 1 - overallScore / 100
+
+    useEffect(() => {
+        onOverallScoreChange?.(overallScore)
+    }, [onOverallScoreChange, overallScore])
 
     const updateScore = (index, value) => {
         setScores((current) => current.map((score, scoreIndex) => scoreIndex === index ? clampScore(value) : score))
@@ -81,7 +87,7 @@ function AIScorePanel() {
                     <p className='col-span-2 row-start-1 type-eyebrow mb-1.5 text-accent'>AI Evaluation</p>
                     <h3 className='col-span-2 row-start-2 type-card-title max-w-[260px] text-ink'>Candidate Score, generated instantly.</h3>
 
-                    <div className='relative col-start-1 row-start-3 mt-2 h-[80px] w-[118px] max-w-full self-start md:mx-auto md:mt-3 md:h-[116px] md:w-full md:max-w-[180px] lg:h-[124px] lg:max-w-[195px]' aria-label={`Overall Fit ${overallScore}%`} role='img'>
+                    <div className='score-gauge relative col-start-1 row-start-3 mt-2 self-start md:mx-auto md:mt-3' aria-label={`Overall Fit ${overallScore}%`} role='img'>
                         <svg viewBox='0 0 180 116' className='h-auto w-full' aria-hidden='true'>
                             <path d='M 18 92 A 72 72 0 0 1 162 92' fill='none' stroke='#f1dfe0' strokeWidth='19' strokeLinecap='round' />
                             <path
@@ -97,7 +103,7 @@ function AIScorePanel() {
                                 style={{ transition: REDUCE_MOTION ? 'none' : 'stroke-dashoffset 500ms ease-out' }}
                             />
                         </svg>
-                        <div className='absolute inset-x-0 bottom-[16px] flex items-center justify-center md:bottom-[25px] lg:bottom-[27px]'>
+                        <div className='score-gauge__value absolute inset-x-0 flex items-center justify-center'>
                             <span className='score-num type-metric tabular-nums text-accent-dark'>{overallScore}%</span>
                         </div>
                     </div>

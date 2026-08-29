@@ -10,6 +10,8 @@ import { FaLinkedinIn, FaWhatsapp } from 'react-icons/fa'
 import { SiGmail } from 'react-icons/si'
 import { NEXA_CONTACTS, NEXA_FAQS } from './interviewFaqConfig'
 
+const CHATBOT_NAME = 'Agrima'
+
 function NexaAvatar({ size = 21 }) {
     return (
         <svg width={size} height={size} viewBox='0 0 24 24' fill='none' aria-hidden='true'>
@@ -49,10 +51,10 @@ function ContactCard({ contact, IconComponent }) {
             href={contact.href}
             target={contact.external ? '_blank' : undefined}
             rel={contact.external ? 'noreferrer' : undefined}
-            className='type-chat-contact group flex h-16 min-w-0 w-full flex-col items-center justify-center overflow-hidden rounded-[14px] border border-[#efd9db] bg-[#fffafa] px-2 py-2 text-center text-[12px] text-accent transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/35 hover:bg-[#fff1f2] hover:shadow-[0_8px_18px_rgba(127,14,22,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35 active:translate-y-0'
+            className='type-chat-contact group flex h-16 min-w-0 w-full flex-col items-center justify-center overflow-hidden rounded-[14px] border border-[#efd9db] bg-[#fffafa] px-2 py-2 text-center text-[12px] text-accent transition-all duration-200 max-[359px]:px-1 max-[359px]:text-[11px] hover:-translate-y-0.5 hover:border-accent/35 hover:bg-[#fff1f2] hover:shadow-[0_8px_18px_rgba(127,14,22,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35 active:translate-y-0'
         >
-            <span className='flex min-w-0 max-w-full items-center justify-center gap-1 whitespace-nowrap'>
-                <ContactIcon size={16} className='h-4 w-4 shrink-0' aria-hidden='true' />
+            <span className='flex min-w-0 max-w-full items-center justify-center gap-1 whitespace-nowrap max-[359px]:gap-0.5'>
+                <ContactIcon size={16} className='h-4 w-4 shrink-0 max-[359px]:h-3.5 max-[359px]:w-3.5' aria-hidden='true' />
                 <span className='shrink-0 whitespace-nowrap'>{contact.label}</span>
             </span>
             <span className='mt-1 flex h-3 w-3 items-center justify-center text-accent/55'>
@@ -62,7 +64,7 @@ function ContactCard({ contact, IconComponent }) {
     )
 }
 
-function ContactActions() {
+function ContactActions({ onSubmitEnquiry }) {
     const icons = {
         whatsapp: FaWhatsapp,
         gmail: SiGmail,
@@ -70,10 +72,20 @@ function ContactActions() {
     }
 
     return (
-        <div className='mt-5 grid grid-cols-[1.08fr_1fr_1fr] gap-2.5'>
-            {Object.entries(NEXA_CONTACTS).map(([key, contact]) => {
-                return <ContactCard key={key} contact={contact} IconComponent={icons[key]} />
-            })}
+        <div className='nexa-contact-actions'>
+            <div className='nexa-contact-grid mt-5 grid grid-cols-[1.08fr_1fr_1fr] gap-2.5 max-[359px]:gap-1.5'>
+                {Object.entries(NEXA_CONTACTS).map(([key, contact]) => {
+                    return <ContactCard key={key} contact={contact} IconComponent={icons[key]} />
+                })}
+            </div>
+            <button
+                type='button'
+                onClick={onSubmitEnquiry}
+                className='nexa-enquiry-action type-chat-option group mt-3 flex min-h-12 w-full items-center justify-center gap-1.5 rounded-[15px] border border-[#efd9db] bg-[#fffdfc] px-4 py-3 text-center leading-snug text-[#7f2026] transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/35 hover:bg-[#fff1f2] hover:shadow-[0_10px_20px_rgba(92,18,24,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35 active:translate-y-0'
+            >
+                Submit Enquiry Form
+                <ArrowUpRight size={15} className='transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5' aria-hidden='true' />
+            </button>
         </div>
     )
 }
@@ -97,7 +109,7 @@ function ChatbotHeader({ isAnswerView, onBack, onClose }) {
                 <NexaAvatar size={30} />
             </div>
             <div className='min-w-0 flex-1'>
-                <p className='type-chat-title truncate tracking-[-0.01em]'>Nexa</p>
+                <p className='type-chat-title truncate tracking-[-0.01em]'>{CHATBOT_NAME}</p>
                 <p className='type-chat-status mt-0.5 flex items-center gap-1.5 text-white/75'>
                     <span className='h-1.5 w-1.5 rounded-full bg-[#7ee2a5] shadow-[0_0_0_3px_rgba(126,226,165,0.16)]' aria-hidden='true' />
                     Online now
@@ -106,7 +118,7 @@ function ChatbotHeader({ isAnswerView, onBack, onClose }) {
             <button
                 type='button'
                 onClick={onClose}
-                aria-label='Close Nexa'
+                aria-label={`Close ${CHATBOT_NAME}`}
                 className='rounded-full p-1.5 text-white/75 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60'
             >
                 <X size={19} strokeWidth={2.2} />
@@ -133,15 +145,15 @@ function FAQOptions({ onSelect }) {
     )
 }
 
-function AnswerView({ faq, onBack }) {
+function AnswerView({ faq, onBack, onSubmitEnquiry }) {
     return (
         <div className='min-h-[360px] space-y-4 sm:min-h-[410px]'>
         <div className='type-chat-option ml-8 rounded-[17px] rounded-tr-md border border-accent/10 bg-accent/[0.07] px-4 py-3 leading-relaxed text-[#7f2026]'>
                 {faq.question}
             </div>
-            <div className='type-chat-message mr-5 rounded-[18px] rounded-tl-md border border-[#f0e4e4] bg-white px-4 py-4 text-text-secondary shadow-[0_10px_26px_rgba(92,18,24,0.07)]'>
+            <div className='type-chat-message mr-5 rounded-[18px] rounded-tl-md border border-[#f0e4e4] bg-white px-4 py-4 text-text-secondary shadow-[0_10px_26px_rgba(92,18,24,0.07)] max-[359px]:mr-0 max-[359px]:px-3'>
                 <p>{faq.answer}</p>
-                {faq.showContacts && <ContactActions />}
+                {faq.showContacts && <ContactActions onSubmitEnquiry={onSubmitEnquiry} />}
             </div>
             <button
                 type='button'
@@ -183,6 +195,18 @@ function NexaChatbot() {
 
     const toggleOpen = () => setIsOpen((open) => !open)
 
+    const handleSubmitEnquiry = () => {
+        const contactSection = document.getElementById('contact')
+        if (!contactSection) return
+
+        setSelectedFaq(null)
+        setIsOpen(false)
+        window.requestAnimationFrame(() => {
+            contactSection.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+            contactSection.focus({ preventScroll: true })
+        })
+    }
+
     return (
         <div className='nexa-launcher-wrap fixed bottom-5 right-5 z-[45] sm:bottom-7 sm:right-7'>
             <AnimatePresence initial={false}>
@@ -195,7 +219,7 @@ function NexaChatbot() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={reduceMotion ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0, y: 10, scale: 0.97 }}
                         transition={{ duration: reduceMotion ? 0 : 0.24, ease: [0.16, 1, 0.3, 1] }}
-                        aria-label='Nexa chatbot'
+                        aria-label={`${CHATBOT_NAME} chatbot`}
                         className='nexa-panel absolute bottom-[calc(100%+16px)] right-0 w-[min(380px,calc(100vw-24px))] origin-bottom-right overflow-hidden rounded-[26px] border border-[#ead7d9] bg-[#fffdfc] shadow-[0_30px_82px_-28px_rgba(112,26,34,0.34),0_14px_28px_-18px_rgba(112,26,34,0.2)]'
                     >
                         <ChatbotHeader isAnswerView={Boolean(selectedFaq)} onBack={() => setSelectedFaq(null)} onClose={() => setIsOpen(false)} />
@@ -209,7 +233,11 @@ function NexaChatbot() {
                                         exit={reduceMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: -12 }}
                                         transition={{ duration: reduceMotion ? 0 : 0.2, ease: 'easeOut' }}
                                     >
-                                        <AnswerView faq={selectedFaq} onBack={() => setSelectedFaq(null)} />
+                                        <AnswerView
+                                            faq={selectedFaq}
+                                            onBack={() => setSelectedFaq(null)}
+                                            onSubmitEnquiry={handleSubmitEnquiry}
+                                        />
                                     </Motion.div>
                                 ) : (
                                     <Motion.div
@@ -221,7 +249,7 @@ function NexaChatbot() {
                                         className='min-h-[360px] sm:min-h-[410px]'
                                     >
                                         <div className='type-chat-message mb-5 max-w-[310px] rounded-[18px] rounded-tl-[6px] border border-[#f0e4e4] bg-white px-4 py-3.5 text-[#43282b] shadow-[0_10px_26px_rgba(92,18,24,0.07)]'>
-                                            <strong className='font-semibold'>Hi! 👋 I&apos;m Nexa, WorkmateIQ&apos;s virtual assistant. What would you like to know?</strong>
+                                            <strong className='font-semibold'>Hi! 👋 I&apos;m {CHATBOT_NAME}, WorkmateIQ&apos;s virtual assistant. What would you like to know?</strong>
                                         </div>
                                         <FAQOptions onSelect={setSelectedFaq} />
                                     </Motion.div>
@@ -238,7 +266,7 @@ function NexaChatbot() {
                 onClick={toggleOpen}
                 aria-expanded={isOpen}
                 aria-controls='nexa-chatbot-panel'
-                aria-label={isOpen ? 'Close Nexa' : 'Open Nexa'}
+                aria-label={isOpen ? `Close ${CHATBOT_NAME}` : `Open ${CHATBOT_NAME}`}
                 className='nexa-launcher group relative flex h-14 w-14 items-center justify-center rounded-full bg-[radial-gradient(circle_at_32%_24%,#d13a48_0%,#bd242b_36%,#8f1018_100%)] text-white shadow-[0_16px_32px_-14px_rgba(127,14,22,0.75),inset_0_1px_0_rgba(255,255,255,0.3)] transition-all duration-300 hover:scale-[1.07] hover:shadow-[0_20px_38px_-13px_rgba(127,14,22,0.86),0_0_0_7px_rgba(196,22,31,0.08)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/25 active:scale-[0.98] sm:h-16 sm:w-16'
             >
                 <span className='absolute inset-1 rounded-full border border-white/20' aria-hidden='true' />

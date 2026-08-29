@@ -7,6 +7,7 @@ import WorkmateLayout from './WorkmateLayout'
 import useReveal from './useReveal'
 import Button from '../../components/Button'
 import AIScorePanel from './AIScorePanel'
+import FiberBurstCanvas from './FiberBurstCanvas'
 import NetworkGraphic from './NetworkGraphic'
 import JourneySection from './JourneySection'
 import HeroThreadsBackground from './HeroThreadsBackground'
@@ -228,6 +229,25 @@ const enterpriseCapabilities = [
 function EnterpriseAI() {
     const ref = useReveal('.ent-item', { stagger: 0.08, y: 18 })
     const [activeCapability, setActiveCapability] = useState(0)
+    const [overallScore, setOverallScore] = useState(null)
+    const [isDesktop, setIsDesktop] = useState(() => (
+        typeof window !== 'undefined' && window.matchMedia?.('(min-width: 1024px)').matches
+    ))
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined
+
+        const query = window.matchMedia('(min-width: 1024px)')
+        const handleChange = (event) => setIsDesktop(event.matches)
+
+        if (query.addEventListener) query.addEventListener('change', handleChange)
+        else query.addListener(handleChange)
+
+        return () => {
+            if (query.removeEventListener) query.removeEventListener('change', handleChange)
+            else query.removeListener(handleChange)
+        }
+    }, [])
 
     useEffect(() => {
         if (REDUCE_MOTION) return
@@ -241,9 +261,10 @@ function EnterpriseAI() {
 
     return (
         <section id='ai-evaluation' className='relative overflow-hidden border-y border-line bg-card py-6 md:py-8 lg:py-8'>
+            {isDesktop && overallScore !== null && <FiberBurstCanvas overallScore={overallScore} />}
             <div ref={ref} className='relative z-10 mx-auto w-full max-w-[1440px] px-6 sm:px-8 lg:px-10'>
                 <div className='ent-item mx-auto w-full'>
-                    <AIScorePanel />
+                    <AIScorePanel onOverallScoreChange={setOverallScore} />
                 </div>
                 <div className='mx-auto mt-4 max-w-[720px] md:mt-5 lg:mt-5'>
                     <div className='relative min-h-[150px] md:min-h-[180px] lg:min-h-[170px]'>
@@ -274,27 +295,6 @@ function EnterpriseAI() {
                 </div>
             </div>
         </section>
-    )
-}
-
-function CategoryBadgeIcon({ type }) {
-    if (type === 'college') {
-        return (
-            <svg className='h-14 w-14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.7' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
-                <path d='m3 8.5 9-4 9 4-9 4-9-4Z' />
-                <path d='M6.5 10.3v4.2c3.6 2.7 7.4 2.7 11 0v-4.2' />
-                <path d='M21 9v5.2' />
-                <path d='M19.5 18.5c.8-1 1.2-2.1 1.2-3.3' />
-            </svg>
-        )
-    }
-
-    return (
-        <svg className='h-14 w-14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.7' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
-            <circle cx='12' cy='7.5' r='3.2' />
-            <path d='M5.2 20c.5-3.8 2.8-6 6.8-6s6.3 2.2 6.8 6' />
-            <path d='M18.2 4.8a3.2 3.2 0 0 1 0 5.4' />
-        </svg>
     )
 }
 
@@ -341,7 +341,6 @@ function SolutionPanel({ p, i }) {
     return (
         <article ref={panelRef} id={p.id} className={`panel relative scroll-mt-20 pt-4 md:sticky md:top-24 lg:top-28 ${i < 2 ? 'min-h-0 md:min-h-[86vh] lg:min-h-[90vh]' : 'min-h-0'}`} style={{ zIndex: i + 1 }}>
             <div ref={cardRef} className={`solution-card relative overflow-hidden rounded-[28px] border border-line/80 p-6 shadow-[0_24px_70px_-42px_rgba(125,39,49,0.48)] sm:p-8 lg:p-10 xl:p-12 ${p.surface}`}>
-                <div className='pointer-events-none absolute right-[-80px] top-[-100px] h-[250px] w-[250px] rounded-full border border-accent/10' aria-hidden='true' />
                 <div className='pointer-events-none absolute bottom-[-120px] left-[32%] h-[220px] w-[220px] rounded-full bg-accent/[0.035] blur-3xl' aria-hidden='true' />
                 <div className='relative z-10 grid gap-0 md:grid-cols-[minmax(0,1fr)_minmax(210px,240px)] md:items-center md:gap-6 lg:grid-cols-[0.92fr_1.08fr] lg:items-stretch lg:gap-12 xl:gap-16'>
                     <div className='solution-intro min-w-0 flex flex-col'>
@@ -364,13 +363,6 @@ function SolutionPanel({ p, i }) {
                     </div>
 
                     <div className='solution-audience-visual relative hidden min-h-0 items-center justify-center overflow-hidden rounded-[24px] bg-[#fff8f8] md:flex md:w-full md:max-w-[240px] md:self-center md:justify-self-end md:p-3 lg:min-h-[470px] lg:max-w-none lg:self-stretch lg:justify-self-stretch lg:items-end lg:p-0 lg:px-4 lg:pt-6 xl:min-h-[560px]'>
-                        {p.category === 'candidate' && (
-                            <div className='solution-visual-decorations pointer-events-none absolute inset-0 z-[11] hidden lg:block' aria-hidden='true'>
-                                <span className='absolute right-[9%] top-[9%] flex h-28 w-28 items-center justify-center rounded-full bg-[#8b0e16] text-[#fff8f8] shadow-[0_8px_18px_-12px_rgba(30,8,12,0.65)]'>
-                                    <CategoryBadgeIcon type={p.category} />
-                                </span>
-                            </div>
-                        )}
                         <img className={`relative z-10 block h-auto max-h-[280px] w-full max-w-[240px] object-contain lg:h-full lg:max-h-[470px] lg:max-w-[520px] ${p.category === 'college' ? 'object-center mix-blend-multiply' : 'object-bottom'} xl:max-h-[560px] xl:max-w-[620px]`} src={p.image} alt={p.imageAlt} />
                     </div>
                 </div>
@@ -504,7 +496,7 @@ function WHome() {
         },
         {
             id: 'candidates', eyebrow: 'For people building what is next', surface: 'bg-[#fffafa]', label: 'For Candidates',
-            statement: 'Practice with purpose. Improve with clarity.', image: audienceCandidatesImage, imageAlt: 'Candidate in a maroon hoodie working beside a monitor', category: 'candidate',
+            statement: 'Practice with purpose. Improve with clarity.', image: audienceCandidatesImage, imageAlt: 'Candidate in a maroon hoodie reviewing business analytics beside a profile card', category: 'candidate',
             features: [
                 'Practice role- and experience-specific AI interviews using resume-informed questions',
                 'Prepare for HR and technical interview modes with realistic time limits',
@@ -680,13 +672,13 @@ function WHome() {
             </section>
 
             {/* ============ CONTACT ============ */}
-            <section id='contact' className='relative scroll-mt-20 overflow-hidden pt-10 pb-12 md:pt-20 md:pb-24'>
+            <section id='contact' aria-labelledby='contact-heading' tabIndex={-1} className='relative scroll-mt-20 overflow-hidden pt-10 pb-12 outline-none md:pt-20 md:pb-24'>
                 <div className='absolute -top-32 left-1/2 -translate-x-1/2 w-[700px] h-[460px] rounded-full opacity-[0.10] blur-3xl pointer-events-none'
                     style={{ background: 'radial-gradient(closest-side, #c4161f, transparent)' }} />
                 <NetworkGraphic className='absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[420px] opacity-60 pointer-events-none' />
                 <div className='relative mx-auto mb-6 max-w-[900px] px-6 text-center md:mb-10'>
                     <p className={`${EYEBROW} justify-center flex`}>Contact</p>
-                    <h2 className={`${H2} mb-5`}>Let's build better talent journeys.</h2>
+                    <h2 id='contact-heading' className={`${H2} mb-5`}>Let's build better talent journeys.</h2>
                     <p className='type-body text-text-secondary'>Start your WorkmateIQ journey today — tell us a bit about you below.</p>
                 </div>
                 <div className='relative px-6'>

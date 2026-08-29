@@ -248,9 +248,44 @@
     background: #8f203d;
 }
 
+@media (min-width: 1024px) {
+    .scroll-showcase-viewport {
+        height: 410px;
+    }
+
+    .showcase-card {
+        align-items: center;
+        padding-bottom: 17px;
+    }
+
+    .showcase-visual {
+        align-self: center;
+        height: auto;
+    }
+
+    .showcase-visual img {
+        height: auto;
+    }
+
+    .showcase-content {
+        align-self: center;
+        height: auto;
+        grid-template-rows: auto auto;
+    }
+
+    .showcase-copy {
+        min-height: 264px;
+    }
+
+    .showcase-cta {
+        margin-top: 24px;
+        margin-bottom: 20px;
+    }
+}
+
 @media (min-width: 1024px) and (max-width: 1279px) {
     .scroll-showcase-viewport {
-        height: 440px;
+        height: 420px;
     }
 
     .showcase-features {

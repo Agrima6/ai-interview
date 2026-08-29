@@ -6,8 +6,8 @@ export const NEXA_CONTACTS = {
     },
     gmail: {
         label: 'Gmail',
-        href: 'mailto:hello@workmateiq.example',
-        external: false,
+        href: 'https://mail.google.com/mail/?view=cm&fs=1&to=Support%40wcspl.net',
+        external: true,
     },
     linkedin: {
         label: 'LinkedIn',
