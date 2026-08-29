@@ -3,8 +3,29 @@ import * as onboardingService from "../services/onboarding.service.js"
 import { writeFile } from "../utils/localFileStore.js"
 import { ok } from "../utils/response.js"
 import { ApiError } from "../utils/response.js"
+import { verifyCaptcha } from "../utils/captcha.js"
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } })
+// Client-reported Content-Type only (no magic-byte sniffing) - not a strong
+// guarantee, but at least rejects the obviously-wrong-category uploads that
+// a totally open fileFilter would let through.
+const ALLOWED_MIME_TYPES = new Set([
+    "application/pdf",
+    "image/png",
+    "image/jpeg",
+    "image/webp",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+])
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 15 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
+            return cb(new ApiError(400, "UNSUPPORTED_FILE_TYPE", "Unsupported file type. Upload a PDF, Word document, or image."))
+        }
+        cb(null, true)
+    },
+})
 export const uploadMiddleware = upload.single("file")
 
 const tokenFromRequest = (req) => req.headers["x-onboarding-token"] || req.body?.token
@@ -72,6 +93,9 @@ export const completeFile = async (req, res, next) => {
 
 export const submit = async (req, res, next) => {
     try {
+        const { captchaToken, captchaAnswer } = req.body
+        verifyCaptcha(captchaToken, captchaAnswer)
+
         const result = await onboardingService.submit({
             onboardingId: req.params.id,
             rawToken: tokenFromRequest(req),
@@ -81,3 +105,13 @@ export const submit = async (req, res, next) => {
         ok(res, result)
     } catch (error) { next(error) }
 }
+
+export const viewFile = async (req, res, next) => {
+    try {
+        const { id, fileId } = req.params
+        const file = await onboardingService.getFileDetails(id, fileId)
+        res.setHeader("Content-Type", file.mimeType)
+        res.sendFile(file.path)
+    } catch (error) { next(error) }
+}
+

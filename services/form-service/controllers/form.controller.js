@@ -1,6 +1,46 @@
 import * as formService from "../services/form.service.js"
 import { ok } from "../utils/response.js"
 
+export const listForms = async (req, res, next) => {
+    try {
+        const forms = await formService.listDefinitions()
+        ok(res, forms)
+    } catch (error) { next(error) }
+}
+
+export const getForm = async (req, res, next) => {
+    try {
+        const { type, stage } = req.params
+        const form = await formService.getByTypeAndStage(type.toUpperCase(), stage.toUpperCase())
+        ok(res, form)
+    } catch (error) { next(error) }
+}
+
+export const saveForm = async (req, res, next) => {
+    try {
+        const { type, stage } = req.params
+        const form = await formService.saveDraft({
+            type: type.toUpperCase(),
+            stage: stage.toUpperCase(),
+            name: req.body?.name,
+            sections: req.body?.sections || [],
+        })
+        ok(res, form)
+    } catch (error) { next(error) }
+}
+
+export const publishForm = async (req, res, next) => {
+    try {
+        const { type, stage } = req.params
+        const form = await formService.publishLatest({
+            type: type.toUpperCase(),
+            stage: stage.toUpperCase(),
+            name: req.body?.name,
+        })
+        ok(res, form)
+    } catch (error) { next(error) }
+}
+
 // GET /api/v1/forms/registration/:type - public, called via the gateway.
 export const getRegistrationForm = async (req, res, next) => {
     try {

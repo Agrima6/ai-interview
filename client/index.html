@@ -9,6 +9,14 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <title>WorkmateIQ — Intelligence That Hires</title>
+    <script>
+      (function () {
+        try {
+          document.documentElement.classList.remove("dark");
+          localStorage.setItem("theme", "light");
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

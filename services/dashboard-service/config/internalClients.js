@@ -9,6 +9,18 @@ export const onboardingServiceClient = {
             apiKey: process.env.ONBOARDING_SERVICE_API_KEY,
             ...ctxHeaders(ctx),
         }),
+    getTrend: (days, ctx) =>
+        client.get(`${process.env.ONBOARDING_SERVICE_URL}/internal/v1/statistics/trend`, {
+            apiKey: process.env.ONBOARDING_SERVICE_API_KEY,
+            params: { days },
+            ...ctxHeaders(ctx),
+        }),
+    getActivity: ({ cursor, limit }, ctx) =>
+        client.get(`${process.env.ONBOARDING_SERVICE_URL}/internal/v1/activity`, {
+            apiKey: process.env.ONBOARDING_SERVICE_API_KEY,
+            params: { cursor, limit },
+            ...ctxHeaders(ctx),
+        }),
 }
 
 export const clientServiceClient = {
@@ -23,6 +35,12 @@ export const enquiryServiceClient = {
     getStatistics: (ctx) =>
         client.get(`${process.env.ENQUIRY_SERVICE_URL}/internal/v1/enquiries/statistics`, {
             apiKey: process.env.ENQUIRY_SERVICE_API_KEY,
+            ...ctxHeaders(ctx),
+        }),
+    getTrend: (days, ctx) =>
+        client.get(`${process.env.ENQUIRY_SERVICE_URL}/internal/v1/enquiries/statistics/trend`, {
+            apiKey: process.env.ENQUIRY_SERVICE_API_KEY,
+            params: { days },
             ...ctxHeaders(ctx),
         }),
 }

@@ -6,3 +6,5 @@ export const refresh = () => apiPost("/api/v1/auth/refresh")
 export const googleLogin = (idToken) => apiPost("/api/v1/auth/google", { idToken })
 export const changePassword = (currentPassword, newPassword) =>
     apiPost("/api/v1/auth/change-password", { currentPassword, newPassword })
+export const forgotPassword = (email) => apiPost("/api/v1/auth/forgot-password", { email })
+export const resetPassword = (token, newPassword) => apiPost("/api/v1/auth/reset-password", { token, newPassword })

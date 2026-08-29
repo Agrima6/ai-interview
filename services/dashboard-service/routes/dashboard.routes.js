@@ -6,5 +6,6 @@ const router = Router()
 
 router.get("/dashboard/summary", authenticate, requirePermission("DASHBOARD_READ"), dashboardController.getSummary)
 router.get("/dashboard/activity", authenticate, requirePermission("DASHBOARD_ACTIVITY_READ"), dashboardController.getActivity)
+router.get("/dashboard/trends", authenticate, requirePermission("DASHBOARD_ANALYTICS_READ"), dashboardController.getTrends)
 
 export default router

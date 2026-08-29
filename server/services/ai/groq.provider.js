@@ -7,12 +7,19 @@ import axios from "axios"
 // extras in GROQ_API_KEYS_FALLBACK. A key that's rate-limited or out of
 // quota falls through to the next one automatically, same idea as the
 // provider-level fallback in ai.service.js but one level down.
-const _keys = [process.env.GROQ_API_KEY, ...(process.env.GROQ_API_KEYS_FALLBACK || "").split(",")]
-    .filter(Boolean)
-    .map((k) => k.trim())
-    .filter(Boolean)
+//
+// Built lazily inside complete(), not at module load - ESM import
+// statements are hoisted and resolved before any top-level code in the
+// entrypoint runs, including its dotenv.config() call, so reading
+// process.env at the top of this file saw undefined keys on every cold
+// start and crashed the whole server.
+const _getKeys = () =>
+    [process.env.GROQ_API_KEY, ...(process.env.GROQ_API_KEYS_FALLBACK || "").split(",")]
+        .map((k) => (k || "").trim())
+        .filter(Boolean)
 
 const complete = async (messages) => {
+    const _keys = _getKeys()
     if (_keys.length === 0) throw new Error("Groq is not configured (missing GROQ_API_KEY)")
 
     let lastError = null

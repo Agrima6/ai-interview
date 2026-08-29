@@ -36,24 +36,46 @@ export const submit = async (payload, ctx) => {
         phone: data.phone,
     }
 
-    const registration = await registrationRepo.create({
-        type: normalizedType,
-        contact,
-        data,
-        formVersionId: form.versionId,
-        status: "PROCESSING",
-        consent: { accepted: true, acceptedAt: new Date() },
-        captchaVerifiedAt: new Date(),
-    })
+    const existing = await registrationRepo.findActiveByEmail(contact.email)
+    if (existing) throw new ApiError(409, "ALREADY_REGISTERED", "You have already registered with this email. Check your inbox for the onboarding link, or contact us if you can't find it.")
+
+    let registration
+    try {
+        registration = await registrationRepo.create({
+            type: normalizedType,
+            contact,
+            data,
+            formVersionId: form.versionId,
+            status: "PROCESSING",
+            consent: { accepted: true, acceptedAt: new Date() },
+            captchaVerifiedAt: new Date(),
+        })
+    } catch (error) {
+        // Defense-in-depth for the race the check above can't fully close:
+        // two requests can both pass findActiveByEmail before either
+        // commits, but the partial unique index on contact.email lets only
+        // one create() succeed - the loser lands here as a duplicate key
+        // error (E11000) rather than a raw 500.
+        if (error.code === 11000) {
+            throw new ApiError(409, "ALREADY_REGISTERED", "You have already registered with this email. Check your inbox for the onboarding link, or contact us if you can't find it.")
+        }
+        throw error
+    }
 
     const invitation = await onboardingServiceClient.createInvitation(
-        { registrationId: String(registration._id), type: normalizedType, contact },
+        { registrationId: String(registration._id), type: normalizedType, contact, data },
         ctx
     )
 
     const onboardingUrl = `${process.env.ONBOARDING_BASE_URL}/${normalizedType.toLowerCase()}/${invitation.rawToken}`
     const clientName = clientNameFor(normalizedType, data)
-    const variables = { recipientName: contact.name, clientName, onboardingUrl }
+    const variables = {
+        recipientName: contact.name,
+        recipientGreeting: contact.name || "there",
+        clientName: clientName || "your institution",
+        onboardingUrl,
+        supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
+    }
 
     const [email, whatsapp] = await Promise.all([
         communicationServiceClient.send({

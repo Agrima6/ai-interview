@@ -169,7 +169,7 @@ export const updateEmployee = async (req, res) => {
         const organizationId = await resolveOrgId(req)
         const { credits, active, department, assignedRole, assignedExperience, assignedMode, assignedContext } = req.body
         const update = {}
-        if (typeof credits === "number") update.credits = credits
+        if (typeof credits === "number" && Number.isFinite(credits) && credits >= 0) update.credits = credits
         if (typeof active === "boolean") update.active = active
         if (department !== undefined) update.department = department?.trim() || null
         if (assignedRole !== undefined) update.assignedRole = assignedRole?.trim() || null

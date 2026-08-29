@@ -18,7 +18,7 @@ export const list = async ({ search, type, status, cursor, limit = 25 }) => {
     return { items, hasNext, nextCursor: hasNext ? String(items[items.length - 1]._id) : null }
 }
 
-export const updateStatus = (id, status) => Client.findByIdAndUpdate(id, { status }, { new: true })
+export const updateStatus = (id, status) => Client.findByIdAndUpdate(id, { status }, { new: true, runValidators: true })
 
 export const countByStatus = async () => {
     const rows = await Client.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }])

@@ -7,13 +7,26 @@ import { formServiceClient, clientServiceClient, authServiceClient, communicatio
 import { generateRawToken, hashToken, invitationExpiry } from "../utils/token.js"
 import { validateAgainstFormVersion } from "../utils/formValidator.js"
 import { ApiError } from "../utils/response.js"
+import { filePathFor } from "../utils/localFileStore.js"
+
 
 // Called internally by registration-service right after a registration is
 // created. Owns token generation because this service owns
 // onboarding_invitations - the raw token is returned once, over the private
 // network, and never persisted here either.
-export const createInvitationForRegistration = async ({ registrationId, type, contact }, ctx) => {
+export const createInvitationForRegistration = async ({ registrationId, type, contact, data }, ctx) => {
     const form = await formServiceClient.getPublishedForm(type, "ONBOARDING", ctx)
+
+    // Carry over whatever the registration form already collected so the
+    // onboarding form doesn't ask the same questions twice - only fields
+    // the onboarding form actually knows about, since the two forms don't
+    // necessarily share the exact same field set and submit-time validation
+    // rejects unknown keys.
+    const onboardingKeys = new Set(form.sections.flatMap((s) => s.fields.map((f) => f.key)))
+    const prefillData = {}
+    for (const [key, value] of Object.entries(data || {})) {
+        if (onboardingKeys.has(key)) prefillData[key] = value
+    }
 
     const session = await sessionRepo.create({
         invitationId: new mongoose.Types.ObjectId(), // placeholder, patched below
@@ -21,6 +34,7 @@ export const createInvitationForRegistration = async ({ registrationId, type, co
         type,
         contact,
         formVersionId: form.versionId,
+        data: prefillData,
     })
 
     const rawToken = generateRawToken()
@@ -71,6 +85,9 @@ export const getByToken = async (type, rawToken, ctx) => {
     const formVersion = await formServiceClient.getVersion(session.formVersionId, ctx)
     const reviewItems = await reviewItemRepo.findOpenForOnboarding(session._id)
 
+    const logoFile = session.files?.find((f) => f.fieldKey === "logo")
+    const logoUrl = logoFile ? `/api/v1/onboardings/${session._id}/files/${logoFile.fileId}/view` : null
+
     return {
         onboarding: {
             id: String(session._id),
@@ -84,6 +101,11 @@ export const getByToken = async (type, rawToken, ctx) => {
         },
         data: session.data || {},
         files: session.files || [],
+        branding: {
+            logoUrl,
+            primaryColor: session.data?.primary_color || null,
+            secondaryColor: session.data?.secondary_color || null,
+        },
         reviewItems: reviewItems.map((r) => ({ sectionKey: r.sectionKey, fieldKey: r.fieldKey, message: r.message })),
     }
 }
@@ -97,17 +119,26 @@ export const autosave = async ({ onboardingId, rawToken, type, data, currentStep
     return { savedAt: updated.lastSavedAt, currentStep: updated.currentStep }
 }
 
+// Files are deduped by fieldKey (re-uploading the same field replaces it),
+// but fieldKey is client-supplied and unchecked against the form - without a
+// cap, repeated calls with distinct made-up fieldKey values could grow this
+// array (and the files written to disk) without bound.
+const MAX_SESSION_FILES = 20
+
 export const registerFileUpload = async ({ onboardingId, rawToken, type, fieldKey, fileMeta }) => {
     const { session } = await resolveOwnedSession(onboardingId, rawToken, type)
-    const fileId = new mongoose.Types.ObjectId()
     const files = (session.files || []).filter((f) => f.fieldKey !== fieldKey)
+    if (files.length >= MAX_SESSION_FILES) {
+        throw new ApiError(400, "TOO_MANY_FILES", `A submission can have at most ${MAX_SESSION_FILES} uploaded files.`)
+    }
+    const fileId = new mongoose.Types.ObjectId()
     files.push({ fieldKey, fileId, ...fileMeta, status: "AVAILABLE" })
     await sessionRepo.update(onboardingId, { files })
     return { fileId: String(fileId), fieldKey, ...fileMeta, status: "AVAILABLE" }
 }
 
 export const submit = async ({ onboardingId, rawToken, type, consent }, ctx) => {
-    const { session } = await resolveOwnedSession(onboardingId, rawToken, type)
+    const { session, invitation } = await resolveOwnedSession(onboardingId, rawToken, type)
     if (["SUBMITTED", "APPROVED"].includes(session.status)) {
         throw new ApiError(409, "ALREADY_SUBMITTED", "This onboarding has already been submitted.")
     }
@@ -128,6 +159,20 @@ export const submit = async ({ onboardingId, rawToken, type, consent }, ctx) => 
 
     const status = nextVersion === 1 ? "SUBMITTED" : "RESUBMITTED"
     await sessionRepo.update(onboardingId, { status, submittedAt: new Date() })
+    await invitationRepo.incrementUse(invitation._id)
+
+    if (session.contact?.email) {
+        const clientName = clientNameFor(session.type, session.data, session.contact)
+        await communicationServiceClient.send({
+            entityType: "ONBOARDING", entityId: onboardingId, channel: "EMAIL",
+            eventType: "ONBOARDING_SUBMITTED", recipient: session.contact.email,
+            variables: {
+                recipientGreeting: session.contact.name || "there",
+                clientName: clientName || "your institution",
+                supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
+            },
+        }, ctx).catch((err) => console.error("[onboarding-service] onboarding-submitted email failed:", err.message))
+    }
 
     return { status, submissionVersion: nextVersion }
 }
@@ -146,8 +191,8 @@ const listView = (s) => ({
     updatedAt: s.updatedAt,
 })
 
-export const listForReview = async ({ type, status, cursor, limit }) => {
-    const { items, hasNext, nextCursor } = await sessionRepo.list({ type, status, cursor, limit })
+export const listForReview = async ({ type, status, search, cursor, limit }) => {
+    const { items, hasNext, nextCursor } = await sessionRepo.list({ type, status, search, cursor, limit })
     return { items: items.map(listView), hasNext, nextCursor }
 }
 
@@ -187,19 +232,30 @@ export const approve = async (id, reviewerId, ctx) => {
     let client = null
     if (["ORGANIZATION", "COLLEGE"].includes(session.type)) {
         const clientName = clientNameFor(session.type, session.data, session.contact)
+        const logoFile = session.files?.find((f) => f.fieldKey === "logo")
+        const logoFileId = logoFile ? logoFile.fileId : null
+        const primaryColor = session.data?.primary_color || null
+        const secondaryColor = session.data?.secondary_color || null
+
         client = await clientServiceClient.upsertFromOnboarding({
             onboardingId: id,
             registrationId: session.registrationId,
             type: session.type,
             name: clientName,
             primaryContact: session.contact,
+            branding: {
+                logoFileId,
+                primaryColor,
+                secondaryColor,
+            },
         }, ctx).catch(() => null)
 
         // Give the client their first login, then email the credentials -
         // best-effort on both: a reviewer can always re-trigger this via
         // support if either downstream call has a transient failure, and it
         // shouldn't block the approval itself from going through.
-        if (client) {
+        let credentialsIssued = false
+        if (client && session.contact?.email) {
             const credentials = await authServiceClient.createClientUser({
                 email: session.contact.email,
                 name: session.contact.name,
@@ -207,18 +263,27 @@ export const approve = async (id, reviewerId, ctx) => {
             }, ctx).catch(() => null)
 
             if (credentials) {
+                credentialsIssued = true
                 await communicationServiceClient.send({
                     entityType: "ONBOARDING", entityId: id, channel: "EMAIL",
                     eventType: "CLIENT_APPROVED", recipient: session.contact.email,
                     variables: {
-                        recipientName: session.contact.name,
+                        recipientGreeting: session.contact.name || "there",
                         recipientEmail: session.contact.email,
-                        clientName,
+                        clientName: clientName || "your institution",
                         loginUrl: process.env.CLIENT_LOGIN_URL,
                         tempPassword: credentials.password,
+                        supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
                     },
                 }, ctx).catch(() => null)
             }
+        }
+
+        // No email on file, or the login-account call failed - approval still
+        // goes through (the client record exists), but this must be visible
+        // to the reviewer instead of failing completely silently.
+        if (client && !credentialsIssued) {
+            return { ...listView(updated), client, warning: "Client approved, but no login account could be created - check the contact email and create credentials manually." }
         }
     }
 
@@ -239,7 +304,7 @@ export const reject = async (id, reason) => {
 // Creates the review items the candidate/org will see prefilled against
 // their existing data, and flips status so the same link becomes editable
 // again on next visit.
-export const requestChanges = async (id, reviewerId, items) => {
+export const requestChanges = async (id, reviewerId, items, ctx) => {
     if (!items?.length) throw new ApiError(400, "ITEMS_REQUIRED", "At least one review item is required.")
     const session = await sessionRepo.findById(id)
     if (!session) throw new ApiError(404, "ONBOARDING_NOT_FOUND", "Onboarding not found.")
@@ -254,6 +319,38 @@ export const requestChanges = async (id, reviewerId, items) => {
     })))
 
     const updated = await sessionRepo.update(id, { status: "CHANGES_REQUESTED" })
+
+    // The raw invitation token is never persisted (only its hash), so a
+    // working resume link can't be reconstructed from the original one -
+    // issue a fresh token for the same invitation instead, exactly like a
+    // password-reset token rotation, and email that one.
+    if (session.contact?.email) {
+        const clientName = clientNameFor(session.type, session.data, session.contact)
+        const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        const changesListHtml = items.map((item) =>
+            `<li style="margin-bottom:8px;">${item.label ? `<strong>${esc(item.label)}:</strong> ` : ""}${esc(item.message)}</li>`
+        ).join("")
+        const changesListText = items.map((item) => `- ${item.label ? `${item.label}: ` : ""}${item.message}`).join("\n")
+
+        const rawToken = generateRawToken()
+        await invitationRepo.rotateToken(session.invitationId, {
+            tokenHash: hashToken(rawToken),
+            expiresAt: invitationExpiry(),
+        })
+        const resumeUrl = `${process.env.ONBOARDING_BASE_URL}/${session.type.toLowerCase()}/${rawToken}`
+
+        await communicationServiceClient.send({
+            entityType: "ONBOARDING", entityId: id, channel: "EMAIL",
+            eventType: "ONBOARDING_CHANGES_REQUESTED", recipient: session.contact.email,
+            variables: {
+                recipientGreeting: session.contact.name || "there",
+                clientName: clientName || "your institution",
+                changesListHtml, changesListText, resumeUrl,
+                supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
+            },
+        }, ctx).catch((err) => console.error("[onboarding-service] changes-requested email failed:", err.message))
+    }
+
     return listView(updated)
 }
 
@@ -263,5 +360,31 @@ export const statistics = async () => {
     return {
         byStatus,
         recent: recent.map((s) => ({ id: String(s._id), type: s.type, status: s.status, updatedAt: s.updatedAt, name: listView(s).name })),
+    }
+}
+
+// Cursor-paginated version of the same "recent" feed, for the dashboard's
+// Recent Activity widget - kept separate from statistics() above so the
+// summary-card fetch never has to know about cursor/hasNext bookkeeping.
+export const activityPage = async ({ cursor, limit = 10 }) => {
+    const { items, hasNext, nextCursor } = await sessionRepo.recentActivityPage({ cursor, limit })
+    return {
+        items: items.map((s) => ({ id: String(s._id), type: s.type, status: s.status, updatedAt: s.updatedAt, name: listView(s).name })),
+        hasNext,
+        nextCursor,
+    }
+}
+
+export const trend = (since) => sessionRepo.dailyCountsSince(since)
+
+export const getFileDetails = async (onboardingId, fileId) => {
+    const session = await sessionRepo.findById(onboardingId)
+    if (!session) throw new ApiError(404, "ONBOARDING_NOT_FOUND", "Onboarding not found.")
+    const fileRecord = session.files?.find((f) => String(f.fileId) === String(fileId))
+    if (!fileRecord) throw new ApiError(404, "FILE_NOT_FOUND", "File not found.")
+    return {
+        path: filePathFor(onboardingId, fileId, fileRecord.originalName),
+        mimeType: fileRecord.mimeType,
+        originalName: fileRecord.originalName,
     }
 }

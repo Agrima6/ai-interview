@@ -15,9 +15,22 @@ export const list = async ({ status, search, cursor, limit = 25 }) => {
     return { items, hasNext, nextCursor: hasNext ? String(items[items.length - 1]._id) : null }
 }
 
-export const update = (id, patch) => Enquiry.findByIdAndUpdate(id, patch, { new: true })
+// runValidators is required here - Mongoose skips schema validators
+// (including the `enum` on status) on findByIdAndUpdate by default, so
+// without it a caller could persist a status value outside the enum.
+export const update = (id, patch) => Enquiry.findByIdAndUpdate(id, patch, { new: true, runValidators: true })
 
 export const countByStatus = async () => {
     const rows = await Enquiry.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }])
     return Object.fromEntries(rows.map((r) => [r._id, r.count]))
+}
+
+// Daily enquiry counts since `since` - backs the dashboard trend chart.
+export const dailyCountsSince = async (since) => {
+    const rows = await Enquiry.aggregate([
+        { $match: { createdAt: { $gte: since } } },
+        { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, count: { $sum: 1 } } },
+        { $sort: { _id: 1 } },
+    ])
+    return rows.map((r) => ({ date: r._id, count: r.count }))
 }

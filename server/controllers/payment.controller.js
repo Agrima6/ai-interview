@@ -6,9 +6,12 @@ import crypto from "crypto"
 export const createOrder = async (req,res) => {
     try {
         const {planId, amount, credits} = req.body;
-          if (!amount || !credits) {
-      return res.status(400).json({ message: "Invalid plan data" });
-    }
+        if (
+          !Number.isFinite(amount) || amount <= 0 ||
+          !Number.isInteger(credits) || credits <= 0
+        ) {
+          return res.status(400).json({ message: "Invalid plan data" });
+        }
 
      const options = {
       amount: amount * 100, // convert to paise
