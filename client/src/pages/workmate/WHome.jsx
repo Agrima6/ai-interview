@@ -399,7 +399,7 @@ function SolutionPanel({ p, i }) {
             ref={panelRef}
             id={p.id}
             style={{ zIndex: i + 1 }}
-            className={`panel relative scroll-mt-20 pt-4 md:sticky md:top-24 lg:top-28 ${i < 2 ? 'min-h-0 md:min-h-[86vh] lg:min-h-[90vh]' : 'min-h-0'}`}
+            className="panel relative scroll-mt-20 pt-4 md:sticky md:top-24 lg:top-28 min-h-0 md:min-h-[86vh] lg:min-h-[90vh]"
         >
             <div
                 ref={cardRef}
