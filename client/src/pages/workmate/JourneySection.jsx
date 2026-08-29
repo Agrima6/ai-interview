@@ -62,33 +62,30 @@ export default function JourneySection() {
         if (!sectionRef.current || !timelineRef.current) return undefined
 
         const context = gsap.context(() => {
+            if (!window.matchMedia('(min-width: 768px)').matches) return
+
             const header = timelineRef.current.previousElementSibling
             const line = timelineRef.current.querySelector('.journey-timeline-progress')
             const steps = timelineRef.current.querySelectorAll('.journey-step')
 
-            const timeline = gsap.timeline({ paused: true })
+            const timeline = gsap.timeline({
+                scrollTrigger: {
+                    trigger: timelineRef.current,
+                    start: 'top 75%',
+                    end: 'bottom 85%',
+                    scrub: 1.2,
+                }
+            })
             gsap.set(header, { autoAlpha: 0, y: 14 })
             gsap.set(line, { scaleY: 0 })
             gsap.set(steps, { autoAlpha: 0, y: 20, scale: 0.98 })
 
-            timeline.to(header, { autoAlpha: 1, y: 0, duration: 0.55, ease: 'power3.out' })
+            timeline.to(header, { autoAlpha: 1, y: 0, duration: 0.4, ease: 'power2.out' })
 
             steps.forEach((step, index) => {
                 timeline
-                    .to(line, { scaleY: (index + 1) / steps.length, duration: index === 0 ? 0.32 : 0.46, ease: 'power2.inOut' })
-                    .to(step, { autoAlpha: 1, y: 0, scale: 1, duration: 0.38, ease: 'power3.out' }, '-=0.08')
-            })
-
-            const play = () => timeline.restart()
-            const reset = () => timeline.pause(0)
-
-            ScrollTrigger.create({
-                trigger: sectionRef.current,
-                start: 'top 76%',
-                onEnter: play,
-                onEnterBack: play,
-                onLeave: reset,
-                onLeaveBack: reset,
+                    .to(line, { scaleY: (index + 1) / steps.length, duration: 0.5, ease: 'none' })
+                    .to(step, { autoAlpha: 1, y: 0, scale: 1, duration: 0.5, ease: 'power2.out' }, '-=0.25')
             })
         }, sectionRef)
 

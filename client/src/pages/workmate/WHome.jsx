@@ -22,6 +22,7 @@ import organizationRecruitmentImage from '../../assets/workmate/organization-rec
 import securityIcon from '../../assets/workmate/security.png'
 import reliableIcon from '../../assets/workmate/security2.png'
 import { submitPlatformEnquiry } from '../../api/enquiriesApi'
+
 import {
     ArrowRight, Building2, Check, ChevronDown, GraduationCap, Network, ShieldCheck, UserRound,
 } from 'lucide-react'
@@ -199,12 +200,8 @@ function About() {
             <div className='about-reveal rounded-[28px] border border-accent/[0.08] bg-white/55 px-6 py-9 shadow-[0_24px_70px_-52px_rgba(125,39,49,0.35)] sm:px-10 sm:py-12 lg:px-14 lg:py-14'>
                 <p className={EYEBROW}>About Us</p>
                 <h2 className={`${H2} mb-6`}>One hub for every side of hiring.</h2>
-                <p className='type-body max-w-none text-text-secondary'>
-                    We believe hiring should be intelligent, fair and fast. WorkmateIQ brings organizations, colleges and candidates into one platform to evaluate and move talent forward clearly, without the usual friction. Every registration, onboarding link and review happens through the same connected hub, so nothing gets lost between the people trying to find each other.
-                </p>
-                <div className='my-8 h-px bg-accent/15 sm:my-9' aria-hidden='true' />
-                <p className='type-body max-w-none text-text-secondary'>
-                    Organizations can discover and evaluate the right talent through a structured and efficient hiring process. Colleges can help students prepare better and connect them with relevant career opportunities. Candidates can practice, improve and showcase their skills with personalized feedback that truly helps them grow. By keeping registration, evaluation, feedback and hiring workflows connected in one place, we make the entire journey smooth, transparent and efficient for everyone involved. We are committed to using technology to make hiring more intelligent, fair and fast for all.
+                <p className='type-body max-w-none text-ink'>
+                    WorkmateIQ brings organizations, colleges, and candidates into a single connected platform to streamline evaluation and accelerate professional journeys. By keeping registration, onboarding, feedback, and placement workflows in one secure hub, we eliminate friction and bring transparency to the hiring process for everyone involved.
                 </p>
                 <div className='mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5 lg:gap-7'>
                     {valuePoints.map(([icon, text]) => <AboutPointer key={text} icon={icon}>{text}</AboutPointer>)}
@@ -298,30 +295,89 @@ function EnterpriseAI() {
     )
 }
 
-/* ============================================================ SOLUTIONS ============================================================ */
+/* ============================================================
+   SOLUTIONS
+============================================================ */
+
+function CategoryBadgeIcon({ type }) {
+    if (type === 'college') {
+        return (
+            <svg className='h-14 w-14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.7' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
+                <path d='m3 8.5 9-4 9 4-9 4-9-4Z' />
+                <path d='M6.5 10.3v4.2c3.6 2.7 7.4 2.7 11 0v-4.2' />
+                <path d='M21 9v5.2' />
+                <path d='M19.5 18.5c.8-1 1.2-2.1 1.2-3.3' />
+            </svg>
+        )
+    }
+
+    return (
+        <svg className='h-14 w-14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.7' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
+            <circle cx='12' cy='7.5' r='3.2' />
+            <path d='M5.2 20c.5-3.8 2.8-6 6.8-6s6.3 2.2 6.8 6' />
+            <path d='M18.2 4.8a3.2 3.2 0 0 1 0 5.4' />
+        </svg>
+    )
+}
 function SolutionPanel({ p, i }) {
     const panelRef = useRef(null)
     const cardRef = useRef(null)
 
     useEffect(() => {
-        if (REDUCE_MOTION || !panelRef.current || !cardRef.current) return undefined
+        if (REDUCE_MOTION || !panelRef.current || !cardRef.current) {
+            return undefined
+        }
 
         const context = gsap.context(() => {
-            const introItems = cardRef.current.querySelectorAll('.solution-intro > *')
-            const pointerItems = cardRef.current.querySelectorAll('.solution-pointer')
-            const visual = cardRef.current.querySelector('.solution-audience-visual')
+            const introItems =
+                cardRef.current.querySelectorAll('.solution-intro > *')
 
-            gsap.set([...introItems, ...pointerItems, visual], { opacity: 0, y: 18 })
+            const pointerItems =
+                cardRef.current.querySelectorAll('.solution-pointer')
+
+            const visual =
+                cardRef.current.querySelector('.solution-audience-visual')
+
+            gsap.set(
+                [...introItems, ...pointerItems, visual],
+                {
+                    opacity: 0,
+                    y: 18,
+                }
+            )
+
             ScrollTrigger.create({
                 trigger: panelRef.current,
                 start: 'top 78%',
                 once: true,
                 onEnter: () => {
-                    gsap.to(introItems, { opacity: 1, y: 0, duration: 0.65, stagger: 0.07, ease: 'power3.out' })
-                    gsap.to(pointerItems, { opacity: 1, y: 0, duration: 0.55, delay: 0.16, stagger: 0.08, ease: 'power3.out' })
-                    gsap.to(visual, { opacity: 1, y: 0, duration: 0.7, delay: 0.1, ease: 'power3.out' })
+                    gsap.to(introItems, {
+                        opacity: 1,
+                        y: 0,
+                        duration: 0.65,
+                        stagger: 0.07,
+                        ease: 'power3.out',
+                    })
+
+                    gsap.to(pointerItems, {
+                        opacity: 1,
+                        y: 0,
+                        duration: 0.55,
+                        delay: 0.16,
+                        stagger: 0.08,
+                        ease: 'power3.out',
+                    })
+
+                    gsap.to(visual, {
+                        opacity: 1,
+                        y: 0,
+                        duration: 0.7,
+                        delay: 0.1,
+                        ease: 'power3.out',
+                    })
                 },
             })
+
             gsap.to(cardRef.current, {
                 scale: 0.975,
                 y: -8,
@@ -339,31 +395,241 @@ function SolutionPanel({ p, i }) {
     }, [])
 
     return (
-        <article ref={panelRef} id={p.id} className={`panel relative scroll-mt-20 pt-4 md:sticky md:top-24 lg:top-28 ${i < 2 ? 'min-h-0 md:min-h-[86vh] lg:min-h-[90vh]' : 'min-h-0'}`} style={{ zIndex: i + 1 }}>
-            <div ref={cardRef} className={`solution-card relative overflow-hidden rounded-[28px] border border-line/80 p-6 shadow-[0_24px_70px_-42px_rgba(125,39,49,0.48)] sm:p-8 lg:p-10 xl:p-12 ${p.surface}`}>
+<article
+            ref={panelRef}
+            id={p.id}
+            style={{ zIndex: i + 1 }}
+            className={`panel relative scroll-mt-20 pt-4 md:sticky md:top-24 lg:top-28 ${i < 2 ? 'min-h-0 md:min-h-[86vh] lg:min-h-[90vh]' : 'min-h-0'}`}
+        >
+            <div
+                ref={cardRef}
+                className={`
+                    solution-card
+                    relative
+                    overflow-hidden
+                    rounded-[28px]
+                    border
+                    border-line/80
+                    p-6
+                    shadow-[0_24px_70px_-42px_rgba(125,39,49,0.48)]
+                    sm:p-8
+                    lg:p-10
+                    xl:p-12
+                    ${p.surface}
+                `}
+            >
                 <div className='pointer-events-none absolute bottom-[-120px] left-[32%] h-[220px] w-[220px] rounded-full bg-accent/[0.035] blur-3xl' aria-hidden='true' />
                 <div className='relative z-10 grid gap-0 md:grid-cols-[minmax(0,1fr)_minmax(210px,240px)] md:items-center md:gap-6 lg:grid-cols-[0.92fr_1.08fr] lg:items-stretch lg:gap-12 xl:gap-16'>
                     <div className='solution-intro min-w-0 flex flex-col'>
                         <div className='flex items-start justify-end'>
                             <span className='rounded-full border border-accent/15 bg-white/55 px-3 py-1.5 type-caption font-semibold tracking-[0.16em] text-accent'>0{i + 1} / AUDIENCE</span>
                         </div>
-                        <p className='mt-7 type-eyebrow text-accent/75'>{p.eyebrow}</p>
-                        <h3 className='mt-3 max-w-[460px] type-h3 text-ink md:max-w-none md:text-center lg:max-w-[460px] lg:text-left'>{p.label}</h3>
-                        <p className='mt-5 max-w-[480px] type-component-title font-semibold text-ink'>{p.statement}</p>
-                        <ul className='mt-6 grid gap-3.5'>
+
+                        {/* Eyebrow */}
+                        <p
+                            className="
+                                mt-5
+                                text-[12px]
+                                font-semibold
+                                uppercase
+                                tracking-[0.12em]
+                                text-accent/75
+
+                                sm:mt-6
+                            "
+                        >
+                            {p.eyebrow}
+                        </p>
+
+                        {/* Heading */}
+                        <h3
+                            className="
+                                mt-2
+                                max-w-[620px]
+                                text-[28px]
+                                font-semibold
+                                leading-[1.12]
+                                tracking-[-0.025em]
+                                text-ink
+
+                                sm:text-[32px]
+
+                                lg:text-[34px]
+
+                                xl:text-[38px]
+                            "
+                        >
+                            {p.label}
+                        </h3>
+
+                        {/* Statement */}
+                        <p
+                            className="
+                                mt-3
+                                max-w-[620px]
+                                text-[15px]
+                                font-semibold
+                                leading-[1.45]
+                                text-ink
+
+                                sm:text-base
+
+                                lg:text-[17px]
+                            "
+                        >
+                            {p.statement}
+                        </p>
+
+                        {/* Feature list */}
+                        <ul
+                            className="
+                                mt-5
+                                grid
+                                max-w-[700px]
+                                gap-3
+
+                                sm:mt-6
+                                sm:gap-3.5
+                            "
+                        >
                             {p.features.map((feature) => (
-                                <li key={feature} className='solution-pointer flex min-w-0 items-start gap-3 type-body-small text-text-secondary'>
-                                    <span className='mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/[0.09] text-accent'>
-                                        <Check size={13} strokeWidth={2.5} aria-hidden='true' />
+                                <li
+                                    key={feature}
+                                    className="
+                                        solution-pointer
+                                        flex
+                                        min-w-0
+                                        items-start
+                                        gap-2.5
+                                        text-[14px]
+                                        leading-[1.45]
+                                        text-text-secondary
+
+                                        sm:gap-3
+                                        sm:text-[15px]
+
+                                        lg:text-[16px]
+                                    "
+                                >
+                                    <span
+                                        className="
+                                            mt-[2px]
+                                            flex
+                                            h-[20px]
+                                            w-[20px]
+                                            shrink-0
+                                            items-center
+                                            justify-center
+                                            rounded-full
+                                            bg-accent/[0.09]
+                                            text-accent
+                                        "
+                                    >
+                                        <Check
+                                            size={12}
+                                            strokeWidth={2.5}
+                                            aria-hidden="true"
+                                        />
                                     </span>
-                                    <span className='min-w-0'>{feature}</span>
+
+                                    <span className="min-w-0">
+                                        {feature}
+                                    </span>
                                 </li>
                             ))}
                         </ul>
                     </div>
 
-                    <div className='solution-audience-visual relative hidden min-h-0 items-center justify-center overflow-hidden rounded-[24px] bg-[#fff8f8] md:flex md:w-full md:max-w-[240px] md:self-center md:justify-self-end md:p-3 lg:min-h-[470px] lg:max-w-none lg:self-stretch lg:justify-self-stretch lg:items-end lg:p-0 lg:px-4 lg:pt-6 xl:min-h-[560px]'>
-                        <img className={`relative z-10 block h-auto max-h-[280px] w-full max-w-[240px] object-contain lg:h-full lg:max-h-[470px] lg:max-w-[520px] ${p.category === 'college' ? 'object-center mix-blend-multiply' : 'object-bottom'} xl:max-h-[560px] xl:max-w-[620px]`} src={p.image} alt={p.imageAlt} />
+                    {/* =====================================================
+                        RIGHT VISUAL
+                    ====================================================== */}
+
+                    <div
+                        className="
+                            solution-audience-visual
+                            relative
+                            hidden
+                            min-w-0
+                            items-center
+                            justify-center
+                            overflow-hidden
+                            rounded-[22px]
+                            bg-[#fff8f8]
+
+                            md:flex
+                            md:min-h-[300px]
+                            md:self-stretch
+                            md:p-4
+
+                            lg:min-h-[360px]
+                            lg:p-5
+
+                            xl:min-h-[400px]
+                            xl:p-6
+                        "
+                    >
+                        {/* Candidate decoration */}
+                        {p.category === 'candidate' && (
+                            <div
+                                className="
+                                    solution-visual-decorations
+                                    pointer-events-none
+                                    absolute
+                                    inset-0
+                                    z-[11]
+                                    hidden
+                                    lg:block
+                                "
+                                aria-hidden="true"
+                            >
+                                <span
+                                    className="
+                                        absolute
+                                        right-[6%]
+                                        top-[6%]
+                                        flex
+                                        h-16
+                                        w-16
+                                        items-center
+                                        justify-center
+                                        rounded-full
+                                        bg-[#8b0e16]
+                                        text-[#fff8f8]
+                                        shadow-[0_8px_18px_-12px_rgba(30,8,12,0.65)]
+
+                                        xl:h-20
+                                        xl:w-20
+                                    "
+                                >
+                                    <CategoryBadgeIcon type={p.category} />
+                                </span>
+                            </div>
+                        )}
+
+                        {/* Illustration */}
+                        <img
+                            src={p.image}
+                            alt={p.imageAlt}
+                            className={`
+                                relative
+                                z-10
+                                block
+                                h-auto
+                                w-auto
+                                max-w-full
+                                object-contain
+
+                                max-h-[270px]
+                                md:max-h-[300px]
+                                lg:max-h-[350px]
+                                xl:max-h-[390px]
+
+                                ${p.category === 'college'
+                                    ? 'mix-blend-multiply'
+                                    : ''
+                                }
+                            `}
+                        />
                     </div>
                 </div>
             </div>
@@ -373,9 +639,24 @@ function SolutionPanel({ p, i }) {
 
 function AudienceCards({ panels }) {
     return (
-        <section id='who-it-works-for' className='workmate-shell scroll-mt-20 space-y-0 pb-8 lg:pb-12' aria-label='Who it works for'>
+        <section
+            id="who-it-works-for"
+            className="
+                workmate-shell
+                scroll-mt-20
+                space-y-0
+                pb-8
+
+                lg:pb-12
+            "
+            aria-label="Who it works for"
+        >
             {panels.map((panel, index) => (
-                <SolutionPanel key={panel.id} p={panel} i={index} />
+                <SolutionPanel
+                    key={panel.id}
+                    p={panel}
+                    i={index}
+                />
             ))}
         </section>
     )
@@ -408,10 +689,7 @@ function EnquiryForm() {
     const [status, setStatus] = useState('idle')
     const [error, setError] = useState('')
     const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
-    const inputBaseCls = 'type-body w-full min-w-0 rounded-xl border border-line bg-bg text-ink placeholder-text-secondary/60 outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/25'
-    const inputCls = `${inputBaseCls} h-[50px] px-4 py-0 md:h-auto md:py-3.5`
-    const selectCls = `${inputCls} px-3 md:px-4`
-    const textareaCls = `${inputBaseCls} h-[116px] resize-none px-4 py-3 md:h-auto md:py-3.5`
+    const inputCls = 'type-body w-full bg-bg border border-line rounded-xl px-4 py-3.5 text-ink placeholder-text-secondary/60 focus:ring-2 focus:ring-accent/25 focus:border-accent outline-none transition-all'
 
     const submit = async (e) => {
         e.preventDefault()
@@ -441,21 +719,21 @@ function EnquiryForm() {
                     <p className='type-body-small text-text-secondary'>Your enquiry has been received. Our team will contact you shortly.</p>
                 </div>
             ) : (
-                <form onSubmit={submit} className='form-el space-y-3 md:space-y-4'>
-                    <div className='grid gap-3 md:grid-cols-2 md:gap-4'>
+                <form onSubmit={submit} className='form-el space-y-4'>
+                    <div className='grid sm:grid-cols-2 gap-4'>
                         <input required placeholder='Name' value={form.name} onChange={set('name')} className={inputCls} />
                         <input required type='email' placeholder='Email' value={form.email} onChange={set('email')} className={inputCls} />
                     </div>
-                    <div className='grid gap-3 md:grid-cols-2 md:gap-4'>
+                    <div className='grid sm:grid-cols-2 gap-4'>
                         <input placeholder='Mobile number' value={form.mobile} onChange={set('mobile')} className={inputCls} />
-                        <select value={form.clientType} onChange={set('clientType')} className={selectCls}>
+                        <select value={form.clientType} onChange={set('clientType')} className={inputCls}>
                             <option value='Organization'>Company / Organization</option>
                             <option value='College'>College / Institution</option>
                             <option value='Candidate'>Candidate</option>
                         </select>
                     </div>
                     <input placeholder='Subject' value={form.subject} onChange={set('subject')} className={inputCls} />
-                    <textarea required rows={4} placeholder='Message' value={form.message} onChange={set('message')} className={textareaCls} />
+                    <textarea required rows={4} placeholder='Message' value={form.message} onChange={set('message')} className={`${inputCls} resize-none`} />
                     {status === 'error' && <p className='type-body-small text-red-500'>{error}</p>}
                     <Button type='submit' size='lg' disabled={status === 'sending'} className='w-full'>
                         {status === 'sending' ? 'Submitting...' : 'Submit Enquiry'}
@@ -468,6 +746,7 @@ function EnquiryForm() {
 
 /* ============================================================ PAGE ============================================================ */
 function WHome() {
+    const navigate = useNavigate()
     const [showThreadsHero] = useState(() => (
         typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('hero') === 'threads'
     ))
@@ -619,7 +898,7 @@ function WHome() {
             <QuoteStrip />
             <About />
             <VerticalScrollShowcase />
-            <AudienceCards panels={panels} />
+            <AudienceCards panels={panels} jump={jump} />
             <HowItWorks />
             <PowerfulFeatures />
             <EnterpriseAI />
@@ -643,8 +922,8 @@ function WHome() {
                             <ul className='mb-7 space-y-3 lg:mb-8 lg:space-y-2.5'>
                                 {p.features.map((f) => <li key={f} className='type-body-small text-text-secondary flex min-w-0 items-start gap-2'><span aria-hidden='true' className='mt-0.5 shrink-0 text-accent'>—</span><span className='min-w-0'>{f}</span></li>)}
                             </ul>
-                            <Button variant={p.featured ? 'primary' : 'secondary'} className='pricing-card-cta w-full whitespace-nowrap md:mt-auto' onClick={jump('contact')}>
-                                {p.name === 'Enterprise' ? 'Talk to us' : 'Send an Enquiry'}
+                            <Button variant={p.featured ? 'primary' : 'secondary'} className='pricing-card-cta w-full whitespace-nowrap md:mt-auto' onClick={() => navigate('/platform/register')}>
+                                {p.name === 'Enterprise' ? 'Talk to us' : 'Get Started'}
                             </Button>
                         </div>
                     ))}
@@ -676,17 +955,18 @@ function WHome() {
                 <div className='absolute -top-32 left-1/2 -translate-x-1/2 w-[700px] h-[460px] rounded-full opacity-[0.10] blur-3xl pointer-events-none'
                     style={{ background: 'radial-gradient(closest-side, #c4161f, transparent)' }} />
                 <NetworkGraphic className='absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[420px] opacity-60 pointer-events-none' />
-                <div className='relative mx-auto mb-6 max-w-[900px] px-6 text-center md:mb-10'>
+                <div className='relative max-w-[900px] mx-auto px-6 text-center mb-10'>
                     <p className={`${EYEBROW} justify-center flex`}>Contact</p>
                     <h2 id='contact-heading' className={`${H2} mb-5`}>Let's build better talent journeys.</h2>
                     <p className='type-body text-text-secondary'>Start your WorkmateIQ journey today — tell us a bit about you below.</p>
                 </div>
                 <div className='relative px-6'>
-                    <div className='mx-auto max-w-[640px] rounded-3xl border border-line bg-card p-5 shadow-lift md:p-10'>
+                    <div className='max-w-[640px] mx-auto bg-card border border-line rounded-3xl p-8 sm:p-10 shadow-lift'>
                         <EnquiryForm />
                     </div>
                 </div>
             </section>
+
             <NexaChatbot />
         </WorkmateLayout>
     )
