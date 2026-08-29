@@ -1,13 +1,9 @@
 import multer from "multer"
 import * as onboardingService from "../services/onboarding.service.js"
-import { writeFile } from "../utils/localFileStore.js"
-import { ok } from "../utils/response.js"
-import { ApiError } from "../utils/response.js"
+import * as storage from "../utils/storage.js"
+import { ok, ApiError } from "@workmateiq/common"
 import { verifyCaptcha } from "../utils/captcha.js"
 
-// Client-reported Content-Type only (no magic-byte sniffing) - not a strong
-// guarantee, but at least rejects the obviously-wrong-category uploads that
-// a totally open fileFilter would let through.
 const ALLOWED_MIME_TYPES = new Set([
     "application/pdf",
     "image/png",
@@ -55,15 +51,30 @@ export const autosave = async (req, res, next) => {
     } catch (error) { next(error) }
 }
 
-// Simplified local-disk stand-in for a presigned-S3 upload: the "presign"
-// step just returns a fileId to upload against; the browser then posts the
-// bytes straight to this service instead of straight to S3.
 export const presignFile = async (req, res, next) => {
     try {
+        const { fieldKey, originalName, mimeType, size, type } = req.body
+        if (!fieldKey) throw new ApiError(400, "FIELD_KEY_REQUIRED", "fieldKey is required.")
+        if (!originalName || !mimeType) {
+            throw new ApiError(400, "FILE_DETAILS_REQUIRED", "originalName and mimeType are required.")
+        }
+        const fileRecord = await onboardingService.registerFileUpload({
+            onboardingId: req.params.id,
+            rawToken: tokenFromRequest(req),
+            type,
+            fieldKey,
+            fileMeta: { originalName, mimeType, size },
+            status: "PENDING",
+        })
+        const details = await storage.getUploadDetails(req.params.id, fileRecord.fileId, originalName, mimeType)
         ok(res, {
-            uploadUrl: `/api/v1/onboardings/${req.params.id}/files/upload`,
-            method: "POST",
-            fieldKey: req.body.fieldKey,
+            fileId: fileRecord.fileId,
+            uploadUrl: details.uploadUrl,
+            method: details.method,
+            fieldKey,
+            storageProvider: details.storageProvider,
+            objectKey: details.objectKey,
+            bucket: details.bucket,
         })
     } catch (error) { next(error) }
 }
@@ -71,23 +82,22 @@ export const presignFile = async (req, res, next) => {
 export const uploadFile = async (req, res, next) => {
     try {
         if (!req.file) throw new ApiError(400, "FILE_REQUIRED", "No file provided.")
-        const { fieldKey } = req.body
+        const { fieldKey, fileId } = req.body
         if (!fieldKey) throw new ApiError(400, "FIELD_KEY_REQUIRED", "fieldKey is required.")
-        const fileRecord = await onboardingService.registerFileUpload({
-            onboardingId: req.params.id,
-            rawToken: tokenFromRequest(req),
-            type: req.body.type,
-            fieldKey,
-            fileMeta: { originalName: req.file.originalname, mimeType: req.file.mimetype, size: req.file.size },
-        })
-        writeFile(req.params.id, fileRecord.fileId, req.file.originalname, req.file.buffer)
+        if (!fileId) throw new ApiError(400, "FILE_ID_REQUIRED", "fileId is required.")
+        const file = await onboardingService.getFileDetails(req.params.id, fileId)
+        storage.writeLocalFile(req.params.id, fileId, file.originalName, req.file.buffer)
+        const fileRecord = await onboardingService.markFileAvailable(req.params.id, fileId)
         ok(res, fileRecord)
     } catch (error) { next(error) }
 }
 
 export const completeFile = async (req, res, next) => {
     try {
-        ok(res, { fileId: req.body.fileId, status: "AVAILABLE" })
+        const { fileId } = req.body
+        if (!fileId) throw new ApiError(400, "FILE_ID_REQUIRED", "fileId is required.")
+        const fileRecord = await onboardingService.markFileAvailable(req.params.id, fileId)
+        ok(res, { fileId: fileRecord.fileId, status: "AVAILABLE" })
     } catch (error) { next(error) }
 }
 
@@ -110,8 +120,14 @@ export const viewFile = async (req, res, next) => {
     try {
         const { id, fileId } = req.params
         const file = await onboardingService.getFileDetails(id, fileId)
-        res.setHeader("Content-Type", file.mimeType)
-        res.sendFile(file.path)
+        const provider = process.env.STORAGE_PROVIDER || "local"
+        if (provider === "s3") {
+            const downloadUrl = await storage.getDownloadUrl(id, fileId, file.originalName)
+            res.redirect(downloadUrl)
+        } else {
+            res.setHeader("Content-Type", file.mimeType)
+            const filePath = storage.getLocalFilePath(id, fileId, file.originalName)
+            res.sendFile(filePath)
+        }
     } catch (error) { next(error) }
 }
-

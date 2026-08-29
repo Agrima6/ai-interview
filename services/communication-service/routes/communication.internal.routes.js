@@ -1,6 +1,6 @@
 import { Router } from "express"
 import * as communicationController from "../controllers/communication.internal.controller.js"
-import { authenticateService, requireServicePermission } from "../middlewares/internalAuth.js"
+import { authenticateService, requireServicePermission } from "@workmateiq/common"
 
 const router = Router()
 

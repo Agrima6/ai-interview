@@ -1,6 +1,6 @@
 import { Router } from "express"
 import * as formController from "../controllers/form.controller.js"
-import { authenticateService, requireServicePermission } from "../middlewares/internalAuth.js"
+import { authenticateService, requireServicePermission } from "@workmateiq/common"
 
 const router = Router()
 

@@ -1,5 +1,5 @@
 import * as enquiryService from "../services/enquiry.service.js"
-import { ok, okList } from "../utils/response.js"
+import { ok, okList } from "@workmateiq/common"
 
 export const submit = async (req, res, next) => {
     try { ok(res, await enquiryService.submit(req.body)) } catch (error) { next(error) }

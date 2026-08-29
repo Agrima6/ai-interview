@@ -1,5 +1,5 @@
 import { verifyAccessToken } from "../utils/tokens.js"
-import { ApiError } from "../utils/response.js"
+import { ApiError } from "@workmateiq/common"
 
 export const authenticate = (req, res, next) => {
     const header = req.headers.authorization || ""

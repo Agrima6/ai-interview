@@ -10,6 +10,8 @@
     "seed": "node scripts/seed.js"
   },
   "dependencies": {
+    "@workmateiq/common": "file:../common",
+    "amqplib": "^2.0.1",
     "axios": "^1.13.5",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.7",
@@ -19,7 +21,8 @@
     "express-rate-limit": "^8.6.2",
     "firebase-admin": "^14.2.0",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^8.9.5"
+    "mongoose": "^8.9.5",
+    "redis": "^6.2.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"

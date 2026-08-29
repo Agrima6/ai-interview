@@ -7,7 +7,7 @@ import * as resetTokenRepo from "../repositories/resetToken.repository.js"
 import { signAccessToken, generateRefreshToken, hashToken, refreshTokenExpiry } from "../utils/tokens.js"
 import { getFirebaseAuth } from "../config/firebaseAdmin.js"
 import { communicationServiceClient } from "../config/internalClients.js"
-import { ApiError } from "../utils/response.js"
+import { ApiError } from "@workmateiq/common"
 
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000 // 1 hour
 

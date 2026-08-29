@@ -1,5 +1,5 @@
 import { verifyAccessToken } from "../utils/tokens.js"
-import { ApiError } from "../utils/response.js"
+import { ApiError } from "@workmateiq/common"
 
 // Verifies the end-user's access token (sent by the gateway, forwarded from
 // the browser's Authorization header) - this is the public-user auth path,

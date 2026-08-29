@@ -1,5 +1,5 @@
 import * as formService from "../services/form.service.js"
-import { ok } from "../utils/response.js"
+import { ok } from "@workmateiq/common"
 
 export const listForms = async (req, res, next) => {
     try {

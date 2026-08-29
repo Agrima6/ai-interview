@@ -1,5 +1,5 @@
 import * as communicationService from "../services/communication.service.js"
-import { ok } from "../utils/response.js"
+import { ok } from "@workmateiq/common"
 
 // POST /internal/v1/communications - called by registration-service /
 // onboarding-service to send + record a communication in one step.

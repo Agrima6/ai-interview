@@ -1,6 +1,6 @@
 import * as registrationService from "../services/registration.service.js"
 import { generateChallenge } from "../utils/captcha.js"
-import { ok } from "../utils/response.js"
+import { ok } from "@workmateiq/common"
 
 export const getTypes = (req, res) => ok(res, { types: registrationService.REGISTRATION_TYPES })
 

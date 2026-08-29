@@ -1,5 +1,5 @@
 import * as onboardingService from "../services/onboarding.service.js"
-import { ok } from "../utils/response.js"
+import { ok } from "@workmateiq/common"
 
 export const statistics = async (req, res, next) => {
     try { ok(res, await onboardingService.statistics()) } catch (error) { next(error) }

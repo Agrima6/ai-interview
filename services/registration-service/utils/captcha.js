@@ -1,5 +1,5 @@
 import crypto from "crypto"
-import { ApiError } from "./response.js"
+import { ApiError } from "@workmateiq/common"
 
 // A minimal, self-hosted, stateless CAPTCHA: no external provider
 // credentials exist in this environment, so this stands in behind the same

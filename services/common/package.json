@@ -1,0 +1,14 @@
+{
+  "name": "@workmateiq/common",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "dependencies": {
+    "amqplib": "^2.0.1",
+    "axios": "^1.13.5",
+    "express": "^4.21.2",
+    "mongoose": "^8.9.5",
+    "redis": "^6.2.1"
+  }
+}

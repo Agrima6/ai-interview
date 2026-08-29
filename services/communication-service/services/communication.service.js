@@ -4,7 +4,7 @@ import * as communicationRepo from "../repositories/communication.repository.js"
 import { getEmailProvider, resolveSender } from "../providers/emailProvider.js"
 import { getWhatsAppProvider } from "../providers/whatsappProvider.js"
 import { maskEmail, maskPhone } from "../utils/mask.js"
-import { ApiError } from "../utils/response.js"
+import { ApiError } from "@workmateiq/common"
 
 const interpolate = (template, variables) =>
     template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, key) => (variables[key] ?? ""))

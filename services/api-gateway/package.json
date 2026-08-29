@@ -9,10 +9,13 @@
     "start": "node server.js"
   },
   "dependencies": {
+    "@workmateiq/common": "file:../common",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^4.21.2",
-    "http-proxy-middleware": "^3.0.3"
+    "express-rate-limit": "^8.6.2",
+    "http-proxy-middleware": "^3.0.3",
+    "redis": "^6.2.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"

@@ -1,18 +1,56 @@
 import OnboardingSession from "../models/session.model.js"
+import { isRedisEnabled, getRedisClient } from "@workmateiq/common"
 
 export const create = (data) => OnboardingSession.create(data)
-export const findById = (id) => OnboardingSession.findById(id)
-export const update = (id, patch) => OnboardingSession.findByIdAndUpdate(id, patch, { new: true })
+
+export const findById = async (id) => {
+    const doc = await OnboardingSession.findById(id)
+    if (!doc) return null
+
+    if (isRedisEnabled()) {
+        const redis = getRedisClient()
+        try {
+            const cachedStr = await redis.get(`workmateiq:onboarding:draft:${id}`)
+            if (cachedStr) {
+                const draft = JSON.parse(cachedStr)
+                doc.data = { ...doc.data, ...draft.data }
+                if (draft.currentStep) doc.currentStep = draft.currentStep
+                if (draft.lastSavedAt) doc.lastSavedAt = new Date(draft.lastSavedAt)
+            } else {
+                const draftData = {
+                    data: doc.data || {},
+                    currentStep: doc.currentStep,
+                    lastSavedAt: doc.lastSavedAt || new Date(),
+                }
+                await redis.set(`workmateiq:onboarding:draft:${id}`, JSON.stringify(draftData), {
+                    EX: 7 * 24 * 3600
+                })
+            }
+        } catch (err) {
+            console.error("[SessionRepo] Redis draft read error:", err.message)
+        }
+    }
+    return doc
+}
+
+export const update = async (id, patch) => {
+    const doc = await OnboardingSession.findByIdAndUpdate(id, patch, { new: true })
+    if (isRedisEnabled()) {
+        const redis = getRedisClient()
+        try {
+            await redis.del(`workmateiq:onboarding:draft:${id}`)
+            await redis.del(`workmateiq:onboarding:mongo-write-pending:${id}`)
+        } catch (err) {
+            console.error("[SessionRepo] Redis delete error on update:", err.message)
+        }
+    }
+    return doc
+}
+
 export const list = async ({ type, status, search, cursor, limit = 25 }) => {
     const query = {}
     if (type) query.type = type
     if (status) query.status = status
-    // Search must match what the reviewer actually sees in the Name column
-    // (listView's company_name/college_name/full_name fallback chain), not
-    // just the submitting contact's own name - those can be completely
-    // different people (e.g. an HR contact submitting on behalf of "IBM
-    // India"), so matching only contact.name/email silently misses the
-    // exact searches a reviewer would actually try.
     if (search) {
         const rx = { $regex: search, $options: "i" }
         query.$or = [
@@ -38,10 +76,6 @@ export const countByStatus = async () => {
 
 export const recentlyUpdated = (limit = 10) => OnboardingSession.find().sort({ updatedAt: -1 }).limit(limit)
 
-// Daily registration counts (a session is created 1:1 with a registration,
-// see createInvitationForRegistration) since `since`, plus a total-by-type
-// breakdown over the same window - backs the dashboard trend chart and the
-// registrations-by-type donut.
 export const dailyCountsSince = async (since) => {
     const [byDay, byType] = await Promise.all([
         OnboardingSession.aggregate([
@@ -60,16 +94,76 @@ export const dailyCountsSince = async (since) => {
     }
 }
 
-export const mergeData = (id, dataPatch, currentStep) =>
-    OnboardingSession.findByIdAndUpdate(
+export const mergeData = async (id, dataPatch, currentStep) => {
+    const now = new Date()
+    if (isRedisEnabled()) {
+        const redis = getRedisClient()
+        try {
+            let draft = { data: {}, currentStep, lastSavedAt: now }
+            const cachedStr = await redis.get(`workmateiq:onboarding:draft:${id}`)
+            if (cachedStr) {
+                draft = JSON.parse(cachedStr)
+            } else {
+                const doc = await OnboardingSession.findById(id)
+                if (doc) {
+                    draft.data = doc.data || {}
+                    draft.currentStep = doc.currentStep || currentStep
+                }
+            }
+
+            draft.data = { ...draft.data, ...dataPatch }
+            if (currentStep) draft.currentStep = currentStep
+            draft.lastSavedAt = now
+
+            await redis.set(`workmateiq:onboarding:draft:${id}`, JSON.stringify(draft), {
+                EX: 7 * 24 * 3600
+            })
+
+            const pendingKey = `workmateiq:onboarding:mongo-write-pending:${id}`
+            const isPending = await redis.get(pendingKey)
+            if (!isPending) {
+                await redis.set(pendingKey, "true", { EX: 60 })
+                setTimeout(async () => {
+                    try {
+                        const latestCachedStr = await redis.get(`workmateiq:onboarding:draft:${id}`)
+                        if (latestCachedStr) {
+                            const latestDraft = JSON.parse(latestCachedStr)
+                            await OnboardingSession.findByIdAndUpdate(
+                                id,
+                                {
+                                    $set: {
+                                        data: latestDraft.data,
+                                        currentStep: latestDraft.currentStep,
+                                        lastSavedAt: new Date(latestDraft.lastSavedAt),
+                                        status: "IN_PROGRESS"
+                                    }
+                                }
+                            )
+                        }
+                        await redis.del(pendingKey)
+                    } catch (err) {
+                        console.error("[SessionRepo] Write-behind to MongoDB failed:", err.message)
+                        await redis.del(pendingKey)
+                    }
+                }, 5000)
+            }
+
+            return { lastSavedAt: now, currentStep: draft.currentStep }
+        } catch (err) {
+            console.error("[SessionRepo] Redis draft write error, falling back to DB:", err.message)
+        }
+    }
+
+    return OnboardingSession.findByIdAndUpdate(
         id,
         {
             $set: {
                 ...Object.fromEntries(Object.entries(dataPatch).map(([k, v]) => [`data.${k}`, v])),
-                lastSavedAt: new Date(),
+                lastSavedAt: now,
                 ...(currentStep ? { currentStep } : {}),
                 status: "IN_PROGRESS",
             },
         },
         { new: true }
     )
+}

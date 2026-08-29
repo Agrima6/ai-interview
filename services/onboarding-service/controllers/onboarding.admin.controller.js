@@ -1,5 +1,5 @@
 import * as onboardingService from "../services/onboarding.service.js"
-import { ok, okList } from "../utils/response.js"
+import { ok, okList } from "@workmateiq/common"
 
 // Number(limit) || 25 alone lets a negative limit (still truthy) through
 // unchanged, and has no upper bound - clamp into a sane range like

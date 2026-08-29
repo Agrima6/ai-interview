@@ -10,12 +10,15 @@
     "seed": "node scripts/seed.js"
   },
   "dependencies": {
+    "@workmateiq/common": "file:../common",
+    "amqplib": "^2.0.1",
     "axios": "^1.13.5",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^4.21.2",
     "mongoose": "^8.9.5",
-    "nodemailer": "^9.0.5"
+    "nodemailer": "^9.0.5",
+    "redis": "^6.2.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"

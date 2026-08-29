@@ -1,6 +1,6 @@
 import * as formDefRepo from "../repositories/formDefinition.repository.js"
 import * as formVersionRepo from "../repositories/formVersion.repository.js"
-import { ApiError } from "../utils/response.js"
+import { ApiError } from "@workmateiq/common"
 
 const view = (definition, version) => ({
     id: String(definition._id),

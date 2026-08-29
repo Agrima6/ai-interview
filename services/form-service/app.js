@@ -1,15 +1,14 @@
 import express from "express"
 import cors from "cors"
-import { requestContext, errorHandler, notFoundHandler } from "./middlewares/requestContext.js"
+import mongoose from "mongoose"
+import { requestContext, errorHandler, notFoundHandler } from "@workmateiq/common"
 import formRoutes from "./routes/form.routes.js"
 import formInternalRoutes from "./routes/form.internal.routes.js"
+import { checkIsShuttingDown } from "@workmateiq/common"
+import { isRedisEnabled } from "@workmateiq/common"
 
 const app = express()
 
-// Origin allowlist instead of reflecting any Origin (origin: true) - that
-// combined with credentials:true was the maximally permissive CORS config,
-// letting any site make credentialed requests. ALLOWED_ORIGINS overrides
-// the default list via env (comma-separated) without needing a code change.
 const DEFAULT_ALLOWED_ORIGINS = ["https://workmateiq.com", "https://www.workmateiq.com", "http://localhost:5173", "http://localhost:3000"]
 const allowedOrigins = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(",").map((s) => s.trim()).filter(Boolean)
@@ -17,8 +16,6 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
 
 app.use(cors({
     origin: (origin, callback) => {
-        // No Origin header means a non-browser caller (server-to-server,
-        // curl, mobile) - this check only protects browser-issued requests.
         if (!origin || allowedOrigins.includes(origin)) return callback(null, true)
         callback(new Error("Not allowed by CORS"))
     },
@@ -26,7 +23,17 @@ app.use(cors({
 }))
 app.use(express.json())
 app.use(requestContext)
+app.use(checkIsShuttingDown)
 
+app.get("/health", (req, res) => res.json({ status: "ok", service: process.env.SERVICE_NAME }))
+app.get("/ready", (req, res) => {
+    const isMongoConnected = mongoose.connection && mongoose.connection.readyState === 1
+    const isRedisReady = process.env.REDIS_ENABLED === "true" ? isRedisEnabled() : true
+    if (isMongoConnected && isRedisReady) {
+        return res.json({ status: "ready" })
+    }
+    return res.status(503).json({ status: "not ready", mongo: isMongoConnected, redis: isRedisReady })
+})
 app.get("/healthz", (req, res) => res.json({ status: "ok", service: process.env.SERVICE_NAME }))
 
 app.use("/api/v1", formRoutes)

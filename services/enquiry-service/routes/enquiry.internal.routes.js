@@ -1,7 +1,7 @@
 import { Router } from "express"
 import * as enquiryService from "../services/enquiry.service.js"
-import { ok } from "../utils/response.js"
-import { authenticateService, requireServicePermission } from "../middlewares/internalAuth.js"
+import { ok } from "@workmateiq/common"
+import { authenticateService, requireServicePermission } from "@workmateiq/common"
 
 const router = Router()
 

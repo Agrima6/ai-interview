@@ -1,5 +1,5 @@
 import * as clientRepo from "../repositories/client.repository.js"
-import { ApiError } from "../utils/response.js"
+import { ApiError } from "@workmateiq/common"
 
 const view = (c) => ({
     id: String(c._id),

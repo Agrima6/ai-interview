@@ -1,5 +1,5 @@
 import * as dashboardService from "../services/dashboard.service.js"
-import { ok } from "../utils/response.js"
+import { ok } from "@workmateiq/common"
 
 export const getSummary = async (req, res, next) => {
     try { ok(res, await dashboardService.getSummary({ requestId: req.requestId, correlationId: req.correlationId })) }

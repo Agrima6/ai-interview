@@ -1,5 +1,5 @@
 import * as authService from "../services/auth.service.js"
-import { ok } from "../utils/response.js"
+import { ok } from "@workmateiq/common"
 
 // POST /internal/v1/client-users - called by onboarding-service on approval
 // of an ORGANIZATION/COLLEGE, to create that client's first login.

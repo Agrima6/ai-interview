@@ -6,8 +6,9 @@ import * as reviewItemRepo from "../repositories/reviewItem.repository.js"
 import { formServiceClient, clientServiceClient, authServiceClient, communicationServiceClient } from "../config/internalClients.js"
 import { generateRawToken, hashToken, invitationExpiry } from "../utils/token.js"
 import { validateAgainstFormVersion } from "../utils/formValidator.js"
-import { ApiError } from "../utils/response.js"
+import { ApiError } from "@workmateiq/common"
 import { filePathFor } from "../utils/localFileStore.js"
+import Outbox from "../models/outbox.model.js"
 
 
 // Called internally by registration-service right after a registration is
@@ -125,16 +126,42 @@ export const autosave = async ({ onboardingId, rawToken, type, data, currentStep
 // array (and the files written to disk) without bound.
 const MAX_SESSION_FILES = 20
 
-export const registerFileUpload = async ({ onboardingId, rawToken, type, fieldKey, fileMeta }) => {
+export const registerFileUpload = async ({ onboardingId, rawToken, type, fieldKey, fileMeta, status = "AVAILABLE" }) => {
     const { session } = await resolveOwnedSession(onboardingId, rawToken, type)
     const files = (session.files || []).filter((f) => f.fieldKey !== fieldKey)
     if (files.length >= MAX_SESSION_FILES) {
         throw new ApiError(400, "TOO_MANY_FILES", `A submission can have at most ${MAX_SESSION_FILES} uploaded files.`)
     }
     const fileId = new mongoose.Types.ObjectId()
-    files.push({ fieldKey, fileId, ...fileMeta, status: "AVAILABLE" })
+    files.push({ fieldKey, fileId, ...fileMeta, status })
     await sessionRepo.update(onboardingId, { files })
-    return { fileId: String(fileId), fieldKey, ...fileMeta, status: "AVAILABLE" }
+    return { fileId: String(fileId), fieldKey, ...fileMeta, status }
+}
+
+export const markFileAvailable = async (onboardingId, fileId) => {
+    const session = await sessionRepo.findById(onboardingId)
+    if (!session) throw new ApiError(404, "ONBOARDING_NOT_FOUND", "Onboarding not found.")
+    let updated = false
+    const files = (session.files || []).map((f) => {
+        if (String(f.fileId) === String(fileId)) {
+            f.status = "AVAILABLE"
+            updated = true
+        }
+        return f
+    })
+    if (updated) {
+        await sessionRepo.update(onboardingId, { files })
+    }
+    const file = files.find(f => String(f.fileId) === String(fileId))
+    if (!file) throw new ApiError(404, "FILE_NOT_FOUND", "File not found.")
+    return {
+        fileId: String(file.fileId),
+        fieldKey: file.fieldKey,
+        originalName: file.originalName,
+        mimeType: file.mimeType,
+        size: file.size,
+        status: file.status,
+    }
 }
 
 export const submit = async ({ onboardingId, rawToken, type, consent }, ctx) => {
@@ -163,11 +190,21 @@ export const submit = async ({ onboardingId, rawToken, type, consent }, ctx) => 
 
     if (session.contact?.email) {
         const clientName = clientNameFor(session.type, session.data, session.contact)
-        await communicationServiceClient.send({
-            entityType: "ONBOARDING", entityId: onboardingId, channel: "EMAIL",
-            eventType: "ONBOARDING_SUBMITTED", recipient: session.contact.email,
-            variables: { recipientName: session.contact.name, clientName: clientName || session.contact.name },
-        }, ctx).catch((err) => console.error("[onboarding-service] onboarding-submitted email failed:", err.message))
+        await Outbox.create({
+            routingKey: "COMMUNICATION_SEND",
+            payload: {
+                entityType: "ONBOARDING",
+                entityId: onboardingId,
+                channel: "EMAIL",
+                eventType: "ONBOARDING_SUBMITTED",
+                recipient: session.contact.email,
+                variables: { recipientName: session.contact.name, clientName: clientName || session.contact.name },
+            },
+            headers: {
+                correlationId: ctx.correlationId,
+                requestId: ctx.requestId,
+            }
+        }).catch((err) => console.error("[onboarding-service] Failed to create outbox event for onboarding-submitted:", err.message))
     }
 
     return { status, submissionVersion: nextVersion }
@@ -225,7 +262,6 @@ export const approve = async (id, reviewerId, ctx) => {
     const updated = await sessionRepo.update(id, { status: "APPROVED" })
     await reviewItemRepo.resolveAllForOnboarding(id)
 
-    let client = null
     if (["ORGANIZATION", "COLLEGE"].includes(session.type)) {
         const clientName = clientNameFor(session.type, session.data, session.contact)
         const logoFile = session.files?.find((f) => f.fieldKey === "logo")
@@ -233,56 +269,28 @@ export const approve = async (id, reviewerId, ctx) => {
         const primaryColor = session.data?.primary_color || null
         const secondaryColor = session.data?.secondary_color || null
 
-        client = await clientServiceClient.upsertFromOnboarding({
-            onboardingId: id,
-            registrationId: session.registrationId,
-            type: session.type,
-            name: clientName,
-            primaryContact: session.contact,
-            branding: {
-                logoFileId,
-                primaryColor,
-                secondaryColor,
+        await Outbox.create({
+            routingKey: "ONBOARDING_APPROVED",
+            payload: {
+                onboardingId: id,
+                registrationId: session.registrationId,
+                type: session.type,
+                name: clientName,
+                primaryContact: session.contact,
+                branding: {
+                    logoFileId,
+                    primaryColor,
+                    secondaryColor,
+                },
             },
-        }, ctx).catch(() => null)
-
-        // Give the client their first login, then email the credentials -
-        // best-effort on both: a reviewer can always re-trigger this via
-        // support if either downstream call has a transient failure, and it
-        // shouldn't block the approval itself from going through.
-        let credentialsIssued = false
-        if (client && session.contact?.email) {
-            const credentials = await authServiceClient.createClientUser({
-                email: session.contact.email,
-                name: session.contact.name,
-                clientId: client.id,
-            }, ctx).catch(() => null)
-
-            if (credentials) {
-                credentialsIssued = true
-                await communicationServiceClient.send({
-                    entityType: "ONBOARDING", entityId: id, channel: "EMAIL",
-                    eventType: "CLIENT_APPROVED", recipient: session.contact.email,
-                    variables: {
-                        recipientName: session.contact.name,
-                        recipientEmail: session.contact.email,
-                        clientName,
-                        loginUrl: process.env.CLIENT_LOGIN_URL,
-                        tempPassword: credentials.password,
-                    },
-                }, ctx).catch(() => null)
+            headers: {
+                correlationId: ctx.correlationId,
+                requestId: ctx.requestId,
             }
-        }
-
-        // No email on file, or the login-account call failed - approval still
-        // goes through (the client record exists), but this must be visible
-        // to the reviewer instead of failing completely silently.
-        if (client && !credentialsIssued) {
-            return { ...listView(updated), client, warning: "Client approved, but no login account could be created - check the contact email and create credentials manually." }
-        }
+        })
     }
 
-    return { ...listView(updated), client }
+    return listView(updated)
 }
 
 export const reject = async (id, reason) => {
@@ -334,7 +342,7 @@ export const getFileDetails = async (onboardingId, fileId) => {
     const fileRecord = session.files?.find((f) => String(f.fileId) === String(fileId))
     if (!fileRecord) throw new ApiError(404, "FILE_NOT_FOUND", "File not found.")
     return {
-        path: filePathFor(onboardingId, fileId, fileRecord.originalName),
+        fileId: String(fileRecord.fileId),
         mimeType: fileRecord.mimeType,
         originalName: fileRecord.originalName,
     }

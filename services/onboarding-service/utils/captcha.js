@@ -1,5 +1,5 @@
 import crypto from "crypto"
-import { ApiError } from "./response.js"
+import { ApiError } from "@workmateiq/common"
 
 const sign = (payload) => crypto.createHmac("sha256", process.env.CAPTCHA_SECRET).update(payload).digest("hex")
 

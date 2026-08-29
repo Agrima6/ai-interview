@@ -1,5 +1,5 @@
 import * as enquiryRepo from "../repositories/enquiry.repository.js"
-import { ApiError } from "../utils/response.js"
+import { ApiError } from "@workmateiq/common"
 
 const view = (e) => ({
     id: String(e._id),

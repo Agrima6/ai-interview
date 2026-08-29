@@ -1,5 +1,5 @@
 import * as authService from "../services/auth.service.js"
-import { ok, ApiError } from "../utils/response.js"
+import { ok, ApiError } from "@workmateiq/common"
 
 const REFRESH_COOKIE = "workmate_refresh"
 const cookieOptions = {

@@ -2,7 +2,8 @@ import * as registrationRepo from "../repositories/registration.repository.js"
 import { formServiceClient, onboardingServiceClient, communicationServiceClient } from "../config/internalClients.js"
 import { validateAgainstFormVersion } from "../utils/formValidator.js"
 import { verifyCaptcha } from "../utils/captcha.js"
-import { ApiError } from "../utils/response.js"
+import { ApiError } from "@workmateiq/common"
+import Outbox from "../models/outbox.model.js"
 
 export const REGISTRATION_TYPES = [
     { key: "ORGANIZATION", label: "Organization" },
@@ -62,35 +63,22 @@ export const submit = async (payload, ctx) => {
         throw error
     }
 
-    const invitation = await onboardingServiceClient.createInvitation(
-        { registrationId: String(registration._id), type: normalizedType, contact, data },
-        ctx
-    )
+    await Outbox.create({
+        routingKey: "REGISTRATION_SUBMITTED",
+        payload: {
+            registrationId: String(registration._id),
+            type: normalizedType,
+            contact,
+            data
+        },
+        headers: {
+            correlationId: ctx.correlationId,
+            requestId: ctx.requestId,
+        }
+    })
 
-    const onboardingUrl = `${process.env.ONBOARDING_BASE_URL}/${normalizedType.toLowerCase()}/${invitation.rawToken}`
-    const clientName = clientNameFor(normalizedType, data)
-    const variables = { recipientName: contact.name, clientName, onboardingUrl }
-
-    const [email, whatsapp] = await Promise.all([
-        communicationServiceClient.send({
-            entityType: "REGISTRATION", entityId: registration._id, channel: "EMAIL",
-            eventType: "ONBOARDING_LINK", recipient: contact.email, variables,
-        }, ctx).catch((e) => ({ status: "FAILED", error: e.message })),
-        communicationServiceClient.send({
-            entityType: "REGISTRATION", entityId: registration._id, channel: "WHATSAPP",
-            eventType: "ONBOARDING_LINK", recipient: contact.phone, variables,
-        }, ctx).catch((e) => ({ status: "FAILED", error: e.message })),
-    ])
-
-    await registrationRepo.updateStatus(registration._id, "LINK_SENT")
-
-    const response = {
+    return {
         registrationId: String(registration._id),
-        status: "LINK_SENT",
-        communications: { email: email.status, whatsapp: whatsapp.status },
+        status: "PROCESSING",
     }
-    if (process.env.EXPOSE_LOCAL_ONBOARDING_URL === "true") {
-        response.debugOnboardingUrl = onboardingUrl
-    }
-    return response
 }
