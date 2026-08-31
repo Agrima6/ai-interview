@@ -1,146 +1,84 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { ArrowLeft, Plus, Download, CheckCircle2, ShieldAlert, Sparkles, Filter, Eye, Check, X, FileSpreadsheet, Lock } from 'lucide-react'
+import { ArrowLeft, Plus, CheckCircle2, ShieldAlert, Sparkles, Eye, FileSpreadsheet, AlertCircle } from 'lucide-react'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
 import CandidateDetailModal from '../../components/organization/CandidateDetailModal'
 import CreateRoundModal from '../../components/organization/CreateRoundModal'
-import { Card, Button, Badge, SearchInput, Tabs, StatCard } from '../../components/ui'
-
-const MOCK_DRIVE_DETAILS = {
-  id: 'drive-101',
-  title: 'Senior Full Stack Developer Hiring Drive 2026',
-  department: 'Engineering',
-  roleCategory: 'Software Engineering (SDE / Fullstack)',
-  experienceLevel: '3-5 yrs (Mid Level)',
-  totalRounds: 2,
-  currentRound: 1,
-  passingThreshold: 75,
-  status: 'ACTIVE',
-  publicLink: 'https://workmateiq.com/drive/senior-fullstack-2026',
-}
-
-const MOCK_ROUND_1_CANDIDATES = [
-  {
-    id: 'cand-1',
-    name: 'Aarav Sharma',
-    email: 'aarav.sharma@gmail.com',
-    phone: '+91-9876543210',
-    exp: '4 yrs',
-    aiScore: 92,
-    malpracticeFlags: 0,
-    status: 'SHORTLISTED',
-    attemptedDate: '2026-08-22',
-  },
-  {
-    id: 'cand-2',
-    name: 'Priya Patel',
-    email: 'priya.patel@techcollege.edu',
-    phone: '+91-9812345678',
-    exp: '3 yrs',
-    aiScore: 84,
-    malpracticeFlags: 1,
-    status: 'SHORTLISTED',
-    attemptedDate: '2026-08-24',
-  },
-  {
-    id: 'cand-3',
-    name: 'Rohan Mehta',
-    email: 'rohan.mehta@yahoo.com',
-    phone: '+91-9898989898',
-    exp: '5 yrs',
-    aiScore: 68,
-    malpracticeFlags: 0,
-    status: 'COMPLETED',
-    attemptedDate: '2026-08-25',
-  },
-  {
-    id: 'cand-4',
-    name: 'Ananya Gupta',
-    email: 'ananya.gupta@outlook.com',
-    phone: '+91-9765432109',
-    exp: '4 yrs',
-    aiScore: 94,
-    malpracticeFlags: 0,
-    status: 'SHORTLISTED',
-    attemptedDate: '2026-08-21',
-  },
-  {
-    id: 'cand-5',
-    name: 'Vikram Singh',
-    email: 'vikram.singh@gmail.com',
-    phone: '+91-9543210987',
-    exp: '2 yrs',
-    aiScore: 45,
-    malpracticeFlags: 3,
-    status: 'REJECTED',
-    attemptedDate: '2026-08-26',
-  },
-  {
-    id: 'cand-6',
-    name: 'Marcus Wright',
-    email: 'marcus@skynet.net',
-    phone: '+1-555-0144',
-    exp: '5 yrs',
-    aiScore: 89,
-    malpracticeFlags: 0,
-    status: 'SHORTLISTED',
-    attemptedDate: '2026-08-27',
-  },
-]
+import { Card, Button, Badge, SearchInput, Tabs, StatCard, Skeleton, useToast } from '../../components/ui'
+import { getInterviewDriveById, updateDriveStatus, updateCandidateStatus } from '../../api/organization/organizationApi'
 
 function DriveDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
-  const [drive, setDrive] = useState(MOCK_DRIVE_DETAILS)
+  const toast = useToast()
+
+  const [drive, setDrive] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [activeRoundTab, setActiveRoundTab] = useState('1')
-  const [round1Candidates, setRound1Candidates] = useState(MOCK_ROUND_1_CANDIDATES)
-  const [round2Candidates, setRound2Candidates] = useState([])
-
-  // Round creation modal state
   const [createRoundModalOpen, setCreateRoundModalOpen] = useState(false)
-  const [round1Completed, setRound1Completed] = useState(false)
-  const [round2Created, setRound2Created] = useState(false)
-  const [round2Details, setRound2Details] = useState(null)
 
-  // Filters state
   const [search, setSearch] = useState('')
   const [scoreFilter, setScoreFilter] = useState('ALL')
   const [flagFilter, setFlagFilter] = useState('ALL')
   const [statusFilter, setStatusFilter] = useState('ALL')
-
   const [selectedCandidate, setSelectedCandidate] = useState(null)
 
   const basePath = location.pathname.startsWith('/college')
     ? '/college'
     : location.pathname.startsWith('/candidate')
     ? '/candidate'
-    : '/organization'
+    : location.pathname.startsWith('/organization')
+    ? '/organization'
+    : '/platform/client'
 
-  const currentCandidates = activeRoundTab === '1' ? round1Candidates : round2Candidates
+  const fetchDrive = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const data = await getInterviewDriveById(id)
+      setDrive(data)
+      setActiveRoundTab((prev) => (data.rounds?.some((r) => String(r.roundNumber) === prev) ? prev : String(data.rounds?.[0]?.roundNumber || 1)))
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [id])
 
-  const handleStatusChange = (candId, newStatus) => {
-    if (activeRoundTab === '1') {
-      setRound1Candidates((prev) =>
-        prev.map((c) => (c.id === candId ? { ...c, status: newStatus } : c))
-      )
-    } else {
-      setRound2Candidates((prev) =>
-        prev.map((c) => (c.id === candId ? { ...c, status: newStatus } : c))
-      )
+  useEffect(() => { fetchDrive() }, [fetchDrive])
+
+  const rounds = drive?.rounds || []
+  const currentRound = rounds.find((r) => String(r.roundNumber) === activeRoundTab)
+  const currentCandidates = currentRound?.candidates || []
+  const round1 = rounds.find((r) => r.roundNumber === 1)
+  const shortlistedList = (round1?.candidates || []).filter((c) => c.status === 'SHORTLISTED')
+
+  const handleCandidateStatusChange = async (candId, newStatus) => {
+    if (!currentRound) return
+    try {
+      const updated = await updateCandidateStatus(id, currentRound.roundNumber, candId, newStatus)
+      setDrive(updated)
+      setSelectedCandidate((prev) => (prev ? { ...prev, status: newStatus } : prev))
+    } catch (err) {
+      toast.error(err.message)
     }
   }
 
-  const handleMarkRoundComplete = () => {
-    setRound1Completed(true)
+  const handleDriveStatusChange = async (status) => {
+    try {
+      const updated = await updateDriveStatus(id, status)
+      setDrive(updated)
+      toast.success(`Drive marked as ${status.toLowerCase()}.`)
+    } catch (err) {
+      toast.error(err.message)
+    }
   }
 
-  const handleCreateRound2Submit = (newRound) => {
-    setRound2Details(newRound)
-    setRound2Created(true)
-    setRound2Candidates(newRound.candidates.map((c) => ({ ...c, aiScore: 88, status: 'INVITED' })))
-    setDrive((prev) => ({ ...prev, currentRound: 2 }))
-    setActiveRoundTab('2')
+  const handleCreateRound2Submit = (updatedDrive) => {
+    setDrive(updatedDrive)
+    setActiveRoundTab(String(updatedDrive.rounds[updatedDrive.rounds.length - 1].roundNumber))
   }
 
   const handleExportExcel = () => {
@@ -156,7 +94,7 @@ function DriveDetailPage() {
     const encodedUri = encodeURI(csvContent)
     const link = document.createElement('a')
     link.setAttribute('href', encodedUri)
-    link.setAttribute('download', `${drive.title.replace(/[^a-z0-9]+/gi, '_')}_Round_${activeRoundTab}_Results.csv`)
+    link.setAttribute('download', `${(drive?.title || 'drive').replace(/[^a-z0-9]+/gi, '_')}_Round_${activeRoundTab}_Results.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -166,7 +104,7 @@ function DriveDetailPage() {
     const matchesSearch =
       cand.name.toLowerCase().includes(search.toLowerCase()) ||
       cand.email.toLowerCase().includes(search.toLowerCase()) ||
-      cand.phone.includes(search)
+      (cand.phone || '').includes(search)
 
     let matchesScore = true
     if (scoreFilter === 'OVER_90') matchesScore = cand.aiScore >= 90
@@ -184,105 +122,92 @@ function DriveDetailPage() {
     return matchesSearch && matchesScore && matchesFlags && matchesStatus
   })
 
-  const shortlistedList = round1Candidates.filter((c) => c.status === 'SHORTLISTED')
+  if (loading) {
+    return (
+      <OrganizationLayout title="Loading drive..." description=" ">
+        <div className="space-y-6">
+          <div className="grid sm:grid-cols-4 gap-4"><Skeleton className="h-24" /><Skeleton className="h-24" /><Skeleton className="h-24" /><Skeleton className="h-24" /></div>
+          <Skeleton className="h-96" />
+        </div>
+      </OrganizationLayout>
+    )
+  }
+
+  if (error || !drive) {
+    return (
+      <OrganizationLayout title="Interview Drive" description=" ">
+        <Card className="p-10 text-center">
+          <AlertCircle size={20} className="text-red-500 mx-auto mb-3" />
+          <p className="text-[14px] text-ink font-medium mb-1">Couldn't load this drive</p>
+          <p className="text-[13px] text-text-secondary mb-4">{error || 'Drive not found.'}</p>
+          <Button variant="secondary" onClick={() => navigate(`${basePath}/drives`)}>Back to Drives</Button>
+        </Card>
+      </OrganizationLayout>
+    )
+  }
 
   return (
     <OrganizationLayout
       title={drive.title}
       description={`${drive.roleCategory} • ${drive.department} • Active Round: Round ${drive.currentRound}`}
       action={
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button variant="secondary" size="sm" onClick={() => navigate(`${basePath}/drives`)}>
             <ArrowLeft size={14} /> Back to Drives
           </Button>
           <Button variant="secondary" size="sm" onClick={handleExportExcel}>
             <FileSpreadsheet size={14} /> Download Excel Report
           </Button>
-          {!round1Completed ? (
-            <Button size="sm" onClick={handleMarkRoundComplete}>
-              <CheckCircle2 size={14} /> Mark Round 1 Complete
+          {drive.status === 'ACTIVE' ? (
+            <Button size="sm" onClick={() => handleDriveStatusChange('COMPLETED')}>
+              <CheckCircle2 size={14} /> Mark Drive Complete
             </Button>
-          ) : (
-            <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white" onClick={() => setCreateRoundModalOpen(true)}>
-              <Plus size={14} /> {round2Created ? 'Re-configure Round 2' : 'Create Round 2 (Managerial)'}
-            </Button>
-          )}
+          ) : null}
+          <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white" onClick={() => setCreateRoundModalOpen(true)}>
+            <Plus size={14} /> Create Round {rounds.length + 1}
+          </Button>
         </div>
       }
     >
-      {/* Metrics Header */}
       <div className="grid sm:grid-cols-4 gap-4 mb-6">
-        <StatCard icon={CheckCircle2} label="Evaluated Candidates" value={currentCandidates.length.toString()} />
-        <StatCard icon={Sparkles} label="Shortlisted Candidates" value={shortlistedList.length.toString()} trend={{ value: `${Math.round((shortlistedList.length / (round1Candidates.length || 1)) * 100)}% Pass`, direction: 'up' }} />
-        <StatCard icon={ShieldAlert} label="Proctoring / Malpractice Flags" value={currentCandidates.filter((c) => c.malpracticeFlags > 0).length.toString()} />
-        <StatCard icon={Lock} label="Round 1 Status" value={round1Completed ? 'Completed' : 'In Progress'} />
+        <StatCard icon={CheckCircle2} label="Evaluated Candidates" value={currentCandidates.length} />
+        <StatCard icon={Sparkles} label="Shortlisted Candidates" value={shortlistedList.length} />
+        <StatCard icon={ShieldAlert} label="Proctoring / Malpractice Flags" value={currentCandidates.filter((c) => c.malpracticeFlags > 0).length} />
+        <StatCard icon={CheckCircle2} label="Drive Status" value={drive.status} />
       </div>
 
-      {/* Rounds Selector Tabs */}
       <Card className="p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-line">
           <Tabs
-            tabs={[
-              { id: '1', label: 'Round 1: Technical AI Interview' },
-              { id: '2', label: round2Created ? `Round 2: ${round2Details?.type || 'Managerial'}` : round1Completed ? 'Round 2: Ready to Create' : 'Round 2 (Locked)' },
-            ]}
+            tabs={rounds.map((r) => ({ id: String(r.roundNumber), label: `Round ${r.roundNumber}: ${r.type}` }))}
             value={activeRoundTab}
-            onChange={(id) => {
-              if (id === '2' && !round2Created) {
-                if (round1Completed) setCreateRoundModalOpen(true)
-                return
-              }
-              setActiveRoundTab(id)
-            }}
+            onChange={setActiveRoundTab}
           />
-
-          {/* Search input */}
-          <SearchInput
-            placeholder="Search name, email, phone..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onClear={() => setSearch('')}
-            className="w-full sm:w-[240px]"
-          />
+          <SearchInput placeholder="Search name, email, phone..." value={search} onChange={setSearch} className="w-full sm:w-[240px]" />
         </div>
 
-        {/* Filter Toolbar */}
         <div className="grid sm:grid-cols-3 gap-3 mb-6 p-4 rounded-xl bg-black/[0.02] dark:bg-white/[0.03] border border-line">
           <div>
             <label className="block text-[11.5px] font-bold uppercase tracking-wider text-text-secondary mb-1">AI Score Range</label>
-            <select
-              value={scoreFilter}
-              onChange={(e) => setScoreFilter(e.target.value)}
-              className="w-full px-3 py-1.5 text-[13px] bg-card border border-line rounded-lg text-ink"
-            >
+            <select value={scoreFilter} onChange={(e) => setScoreFilter(e.target.value)} className="w-full px-3 py-1.5 text-[13px] bg-card border border-line rounded-lg text-ink">
               <option value="ALL">All Scores</option>
               <option value="OVER_90">Score &gt; 90% (Top Tier)</option>
               <option value="QUALIFIED">75% - 90% (Qualified)</option>
               <option value="BELOW">&lt; 75% (Below Threshold)</option>
             </select>
           </div>
-
           <div>
             <label className="block text-[11.5px] font-bold uppercase tracking-wider text-text-secondary mb-1">Malpractice Flags</label>
-            <select
-              value={flagFilter}
-              onChange={(e) => setFlagFilter(e.target.value)}
-              className="w-full px-3 py-1.5 text-[13px] bg-card border border-line rounded-lg text-ink"
-            >
+            <select value={flagFilter} onChange={(e) => setFlagFilter(e.target.value)} className="w-full px-3 py-1.5 text-[13px] bg-card border border-line rounded-lg text-ink">
               <option value="ALL">All Proctoring Logs</option>
               <option value="ZERO">0 Flags (Clean Attempt)</option>
               <option value="MINOR">1 Flag (Minor Warning)</option>
               <option value="HIGH">2+ Flags (Suspicious Activity)</option>
             </select>
           </div>
-
           <div>
             <label className="block text-[11.5px] font-bold uppercase tracking-wider text-text-secondary mb-1">Status</label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-1.5 text-[13px] bg-card border border-line rounded-lg text-ink"
-            >
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full px-3 py-1.5 text-[13px] bg-card border border-line rounded-lg text-ink">
               <option value="ALL">All Statuses</option>
               <option value="SHORTLISTED">Shortlisted</option>
               <option value="INVITED">Invited</option>
@@ -292,7 +217,6 @@ function DriveDetailPage() {
           </div>
         </div>
 
-        {/* Candidate Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -309,9 +233,7 @@ function DriveDetailPage() {
               {filteredCandidates.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-text-secondary">
-                    {activeRoundTab === '2' && !round2Created
-                      ? 'Round 2 is not launched yet. Click "Create Round 2" to setup.'
-                      : 'No candidates found matching the applied filters.'}
+                    {currentCandidates.length === 0 ? 'No candidates in this round yet.' : 'No candidates found matching the applied filters.'}
                   </td>
                 </tr>
               ) : (
@@ -357,20 +279,18 @@ function DriveDetailPage() {
         </div>
       </Card>
 
-      {/* Candidate Detail Modal */}
       <CandidateDetailModal
         open={Boolean(selectedCandidate)}
         onClose={() => setSelectedCandidate(null)}
         candidate={selectedCandidate}
-        onStatusChange={handleStatusChange}
+        onStatusChange={handleCandidateStatusChange}
       />
 
-      {/* Full-Screen Create Round Modal */}
       <CreateRoundModal
         open={createRoundModalOpen}
         onClose={() => setCreateRoundModalOpen(false)}
-        drive={drive}
-        roundNumber={2}
+        driveId={id}
+        roundNumber={rounds.length + 1}
         shortlistedCandidates={shortlistedList}
         onCreateRound={handleCreateRound2Submit}
       />

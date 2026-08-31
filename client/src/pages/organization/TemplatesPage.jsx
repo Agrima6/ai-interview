@@ -1,55 +1,32 @@
 import React, { useState, useEffect } from 'react'
-import { FileText, Sparkles, Check, Edit2, Copy, Save } from 'lucide-react'
+import { Check, Save, AlertCircle } from 'lucide-react'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
-import { Card, Button, Input, Textarea, Badge } from '../../components/ui'
+import { Card, Button, Input, Textarea, Badge, Skeleton, useToast } from '../../components/ui'
 import { getNotificationTemplates, updateNotificationTemplate } from '../../api/organization/organizationApi'
-
-const MOCK_TEMPLATES = [
-  {
-    id: 'tmpl-1',
-    templateId: 'tmpl-1',
-    name: 'Candidate AI Interview Invitation',
-    type: 'EMAIL',
-    subject: 'You have been invited to attempt the AI Interview for {drive_title} at {company_name}',
-    body: `Hello {candidate_name},\n\nWe are pleased to invite you to take the AI-powered video interview for the position of {drive_title} at {company_name}.\n\nPlease click the link below to start your interview attempt before {expiry_date}:\n\n{interview_link}\n\nBest regards,\nRecruitment Team`,
-    lastUpdated: '2026-08-20',
-  },
-  {
-    id: 'tmpl-2',
-    templateId: 'tmpl-2',
-    name: 'Interview Reminder Notification',
-    type: 'EMAIL',
-    subject: 'Reminder: Your AI Interview for {drive_title} expires soon',
-    body: `Hi {candidate_name},\n\nThis is a friendly reminder that your AI video interview for {drive_title} is scheduled to expire on {expiry_date}.\n\nAccess your interview room here: {interview_link}\n\nGood luck!`,
-    lastUpdated: '2026-08-22',
-  },
-  {
-    id: 'tmpl-3',
-    templateId: 'tmpl-3',
-    name: 'Shortlisted Candidate Next Round Email',
-    type: 'EMAIL',
-    subject: 'Congratulations! You have been shortlisted for {drive_title}',
-    body: `Dear {candidate_name},\n\nGreat news! Based on your outstanding AI interview evaluation score, our hiring team has shortlisted your application for {drive_title}.\n\nOur recruiters will reach out shortly to schedule the final round.\n\nBest regards,\n{company_name} Talent Team`,
-    lastUpdated: '2026-08-26',
-  },
-]
 
 const VARIABLE_TAGS = ['{candidate_name}', '{drive_title}', '{company_name}', '{interview_link}', '{expiry_date}']
 
 function TemplatesPage() {
-  const [templates, setTemplates] = useState(MOCK_TEMPLATES)
-  const [activeTemplateId, setActiveTemplateId] = useState('tmpl-1')
+  const toast = useToast()
+  const [templates, setTemplates] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [activeTemplateId, setActiveTemplateId] = useState(null)
   const [savedSuccess, setSavedSuccess] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const fetchTemplates = async () => {
+    setLoading(true)
+    setError('')
     try {
       const data = await getNotificationTemplates()
-      if (data && data.length > 0) {
-        setTemplates(data.map((t) => ({ ...t, id: t.templateId || t._id || t.id })))
-      }
+      const mapped = (data || []).map((t) => ({ ...t, id: t.templateId || t._id || t.id }))
+      setTemplates(mapped)
+      setActiveTemplateId((prev) => prev || mapped[0]?.id || null)
     } catch (err) {
-      console.warn('API error fetching templates, using local fallback:', err)
+      setError(err.message)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -57,7 +34,7 @@ function TemplatesPage() {
     fetchTemplates()
   }, [])
 
-  const activeTemplate = templates.find((t) => t.id === activeTemplateId || t.templateId === activeTemplateId) || templates[0]
+  const activeTemplate = templates.find((t) => t.id === activeTemplateId || t.templateId === activeTemplateId)
 
   const handleUpdateActiveField = (field, value) => {
     setTemplates((prev) =>
@@ -79,9 +56,9 @@ function TemplatesPage() {
       setSavedSuccess(true)
       setTimeout(() => setSavedSuccess(false), 2500)
     } catch (err) {
-      console.warn('API error saving template, using local save:', err)
-      setSavedSuccess(true)
-      setTimeout(() => setSavedSuccess(false), 2500)
+      // A failed save must never look like "Saved!" - the admin needs to
+      // know the template text wasn't actually persisted.
+      toast.error(err.message)
     } finally {
       setSaving(false)
     }
@@ -92,6 +69,21 @@ function TemplatesPage() {
       title="Notification Templates"
       description="Customize candidate email invitations, reminders, and evaluation updates."
     >
+      {error ? (
+        <Card className="p-10 text-center">
+          <AlertCircle size={20} className="text-red-500 mx-auto mb-3" />
+          <p className="text-[14px] text-ink font-medium mb-1">Couldn't load templates</p>
+          <p className="text-[13px] text-text-secondary mb-4">{error}</p>
+          <Button variant="secondary" onClick={fetchTemplates}>Retry</Button>
+        </Card>
+      ) : loading ? (
+        <div className="grid lg:grid-cols-3 gap-6">
+          <Skeleton className="h-64" />
+          <div className="lg:col-span-2"><Skeleton className="h-96" /></div>
+        </div>
+      ) : !activeTemplate ? (
+        <Card className="p-12 text-center"><p className="text-[14px] text-text-secondary">No templates found.</p></Card>
+      ) : (
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Template Selector List */}
         <div className="space-y-3">
@@ -167,6 +159,7 @@ function TemplatesPage() {
           </Card>
         </div>
       </div>
+      )}
     </OrganizationLayout>
   )
 }

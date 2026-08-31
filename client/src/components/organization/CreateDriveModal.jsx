@@ -1,11 +1,11 @@
-import React, { useState } from 'react'
-import { Plus, Check, ArrowRight, ArrowLeft, Link2, Copy, Upload, AlertCircle } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Plus, Check, ArrowRight, ArrowLeft, Link2, Upload, AlertCircle } from 'lucide-react'
 import Modal from '../ui/Modal'
 import { Button, Input, Select, Textarea } from '../ui'
 import CandidateImportModal from './CandidateImportModal'
 import CriteriaWeightageBuilder from './CriteriaWeightageBuilder'
 import QuestionSetBuilder from './QuestionSetBuilder'
-import { createInterviewDrive } from '../../api/organization/organizationApi'
+import { createInterviewDrive, getQuestionBanks } from '../../api/organization/organizationApi'
 
 const ROLE_CATEGORIES = [
   { value: 'SOFTWARE_ENGINEERING', label: 'Software Engineering (SDE / Fullstack)' },
@@ -39,21 +39,23 @@ const EXPERIENCE_LEVELS = [
   { value: '8+ yrs (Lead/Manager)', label: '8+ yrs (Lead / Manager)' },
 ]
 
-const QUESTION_BANKS = [
-  { id: 'qb-1', title: 'SDE Core Engineering Assessment', questions: 8, duration: '20 mins' },
-  { id: 'qb-2', title: 'Data Structures & System Architecture', questions: 6, duration: '18 mins' },
-  { id: 'qb-3', title: 'Data Science & Machine Learning Fundamentals', questions: 5, duration: '18 mins' },
-  { id: 'qb-4', title: 'Sales, Negotiation & Business Aptitude', questions: 5, duration: '15 mins' },
-  { id: 'qb-5', title: 'Behavioral & Leadership Competencies', questions: 5, duration: '15 mins' },
-  { id: 'qb-6', title: 'Campus Placement Aptitude & General Screening', questions: 8, duration: '25 mins' },
-]
-
 function CreateDriveModal({ open, onClose, onCreateDrive }) {
   const [step, setStep] = useState(1)
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [importedCandidates, setImportedCandidates] = useState([])
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [questionBanks, setQuestionBanks] = useState([])
+  const [banksLoading, setBanksLoading] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    setBanksLoading(true)
+    getQuestionBanks()
+      .then((banks) => setQuestionBanks(banks || []))
+      .catch(() => setQuestionBanks([]))
+      .finally(() => setBanksLoading(false))
+  }, [open])
 
   const [formData, setFormData] = useState({
     title: '',
@@ -64,12 +66,22 @@ function CreateDriveModal({ open, onClose, onCreateDrive }) {
     roundType: 'Technical Round',
     expiryDate: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
     questionMode: 'PREBUILT',
-    questionBankId: 'qb-1',
+    questionBankId: '',
     passingThreshold: '70',
     timePerQuestion: '120',
     enablePublicLink: true,
     candidateEmails: '',
   })
+
+  // Question banks load asynchronously (real API, not a hardcoded list) -
+  // default to the first available bank once they arrive, if nothing has
+  // been explicitly chosen yet.
+  useEffect(() => {
+    if (questionBanks.length && !formData.questionBankId) {
+      setFormData((prev) => ({ ...prev, questionBankId: questionBanks[0]._id || questionBanks[0].id }))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questionBanks])
 
   const [skillWeightages, setSkillWeightages] = useState([
     { id: 1, name: 'Domain Knowledge & Technical Competency', weight: 30 },
@@ -82,8 +94,6 @@ function CreateDriveModal({ open, onClose, onCreateDrive }) {
     { id: 1, text: 'Describe a complex challenge you solved in your recent role.', topic: 'Problem Solving & Analytical Thinking', timeLimit: 120 },
     { id: 2, text: 'How do you handle disagreement with team members during a project deadline?', topic: 'Communication & Soft Skills', timeLimit: 120 },
   ])
-
-  const [copiedLink, setCopiedLink] = useState(false)
 
   const handleChange = (field, value) => {
     setErrorMessage('')
@@ -144,7 +154,7 @@ function CreateDriveModal({ open, onClose, onCreateDrive }) {
       return
     }
 
-    const selectedBank = QUESTION_BANKS.find((b) => b.id === formData.questionBankId)
+    const selectedBank = questionBanks.find((b) => (b._id || b.id) === formData.questionBankId)
 
     const payload = {
       title: formData.title.trim(),
@@ -163,38 +173,22 @@ function CreateDriveModal({ open, onClose, onCreateDrive }) {
       candidatesCount: importedCandidates.length || (formData.candidateEmails ? formData.candidateEmails.split(',').filter(Boolean).length : 0),
       importedCandidateList: importedCandidates,
       enablePublicLink: formData.enablePublicLink,
-      publicLink: formData.enablePublicLink
-        ? `https://workmateiq.com/drive/${formData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Math.random().toString(36).substring(2, 7)}`
-        : null,
     }
 
     try {
+      // The backend generates and persists the real publicLink (and the
+      // real drive id) - there is no client-side fallback on failure here:
+      // if this call fails the admin sees the real error and nothing is
+      // created, rather than believing a drive exists that was never saved.
       const response = await createInterviewDrive(payload)
-      onCreateDrive(response || payload)
+      onCreateDrive(response)
       onClose()
       setStep(1)
     } catch (err) {
-      // Graceful fallback to optimistic creation if API server is offline
-      console.warn('Backend drive creation fallback:', err)
-      const fallbackDrive = {
-        ...payload,
-        id: `drive-${Date.now()}`,
-        currentRound: 1,
-        createdAt: new Date().toISOString(),
-      }
-      onCreateDrive(fallbackDrive)
-      onClose()
-      setStep(1)
+      setErrorMessage(err.message)
     } finally {
       setSubmitting(false)
     }
-  }
-
-  const copyPublicLink = () => {
-    const link = `https://workmateiq.com/drive/${formData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
-    navigator.clipboard.writeText(link)
-    setCopiedLink(true)
-    setTimeout(() => setCopiedLink(false), 2000)
   }
 
   return (
@@ -362,10 +356,11 @@ function CreateDriveModal({ open, onClose, onCreateDrive }) {
         {/* Step 3: Reusable Question Set Builder */}
         {step === 3 && (
           <div className="space-y-6 max-w-4xl mx-auto py-2">
+            {banksLoading && <p className="text-[13px] text-text-secondary">Loading question banks...</p>}
             <QuestionSetBuilder
               questionMode={formData.questionMode}
               onQuestionModeChange={(mode) => handleChange('questionMode', mode)}
-              questionBanks={QUESTION_BANKS}
+              questionBanks={questionBanks.map((b) => ({ id: b._id || b.id, title: b.title, questions: b.questionCount ?? b.questions?.length ?? 0, duration: b.durationMinutes ? `${b.durationMinutes} mins` : '' }))}
               selectedBankId={formData.questionBankId}
               onSelectBankId={(id) => handleChange('questionBankId', id)}
               customQuestions={customQuestions}
@@ -403,18 +398,8 @@ function CreateDriveModal({ open, onClose, onCreateDrive }) {
               </div>
 
               {formData.enablePublicLink ? (
-                <div className="p-4 bg-black/[0.02] dark:bg-white/[0.04] rounded-xl border border-line">
-                  <label className="block text-[12.5px] font-semibold text-ink mb-1.5">Shareable Invite Link</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      readOnly
-                      value={`https://workmateiq.com/drive/${formData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'new-drive'}`}
-                      className="flex-1 px-3 py-2 text-[13px] bg-card border border-line rounded-lg text-ink font-mono"
-                    />
-                    <Button type="button" variant="secondary" size="sm" onClick={copyPublicLink}>
-                      <Copy size={13} /> {copiedLink ? 'Copied!' : 'Copy Link'}
-                    </Button>
-                  </div>
+                <div className="p-4 bg-black/[0.02] dark:bg-white/[0.04] rounded-xl border border-line text-[13px] text-text-secondary">
+                  A shareable invite link will be generated once this drive is created - you'll be able to copy it from the drive card.
                 </div>
               ) : (
                 <div className="p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/5 text-[13px] text-amber-700 dark:text-amber-300">

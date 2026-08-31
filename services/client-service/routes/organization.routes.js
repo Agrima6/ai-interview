@@ -10,16 +10,16 @@ router.get("/organizations/me", authenticate, requirePermission("CLIENT_SELF_REA
 router.patch("/organizations/me/branding", authenticate, requirePermission("CLIENT_SELF_UPDATE"), clientController.updateMyOrganizationBranding)
 
 // Team & Access Control
-router.get("/organization/team", authenticate, portalController.listTeamMembers)
-router.post("/organization/team/invite", authenticate, portalController.inviteTeamMember)
-router.delete("/organization/team/:id", authenticate, portalController.removeTeamMember)
+router.get("/organization/team", authenticate, requirePermission("CLIENT_SELF_READ"), portalController.listTeamMembers)
+router.post("/organization/team/invite", authenticate, requirePermission("CLIENT_SELF_UPDATE"), portalController.inviteTeamMember)
+router.delete("/organization/team/:id", authenticate, requirePermission("CLIENT_SELF_UPDATE"), portalController.removeTeamMember)
 
 // Question Banks
-router.get("/question-banks", authenticate, portalController.listQuestionBanks)
-router.post("/question-banks", authenticate, portalController.createQuestionBank)
+router.get("/question-banks", authenticate, requirePermission("CLIENT_SELF_READ"), portalController.listQuestionBanks)
+router.post("/question-banks", authenticate, requirePermission("CLIENT_SELF_UPDATE"), portalController.createQuestionBank)
 
 // Notification Templates
-router.get("/organization/templates", authenticate, portalController.listTemplates)
-router.put("/organization/templates/:id", authenticate, portalController.updateTemplate)
+router.get("/organization/templates", authenticate, requirePermission("CLIENT_SELF_READ"), portalController.listTemplates)
+router.put("/organization/templates/:id", authenticate, requirePermission("CLIENT_SELF_UPDATE"), portalController.updateTemplate)
 
 export default router

@@ -19,6 +19,7 @@ const clientSchema = new mongoose.Schema({
     },
     branding: {
         logoFileId: { type: mongoose.Schema.Types.ObjectId, default: null },
+        logoUrl: { type: String, default: null },
         primaryColor: { type: String, default: null },
         secondaryColor: { type: String, default: null },
         fontFamily: { type: String, default: null },

@@ -1,112 +1,73 @@
-import React, { useState } from 'react'
-import { Search, Eye, Filter, Download, Sparkles, CheckCircle2, Clock, XCircle, UserCheck } from 'lucide-react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { Eye, Sparkles, CheckCircle2, UserCheck, AlertCircle } from 'lucide-react'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
 import CandidateDetailModal from '../../components/organization/CandidateDetailModal'
-import { Card, Button, Badge, SearchInput, Tabs, StatCard } from '../../components/ui'
-
-const MOCK_CANDIDATES = [
-  {
-    id: 'cand-1',
-    name: 'Aarav Sharma',
-    email: 'aarav.sharma@gmail.com',
-    driveTitle: 'Senior Full Stack Developer Hiring Drive 2026',
-    appliedDate: '2026-08-22',
-    aiScore: 88,
-    status: 'SHORTLISTED',
-  },
-  {
-    id: 'cand-2',
-    name: 'Priya Patel',
-    email: 'priya.patel@techcollege.edu',
-    driveTitle: 'Campus Graduate Trainee Screening — Batch A',
-    appliedDate: '2026-08-24',
-    aiScore: 82,
-    status: 'SHORTLISTED',
-  },
-  {
-    id: 'cand-3',
-    name: 'Rohan Mehta',
-    email: 'rohan.mehta@yahoo.com',
-    driveTitle: 'Senior Full Stack Developer Hiring Drive 2026',
-    appliedDate: '2026-08-25',
-    aiScore: 68,
-    status: 'COMPLETED',
-  },
-  {
-    id: 'cand-4',
-    name: 'Ananya Gupta',
-    email: 'ananya.gupta@outlook.com',
-    driveTitle: 'Data Science & Machine Learning Evaluation',
-    appliedDate: '2026-08-21',
-    aiScore: 91,
-    status: 'SHORTLISTED',
-  },
-  {
-    id: 'cand-5',
-    name: 'Vikram Singh',
-    email: 'vikram.singh@gmail.com',
-    driveTitle: 'Campus Graduate Trainee Screening — Batch A',
-    appliedDate: '2026-08-26',
-    aiScore: 45,
-    status: 'REJECTED',
-  },
-  {
-    id: 'cand-6',
-    name: 'Neha Verma',
-    email: 'neha.verma@college.edu',
-    driveTitle: 'Campus Graduate Trainee Screening — Batch A',
-    appliedDate: '2026-08-28',
-    aiScore: 0,
-    status: 'IN_PROGRESS',
-  },
-]
+import { Card, Button, Badge, SearchInput, Tabs, StatCard, Skeleton, useToast } from '../../components/ui'
+import { listAllCandidates, updateCandidateStatus } from '../../api/organization/organizationApi'
 
 const STATUS_BADGES = {
   SHORTLISTED: 'success',
   COMPLETED: 'purple',
-  IN_PROGRESS: 'neutral',
+  INVITED: 'neutral',
   REJECTED: 'danger',
 }
 
 function CandidatesListPage() {
-  const [candidates, setCandidates] = useState(MOCK_CANDIDATES)
+  const toast = useToast()
+  const [rows, setRows] = useState([])
+  const [total, setTotal] = useState(0)
   const [search, setSearch] = useState('')
   const [activeTab, setActiveTab] = useState('ALL')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [selectedCandidate, setSelectedCandidate] = useState(null)
 
-  const handleStatusChange = (candidateId, newStatus) => {
-    setCandidates((prev) =>
-      prev.map((c) => (c.id === candidateId ? { ...c, status: newStatus } : c))
-    )
+  const fetchCandidates = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const { items, total: totalCount } = await listAllCandidates({
+        search: search || undefined,
+        status: activeTab === 'ALL' ? undefined : activeTab,
+        limit: 100,
+      })
+      setRows(items || [])
+      setTotal(totalCount || 0)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [search, activeTab])
+
+  useEffect(() => { fetchCandidates() }, [fetchCandidates])
+
+  const handleStatusChange = async (candidateId, newStatus) => {
+    const row = rows.find((r) => r.candidate.id === candidateId)
+    if (!row) return
+    try {
+      await updateCandidateStatus(row.driveId, row.roundNumber, candidateId, newStatus)
+      setRows((prev) => prev.map((r) => (r.candidate.id === candidateId ? { ...r, candidate: { ...r.candidate, status: newStatus } } : r)))
+      setSelectedCandidate((prev) => (prev ? { ...prev, status: newStatus } : prev))
+    } catch (err) {
+      toast.error(err.message)
+    }
   }
 
-  const filteredCandidates = candidates.filter((c) => {
-    const matchesSearch =
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.email.toLowerCase().includes(search.toLowerCase()) ||
-      c.driveTitle.toLowerCase().includes(search.toLowerCase())
-
-    if (activeTab === 'ALL') return matchesSearch
-    return matchesSearch && c.status === activeTab
-  })
-
-  const totalEvaluated = candidates.filter((c) => c.status !== 'IN_PROGRESS').length
-  const totalShortlisted = candidates.filter((c) => c.status === 'SHORTLISTED').length
-  const avgScore = Math.round(
-    candidates.filter((c) => c.aiScore > 0).reduce((acc, c) => acc + c.aiScore, 0) /
-      (candidates.filter((c) => c.aiScore > 0).length || 1)
-  )
+  const evaluated = rows.filter((r) => r.candidate.status !== 'INVITED')
+  const shortlisted = rows.filter((r) => r.candidate.status === 'SHORTLISTED')
+  const scored = rows.filter((r) => r.candidate.aiScore > 0)
+  const avgScore = scored.length ? Math.round(scored.reduce((acc, r) => acc + r.candidate.aiScore, 0) / scored.length) : 0
 
   return (
     <OrganizationLayout
       title="Candidates & Evaluation"
-      description="Review AI scorecards, interview recordings, and shortlist top candidates."
+      description="Review AI scorecards and shortlist top candidates across every drive."
     >
-      {/* Top Metrics */}
       <div className="grid sm:grid-cols-3 gap-4 mb-6">
-        <StatCard icon={UserCheck} label="Evaluated Candidates" value={totalEvaluated.toString()} trend={{ value: `${totalShortlisted} Shortlisted`, direction: 'up' }} />
+        <StatCard icon={UserCheck} label="Evaluated Candidates" value={evaluated.length} trend={{ value: `${shortlisted.length} Shortlisted`, positive: true }} />
         <StatCard icon={Sparkles} label="Average AI Score" value={`${avgScore}%`} />
-        <StatCard icon={CheckCircle2} label="Shortlist Rate" value={`${Math.round((totalShortlisted / (totalEvaluated || 1)) * 100)}%`} />
+        <StatCard icon={CheckCircle2} label="Shortlist Rate" value={`${evaluated.length ? Math.round((shortlisted.length / evaluated.length) * 100) : 0}%`} />
       </div>
 
       <Card className="p-6">
@@ -116,82 +77,89 @@ function CandidatesListPage() {
               { id: 'ALL', label: 'All Candidates' },
               { id: 'SHORTLISTED', label: 'Shortlisted' },
               { id: 'COMPLETED', label: 'Evaluated' },
-              { id: 'IN_PROGRESS', label: 'In Progress' },
+              { id: 'INVITED', label: 'Invited' },
               { id: 'REJECTED', label: 'Rejected' },
             ]}
-            activeTab={activeTab}
+            value={activeTab}
             onChange={setActiveTab}
           />
-          <SearchInput
-            placeholder="Search candidates, emails..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onClear={() => setSearch('')}
-            className="w-full sm:w-[260px]"
-          />
+          <SearchInput placeholder="Search candidates by name..." value={search} onChange={setSearch} className="w-full sm:w-[260px]" />
         </div>
 
-        {/* Candidate Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-line text-[12px] font-semibold uppercase tracking-wider text-text-secondary">
-                <th className="pb-3 px-3">Candidate Name</th>
-                <th className="pb-3 px-3">Drive / Assessment</th>
-                <th className="pb-3 px-3">Applied Date</th>
-                <th className="pb-3 px-3">AI Score</th>
-                <th className="pb-3 px-3">Status</th>
-                <th className="pb-3 px-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line text-[13.5px]">
-              {filteredCandidates.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="py-12 text-center text-text-secondary">
-                    No candidates match the selected tab/search query.
-                  </td>
+        {error ? (
+          <div className="py-12 text-center">
+            <AlertCircle size={20} className="text-red-500 mx-auto mb-3" />
+            <p className="text-[14px] text-ink font-medium mb-1">Couldn't load candidates</p>
+            <p className="text-[13px] text-text-secondary mb-4">{error}</p>
+            <Button variant="secondary" onClick={fetchCandidates}>Retry</Button>
+          </div>
+        ) : loading ? (
+          <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14" />)}</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-line text-[12px] font-semibold uppercase tracking-wider text-text-secondary">
+                  <th className="pb-3 px-3">Candidate Name</th>
+                  <th className="pb-3 px-3">Drive / Round</th>
+                  <th className="pb-3 px-3">Attempted Date</th>
+                  <th className="pb-3 px-3">AI Score</th>
+                  <th className="pb-3 px-3">Status</th>
+                  <th className="pb-3 px-3 text-right">Actions</th>
                 </tr>
-              ) : (
-                filteredCandidates.map((cand) => (
-                  <tr key={cand.id} className="hover:bg-black/[0.015] dark:hover:bg-white/[0.02] transition-colors">
-                    <td className="py-4 px-3">
-                      <div className="font-semibold text-ink leading-tight">{cand.name}</div>
-                      <div className="text-[12px] text-text-secondary">{cand.email}</div>
-                    </td>
-                    <td className="py-4 px-3 font-medium text-ink max-w-[260px] truncate">
-                      {cand.driveTitle}
-                    </td>
-                    <td className="py-4 px-3 text-text-secondary whitespace-nowrap">{cand.appliedDate}</td>
-                    <td className="py-4 px-3 font-bold">
-                      {cand.aiScore > 0 ? (
-                        <span className={cand.aiScore >= 80 ? 'text-emerald-600' : cand.aiScore >= 65 ? 'text-amber-600' : 'text-red-600'}>
-                          {cand.aiScore}%
-                        </span>
-                      ) : (
-                        <span className="text-text-secondary font-normal">Pending</span>
-                      )}
-                    </td>
-                    <td className="py-4 px-3">
-                      <Badge variant={STATUS_BADGES[cand.status] || 'neutral'}>{cand.status}</Badge>
-                    </td>
-                    <td className="py-4 px-3 text-right whitespace-nowrap">
-                      <Button
-                        size="xs"
-                        variant="secondary"
-                        onClick={() => setSelectedCandidate(cand)}
-                      >
-                        <Eye size={13} /> View Scorecard
-                      </Button>
+              </thead>
+              <tbody className="divide-y divide-line text-[13.5px]">
+                {rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center text-text-secondary">
+                      No candidates found. Try changing your filters or import candidates into a drive.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  rows.map((row) => {
+                    const cand = row.candidate
+                    return (
+                      <tr key={cand.id} className="hover:bg-black/[0.015] dark:hover:bg-white/[0.02] transition-colors">
+                        <td className="py-4 px-3">
+                          <div className="font-semibold text-ink leading-tight">{cand.name}</div>
+                          <div className="text-[12px] text-text-secondary">{cand.email}</div>
+                        </td>
+                        <td className="py-4 px-3 font-medium text-ink max-w-[260px] truncate">
+                          {row.driveTitle} • {row.roundTitle}
+                        </td>
+                        <td className="py-4 px-3 text-text-secondary whitespace-nowrap">
+                          {cand.attemptedDate ? new Date(cand.attemptedDate).toLocaleDateString() : '—'}
+                        </td>
+                        <td className="py-4 px-3 font-bold">
+                          {cand.aiScore > 0 ? (
+                            <span className={cand.aiScore >= 80 ? 'text-emerald-600' : cand.aiScore >= 65 ? 'text-amber-600' : 'text-red-600'}>
+                              {cand.aiScore}%
+                            </span>
+                          ) : (
+                            <span className="text-text-secondary font-normal">Pending</span>
+                          )}
+                        </td>
+                        <td className="py-4 px-3">
+                          <Badge variant={STATUS_BADGES[cand.status] || 'neutral'}>{cand.status}</Badge>
+                        </td>
+                        <td className="py-4 px-3 text-right whitespace-nowrap">
+                          <Button size="xs" variant="secondary" onClick={() => setSelectedCandidate({ ...cand, driveId: row.driveId, roundNumber: row.roundNumber })}>
+                            <Eye size={13} /> View Scorecard
+                          </Button>
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+            {total > rows.length && (
+              <p className="text-[12.5px] text-text-secondary text-center pt-4">Showing {rows.length} of {total} candidates.</p>
+            )}
+          </div>
+        )}
       </Card>
 
-      {/* Detail Modal */}
       <CandidateDetailModal
         open={Boolean(selectedCandidate)}
         onClose={() => setSelectedCandidate(null)}

@@ -168,40 +168,81 @@ const normalizeColor = (color) => {
     return HEX_COLOR.test(trimmed) ? trimmed : undefined
 }
 
+// http(s) URLs, or a data: image URI (the frontend logo-upload UI reads
+// the file client-side and sends its base64 data URI directly - there's
+// no File/Media service to upload to yet, see backend.md #14). Anything
+// else (javascript:, arbitrary schemes) is rejected: this string is
+// rendered directly as an <img src> (OrganizationBrand/Avatar). Data URIs
+// are size-capped to keep the Client document reasonable until a real
+// file-storage service replaces this.
+const MAX_DATA_URI_BYTES = 2 * 1024 * 1024
+const isSafeHttpUrl = (value) => {
+    if (/^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,/i.test(value)) {
+        return value.length <= MAX_DATA_URI_BYTES
+    }
+    try {
+        const parsed = new URL(value)
+        return parsed.protocol === "http:" || parsed.protocol === "https:"
+    } catch {
+        return false
+    }
+}
+
 export const updateMyOrganizationBranding = async (tenantId, body = {}) => {
     if (!tenantId) throw new ApiError(403, "NOT_AN_ORGANIZATION_ACCOUNT", "This account is not linked to an organization.")
 
     const patch = {}
 
-    // 1. Primary Color
+    // A field that was explicitly provided but fails validation is a
+    // rejected request (400), not a silently-ignored no-op - otherwise the
+    // admin has no way to know their color/logo change didn't take.
     const rawPrimary = body.primaryColor ?? body.primary_color ?? body.primary ?? body.themeColor ?? body.color ?? body.branding?.primaryColor
-    const primaryColor = normalizeColor(rawPrimary)
-    if (primaryColor) patch["branding.primaryColor"] = primaryColor
+    if (rawPrimary !== undefined) {
+        const primaryColor = normalizeColor(rawPrimary)
+        if (!primaryColor) throw new ApiError(400, "INVALID_COLOR", "primaryColor must be a valid hex color.")
+        patch["branding.primaryColor"] = primaryColor
+    }
 
-    // 2. Secondary Color
     const rawSecondary = body.secondaryColor ?? body.secondary_color ?? body.secondary ?? body.branding?.secondaryColor
-    const secondaryColor = normalizeColor(rawSecondary)
-    if (secondaryColor) patch["branding.secondaryColor"] = secondaryColor
+    if (rawSecondary !== undefined) {
+        const secondaryColor = normalizeColor(rawSecondary)
+        if (!secondaryColor) throw new ApiError(400, "INVALID_COLOR", "secondaryColor must be a valid hex color.")
+        patch["branding.secondaryColor"] = secondaryColor
+    }
 
-    // 3. Font Family
     const fontFamily = body.fontFamily ?? body.font_family ?? body.font ?? body.branding?.fontFamily
-    if (fontFamily && typeof fontFamily === "string") patch["branding.fontFamily"] = fontFamily.trim()
+    if (fontFamily !== undefined) {
+        if (typeof fontFamily !== "string" || !fontFamily.trim()) throw new ApiError(400, "INVALID_FONT", "fontFamily must be a non-empty string.")
+        patch["branding.fontFamily"] = fontFamily.trim()
+    }
 
-    // 4. Logo URL
     const logoUrl = body.logoUrl ?? body.logo_url ?? body.logo ?? body.branding?.logoUrl
-    if (logoUrl && typeof logoUrl === "string") patch["branding.logoUrl"] = logoUrl
+    if (logoUrl !== undefined) {
+        if (logoUrl === null || logoUrl === "") {
+            patch["branding.logoUrl"] = null
+        } else if (typeof logoUrl !== "string" || !isSafeHttpUrl(logoUrl)) {
+            throw new ApiError(400, "INVALID_LOGO_URL", "logoUrl must be a valid http(s) URL.")
+        } else {
+            patch["branding.logoUrl"] = logoUrl
+        }
+    }
 
-    // 5. Name / Display Name
     const name = body.name ?? body.displayName ?? body.organizationName ?? body.companyName
-    if (name && typeof name === "string" && name.trim()) patch["name"] = name.trim()
+    if (name !== undefined) {
+        if (typeof name !== "string" || !name.trim()) throw new ApiError(400, "INVALID_NAME", "name must be a non-empty string.")
+        patch["name"] = name.trim()
+    }
 
-    // 6. Email
     const email = body.email ?? body.primaryContactEmail ?? body.contactEmail ?? body.primaryContact?.email
-    if (email && typeof email === "string" && email.trim()) patch["primaryContact.email"] = email.trim()
+    if (email !== undefined) {
+        if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+            throw new ApiError(400, "INVALID_EMAIL", "email must be a valid email address.")
+        }
+        patch["primaryContact.email"] = email.trim()
+    }
 
-    // If no valid editable fields were supplied, gracefully return current organization profile rather than throwing 400
     if (Object.keys(patch).length === 0) {
-        return await getMyOrganization(tenantId)
+        throw new ApiError(400, "NO_EDITABLE_FIELDS", "No editable fields were provided.")
     }
 
     const updated = await clientRepo.updateFields(tenantId, patch)

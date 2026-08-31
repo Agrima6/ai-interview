@@ -1,17 +1,11 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Plus, Check, ArrowRight, ArrowLeft, CheckSquare, Square, Upload, Users, FileSpreadsheet, AlertCircle } from 'lucide-react'
 import Modal from '../ui/Modal'
 import { Button, Input, Select, Badge } from '../ui'
 import CriteriaWeightageBuilder from './CriteriaWeightageBuilder'
 import QuestionSetBuilder from './QuestionSetBuilder'
 import CandidateImportModal from './CandidateImportModal'
-import { addRoundToInterviewDrive } from '../../api/organization/organizationApi'
-
-const QUESTION_BANKS = [
-  { id: 'qb-m1', title: 'System Architecture & Engineering Leadership', questions: 5, duration: '20 mins' },
-  { id: 'qb-m2', title: 'Managerial Case Studies & Problem Solving', questions: 4, duration: '18 mins' },
-  { id: 'qb-m3', title: 'HR, Behavioral & Cultural Alignment', questions: 5, duration: '15 mins' },
-]
+import { addRoundToInterviewDrive, getQuestionBanks } from '../../api/organization/organizationApi'
 
 function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlistedCandidates = [], onCreateRound }) {
   const [step, setStep] = useState(1)
@@ -20,6 +14,12 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
   const [excelCandidates, setExcelCandidates] = useState([])
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [questionBanks, setQuestionBanks] = useState([])
+
+  useEffect(() => {
+    if (!open) return
+    getQuestionBanks().then((banks) => setQuestionBanks(banks || [])).catch(() => setQuestionBanks([]))
+  }, [open])
 
   const [formData, setFormData] = useState({
     roundTitle: `Round ${roundNumber}: Managerial & System Design Assessment`,
@@ -27,8 +27,15 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
     passingThreshold: '75',
     expiryDate: new Date(Date.now() + 10 * 86400000).toISOString().split('T')[0],
     questionMode: 'PREBUILT',
-    questionBankId: 'qb-m1',
+    questionBankId: '',
   })
+
+  useEffect(() => {
+    if (questionBanks.length && !formData.questionBankId) {
+      setFormData((prev) => ({ ...prev, questionBankId: questionBanks[0]._id || questionBanks[0].id }))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questionBanks])
 
   const [skillWeightages, setSkillWeightages] = useState([
     { id: 1, name: 'System Architecture & Design Patterns', weight: 40 },
@@ -78,15 +85,18 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
   }
 
   const handleExcelImportComplete = (importedList) => {
+    // These candidates haven't taken this round yet - no AI score exists
+    // for them until they do. Fabricating one here would misrepresent an
+    // untaken interview as already scored.
     const formatted = importedList.map((c, i) => ({
       id: `cand-excel-${Date.now()}-${i}`,
       name: c.name || c['Candidate Name'] || 'Candidate',
-      email: c.email || c['Email Address'] || `candidate${i}@example.com`,
-      phone: c.phone || c['Phone Number'] || '+91-9999999999',
-      exp: c.experience || '3 yrs',
-      aiScore: 85,
+      email: c.email || c['Email Address'] || '',
+      phone: c.phone || c['Phone Number'] || '',
+      exp: c.experience || '',
+      aiScore: 0,
       malpracticeFlags: 0,
-      status: 'SHORTLISTED',
+      status: 'INVITED',
     }))
     setExcelCandidates(formatted)
   }
@@ -124,7 +134,7 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
       return
     }
 
-    const selectedBank = QUESTION_BANKS.find((b) => b.id === formData.questionBankId)
+    const selectedBank = questionBanks.find((b) => (b._id || b.id) === formData.questionBankId)
 
     const roundCandidateRoster =
       candidateSource === 'SHORTLISTED'
@@ -144,20 +154,19 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
       candidates: roundCandidateRoster,
     }
 
+    if (!driveId) {
+      setErrorMessage('This round is not linked to a saved drive.')
+      setSubmitting(false)
+      return
+    }
+
     try {
-      if (driveId) {
-        const response = await addRoundToInterviewDrive(driveId, payload)
-        onCreateRound(response || payload)
-      } else {
-        onCreateRound(payload)
-      }
+      const response = await addRoundToInterviewDrive(driveId, payload)
+      onCreateRound(response)
       onClose()
       setStep(1)
     } catch (err) {
-      console.warn('Backend add round fallback:', err)
-      onCreateRound(payload)
-      onClose()
-      setStep(1)
+      setErrorMessage(err.message)
     } finally {
       setSubmitting(false)
     }
@@ -291,7 +300,7 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
             <QuestionSetBuilder
               questionMode={formData.questionMode}
               onQuestionModeChange={(mode) => handleChange('questionMode', mode)}
-              questionBanks={QUESTION_BANKS}
+              questionBanks={questionBanks.map((b) => ({ id: b._id || b.id, title: b.title, questions: b.questionCount ?? b.questions?.length ?? 0, duration: b.durationMinutes ? `${b.durationMinutes} mins` : '' }))}
               selectedBankId={formData.questionBankId}
               onSelectBankId={(id) => handleChange('questionBankId', id)}
               customQuestions={customQuestions}

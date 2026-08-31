@@ -1,74 +1,31 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Plus, ListChecks, Users, CheckCircle2, Copy, Eye, MoreVertical, Trash2, Calendar, Link2, Sparkles } from 'lucide-react'
+import { Plus, ListChecks, Users, Trash2, Link2, Sparkles, AlertCircle } from 'lucide-react'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
 import CreateDriveModal from '../../components/organization/CreateDriveModal'
-import { Card, Button, Badge, SearchInput, Tabs, StatCard } from '../../components/ui'
-import { listInterviewDrives } from '../../api/organization/organizationApi'
-
-const MOCK_DRIVES = [
-  {
-    id: 'drive-101',
-    title: 'Senior Full Stack Developer Hiring Drive 2026',
-    department: 'Engineering',
-    roleCategory: 'Software Engineering',
-    experienceLevel: '3-5 years',
-    expiryDate: '2026-09-25',
-    questionBankTitle: 'Full Stack Web Development (React & Node.js)',
-    passingThreshold: 75,
-    candidatesCount: 42,
-    completedCount: 31,
-    status: 'ACTIVE',
-    createdAt: '2026-08-15',
-    publicLink: 'https://workmateiq.com/drive/senior-fullstack-2026',
-  },
-  {
-    id: 'drive-102',
-    title: 'Campus Graduate Trainee Screening — Batch A',
-    department: 'Campus Recruitment',
-    roleCategory: 'Campus Placement / Graduate',
-    experienceLevel: 'Fresher / Graduate',
-    expiryDate: '2026-10-10',
-    questionBankTitle: 'Core Computer Science & Problem Solving',
-    passingThreshold: 65,
-    candidatesCount: 128,
-    completedCount: 96,
-    status: 'ACTIVE',
-    createdAt: '2026-08-20',
-    publicLink: 'https://workmateiq.com/drive/campus-grad-2026',
-  },
-  {
-    id: 'drive-103',
-    title: 'Data Science & Machine Learning Evaluation',
-    department: 'Data & Analytics',
-    roleCategory: 'Data Science & Analytics',
-    experienceLevel: '2-4 years',
-    expiryDate: '2026-08-30',
-    questionBankTitle: 'Data Structures & System Architecture',
-    passingThreshold: 70,
-    candidatesCount: 18,
-    completedCount: 18,
-    status: 'COMPLETED',
-    createdAt: '2026-08-01',
-    publicLink: 'https://workmateiq.com/drive/data-science-eval',
-  },
-]
+import { Card, Button, Badge, SearchInput, Tabs, StatCard, Skeleton, ConfirmModal, useToast } from '../../components/ui'
+import { listInterviewDrives, updateDriveStatus } from '../../api/organization/organizationApi'
 
 const STATUS_BADGE = {
   ACTIVE: 'success',
   DRAFT: 'neutral',
   COMPLETED: 'purple',
+  ARCHIVED: 'neutral',
 }
 
 function DrivesListPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [drives, setDrives] = useState(MOCK_DRIVES)
+  const toast = useToast()
+  const [drives, setDrives] = useState([])
   const [search, setSearch] = useState('')
   const [activeTab, setActiveTab] = useState('ALL')
   const [modalOpen, setModalOpen] = useState(false)
   const [copiedId, setCopiedId] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [archiveTarget, setArchiveTarget] = useState(null)
+  const [archiving, setArchiving] = useState(false)
 
   const basePath = location.pathname.startsWith('/college')
     ? '/college'
@@ -78,36 +35,44 @@ function DrivesListPage() {
     ? '/organization'
     : '/platform/client'
 
-  const fetchDrives = async () => {
+  const fetchDrives = useCallback(async () => {
     setLoading(true)
+    setError('')
     try {
-      const liveDrives = await listInterviewDrives({ search, status: activeTab })
-      if (liveDrives && liveDrives.length > 0) {
-        setDrives(liveDrives.map(d => ({
-          ...d,
-          id: d._id || d.id,
-          candidatesCount: d.candidatesCount || d.importedCandidateList?.length || 0,
-          completedCount: d.completedCount || 0,
-        })))
-      }
+      const liveDrives = await listInterviewDrives({ search: search || undefined, status: activeTab === 'ALL' ? undefined : activeTab })
+      setDrives((liveDrives || []).map((d) => ({
+        ...d,
+        id: d._id || d.id,
+        candidatesCount: d.candidatesCount || d.rounds?.[0]?.candidates?.length || 0,
+      })))
     } catch (err) {
-      console.warn('API error fetching drives, utilizing local state fallback:', err)
+      setError(err.message)
     } finally {
       setLoading(false)
     }
-  }
+  }, [search, activeTab])
 
   useEffect(() => {
     fetchDrives()
-  }, [activeTab])
+  }, [fetchDrives])
 
-  const handleCreateDrive = (newDrive) => {
-    setDrives((prev) => [newDrive, ...prev])
+  const handleCreateDrive = () => {
     fetchDrives()
   }
 
-  const handleDeleteDrive = (id) => {
-    setDrives((prev) => prev.filter((d) => (d._id || d.id) !== id))
+  const runArchive = async () => {
+    if (!archiveTarget) return
+    setArchiving(true)
+    try {
+      await updateDriveStatus(archiveTarget, 'ARCHIVED')
+      toast.success('Drive archived.')
+      setArchiveTarget(null)
+      fetchDrives()
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setArchiving(false)
+    }
   }
 
   const handleCopyLink = (e, link, id) => {
@@ -117,22 +82,13 @@ function DrivesListPage() {
     setTimeout(() => setCopiedId(null), 2000)
   }
 
-  const filteredDrives = drives.filter((d) => {
-    const matchesSearch =
-      (d.title || '').toLowerCase().includes(search.toLowerCase()) ||
-      (d.department || '').toLowerCase().includes(search.toLowerCase()) ||
-      (d.roleCategory || '').toLowerCase().includes(search.toLowerCase())
-    const matchesTab = activeTab === 'ALL' || d.status === activeTab
-    return matchesSearch && matchesTab
-  })
-
   const totalDrives = drives.length
   const activeDrives = drives.filter((d) => d.status === 'ACTIVE').length
   const totalCandidates = drives.reduce((acc, d) => acc + (d.candidatesCount || 0), 0)
 
   return (
     <OrganizationLayout
-      title="Interview Drives Management"
+      title="Interview Drives"
       description="Create, monitor, and manage multi-round AI hiring drives across technical and non-technical role categories."
       action={
         <Button onClick={() => setModalOpen(true)}>
@@ -141,32 +97,12 @@ function DrivesListPage() {
       }
     >
       <div className="space-y-6">
-        {/* Analytics Top Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <StatCard
-            title="Total Drives Created"
-            value={totalDrives}
-            icon={ListChecks}
-            change="+2 this month"
-            changeType="positive"
-          />
-          <StatCard
-            title="Active Hiring Drives"
-            value={activeDrives}
-            icon={Sparkles}
-            change="Live AI Screenings"
-            changeType="positive"
-          />
-          <StatCard
-            title="Evaluated Candidates"
-            value={totalCandidates}
-            icon={Users}
-            change="Across all drives"
-            changeType="neutral"
-          />
+          <StatCard icon={ListChecks} label="Total Drives" value={totalDrives} />
+          <StatCard icon={Sparkles} label="Active Hiring Drives" value={activeDrives} />
+          <StatCard icon={Users} label="Evaluated Candidates" value={totalCandidates} />
         </div>
 
-        {/* Filter Toolbar & Action Button */}
         <Card className="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
           <Tabs
             tabs={[
@@ -181,28 +117,30 @@ function DrivesListPage() {
 
           <div className="flex items-center gap-3 w-full md:w-auto">
             <div className="w-full md:w-64">
-              <SearchInput
-                placeholder="Search by title or department..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onClear={() => setSearch('')}
-              />
+              <SearchInput placeholder="Search by title or department..." value={search} onChange={setSearch} />
             </div>
-            <Button onClick={() => setModalOpen(true)} className="shrink-0">
-              <Plus size={15} /> Create Drive
-            </Button>
           </div>
         </Card>
 
-        {/* Drives Grid / Roster */}
-        {filteredDrives.length === 0 ? (
+        {error ? (
+          <Card className="p-10 text-center">
+            <AlertCircle size={20} className="text-red-500 mx-auto mb-3" />
+            <p className="text-[14px] text-ink font-medium mb-1">Couldn't load your drives</p>
+            <p className="text-[13px] text-text-secondary mb-4">{error}</p>
+            <Button variant="secondary" onClick={fetchDrives}>Retry</Button>
+          </Card>
+        ) : loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-[220px]" />)}
+          </div>
+        ) : drives.length === 0 ? (
           <Card className="p-12 text-center space-y-3">
             <div className="w-12 h-12 rounded-full bg-accent/10 text-accent flex items-center justify-center mx-auto">
               <ListChecks size={24} />
             </div>
-            <h3 className="text-[16px] font-bold text-ink">No Interview Drives Found</h3>
+            <h3 className="text-[16px] font-bold text-ink">No interview drives yet</h3>
             <p className="text-[13.5px] text-text-secondary max-w-sm mx-auto">
-              No interview drives match your current search criteria. Click below to create a new hiring drive.
+              Create your first drive to start evaluating candidates.
             </p>
             <div className="pt-2">
               <Button onClick={() => setModalOpen(true)}>
@@ -212,7 +150,7 @@ function DrivesListPage() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-            {filteredDrives.map((drive) => {
+            {drives.map((drive) => {
               const driveId = drive._id || drive.id
               return (
                 <Card
@@ -233,17 +171,16 @@ function DrivesListPage() {
                         </p>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleDeleteDrive(driveId)
-                        }}
-                        className="p-1.5 rounded-lg text-text-secondary hover:text-red-500 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                        title="Delete Drive"
-                      >
-                        <Trash2 size={15} />
-                      </button>
+                      {drive.status !== 'ARCHIVED' && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setArchiveTarget(driveId) }}
+                          className="p-1.5 rounded-lg text-text-secondary hover:text-red-500 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                          title="Archive Drive"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )}
                     </div>
 
                     <div className="p-3 rounded-xl bg-black/[0.02] dark:bg-white/[0.04] border border-line text-[12.5px] space-y-1">
@@ -286,6 +223,17 @@ function DrivesListPage() {
         onClose={() => setModalOpen(false)}
         onCreateDrive={handleCreateDrive}
       />
+
+      <ConfirmModal
+        open={!!archiveTarget}
+        onClose={() => setArchiveTarget(null)}
+        title="Archive this drive?"
+        confirmLabel={archiving ? 'Archiving...' : 'Archive drive'}
+        danger
+        onConfirm={runArchive}
+      >
+        Archived drives are no longer active but remain visible in your drive history.
+      </ConfirmModal>
     </OrganizationLayout>
   )
 }

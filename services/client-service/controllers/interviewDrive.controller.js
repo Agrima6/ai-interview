@@ -50,3 +50,24 @@ export const updateDriveStatus = async (req, res, next) => {
         next(error)
     }
 }
+
+export const updateCandidateStatus = async (req, res, next) => {
+    try {
+        const tenantId = req.user?.tenantId
+        const { id: driveId, roundNumber, candidateId } = req.params
+        const drive = await driveService.updateCandidateStatus(tenantId, driveId, roundNumber, candidateId, req.body.status)
+        ok(res, drive)
+    } catch (error) {
+        next(error)
+    }
+}
+
+export const listAllCandidates = async (req, res, next) => {
+    try {
+        const tenantId = req.user?.tenantId
+        const result = await driveService.listAllCandidates(tenantId, req.query)
+        ok(res, result.items, { total: result.total, page: result.page, pageSize: result.pageSize })
+    } catch (error) {
+        next(error)
+    }
+}

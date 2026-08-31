@@ -2,31 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { Plus, UserPlus, Shield, Mail, Trash2, CheckCircle2, Clock, AlertCircle } from 'lucide-react'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
 import Modal from '../../components/ui/Modal'
-import { Card, Button, Badge, Input, Select, StatCard } from '../../components/ui'
+import { Card, Button, Badge, Input, Select, StatCard, Skeleton, useToast } from '../../components/ui'
 import { getTeamMembers, inviteTeamMember as apiInviteTeamMember, removeTeamMember as apiRemoveTeamMember } from '../../api/organization/organizationApi'
-
-const MOCK_TEAM = [
-  {
-    id: 'usr-1',
-    name: 'Abhinav Verma',
-    email: 'abc@gmail.com',
-    role: 'CLIENT_ADMIN',
-    roleLabel: 'Organization Admin',
-    status: 'ACTIVE',
-    joinedDate: '2026-07-10',
-    lastActive: 'Just now',
-  },
-  {
-    id: 'usr-2',
-    name: 'Siddharth Rao',
-    email: 'siddharth.r@workmateiq.com',
-    role: 'RECRUITER',
-    roleLabel: 'Lead Recruiter',
-    status: 'ACTIVE',
-    joinedDate: '2026-07-28',
-    lastActive: '2 hours ago',
-  },
-]
 
 const ROLE_OPTIONS = [
   { value: 'RECRUITER', label: 'Lead Recruiter — Drive creation & candidate management' },
@@ -36,7 +13,9 @@ const ROLE_OPTIONS = [
 ]
 
 function TeamPage() {
-  const [team, setTeam] = useState(MOCK_TEAM)
+  const toast = useToast()
+  const [team, setTeam] = useState([])
+  const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState('RECRUITER')
@@ -44,18 +23,20 @@ function TeamPage() {
   const [errorMessage, setErrorMessage] = useState('')
 
   const fetchMembers = async () => {
+    setLoading(true)
     try {
       const data = await getTeamMembers()
-      if (data && data.length > 0) {
-        setTeam(data.map((m) => ({ ...m, id: m._id || m.id })))
-      }
+      setTeam((data || []).map((m) => ({ ...m, id: m._id || m.id })))
     } catch (err) {
-      console.warn('API error fetching team members, utilizing local state fallback:', err)
+      toast.error(err.message)
+    } finally {
+      setLoading(false)
     }
   }
 
   useEffect(() => {
     fetchMembers()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleInvite = async (e) => {
@@ -71,25 +52,14 @@ function TeamPage() {
     }
 
     try {
-      const created = await apiInviteTeamMember(payload)
-      setTeam((prev) => [...prev, created || payload])
+      await apiInviteTeamMember(payload)
       setInviteEmail('')
       setModalOpen(false)
+      fetchMembers()
     } catch (err) {
-      console.warn('API invite team error, using fallback:', err)
-      const fallbackMember = {
-        id: `usr-${Date.now()}`,
-        name: payload.name,
-        email: payload.email,
-        role: payload.role,
-        roleLabel: ROLE_OPTIONS.find((r) => r.value === payload.role)?.label.split(' — ')[0] || 'Team Member',
-        status: 'PENDING',
-        joinedDate: new Date().toISOString().split('T')[0],
-        lastActive: 'Invitation sent',
-      }
-      setTeam((prev) => [...prev, fallbackMember])
-      setInviteEmail('')
-      setModalOpen(false)
+      // Surfaced in the modal, not silently treated as success - an admin
+      // must know the invite genuinely wasn't sent.
+      setErrorMessage(err.message)
     } finally {
       setSubmitting(false)
     }
@@ -100,7 +70,7 @@ function TeamPage() {
       await apiRemoveTeamMember(id)
       setTeam((prev) => prev.filter((m) => (m._id || m.id) !== id))
     } catch (err) {
-      setTeam((prev) => prev.filter((m) => (m._id || m.id) !== id))
+      toast.error(err.message)
     }
   }
 
@@ -123,6 +93,11 @@ function TeamPage() {
 
       {/* Team Table Card */}
       <Card className="p-6">
+        {loading ? (
+          <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14" />)}</div>
+        ) : team.length === 0 ? (
+          <p className="text-[14px] text-text-secondary text-center py-8">No team members invited yet.</p>
+        ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -174,6 +149,7 @@ function TeamPage() {
             </tbody>
           </table>
         </div>
+        )}
       </Card>
 
       {/* Invite Modal */}

@@ -36,7 +36,14 @@ const DEFAULT_QUESTION_BANKS = [
 ]
 
 export const listQuestionBanks = async (tenantId) => {
-    // Return both system default question banks and organization custom question banks
+    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+
+    // Return both system default question banks and organization custom
+    // question banks - `tenantId` must be a real, truthy value here: a
+    // Mongoose query object with an `undefined` value for a key has that
+    // key silently dropped, so `{ $or: [{isSystemDefault:true}, {tenantId:
+    // undefined}] }` would have matched EVERY tenant's custom banks, not
+    // "none", if this guard weren't here.
     const banks = await QuestionBank.find({
         $or: [{ isSystemDefault: true }, { tenantId }],
     }).sort({ isSystemDefault: -1, createdAt: -1 })

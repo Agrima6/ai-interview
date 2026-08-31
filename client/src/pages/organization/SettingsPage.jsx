@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { Palette, Upload, Globe, Building2, Check, Sparkles, Type, Mail } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
+import { Palette, Upload, Building2, Check, Sparkles } from 'lucide-react'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
-import { Card, Button, Input, Select } from '../../components/ui'
+import { Card, Button, Input, Select, Skeleton } from '../../components/ui'
 import { getOrganizationProfile, updateOrganizationBranding } from '../../api/organization/organizationApi'
 import Avatar from '../../components/ui/Avatar'
 
@@ -14,6 +15,7 @@ const TYPOGRAPHY_OPTIONS = [
 ]
 
 function SettingsPage() {
+  const queryClient = useQueryClient()
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -66,11 +68,13 @@ function SettingsPage() {
         logoUrl: logoPreview,
       })
 
-      // Apply CSS dynamic theme updates live to document root
-      document.documentElement.style.setProperty('--color-accent', primaryColor)
-      document.documentElement.style.setProperty('--accent', primaryColor)
-      document.documentElement.style.setProperty('--color-accent-cyan', secondaryColor)
-      document.body.style.fontFamily = fontFamily
+      // The Organization shell (OrganizationLayout) reads branding through
+      // its own useOrganizationProfile() query and re-themes automatically
+      // once it refetches - invalidating here (rather than writing to
+      // document.documentElement directly) means the new colors apply only
+      // within this organization's own shell, never bleeding into another
+      // tab/tenant that happens to share the same browser process.
+      queryClient.invalidateQueries({ queryKey: ['organization', 'profile'] })
 
       setSavedSuccess(true)
       setTimeout(() => setSavedSuccess(false), 2500)
@@ -79,6 +83,17 @@ function SettingsPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  if (loading) {
+    return (
+      <OrganizationLayout title="Portal & Branding Settings" description="Customize portal organization details, email, branding logo, colors, and typography.">
+        <div className="grid lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6"><Skeleton className="h-64" /><Skeleton className="h-96" /></div>
+          <Skeleton className="h-72" />
+        </div>
+      </OrganizationLayout>
+    )
   }
 
   return (
@@ -114,7 +129,7 @@ function SettingsPage() {
                   />
                   <Input
                     label="Portal Domain Prefix"
-                    value={`${(name || 'myorg').toLowerCase().replace(/[^a-z0-9]+/g, '')}.workmateiq.com`}
+                    value={profile?.slug ? `${profile.slug}.workmateiq.com` : 'Not configured'}
                     readOnly
                   />
                 </div>

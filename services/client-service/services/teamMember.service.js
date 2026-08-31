@@ -1,39 +1,16 @@
 import { TeamMember } from "../models/teamMember.model.js"
 import { ApiError } from "../utils/response.js"
-
-const DEFAULT_MEMBERS = [
-    {
-        name: "Abhinav Verma",
-        email: "abc@gmail.com",
-        role: "CLIENT_ADMIN",
-        roleLabel: "Organization Admin",
-        status: "ACTIVE",
-        joinedDate: "2026-07-10",
-        lastActive: "Just now",
-    },
-    {
-        name: "Siddharth Rao",
-        email: "siddharth.r@workmateiq.com",
-        role: "RECRUITER",
-        roleLabel: "Lead Recruiter",
-        status: "ACTIVE",
-        joinedDate: "2026-07-28",
-        lastActive: "2 hours ago",
-    },
-]
+import { requireValidObjectId } from "../utils/validateId.js"
 
 export const listTeamMembers = async (tenantId) => {
     if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
 
-    let members = await TeamMember.find({ tenantId }).sort({ createdAt: -1 })
-    if (members.length === 0) {
-        // Seed default team records for newly registered client organization
-        const seeded = await TeamMember.insertMany(
-            DEFAULT_MEMBERS.map((m) => ({ ...m, tenantId }))
-        )
-        return seeded
-    }
-    return members
+    // No auto-seeded fake members here (a previous version wrote
+    // fabricated names/emails - "Abhinav Verma", "Siddharth Rao" - into
+    // real tenants' team rosters, which is exactly the "fake data
+    // masquerading as real" problem this audit exists to catch). A new
+    // organization genuinely starts with zero invited team members.
+    return TeamMember.find({ tenantId }).sort({ createdAt: -1 })
 }
 
 export const inviteTeamMember = async (tenantId, { name, email, role }) => {
@@ -67,6 +44,7 @@ export const inviteTeamMember = async (tenantId, { name, email, role }) => {
 
 export const removeTeamMember = async (tenantId, memberId) => {
     if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+    requireValidObjectId(memberId, "MEMBER_NOT_FOUND", "Team member not found.")
 
     const deleted = await TeamMember.findOneAndDelete({ _id: memberId, tenantId })
     if (!deleted) throw new ApiError(404, "MEMBER_NOT_FOUND", "Team member not found.")

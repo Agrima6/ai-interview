@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPatch, apiPut, apiDelete } from "../client"
+import { apiGet, apiGetList, apiPost, apiPatch, apiPut, apiDelete } from "../client"
 
 export const getOrganizationProfile = () => apiGet("/api/v1/organizations/me")
 
@@ -6,11 +6,16 @@ export const getOrganizationProfile = () => apiGet("/api/v1/organizations/me")
 export const updateOrganizationBranding = (payload) => apiPatch("/api/v1/organizations/me/branding", payload)
 
 // Interview Drives & Round Management APIs
-export const listInterviewDrives = (params) => apiGet("/api/v1/drives", { params })
+export const listInterviewDrives = (params) => apiGet("/api/v1/drives", params)
 export const createInterviewDrive = (payload) => apiPost("/api/v1/drives", payload)
 export const getInterviewDriveById = (id) => apiGet(`/api/v1/drives/${id}`)
 export const addRoundToInterviewDrive = (driveId, payload) => apiPost(`/api/v1/drives/${driveId}/rounds`, payload)
 export const updateDriveStatus = (driveId, status) => apiPatch(`/api/v1/drives/${driveId}/status`, { status })
+export const updateCandidateStatus = (driveId, roundNumber, candidateId, status) =>
+    apiPatch(`/api/v1/drives/${driveId}/rounds/${roundNumber}/candidates/${candidateId}/status`, { status })
+
+// Candidates (aggregated across every drive/round for the organization)
+export const listAllCandidates = (params) => apiGetList("/api/v1/candidates", params)
 
 // Team & Access Control APIs
 export const getTeamMembers = () => apiGet("/api/v1/organization/team")
