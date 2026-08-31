@@ -1,8 +1,14 @@
-import React, { useEffect, useState } from 'react'
-import { ShieldOff, ShieldCheck } from 'lucide-react'
+import React, { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import { ShieldOff, ShieldCheck, Pencil, History, X } from 'lucide-react'
 import AdminShell from '../../components/layout/AdminShell'
 import DataTable from '../../components/tables/DataTable'
 import { Badge, Select, SearchInput, Button, ConfirmModal, useToast } from '../../components/ui'
+import RegistrationTypeFilter from '../../components/filters/RegistrationTypeFilter'
+import DateRangeFilter from '../../components/filters/DateRangeFilter'
+import ClientEditModal from './ClientEditModal'
+import ClientHistoryModal from './ClientHistoryModal'
 import { usePermission } from '../../hooks/useAuth.jsx'
 import { actionPermissions } from '../../permissions/actionPermissions'
 import { listClients, suspendClient, reactivateClient } from '../../api/clientsApi'
@@ -12,46 +18,81 @@ import { listClients, suspendClient, reactivateClient } from '../../api/clientsA
 // onboarding.service.js#approve), so there's no real "Candidate" filter
 // option to offer here despite candidates being one of the three
 // registration types elsewhere in the product.
-const TYPES = ['ORGANIZATION', 'COLLEGE']
+const TYPE_OPTIONS = [{ key: 'ORGANIZATION', label: 'Organization' }, { key: 'COLLEGE', label: 'College' }]
 const STATUS_TONE = { ACTIVE: 'success', SUSPENDED: 'warning', REJECTED: 'danger', PENDING: 'neutral' }
+const DEFAULT_PAGE_SIZE = 25
+
+function useClientFilters() {
+    const [params, setParams] = useSearchParams()
+    const filters = {
+        search: params.get('search') || '',
+        type: params.get('type') || '',
+        status: params.get('status') || '',
+        preset: params.get('preset') || '',
+        dateFrom: params.get('dateFrom') || null,
+        dateTo: params.get('dateTo') || null,
+        sortBy: params.get('sortBy') || 'createdAt',
+        sortOrder: params.get('sortOrder') || 'desc',
+        page: Number(params.get('page')) || 1,
+        pageSize: Number(params.get('pageSize')) || DEFAULT_PAGE_SIZE,
+    }
+
+    // Any filter/sort/search change resets to page 1 - only an explicit
+    // page-number change is allowed to move off it.
+    const update = (patch, { resetPage = true } = {}) => {
+        const next = { ...filters, ...patch, ...(resetPage && !('page' in patch) ? { page: 1 } : {}) }
+        const nextParams = new URLSearchParams()
+        Object.entries(next).forEach(([key, value]) => {
+            if (value === '' || value === null || value === undefined) return
+            if (key === 'page' && value === 1) return
+            if (key === 'pageSize' && value === DEFAULT_PAGE_SIZE) return
+            if (key === 'sortBy' && value === 'createdAt') return
+            if (key === 'sortOrder' && value === 'desc') return
+            nextParams.set(key, String(value))
+        })
+        setParams(nextParams, { replace: true })
+    }
+
+    return { filters, update }
+}
 
 function ClientList() {
     const hasPermission = usePermission()
     const canUpdateStatus = hasPermission(actionPermissions.updateClientStatus)
+    const canEdit = hasPermission(actionPermissions.editClient)
     const toast = useToast()
+    const queryClient = useQueryClient()
 
-    const [rows, setRows] = useState([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState('')
-    const [search, setSearch] = useState('')
-    const [type, setType] = useState('')
-    const [status, setStatus] = useState('')
-    const [cursor, setCursor] = useState(null)
-    const [hasNext, setHasNext] = useState(false)
-    const [loadingMore, setLoadingMore] = useState(false)
-    const [busyId, setBusyId] = useState(null)
+    const { filters, update } = useClientFilters()
     const [confirmTarget, setConfirmTarget] = useState(null) // { client, action: 'suspend' | 'reactivate' }
+    const [editTarget, setEditTarget] = useState(null)
+    const [historyTarget, setHistoryTarget] = useState(null)
+    const [busyId, setBusyId] = useState(null)
 
-    const load = (append = false) => {
-        const setter = append ? setLoadingMore : setLoading
-        setter(true)
-        setError('')
-        listClients({
-            search: search || undefined,
-            type: type || undefined,
-            approvalStatus: status || undefined,
-            cursor: append ? cursor : undefined,
-        })
-            .then(({ items, cursor: nextCursor, hasNext: more }) => {
-                setRows((prev) => (append ? [...prev, ...items] : items))
-                setCursor(nextCursor)
-                setHasNext(more)
-            })
-            .catch((err) => setError(err.message))
-            .finally(() => setter(false))
-    }
+    const queryKey = ['clients', filters]
+    const { data, isLoading, isError, error, refetch } = useQuery({
+        queryKey,
+        queryFn: () => listClients({
+            search: filters.search || undefined,
+            type: filters.type || undefined,
+            approvalStatus: filters.status || undefined,
+            dateFrom: filters.dateFrom || undefined,
+            dateTo: filters.dateTo || undefined,
+            sortBy: filters.sortBy,
+            sortOrder: filters.sortOrder,
+            page: filters.page,
+            limit: filters.pageSize,
+        }),
+        placeholderData: keepPreviousData,
+    })
 
-    useEffect(() => { load(false) }, [search, type, status])
+    const rows = data?.items || []
+    const hasActiveFilters = Boolean(filters.search || filters.type || filters.status || filters.dateFrom || filters.dateTo)
+
+    const clearFilters = () => update({
+        search: '', type: '', status: '', preset: '', dateFrom: null, dateTo: null,
+        sortBy: 'createdAt', sortOrder: 'desc', page: 1, pageSize: DEFAULT_PAGE_SIZE,
+    }, { resetPage: false })
 
     const runStatusChange = async () => {
         if (!confirmTarget) return
@@ -62,7 +103,8 @@ function ClientList() {
             else await reactivateClient(client.id)
             toast.success(action === 'suspend' ? `${client.name} has been blocked.` : `${client.name} has been unblocked.`)
             setConfirmTarget(null)
-            load(false)
+            queryClient.invalidateQueries({ queryKey: ['clients'] })
+            queryClient.invalidateQueries({ queryKey: ['dashboard'] })
         } catch (err) {
             toast.error(err.message)
         } finally {
@@ -71,27 +113,36 @@ function ClientList() {
     }
 
     const columns = [
-        { key: 'name', label: 'Name' },
-        { key: 'type', label: 'Type', render: (r) => <Badge>{r.type}</Badge> },
-        { key: 'status', label: 'Status', render: (r) => <Badge variant={STATUS_TONE[r.status] || 'neutral'}>{r.status}</Badge> },
+        { key: 'name', label: 'Client', sortable: true },
+        { key: 'type', label: 'Registration Type', render: (r) => <Badge>{r.type}</Badge> },
+        { key: 'createdAt', label: 'Registration Date', sortable: true, render: (r) => new Date(r.createdAt).toLocaleDateString() },
+        { key: 'status', label: 'Registration Status', sortable: true, render: (r) => <Badge variant={STATUS_TONE[r.status] || 'neutral'}>{r.status}</Badge> },
         { key: 'email', label: 'Primary Contact', render: (r) => r.primaryContact?.email || '—' },
-        { key: 'createdAt', label: 'Onboarded', render: (r) => new Date(r.createdAt).toLocaleDateString() },
+        { key: 'updatedAt', label: 'Last Updated', sortable: true, render: (r) => new Date(r.updatedAt).toLocaleDateString() },
         {
-            key: 'actions', label: '', render: (r) => {
-                if (!canUpdateStatus || !['ACTIVE', 'SUSPENDED'].includes(r.status)) return null
-                const isActive = r.status === 'ACTIVE'
-                return (
-                    <Button
-                        size='xs'
-                        variant={isActive ? 'danger' : 'secondary'}
-                        disabled={busyId === r.id}
-                        onClick={(e) => { e.stopPropagation(); setConfirmTarget({ client: r, action: isActive ? 'suspend' : 'reactivate' }) }}
-                    >
-                        {isActive ? <ShieldOff size={12} /> : <ShieldCheck size={12} />}
-                        {isActive ? 'Block' : 'Unblock'}
+            key: 'actions', label: '', render: (r) => (
+                <div className='flex items-center gap-1.5' onClick={(e) => e.stopPropagation()}>
+                    {canEdit && (
+                        <Button size='xs' variant='secondary' onClick={() => setEditTarget(r)} aria-label={`Edit ${r.name}`}>
+                            <Pencil size={12} />
+                        </Button>
+                    )}
+                    <Button size='xs' variant='secondary' onClick={() => setHistoryTarget(r)} aria-label={`View history for ${r.name}`}>
+                        <History size={12} />
                     </Button>
-                )
-            },
+                    {canUpdateStatus && ['ACTIVE', 'SUSPENDED'].includes(r.status) && (
+                        <Button
+                            size='xs'
+                            variant={r.status === 'ACTIVE' ? 'danger' : 'secondary'}
+                            disabled={busyId === r.id}
+                            onClick={() => setConfirmTarget({ client: r, action: r.status === 'ACTIVE' ? 'suspend' : 'reactivate' })}
+                        >
+                            {r.status === 'ACTIVE' ? <ShieldOff size={12} /> : <ShieldCheck size={12} />}
+                            {r.status === 'ACTIVE' ? 'Block' : 'Unblock'}
+                        </Button>
+                    )}
+                </div>
+            ),
         },
     ]
 
@@ -102,32 +153,50 @@ function ClientList() {
                     <h1 className='font-display text-[22px] font-bold text-ink mb-1'>Clients</h1>
                     <p className='text-text-secondary text-[14px]'>Organizations and colleges approved through onboarding.</p>
                 </div>
-                <div className='flex items-center gap-3 flex-wrap'>
-                    <SearchInput value={search} onChange={setSearch} placeholder='Search by name' className='w-[220px]' />
-                    <Select value={type} onChange={(e) => setType(e.target.value)} wrapperClassName='w-[170px]'>
-                        <option value=''>All types</option>
-                        {TYPES.map((t) => <option key={t} value={t}>{t.charAt(0)}{t.slice(1).toLowerCase()}</option>)}
-                    </Select>
-                    <Select value={status} onChange={(e) => setStatus(e.target.value)} wrapperClassName='w-[170px]'>
-                        <option value=''>All statuses</option>
-                        <option value='ACTIVE'>Active</option>
-                        <option value='SUSPENDED'>Blocked</option>
-                        <option value='PENDING'>Pending</option>
-                        <option value='REJECTED'>Rejected</option>
-                    </Select>
-                </div>
+            </div>
+
+            <div className='flex items-center gap-3 flex-wrap mb-6'>
+                <SearchInput value={filters.search} onChange={(v) => update({ search: v })} placeholder='Search by name, email or phone' className='w-[240px]' />
+                <RegistrationTypeFilter
+                    value={filters.type}
+                    onChange={(type) => update({ type })}
+                    options={TYPE_OPTIONS}
+                    allLabel='All types'
+                    wrapperClassName='w-[170px]'
+                />
+                <Select value={filters.status} onChange={(e) => update({ status: e.target.value })} wrapperClassName='w-[170px]'>
+                    <option value=''>All statuses</option>
+                    <option value='ACTIVE'>Active</option>
+                    <option value='SUSPENDED'>Blocked</option>
+                    <option value='PENDING'>Pending</option>
+                    <option value='REJECTED'>Rejected</option>
+                </Select>
+                <DateRangeFilter
+                    value={{ preset: filters.preset, from: filters.dateFrom, to: filters.dateTo }}
+                    onChange={({ preset, from, to }) => update({ preset, dateFrom: from, dateTo: to })}
+                />
+                {hasActiveFilters && (
+                    <Button variant='ghost' size='sm' onClick={clearFilters}>
+                        <X size={13} /> Clear Filters
+                    </Button>
+                )}
             </div>
 
             <DataTable
                 columns={columns}
                 rows={rows}
-                loading={loading}
-                error={error}
-                onRetry={() => load(false)}
+                loading={isLoading}
+                error={isError ? error.message : ''}
+                onRetry={refetch}
                 emptyLabel='No clients match your filters.'
-                hasNext={hasNext}
-                loadingMore={loadingMore}
-                onLoadMore={() => load(true)}
+                sort={{ sortBy: filters.sortBy, sortOrder: filters.sortOrder, onChange: (key) => update({ sortBy: key, sortOrder: filters.sortBy === key && filters.sortOrder === 'desc' ? 'asc' : 'desc' }) }}
+                pagination={{
+                    page: filters.page,
+                    pageSize: filters.pageSize,
+                    total: data?.total || 0,
+                    onPageChange: (page) => update({ page }, { resetPage: false }),
+                    onPageSizeChange: (pageSize) => update({ pageSize, page: 1 }, { resetPage: false }),
+                }}
             />
 
             <ConfirmModal
@@ -142,6 +211,9 @@ function ClientList() {
                     ? 'Blocking this client will prevent access to the current application.'
                     : 'The client will regain access to the application.'}
             </ConfirmModal>
+
+            {editTarget && <ClientEditModal client={editTarget} onClose={() => setEditTarget(null)} />}
+            {historyTarget && <ClientHistoryModal client={historyTarget} onClose={() => setHistoryTarget(null)} />}
         </AdminShell>
     )
 }

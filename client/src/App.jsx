@@ -39,7 +39,8 @@ import ClientList from './pages/clients/ClientList'
 import EnquiryList from './pages/enquiries/EnquiryList'
 import FormBuilderPage from './pages/admin/FormBuilderPage'
 import ClientChangePassword from './pages/clientPortal/ChangePassword'
-import ClientDashboard from './pages/clientPortal/ClientDashboard'
+import OrganizationDashboard from './pages/organization/OrganizationDashboard'
+import OrganizationComingSoon from './pages/organization/OrganizationComingSoon'
 import AuthPage from './pages/auth/AuthPage'
 import ResetPasswordPage from './pages/auth/ResetPasswordPage'
 import { featurePermissions } from './permissions/featurePermissions'
@@ -109,7 +110,15 @@ function App() {
           both the staff admin login above and the candidate login at /login. */}
       <Route path='/platform/client/login' element={<Navigate to='/platform/login' replace/>}/>
       <Route path='/platform/client/change-password' element={<RequireClientAuth><ClientChangePassword/></RequireClientAuth>}/>
-      <Route path='/platform/client/dashboard' element={<RequireClientAuth><ClientDashboard/></RequireClientAuth>}/>
+      <Route path='/platform/client/dashboard' element={<RequireClientAuth><OrganizationDashboard/></RequireClientAuth>}/>
+      {/* Nav destinations for later phases (Drives/Candidates/Team/Templates/
+          Settings) - placeholders so the Organization sidebar is fully
+          navigable today instead of 404ing on unbuilt sections. */}
+      <Route path='/platform/client/drives' element={<RequireClientAuth><OrganizationComingSoon title='Interview Drives' description='Manage your hiring drives, rounds and candidate pipelines.'/></RequireClientAuth>}/>
+      <Route path='/platform/client/candidates' element={<RequireClientAuth><OrganizationComingSoon title='Candidates' description='Review and manage candidates across every drive.'/></RequireClientAuth>}/>
+      <Route path='/platform/client/team' element={<RequireClientAuth><OrganizationComingSoon title='Team' description='Manage organization team members and permissions.'/></RequireClientAuth>}/>
+      <Route path='/platform/client/templates' element={<RequireClientAuth><OrganizationComingSoon title='Templates' description='Manage candidate communication templates.'/></RequireClientAuth>}/>
+      <Route path='/platform/client/settings' element={<RequireClientAuth><OrganizationComingSoon title='Settings' description='Branding, communication and security settings.'/></RequireClientAuth>}/>
       <Route path='/dashboard' element={<RequireAuth><Home/></RequireAuth>}/>
       <Route path='/interview' element={<RequireAuth><InterviewPage/></RequireAuth>}/>
       <Route path='/history' element={<RequireAuth><InterviewHistory/></RequireAuth>}/>

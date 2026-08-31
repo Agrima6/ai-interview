@@ -20,15 +20,26 @@ export const list = async ({ status, search, cursor, limit = 25 }) => {
 // without it a caller could persist a status value outside the enum.
 export const update = (id, patch) => Enquiry.findByIdAndUpdate(id, patch, { new: true, runValidators: true })
 
-export const countByStatus = async () => {
-    const rows = await Enquiry.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }])
+export const countByStatus = async ({ type, from, to } = {}) => {
+    const match = {}
+    if (type) match.type = type
+    if (from || to) {
+        match.createdAt = {}
+        if (from) match.createdAt.$gte = from
+        if (to) match.createdAt.$lte = to
+    }
+    const pipeline = [...(Object.keys(match).length ? [{ $match: match }] : []), { $group: { _id: "$status", count: { $sum: 1 } } }]
+    const rows = await Enquiry.aggregate(pipeline)
     return Object.fromEntries(rows.map((r) => [r._id, r.count]))
 }
 
-// Daily enquiry counts since `since` - backs the dashboard trend chart.
-export const dailyCountsSince = async (since) => {
+// Daily enquiry counts since `since` (optionally bounded by `until` and/or
+// narrowed to one registration type) - backs the dashboard trend chart.
+export const dailyCountsSince = async (since, { type, until } = {}) => {
+    const match = { createdAt: { $gte: since, ...(until ? { $lte: until } : {}) } }
+    if (type) match.type = type
     const rows = await Enquiry.aggregate([
-        { $match: { createdAt: { $gte: since } } },
+        { $match: match },
         { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, count: { $sum: 1 } } },
         { $sort: { _id: 1 } },
     ])

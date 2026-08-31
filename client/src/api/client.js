@@ -78,12 +78,13 @@ export const apiGet = (url, params) => unwrap(client.get(url, { params }))
 export const apiPost = (url, data, config) => unwrap(client.post(url, data, config))
 export const apiPatch = (url, data, config) => unwrap(client.patch(url, data, config))
 
-// For cursor-paginated list endpoints - keeps meta.cursor/hasNext alongside
-// the items instead of discarding them like the plain unwrap() does.
+// For paginated list endpoints - keeps meta.cursor/hasNext (cursor mode) or
+// meta.total/page/pageSize (page mode, when the caller passes `page`)
+// alongside the items instead of discarding them like the plain unwrap() does.
 export const apiGetList = async (url, params) => {
     try {
         const { data } = await client.get(url, { params })
-        return { items: data.data, cursor: data.meta.cursor, hasNext: data.meta.hasNext }
+        return { items: data.data, cursor: data.meta.cursor, hasNext: data.meta.hasNext, total: data.meta.total, page: data.meta.page, pageSize: data.meta.pageSize }
     } catch (error) {
         const envelope = error.response?.data
         const status = error.response?.status || 0

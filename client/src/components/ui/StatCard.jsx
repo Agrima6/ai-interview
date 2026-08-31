@@ -22,7 +22,11 @@ function StatCard({ icon: Icon, value, label, trend, accent = 'brand', className
           </div>
         )}
         {trend && (
-          <span className={`text-[12px] font-medium px-2 py-0.5 rounded-full ${trend.positive ? 'text-[var(--color-accent-cyan)] bg-[color-mix(in_srgb,var(--color-accent-cyan)_12%,transparent)]' : 'text-red-500 bg-red-500/10'}`}>
+          <span className={`text-[12px] font-medium px-2 py-0.5 rounded-full ${
+            trend.positive === true ? 'text-[var(--color-accent-cyan)] bg-[color-mix(in_srgb,var(--color-accent-cyan)_12%,transparent)]'
+              : trend.positive === false ? 'text-red-500 bg-red-500/10'
+              : 'text-text-secondary bg-black/[0.04] dark:bg-white/[0.06]'
+          }`}>
             {trend.value}
           </span>
         )}

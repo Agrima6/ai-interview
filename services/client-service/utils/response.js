@@ -2,8 +2,10 @@ export const ok = (res, data, meta = {}) => {
     res.json({ success: true, data, meta: { requestId: res.req.requestId, ...meta } })
 }
 
-export const okList = (res, data, { cursor = null, hasNext = false } = {}) => {
-    res.json({ success: true, data, meta: { requestId: res.req.requestId, cursor, hasNext } })
+// `meta` also accepts total/page/pageSize for page-oriented list endpoints -
+// left undefined (and stripped by JSON.stringify) for cursor-paginated ones.
+export const okList = (res, data, { cursor = null, hasNext = false, ...rest } = {}) => {
+    res.json({ success: true, data, meta: { requestId: res.req.requestId, cursor, hasNext, ...rest } })
 }
 
 export const fail = (res, status, code, message) => {

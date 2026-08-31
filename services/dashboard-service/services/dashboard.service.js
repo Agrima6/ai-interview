@@ -1,12 +1,17 @@
 import { onboardingServiceClient, clientServiceClient, enquiryServiceClient } from "../config/internalClients.js"
+import { RANGE_TO_DAYS, fillDailySeries } from "../utils/dateSeries.js"
 
 // Composes a summary from data owned by other services - dashboard-service
-// owns no business data of its own, only the aggregation.
-export const getSummary = async (ctx) => {
+// owns no business data of its own, only the aggregation. `filters`
+// (registrationType/from/to) is the single filter context shared by every
+// dashboard endpoint - summary, trends and the funnel all resolve it the
+// same way so they can never disagree with each other.
+export const getSummary = async (filters, ctx) => {
+    const { registrationType: type, from, to } = filters || {}
     const [onboardingStats, clientStats, enquiryStats] = await Promise.all([
-        onboardingServiceClient.getStatistics(ctx),
-        clientServiceClient.getStatistics(ctx).catch(() => ({})),
-        enquiryServiceClient.getStatistics(ctx).catch(() => ({})),
+        onboardingServiceClient.getStatistics({ type, from, to }, ctx),
+        clientServiceClient.getStatistics({ type, from, to }, ctx).catch(() => ({})),
+        enquiryServiceClient.getStatistics({ type, from, to }, ctx).catch(() => ({})),
     ])
 
     const totalOnboarding = Object.values(onboardingStats.byStatus || {}).reduce((a, b) => a + b, 0)
@@ -31,29 +36,15 @@ export const getSummary = async (ctx) => {
 export const getActivity = async ({ cursor, limit } = {}, ctx) =>
     onboardingServiceClient.getActivity({ cursor, limit }, ctx)
 
-const RANGE_TO_DAYS = { "7d": 7, "30d": 30, "90d": 90 }
 
-// Fills in zero-count days so the line chart doesn't show gaps/warped
-// spacing on days with no activity - both series get the exact same
-// contiguous date axis regardless of what each source service returned.
-const fillDailySeries = (days, sparse) => {
-    const byDate = Object.fromEntries(sparse.map((r) => [r.date, r.count]))
-    const series = []
-    for (let i = days - 1; i >= 0; i--) {
-        const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000)
-        const date = d.toISOString().slice(0, 10)
-        series.push({ date, count: byDate[date] || 0 })
-    }
-    return series
-}
-
-export const getTrends = async (range, ctx) => {
+export const getTrends = async (range, filters, ctx) => {
     const days = RANGE_TO_DAYS[range] || 30
+    const { registrationType: type, from, to } = filters || {}
 
     const [onboardingTrend, enquiryTrend, onboardingStats] = await Promise.all([
-        onboardingServiceClient.getTrend(days, ctx),
-        enquiryServiceClient.getTrend(days, ctx).catch(() => []),
-        onboardingServiceClient.getStatistics(ctx),
+        onboardingServiceClient.getTrend(days, { type, from, to }, ctx),
+        enquiryServiceClient.getTrend(days, { type, from, to }, ctx).catch(() => []),
+        onboardingServiceClient.getStatistics({ type, from, to }, ctx),
     ])
 
     const byStatus = onboardingStats.byStatus || {}

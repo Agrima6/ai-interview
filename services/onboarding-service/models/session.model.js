@@ -33,5 +33,9 @@ const sessionSchema = new mongoose.Schema({
 
 sessionSchema.index({ status: 1, updatedAt: -1 })
 sessionSchema.index({ invitationId: 1 })
+// Backs the dashboard's registration-type + date-range filtered funnel/KPI
+// queries (countByStatus/dailyCountsSince) - both now $match on type and/or
+// a createdAt range before grouping.
+sessionSchema.index({ type: 1, createdAt: -1 })
 
 export default mongoose.model("OnboardingSession", sessionSchema)

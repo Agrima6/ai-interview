@@ -354,8 +354,8 @@ export const requestChanges = async (id, reviewerId, items, ctx) => {
     return listView(updated)
 }
 
-export const statistics = async () => {
-    const byStatus = await sessionRepo.countByStatus()
+export const statistics = async (filters = {}) => {
+    const byStatus = await sessionRepo.countByStatus(filters)
     const recent = await sessionRepo.recentlyUpdated(10)
     return {
         byStatus,
@@ -375,7 +375,7 @@ export const activityPage = async ({ cursor, limit = 10 }) => {
     }
 }
 
-export const trend = (since) => sessionRepo.dailyCountsSince(since)
+export const trend = (since, filters = {}) => sessionRepo.dailyCountsSince(since, filters)
 
 export const getFileDetails = async (onboardingId, fileId) => {
     const session = await sessionRepo.findById(onboardingId)
