@@ -77,6 +77,8 @@ const unwrap = async (promise) => {
 export const apiGet = (url, params) => unwrap(client.get(url, { params }))
 export const apiPost = (url, data, config) => unwrap(client.post(url, data, config))
 export const apiPatch = (url, data, config) => unwrap(client.patch(url, data, config))
+export const apiPut = (url, data, config) => unwrap(client.put(url, data, config))
+export const apiDelete = (url, config) => unwrap(client.delete(url, config))
 
 // For paginated list endpoints - keeps meta.cursor/hasNext (cursor mode) or
 // meta.total/page/pageSize (page mode, when the caller passes `page`)

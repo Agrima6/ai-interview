@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { ListChecks, Users, CheckCircle2, Star, Plus, AlertCircle } from 'lucide-react'
 import { BarChart, Bar, LineChart, Line, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
@@ -18,9 +18,6 @@ const RANGE_OPTIONS = [
 const chartTooltipStyle = { borderRadius: 12, border: '1px solid var(--color-line)', fontSize: 13, background: 'var(--color-card)', color: 'var(--color-ink)' }
 const axisTick = { fontSize: 12, fill: 'var(--color-text-secondary)' }
 
-// One failed widget must never take down the rest of the dashboard
-// (integration.md section 53/54) - each section below checks its own
-// isError/refetch instead of one page-wide error state.
 function SectionError({ message, onRetry }) {
     return (
         <div className='py-6 text-center'>
@@ -33,8 +30,24 @@ function SectionError({ message, onRetry }) {
 
 function OrganizationDashboard() {
     const navigate = useNavigate()
+    const location = useLocation()
     const [range, setRange] = useState('30d')
     const { metrics, trends, attention, activity } = useOrganizationDashboard(range)
+
+    const basePath = location.pathname.startsWith('/college') ? '/college'
+        : location.pathname.startsWith('/candidate') ? '/candidate'
+        : location.pathname.startsWith('/organization') ? '/organization'
+        : '/platform/client'
+
+    const title = location.pathname.startsWith('/college') ? 'College Dashboard'
+        : location.pathname.startsWith('/candidate') ? 'Candidate Dashboard'
+        : 'Dashboard'
+
+    const description = location.pathname.startsWith('/college')
+        ? 'Track your campus hiring drives, student batches, and AI interview pipeline.'
+        : location.pathname.startsWith('/candidate')
+        ? 'Track your applications, AI interviews, and evaluation scorecards.'
+        : 'Track your hiring and AI interview pipeline.'
 
     const cards = [
         [ListChecks, 'Active Drives', metrics.data?.activeDrives],
@@ -45,9 +58,9 @@ function OrganizationDashboard() {
 
     return (
         <OrganizationLayout
-            title='Dashboard'
-            description='Track your hiring and AI interview pipeline.'
-            action={<Button size='sm' onClick={() => navigate('/platform/client/drives')}><Plus size={14} /> Create interview drive</Button>}
+            title={title}
+            description={description}
+            action={<Button size='sm' onClick={() => navigate(`${basePath}/drives`)}><Plus size={14} /> Create interview drive</Button>}
         >
             <div className='grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6'>
                 {metrics.isError ? (

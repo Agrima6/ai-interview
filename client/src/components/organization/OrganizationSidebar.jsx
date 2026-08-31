@@ -1,8 +1,8 @@
 import React from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { LogOut, X } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth.jsx'
-import { organizationNavigation } from '../../config/organizationNavigation'
+import { getNavigationForPath } from '../../config/organizationNavigation'
 import OrganizationBrand from './OrganizationBrand'
 
 /**
@@ -12,6 +12,9 @@ import OrganizationBrand from './OrganizationBrand'
 function OrganizationSidebar({ profile, profileLoading, mobileOpen, onClose }) {
     const { user, logout } = useAuth()
     const navigate = useNavigate()
+    const location = useLocation()
+
+    const navItems = getNavigationForPath(location.pathname, profile?.type)
 
     const handleLogout = async () => {
         await logout()
@@ -38,23 +41,19 @@ function OrganizationSidebar({ profile, profileLoading, mobileOpen, onClose }) {
                     </button>
                 </div>
                 <nav className='flex-1 p-3 space-y-1 overflow-y-auto'>
-                    {/* TODO: once auth-service issues organization.* permissions to
-                        the CLIENT_ADMIN role, filter this list with
-                        `hasPermission(item.permission)` - today no such permissions
-                        are ever granted, so requiring them would hide the entire nav. */}
-                    {organizationNavigation.map((item) => (
-                            <NavLink
-                                key={item.key}
-                                to={item.path}
-                                onClick={onClose}
-                                className={({ isActive }) =>
-                                    `flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-colors ${isActive ? 'bg-accent/10 text-accent' : 'text-text-secondary hover:bg-black/[0.03] dark:hover:bg-white/[0.05] hover:text-ink'}`
-                                }
-                            >
-                                <item.icon size={16} />
-                                {item.label}
-                            </NavLink>
-                        ))}
+                    {navItems.map((item) => (
+                        <NavLink
+                            key={item.key}
+                            to={item.path}
+                            onClick={onClose}
+                            className={({ isActive }) =>
+                                `flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-colors ${isActive ? 'bg-accent/10 text-accent' : 'text-text-secondary hover:bg-black/[0.03] dark:hover:bg-white/[0.05] hover:text-ink'}`
+                            }
+                        >
+                            <item.icon size={16} />
+                            {item.label}
+                        </NavLink>
+                    ))}
                 </nav>
                 <div className='p-3 border-t border-line'>
                     <div className='px-3 py-2 mb-1'>

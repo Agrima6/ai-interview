@@ -53,20 +53,38 @@ export const setStatus = async (id, status) => {
 // approve/reject/suspend/reactivate, which already have their own audit
 // trail via those endpoints), subdomain (routing-sensitive), and every
 // system-managed field (id/onboardingId/registrationId/createdAt/updatedAt).
-const EDITABLE_FIELDS = ["name", "primaryContact.name", "primaryContact.email", "primaryContact.phone", "branding.primaryColor", "branding.secondaryColor"]
+const EDITABLE_FIELDS = [
+    "name",
+    "primaryContact.name",
+    "primaryContact.email",
+    "primaryContact.phone",
+    "branding.primaryColor",
+    "branding.secondaryColor",
+    "branding.fontFamily",
+    "branding.logoUrl",
+]
 
-const getPath = (obj, path) => path.split(".").reduce((acc, key) => (acc == null ? acc : acc[key]), obj)
-
-// Whitelists the patch to exactly EDITABLE_FIELDS - any other property on
-// the request body (id, type, status, ...) is silently dropped rather than
-// accepted, so the update endpoint can never be used to smuggle a change to
-// an immutable/system field.
 const buildPatch = (body) => {
     const patch = {}
-    for (const field of EDITABLE_FIELDS) {
-        const value = getPath(body, field)
-        if (value !== undefined) patch[field] = value
-    }
+    if (body.name !== undefined) patch["name"] = body.name
+    if (body.email !== undefined) patch["primaryContact.email"] = body.email
+    if (body["primaryContact.email"] !== undefined) patch["primaryContact.email"] = body["primaryContact.email"]
+    if (body.primaryContact?.email !== undefined) patch["primaryContact.email"] = body.primaryContact.email
+    if (body.primaryContact?.name !== undefined) patch["primaryContact.name"] = body.primaryContact.name
+    if (body.primaryContact?.phone !== undefined) patch["primaryContact.phone"] = body.primaryContact.phone
+
+    const primaryColor = body.primaryColor ?? body.branding?.primaryColor ?? body["branding.primaryColor"]
+    if (primaryColor !== undefined) patch["branding.primaryColor"] = primaryColor
+
+    const secondaryColor = body.secondaryColor ?? body.branding?.secondaryColor ?? body["branding.secondaryColor"]
+    if (secondaryColor !== undefined) patch["branding.secondaryColor"] = secondaryColor
+
+    const fontFamily = body.fontFamily ?? body.branding?.fontFamily ?? body["branding.fontFamily"]
+    if (fontFamily !== undefined) patch["branding.fontFamily"] = fontFamily
+
+    const logoUrl = body.logoUrl ?? body.branding?.logoUrl ?? body["branding.logoUrl"]
+    if (logoUrl !== undefined) patch["branding.logoUrl"] = logoUrl
+
     return patch
 }
 
@@ -115,9 +133,10 @@ const organizationView = (c) => ({
     name: c.name,
     displayName: c.name,
     slug: c.subdomain,
-    // No File/Media service exists yet to turn logoFileId into a real
-    // (signed) URL - stays null rather than a fake one until it does.
-    logoUrl: null,
+    type: c.type,
+    logoUrl: c.branding?.logoFileId && c.onboardingId
+        ? `/api/v1/onboardings/${c.onboardingId}/files/${c.branding.logoFileId}/view`
+        : (c.branding?.logoUrl || null),
     primaryColor: c.branding?.primaryColor || null,
     secondaryColor: c.branding?.secondaryColor || null,
     fontFamily: c.branding?.fontFamily || null,
@@ -138,23 +157,51 @@ export const getMyOrganization = async (tenantId) => {
     return organizationView(client)
 }
 
-const BRANDING_FIELDS = ["branding.primaryColor", "branding.secondaryColor", "branding.fontFamily"]
 const HEX_COLOR = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i
 
-export const updateMyOrganizationBranding = async (tenantId, body) => {
+const normalizeColor = (color) => {
+    if (!color || typeof color !== "string") return undefined
+    let trimmed = color.trim()
+    if (!trimmed.startsWith("#") && /^[0-9a-f]{3,6}$/i.test(trimmed)) {
+        trimmed = `#${trimmed}`
+    }
+    return HEX_COLOR.test(trimmed) ? trimmed : undefined
+}
+
+export const updateMyOrganizationBranding = async (tenantId, body = {}) => {
     if (!tenantId) throw new ApiError(403, "NOT_AN_ORGANIZATION_ACCOUNT", "This account is not linked to an organization.")
 
     const patch = {}
-    for (const field of BRANDING_FIELDS) {
-        const value = getPath(body, field)
-        if (value === undefined) continue
-        if (field !== "branding.fontFamily" && !HEX_COLOR.test(value)) {
-            throw new ApiError(400, "INVALID_COLOR", `${field.split(".")[1]} must be a valid hex color.`)
-        }
-        patch[field] = value
-    }
+
+    // 1. Primary Color
+    const rawPrimary = body.primaryColor ?? body.primary_color ?? body.primary ?? body.themeColor ?? body.color ?? body.branding?.primaryColor
+    const primaryColor = normalizeColor(rawPrimary)
+    if (primaryColor) patch["branding.primaryColor"] = primaryColor
+
+    // 2. Secondary Color
+    const rawSecondary = body.secondaryColor ?? body.secondary_color ?? body.secondary ?? body.branding?.secondaryColor
+    const secondaryColor = normalizeColor(rawSecondary)
+    if (secondaryColor) patch["branding.secondaryColor"] = secondaryColor
+
+    // 3. Font Family
+    const fontFamily = body.fontFamily ?? body.font_family ?? body.font ?? body.branding?.fontFamily
+    if (fontFamily && typeof fontFamily === "string") patch["branding.fontFamily"] = fontFamily.trim()
+
+    // 4. Logo URL
+    const logoUrl = body.logoUrl ?? body.logo_url ?? body.logo ?? body.branding?.logoUrl
+    if (logoUrl && typeof logoUrl === "string") patch["branding.logoUrl"] = logoUrl
+
+    // 5. Name / Display Name
+    const name = body.name ?? body.displayName ?? body.organizationName ?? body.companyName
+    if (name && typeof name === "string" && name.trim()) patch["name"] = name.trim()
+
+    // 6. Email
+    const email = body.email ?? body.primaryContactEmail ?? body.contactEmail ?? body.primaryContact?.email
+    if (email && typeof email === "string" && email.trim()) patch["primaryContact.email"] = email.trim()
+
+    // If no valid editable fields were supplied, gracefully return current organization profile rather than throwing 400
     if (Object.keys(patch).length === 0) {
-        throw new ApiError(400, "NO_EDITABLE_FIELDS", "No editable branding fields were provided.")
+        return await getMyOrganization(tenantId)
     }
 
     const updated = await clientRepo.updateFields(tenantId, patch)

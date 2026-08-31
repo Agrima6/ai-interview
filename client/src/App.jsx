@@ -41,6 +41,13 @@ import FormBuilderPage from './pages/admin/FormBuilderPage'
 import ClientChangePassword from './pages/clientPortal/ChangePassword'
 import OrganizationDashboard from './pages/organization/OrganizationDashboard'
 import OrganizationComingSoon from './pages/organization/OrganizationComingSoon'
+import DrivesListPage from './pages/organization/DrivesListPage'
+import DriveDetailPage from './pages/organization/DriveDetailPage'
+import CandidatesListPage from './pages/organization/CandidatesListPage'
+import QuestionSetsPage from './pages/organization/QuestionSetsPage'
+import TeamPage from './pages/organization/TeamPage'
+import TemplatesPage from './pages/organization/TemplatesPage'
+import SettingsPage from './pages/organization/SettingsPage'
 import AuthPage from './pages/auth/AuthPage'
 import ResetPasswordPage from './pages/auth/ResetPasswordPage'
 import { featurePermissions } from './permissions/featurePermissions'
@@ -106,19 +113,47 @@ function App() {
       <Route path='/platform/admin/clients' element={<RequirePlatformAuth permission={featurePermissions.clients}><ClientList/></RequirePlatformAuth>}/>
       <Route path='/platform/admin/enquiries' element={<RequirePlatformAuth permission={featurePermissions.enquiries}><EnquiryList/></RequirePlatformAuth>}/>
 
-      {/* Client portal: for approved organizations/colleges, separate from
-          both the staff admin login above and the candidate login at /login. */}
+      {/* Client portal: for approved organizations/colleges/candidates */}
       <Route path='/platform/client/login' element={<Navigate to='/platform/login' replace/>}/>
       <Route path='/platform/client/change-password' element={<RequireClientAuth><ClientChangePassword/></RequireClientAuth>}/>
       <Route path='/platform/client/dashboard' element={<RequireClientAuth><OrganizationDashboard/></RequireClientAuth>}/>
-      {/* Nav destinations for later phases (Drives/Candidates/Team/Templates/
-          Settings) - placeholders so the Organization sidebar is fully
-          navigable today instead of 404ing on unbuilt sections. */}
-      <Route path='/platform/client/drives' element={<RequireClientAuth><OrganizationComingSoon title='Interview Drives' description='Manage your hiring drives, rounds and candidate pipelines.'/></RequireClientAuth>}/>
-      <Route path='/platform/client/candidates' element={<RequireClientAuth><OrganizationComingSoon title='Candidates' description='Review and manage candidates across every drive.'/></RequireClientAuth>}/>
-      <Route path='/platform/client/team' element={<RequireClientAuth><OrganizationComingSoon title='Team' description='Manage organization team members and permissions.'/></RequireClientAuth>}/>
-      <Route path='/platform/client/templates' element={<RequireClientAuth><OrganizationComingSoon title='Templates' description='Manage candidate communication templates.'/></RequireClientAuth>}/>
-      <Route path='/platform/client/settings' element={<RequireClientAuth><OrganizationComingSoon title='Settings' description='Branding, communication and security settings.'/></RequireClientAuth>}/>
+      <Route path='/platform/client/drives' element={<RequireClientAuth><DrivesListPage/></RequireClientAuth>}/>
+      <Route path='/platform/client/drives/:id' element={<RequireClientAuth><DriveDetailPage/></RequireClientAuth>}/>
+      <Route path='/platform/client/question-sets' element={<RequireClientAuth><QuestionSetsPage/></RequireClientAuth>}/>
+      <Route path='/platform/client/candidates' element={<RequireClientAuth><CandidatesListPage/></RequireClientAuth>}/>
+      <Route path='/platform/client/team' element={<RequireClientAuth><TeamPage/></RequireClientAuth>}/>
+      <Route path='/platform/client/templates' element={<RequireClientAuth><TemplatesPage/></RequireClientAuth>}/>
+      <Route path='/platform/client/settings' element={<RequireClientAuth><SettingsPage/></RequireClientAuth>}/>
+
+      {/* Organization Portal Routes */}
+      <Route path='/organization/dashboard' element={<RequireClientAuth><OrganizationDashboard/></RequireClientAuth>}/>
+      <Route path='/organization/drives' element={<RequireClientAuth><DrivesListPage/></RequireClientAuth>}/>
+      <Route path='/organization/drives/:id' element={<RequireClientAuth><DriveDetailPage/></RequireClientAuth>}/>
+      <Route path='/organization/question-sets' element={<RequireClientAuth><QuestionSetsPage/></RequireClientAuth>}/>
+      <Route path='/organization/candidates' element={<RequireClientAuth><CandidatesListPage/></RequireClientAuth>}/>
+      <Route path='/organization/team' element={<RequireClientAuth><TeamPage/></RequireClientAuth>}/>
+      <Route path='/organization/templates' element={<RequireClientAuth><TemplatesPage/></RequireClientAuth>}/>
+      <Route path='/organization/settings' element={<RequireClientAuth><SettingsPage/></RequireClientAuth>}/>
+
+      {/* College Portal Routes */}
+      <Route path='/college/dashboard' element={<RequireClientAuth><OrganizationDashboard/></RequireClientAuth>}/>
+      <Route path='/college/drives' element={<RequireClientAuth><DrivesListPage/></RequireClientAuth>}/>
+      <Route path='/college/drives/:id' element={<RequireClientAuth><DriveDetailPage/></RequireClientAuth>}/>
+      <Route path='/college/question-sets' element={<RequireClientAuth><QuestionSetsPage/></RequireClientAuth>}/>
+      <Route path='/college/candidates' element={<RequireClientAuth><CandidatesListPage/></RequireClientAuth>}/>
+      <Route path='/college/team' element={<RequireClientAuth><TeamPage/></RequireClientAuth>}/>
+      <Route path='/college/templates' element={<RequireClientAuth><TemplatesPage/></RequireClientAuth>}/>
+      <Route path='/college/settings' element={<RequireClientAuth><SettingsPage/></RequireClientAuth>}/>
+
+      {/* Candidate Portal Routes */}
+      <Route path='/candidate/dashboard' element={<RequireClientAuth><OrganizationDashboard/></RequireClientAuth>}/>
+      <Route path='/candidate/drives' element={<RequireClientAuth><DrivesListPage/></RequireClientAuth>}/>
+      <Route path='/candidate/drives/:id' element={<RequireClientAuth><DriveDetailPage/></RequireClientAuth>}/>
+      <Route path='/candidate/question-sets' element={<RequireClientAuth><QuestionSetsPage/></RequireClientAuth>}/>
+      <Route path='/candidate/candidates' element={<RequireClientAuth><CandidatesListPage/></RequireClientAuth>}/>
+      <Route path='/candidate/team' element={<RequireClientAuth><TeamPage/></RequireClientAuth>}/>
+      <Route path='/candidate/templates' element={<RequireClientAuth><TemplatesPage/></RequireClientAuth>}/>
+      <Route path='/candidate/settings' element={<RequireClientAuth><SettingsPage/></RequireClientAuth>}/>
       <Route path='/dashboard' element={<RequireAuth><Home/></RequireAuth>}/>
       <Route path='/interview' element={<RequireAuth><InterviewPage/></RequireAuth>}/>
       <Route path='/history' element={<RequireAuth><InterviewHistory/></RequireAuth>}/>
