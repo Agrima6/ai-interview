@@ -4,11 +4,15 @@ import { ok, ApiError } from "../utils/response.js"
 export const createDrive = async (req, res, next) => {
     try {
         const tenantId = req.user?.tenantId
-        const drive = await driveService.createDrive(tenantId, req.body)
+        const drive = await driveService.createDrive(tenantId, req.body, { requestId: req.requestId, correlationId: req.correlationId })
         ok(res, drive)
     } catch (error) {
         next(error)
     }
+}
+
+export const getPublicDriveBySlug = async (req, res, next) => {
+    try { ok(res, await driveService.getPublicDriveBySlug(req.params.link)) } catch (error) { next(error) }
 }
 
 export const listDrives = async (req, res, next) => {
@@ -34,7 +38,7 @@ export const getDriveById = async (req, res, next) => {
 export const addRoundToDrive = async (req, res, next) => {
     try {
         const tenantId = req.user?.tenantId
-        const drive = await driveService.addRoundToDrive(tenantId, req.params.id, req.body)
+        const drive = await driveService.addRoundToDrive(tenantId, req.params.id, req.body, { requestId: req.requestId, correlationId: req.correlationId })
         ok(res, drive)
     } catch (error) {
         next(error)

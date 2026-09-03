@@ -77,7 +77,10 @@ function DrivesListPage() {
 
   const handleCopyLink = (e, link, id) => {
     e.stopPropagation()
-    navigator.clipboard.writeText(link)
+    // `link` is just the server-generated slug (e.g. "18b484c6fe9e") - not
+    // a URL on its own. The real, working candidate-facing page lives at
+    // /apply/:link (see ApplyPage.jsx + the public drive lookup endpoint).
+    navigator.clipboard.writeText(`${window.location.origin}/apply/${link}`)
     setCopiedId(id)
     setTimeout(() => setCopiedId(null), 2000)
   }
@@ -98,9 +101,21 @@ function DrivesListPage() {
     >
       <div className="space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <StatCard icon={ListChecks} label="Total Drives" value={totalDrives} />
-          <StatCard icon={Sparkles} label="Active Hiring Drives" value={activeDrives} />
-          <StatCard icon={Users} label="Evaluated Candidates" value={totalCandidates} />
+          <StatCard
+            icon={ListChecks} label="Total Drives" value={totalDrives}
+            helperText="All drives, any status"
+            onClick={() => setActiveTab('ALL')}
+          />
+          <StatCard
+            icon={Sparkles} label="Active Hiring Drives" value={activeDrives}
+            helperText="Currently accepting candidates"
+            onClick={() => setActiveTab('ACTIVE')}
+          />
+          <StatCard
+            icon={Users} label="Evaluated Candidates" value={totalCandidates}
+            helperText="View full candidate list →"
+            onClick={() => navigate(`${basePath}/candidates`)}
+          />
         </div>
 
         <Card className="p-4 flex flex-col md:flex-row items-center justify-between gap-4">

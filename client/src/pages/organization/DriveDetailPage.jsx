@@ -170,10 +170,21 @@ function DriveDetailPage() {
       }
     >
       <div className="grid sm:grid-cols-4 gap-4 mb-6">
-        <StatCard icon={CheckCircle2} label="Evaluated Candidates" value={currentCandidates.length} />
-        <StatCard icon={Sparkles} label="Shortlisted Candidates" value={shortlistedList.length} />
-        <StatCard icon={ShieldAlert} label="Proctoring / Malpractice Flags" value={currentCandidates.filter((c) => c.malpracticeFlags > 0).length} />
-        <StatCard icon={CheckCircle2} label="Drive Status" value={drive.status} />
+        <StatCard
+          icon={CheckCircle2} label="Evaluated Candidates" value={currentCandidates.length}
+          helperText="This round, all statuses"
+          onClick={() => setStatusFilter('ALL')}
+        />
+        <StatCard
+          icon={Sparkles} label="Shortlisted Candidates" value={shortlistedList.length}
+          helperText="View shortlisted →"
+          onClick={() => setStatusFilter('SHORTLISTED')}
+        />
+        <StatCard
+          icon={ShieldAlert} label="Proctoring / Malpractice Flags" value={currentCandidates.filter((c) => c.malpracticeFlags > 0).length}
+          helperText="Candidates with any flag"
+        />
+        <StatCard icon={CheckCircle2} label="Drive Status" value={drive.status} helperText={`Round ${drive.currentRound} of ${drive.totalRounds}`} />
       </div>
 
       <Card className="p-6">

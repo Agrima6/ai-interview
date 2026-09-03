@@ -1,7 +1,7 @@
 import axios from "axios"
 import nodemailer from "nodemailer"
 
-// EmailProvider interface: send({ to, subject, body, from }) -> { providerMessageId, status }
+// EmailProvider interface: send({ to, subject, body, html, from, fromName }) -> { providerMessageId, status }
 // Swapped by EMAIL_MODE without the rest of the service knowing which one is active.
 // `from` is optional - every provider falls back to EMAIL_FROM when the
 // caller doesn't override it, so this stays backward compatible with no
@@ -18,9 +18,23 @@ export const resolveSender = (eventType) => {
     return (eventType && byEvent[eventType]) || process.env.EMAIL_FROM
 }
 
+// Swaps just the display-name portion of a "Name <address>" (or bare
+// address) string - used so an organization-sent email (candidate/team
+// invite) shows that org's name as the sender, without needing a
+// per-organization verified domain/mailbox. The underlying address always
+// stays whatever the platform account actually controls.
+const withDisplayName = (senderString, displayName) => {
+    if (!displayName) return senderString
+    const match = /<([^>]+)>/.exec(senderString || "")
+    const address = match ? match[1] : senderString
+    if (!address) return senderString
+    return `"${displayName} via WorkmateIQ" <${address}>`
+}
+
 class MockEmailProvider {
-    async send({ to, subject, body, html, from }) {
-        console.log(`[communication-service] MOCK EMAIL -> ${to}\nFrom: ${from || process.env.EMAIL_FROM || "(unset)"}\nSubject: ${subject}\n${body}${html ? "\n(html body also set)" : ""}\n`)
+    async send({ to, subject, body, html, from, fromName }) {
+        const sender = withDisplayName(from || process.env.EMAIL_FROM || "(unset)", fromName)
+        console.log(`[communication-service] MOCK EMAIL -> ${to}\nFrom: ${sender}\nSubject: ${subject}\n${body}${html ? "\n(html body also set)" : ""}\n`)
         return { providerMessageId: `mock-email-${Date.now()}`, status: "MOCK_SENT" }
     }
 }
@@ -31,8 +45,8 @@ class MockEmailProvider {
 // onboarding@resend.dev sender can only deliver to the Resend account's own
 // email until a custom domain is verified.
 class ResendEmailProvider {
-    async send({ to, subject, body, html, from }) {
-        const sender = from || process.env.EMAIL_FROM
+    async send({ to, subject, body, html, from, fromName }) {
+        const sender = withDisplayName(from || process.env.EMAIL_FROM, fromName)
         if (!process.env.RESEND_API_KEY || !sender) {
             throw new Error("EMAIL_MODE=direct requires RESEND_API_KEY and EMAIL_FROM in .env")
         }
@@ -67,12 +81,16 @@ const getTransporter = () => {
 }
 
 class GmailSmtpProvider {
-    async send({ to, subject, body }) {
+    // Gmail SMTP always sends from the authenticated mailbox - it will
+    // silently rewrite/reject a spoofed address - so only the display name
+    // can be swapped per-organization, never the actual address.
+    async send({ to, subject, body, html, fromName }) {
         const info = await getTransporter().sendMail({
-            from: `"WorkmateIQ" <${process.env.EMAIL_USER}>`,
+            from: `"${fromName ? `${fromName} via WorkmateIQ` : "WorkmateIQ"}" <${process.env.EMAIL_USER}>`,
             to,
             subject,
             text: body,
+            ...(html ? { html } : {}),
         })
         return { providerMessageId: info.messageId, status: "SENT" }
     }

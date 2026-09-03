@@ -2,13 +2,44 @@ import crypto from "crypto"
 import { InterviewDrive } from "../models/interviewDrive.model.js"
 import { ApiError } from "../utils/response.js"
 import { requireValidObjectId } from "../utils/validateId.js"
+import { communicationServiceClient } from "../config/internalClients.js"
+import * as clientRepo from "../repositories/client.repository.js"
 
 // The backend owns this, never the frontend - a client-generated
 // Math.random() slug could collide, isn't guaranteed unique, and gives a
 // candidate-facing URL no server-side record ever agreed to.
 const generatePublicLink = () => crypto.randomBytes(6).toString("hex")
 
-export const createDrive = async (tenantId, driveData) => {
+// Fires one CANDIDATE_INVITE email per candidate - best-effort (a slow/
+// unavailable communication-service must never fail drive/round creation,
+// the roster is already persisted regardless of whether the email goes
+// out). Every candidate gets the same public apply link since the
+// interview isn't tied to one candidate's identity yet (no auth/session
+// exists per-candidate - see backend.md's not-yet-built Interview Service).
+const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
+    if (!candidates?.length || !drive.publicLink) return
+    const org = await clientRepo.findById(tenantId).catch(() => null)
+    const interviewLink = `${process.env.FRONTEND_BASE_URL}/apply/${drive.publicLink}`
+    const expiryDate = new Date(drive.expiryDate).toLocaleDateString()
+
+    for (const candidate of candidates) {
+        if (!candidate.email) continue
+        communicationServiceClient.send({
+            entityType: "CLIENT", entityId: tenantId, channel: "EMAIL",
+            eventType: "CANDIDATE_INVITE", recipient: candidate.email,
+            variables: {
+                candidate_name: candidate.name || "there",
+                drive_title: drive.title,
+                company_name: org?.name || "the hiring team",
+                interview_link: interviewLink,
+                expiry_date: expiryDate,
+                supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
+            },
+        }, ctx).catch((err) => console.error(`[client-service] candidate-invite email failed for ${candidate.email}:`, err.message))
+    }
+}
+
+export const createDrive = async (tenantId, driveData, ctx) => {
     if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
     if (!driveData.title || !driveData.expiryDate) {
         throw new ApiError(400, "MISSING_FIELDS", "Title and expiry date are mandatory.")
@@ -36,7 +67,29 @@ export const createDrive = async (tenantId, driveData) => {
         publicLink: driveData.enablePublicLink === false ? null : generatePublicLink(),
     })
 
-    return await newDrive.save()
+    const saved = await newDrive.save()
+    await inviteCandidates(tenantId, saved, driveData.importedCandidateList, ctx)
+    return saved
+}
+
+// Public (unauthenticated) - a candidate clicking their invite link isn't
+// signed in, so this can never expose anything beyond what a candidate
+// landing page needs: no candidate roster, no other rounds' data, no
+// tenantId. Looked up by the random publicLink slug, never by _id.
+export const getPublicDriveBySlug = async (link) => {
+    const drive = await InterviewDrive.findOne({ publicLink: link, status: "ACTIVE" })
+    if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "This interview link is invalid or no longer active.")
+
+    const org = await clientRepo.findById(drive.tenantId).catch(() => null)
+    return {
+        title: drive.title,
+        roleCategory: drive.roleCategory,
+        department: drive.department,
+        experienceLevel: drive.experienceLevel,
+        expiryDate: drive.expiryDate,
+        companyName: org?.name || null,
+        expired: new Date(drive.expiryDate) < new Date(),
+    }
 }
 
 export const listDrives = async (tenantId, filters = {}) => {
@@ -61,7 +114,7 @@ export const getDriveById = async (tenantId, driveId) => {
     return drive
 }
 
-export const addRoundToDrive = async (tenantId, driveId, roundData) => {
+export const addRoundToDrive = async (tenantId, driveId, roundData, ctx) => {
     if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
     requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
 
@@ -91,6 +144,7 @@ export const addRoundToDrive = async (tenantId, driveId, roundData) => {
     }
 
     await drive.save()
+    await inviteCandidates(tenantId, drive, roundData.candidates, ctx)
     return drive
 }
 

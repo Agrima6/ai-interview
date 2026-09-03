@@ -93,7 +93,7 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
       name: c.name || c['Candidate Name'] || 'Candidate',
       email: c.email || c['Email Address'] || '',
       phone: c.phone || c['Phone Number'] || '',
-      exp: c.experience || '',
+      exp: c.exp ? `${c.exp} yrs` : '',
       aiScore: 0,
       malpracticeFlags: 0,
       status: 'INVITED',

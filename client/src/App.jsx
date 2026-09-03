@@ -48,6 +48,7 @@ import QuestionSetsPage from './pages/organization/QuestionSetsPage'
 import TeamPage from './pages/organization/TeamPage'
 import TemplatesPage from './pages/organization/TemplatesPage'
 import SettingsPage from './pages/organization/SettingsPage'
+import ApplyPage from './pages/ApplyPage'
 import AuthPage from './pages/auth/AuthPage'
 import ResetPasswordPage from './pages/auth/ResetPasswordPage'
 import { featurePermissions } from './permissions/featurePermissions'
@@ -96,6 +97,7 @@ function App() {
       <Route path='/hero-flow' element={<WorkmateLayout showCursorSpotlight={false}><HeroFlow/></WorkmateLayout>}/>
       <Route path='/hero-depth' element={<WorkmateLayout showCursorSpotlight={false}><HeroDepth/></WorkmateLayout>}/>
       <Route path='/login' element={<Login/>}/>
+      <Route path='/apply/:link' element={<ApplyPage/>}/>
 
       {/* New microservices-backed registration/onboarding platform (auth,
           registration, onboarding services behind the API gateway). Namespaced

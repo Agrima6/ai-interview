@@ -65,9 +65,18 @@ function CandidatesListPage() {
       description="Review AI scorecards and shortlist top candidates across every drive."
     >
       <div className="grid sm:grid-cols-3 gap-4 mb-6">
-        <StatCard icon={UserCheck} label="Evaluated Candidates" value={evaluated.length} trend={{ value: `${shortlisted.length} Shortlisted`, positive: true }} />
-        <StatCard icon={Sparkles} label="Average AI Score" value={`${avgScore}%`} />
-        <StatCard icon={CheckCircle2} label="Shortlist Rate" value={`${evaluated.length ? Math.round((shortlisted.length / evaluated.length) * 100) : 0}%`} />
+        <StatCard
+          icon={UserCheck} label="Evaluated Candidates" value={evaluated.length}
+          trend={{ value: `${shortlisted.length} Shortlisted`, positive: true }}
+          helperText="Everyone except still-invited"
+          onClick={() => setActiveTab('COMPLETED')}
+        />
+        <StatCard icon={Sparkles} label="Average AI Score" value={`${avgScore}%`} helperText="Across scored candidates" />
+        <StatCard
+          icon={CheckCircle2} label="Shortlist Rate" value={`${evaluated.length ? Math.round((shortlisted.length / evaluated.length) * 100) : 0}%`}
+          helperText="View shortlisted →"
+          onClick={() => setActiveTab('SHORTLISTED')}
+        />
       </div>
 
       <Card className="p-6">

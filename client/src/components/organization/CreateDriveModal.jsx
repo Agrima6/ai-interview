@@ -156,6 +156,20 @@ function CreateDriveModal({ open, onClose, onCreateDrive }) {
 
     const selectedBank = questionBanks.find((b) => (b._id || b.id) === formData.questionBankId)
 
+    // Typed emails were previously only counted for the "N candidates"
+    // display and never actually became roster entries - candidatesCount
+    // said 2 while the real roster stayed empty forever. Convert them into
+    // real candidates here so what's shown always matches what's saved
+    // (and so they actually receive an invite email).
+    const typedEmailCandidates = formData.candidateEmails
+      ? formData.candidateEmails.split(',').map((e) => e.trim()).filter(Boolean).map((email, i) => ({
+          id: `typed-${Date.now()}-${i}`,
+          name: email.split('@')[0].replace(/[._]/g, ' '),
+          email, phone: '', exp: '', status: 'INVITED', aiScore: 0, malpracticeFlags: 0,
+        }))
+      : []
+    const finalCandidateList = importedCandidates.length ? importedCandidates : typedEmailCandidates
+
     const payload = {
       title: formData.title.trim(),
       roleCategory: formData.roleCategory,
@@ -170,8 +184,8 @@ function CreateDriveModal({ open, onClose, onCreateDrive }) {
       customQuestionsList: formData.questionMode === 'CUSTOM' ? customQuestions : [],
       skillRubrics: skillWeightages,
       passingThreshold: Number(formData.passingThreshold) || 70,
-      candidatesCount: importedCandidates.length || (formData.candidateEmails ? formData.candidateEmails.split(',').filter(Boolean).length : 0),
-      importedCandidateList: importedCandidates,
+      candidatesCount: finalCandidateList.length,
+      importedCandidateList: finalCandidateList,
       enablePublicLink: formData.enablePublicLink,
     }
 
@@ -442,7 +456,10 @@ function CreateDriveModal({ open, onClose, onCreateDrive }) {
       <CandidateImportModal
         open={importModalOpen}
         onClose={() => setImportModalOpen(false)}
-        onImportComplete={(candidates) => setImportedCandidates(candidates)}
+        onImportComplete={(candidates) => setImportedCandidates(candidates.map((c, i) => ({
+          id: `csv-${Date.now()}-${i}`, name: c.name, email: c.email, phone: c.phone, exp: c.exp ? `${c.exp} yrs` : '',
+          status: 'INVITED', aiScore: 0, malpracticeFlags: 0,
+        })))}
       />
     </>
   )

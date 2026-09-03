@@ -1,7 +1,7 @@
 import "dotenv/config"
 import connectDb from "../config/connectDb.js"
 import * as templateRepo from "../repositories/template.repository.js"
-import { wrapEmailBody, supportBox, button, ACCENT, INK } from "../utils/emailHtml.js"
+import { wrapEmailBody, wrapOrgEmailBody, supportBox, button, ACCENT, INK } from "../utils/emailHtml.js"
 
 const onboardingLinkHtml = wrapEmailBody(`
     <h1 style="margin:0 0 20px;font-size:22px;font-weight:800;color:${INK};line-height:1.3;">
@@ -100,7 +100,51 @@ const changesRequestedHtml = wrapEmailBody(`
     ${supportBox()}
 `)
 
+const candidateInviteHtml = wrapOrgEmailBody(`
+    <h1 style="margin:0 0 20px;font-size:22px;font-weight:800;color:${INK};line-height:1.3;">
+        You're invited to interview for <span style="color:${ACCENT};">{{drive_title}}</span>
+    </h1>
+    <p style="margin:0 0 4px;font-size:14.5px;font-weight:700;color:${ACCENT};">Hi {{candidate_name}},</p>
+    <p style="margin:0 0 4px;font-size:14px;color:${INK};line-height:1.6;">
+        <strong>{{company_name}}</strong> has invited you to complete an AI-powered video interview for this role.
+    </p>
+    <p style="margin:0 0 4px;font-size:14px;color:${INK};line-height:1.6;">
+        The interview is self-paced - you can start whenever you're ready, before the link expires.
+    </p>
+    ${button("Start Interview →", "{{interview_link}}")}
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fdf1f1;border:1px solid #f7dcdc;border-radius:12px;margin:0 0 4px;">
+        <tr><td style="padding:14px 18px;font-size:13.5px;color:${INK};">This invitation expires on <strong>{{expiry_date}}</strong>.</td></tr>
+    </table>
+    ${supportBox()}
+`, "company_name")
+
+const teamInviteHtml = wrapOrgEmailBody(`
+    <h1 style="margin:0 0 20px;font-size:22px;font-weight:800;color:${INK};line-height:1.3;">
+        You've been added to <span style="color:${ACCENT};">{{organizationName}}</span>
+    </h1>
+    <p style="margin:0 0 4px;font-size:14.5px;font-weight:700;color:${ACCENT};">Hi {{recipientGreeting}},</p>
+    <p style="margin:0 0 4px;font-size:14px;color:${INK};line-height:1.6;">
+        You've been invited to join <strong>{{organizationName}}</strong>'s WorkmateIQ workspace as <strong>{{roleLabel}}</strong>.
+    </p>
+    ${button("Sign In →", "{{loginUrl}}")}
+    ${supportBox()}
+`, "organizationName")
+
 const templates = [
+    {
+        channel: "EMAIL", eventType: "CANDIDATE_INVITE", name: "Candidate interview invitation (email)",
+        subject: "You've been invited to interview for {{drive_title}} at {{company_name}}",
+        body: "Hi {{candidate_name}},\n\n{{company_name}} has invited you to complete an AI-powered video interview for {{drive_title}}.\n\nStart your interview: {{interview_link}}\n\nThis invitation expires on {{expiry_date}}.\n\nIf you have any questions, please contact our support team at {{supportEmail}}.\n\nRegards,\nThe {{company_name}} Team",
+        htmlBody: candidateInviteHtml,
+        variables: ["candidate_name", "drive_title", "company_name", "interview_link", "expiry_date", "supportEmail"],
+    },
+    {
+        channel: "EMAIL", eventType: "TEAM_INVITE", name: "Organization team invite (email)",
+        subject: "You've been added to {{organizationName}} on WorkmateIQ",
+        body: "Hi {{recipientGreeting}},\n\nYou've been invited to join {{organizationName}}'s WorkmateIQ workspace as {{roleLabel}}.\n\nSign in here: {{loginUrl}}\n\nIf you have any questions, please contact our support team at {{supportEmail}}.\n\nRegards,\nThe {{organizationName}} Team",
+        htmlBody: teamInviteHtml,
+        variables: ["recipientGreeting", "organizationName", "roleLabel", "loginUrl", "supportEmail"],
+    },
     {
         channel: "EMAIL", eventType: "ONBOARDING_LINK", name: "Onboarding link (email)",
         subject: "Complete your WorkmateIQ onboarding",

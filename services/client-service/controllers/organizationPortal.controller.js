@@ -15,7 +15,9 @@ export const listTeamMembers = async (req, res, next) => {
 
 export const inviteTeamMember = async (req, res, next) => {
     try {
-        const member = await teamService.inviteTeamMember(req.user?.tenantId, req.body)
+        const member = await teamService.inviteTeamMember(req.user?.tenantId, req.body, {
+            requestId: req.requestId, correlationId: req.correlationId,
+        })
         ok(res, member)
     } catch (error) {
         next(error)

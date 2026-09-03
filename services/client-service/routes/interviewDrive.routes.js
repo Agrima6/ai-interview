@@ -9,6 +9,10 @@ const router = Router()
 // permissions already seeded on CLIENT_ADMIN) rather than inventing a
 // parallel drive-specific permission scheme for what is still exclusively
 // self-service, tenant-scoped access.
+// Public candidate-facing lookup - no auth, must be registered before
+// "/drives/:id" or Express would try to treat "public" as a drive id.
+router.get("/drives/public/:link", driveController.getPublicDriveBySlug)
+
 router.get("/drives", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.listDrives)
 router.post("/drives", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.createDrive)
 router.get("/drives/:id", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.getDriveById)
