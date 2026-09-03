@@ -1,0 +1,706 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/8z1t7w",
+    "id": "8z1t7w",
+    "slide": 1,
+    "layoutId": "de64c475-c1f8-4375-9e30-669fe25de0f6",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "c910c265-c467-469f-ba61-3a336a478891",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#F3F2F2",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 816,
+      "height": 1056
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "Calibri"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "de64c475-c1f8-4375-9e30-669fe25de0f6",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "c910c265-c467-469f-ba61-3a336a478891",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "c910c265-c467-469f-ba61-3a336a478891",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/d8fy9cne",
+      "id": "1",
+      "name": "top-accent",
+      "bbox": [
+        0,
+        0,
+        816,
+        14
+      ],
+      "geometry": "rect",
+      "fillColor": "#EC3013",
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "image",
+      "scope": "slide",
+      "aid": "im/vyp4vmd0",
+      "id": "2",
+      "bbox": [
+        90,
+        92,
+        390,
+        122
+      ],
+      "alt": "Workmate Consultancy Services logo",
+      "contentType": "image/png",
+      "imageFit": "contain",
+      "asset": {
+        "assetId": "5ef1e275-cbd0-46b7-aebc-e523b11c061a",
+        "contentType": "image/png",
+        "byteLength": 147074
+      }
+    },
+    {
+      "order": 3,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/r6xg7258",
+      "id": "3",
+      "bbox": [
+        686,
+        100,
+        10,
+        10
+      ],
+      "geometry": "rect",
+      "fillColor": "#EC3013",
+      "lineWidth": 0
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/4jmhw7mh",
+      "id": "4",
+      "bbox": [
+        703,
+        100,
+        10,
+        10
+      ],
+      "geometry": "rect",
+      "fillColor": "#A6A6A6",
+      "lineWidth": 0
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/p4vy5cn2",
+      "id": "5",
+      "bbox": [
+        720,
+        100,
+        10,
+        10
+      ],
+      "geometry": "rect",
+      "fillColor": "#A6A6A6",
+      "lineWidth": 0
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/2h4fux4r",
+      "id": "6",
+      "bbox": [
+        737,
+        100,
+        10,
+        10
+      ],
+      "geometry": "rect",
+      "fillColor": "#EC3013",
+      "lineWidth": 0
+    },
+    {
+      "order": 7,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/3idg325w",
+      "id": "7",
+      "bbox": [
+        686,
+        117,
+        10,
+        10
+      ],
+      "geometry": "rect",
+      "fillColor": "#A6A6A6",
+      "lineWidth": 0
+    },
+    {
+      "order": 8,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/gfmxsn6l",
+      "id": "8",
+      "bbox": [
+        703,
+        117,
+        10,
+        10
+      ],
+      "geometry": "rect",
+      "fillColor": "#EC3013",
+      "lineWidth": 0
+    },
+    {
+      "order": 9,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/hgvy1sn6",
+      "id": "9",
+      "bbox": [
+        720,
+        117,
+        10,
+        10
+      ],
+      "geometry": "rect",
+      "fillColor": "#A6A6A6",
+      "lineWidth": 0
+    },
+    {
+      "order": 10,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/lw3ih8b6",
+      "id": "10",
+      "bbox": [
+        737,
+        117,
+        10,
+        10
+      ],
+      "geometry": "rect",
+      "fillColor": "#A6A6A6",
+      "lineWidth": 0
+    },
+    {
+      "order": 11,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/kvuho3ul",
+      "id": "11",
+      "bbox": [
+        686,
+        134,
+        10,
+        10
+      ],
+      "geometry": "rect",
+      "fillColor": "#A6A6A6",
+      "lineWidth": 0
+    },
+    {
+      "order": 12,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/jul0fyt0",
+      "id": "12",
+      "bbox": [
+        703,
+        134,
+        10,
+        10
+      ],
+      "geometry": "rect",
+      "fillColor": "#A6A6A6",
+      "lineWidth": 0
+    },
+    {
+      "order": 13,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ytczmtcv",
+      "id": "13",
+      "bbox": [
+        720,
+        134,
+        10,
+        10
+      ],
+      "geometry": "rect",
+      "fillColor": "#EC3013",
+      "lineWidth": 0
+    },
+    {
+      "order": 14,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/xs3idoba",
+      "id": "14",
+      "bbox": [
+        737,
+        134,
+        10,
+        10
+      ],
+      "geometry": "rect",
+      "fillColor": "#A6A6A6",
+      "lineWidth": 0
+    },
+    {
+      "order": 15,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/cruhk3up",
+      "id": "15",
+      "bbox": [
+        686,
+        151,
+        10,
+        10
+      ],
+      "geometry": "rect",
+      "fillColor": "#EC3013",
+      "lineWidth": 0
+    },
+    {
+      "order": 16,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/bql0byt4",
+      "id": "16",
+      "bbox": [
+        703,
+        151,
+        10,
+        10
+      ],
+      "geometry": "rect",
+      "fillColor": "#A6A6A6",
+      "lineWidth": 0
+    },
+    {
+      "order": 17,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/apczitcj",
+      "id": "17",
+      "bbox": [
+        720,
+        151,
+        10,
+        10
+      ],
+      "geometry": "rect",
+      "fillColor": "#A6A6A6",
+      "lineWidth": 0
+    },
+    {
+      "order": 18,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/poji9ovy",
+      "id": "18",
+      "bbox": [
+        737,
+        151,
+        10,
+        10
+      ],
+      "geometry": "rect",
+      "fillColor": "#EC3013",
+      "lineWidth": 0
+    },
+    {
+      "order": 19,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/onahgjud",
+      "id": "19",
+      "name": "cover-title",
+      "bbox": [
+        74,
+        470,
+        650,
+        126
+      ],
+      "geometry": "rect",
+      "text": "Web Development That\nMoves Business Forward.",
+      "textPreview": "Web Development That | Moves Business Forward.",
+      "resolvedFontSize": 46,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 46,
+        "typeface": "Calibri",
+        "color": "#201E1D",
+        "bold": true,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Web Development That"
+          },
+          {
+            "index": 2,
+            "text": "Moves Business Forward."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Web Development That",
+          "lineSpacingPercent": 94000,
+          "resolvedTextStyle": {
+            "fontSize": 46,
+            "typeface": "Calibri",
+            "color": "#201E1D",
+            "bold": true,
+            "alignment": "left",
+            "lineSpacing": 0.94
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Web Development That",
+              "fontSize": 46,
+              "typeface": "Calibri",
+              "color": "#201E1D",
+              "bold": true,
+              "alignment": "left",
+              "lineSpacing": 0.94
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "Moves Business Forward.",
+          "lineSpacingPercent": 94000,
+          "resolvedTextStyle": {
+            "fontSize": 46,
+            "typeface": "Calibri",
+            "color": "#201E1D",
+            "bold": true,
+            "alignment": "left",
+            "lineSpacing": 0.94
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Moves Business Forward.",
+              "fontSize": 46,
+              "typeface": "Calibri",
+              "color": "#201E1D",
+              "bold": true,
+              "alignment": "left",
+              "lineSpacing": 0.94
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 20,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/g7ehwj29",
+      "id": "20",
+      "bbox": [
+        75,
+        607,
+        78,
+        5
+      ],
+      "geometry": "rect",
+      "fillColor": "#AE1800",
+      "lineWidth": 0
+    },
+    {
+      "order": 21,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/18ni5o3u",
+      "id": "21",
+      "name": "cover-subtitle",
+      "bbox": [
+        74,
+        635,
+        610,
+        88
+      ],
+      "geometry": "rect",
+      "text": "Workmate helps organizations strategize, design, build, modernize, secure and scale web platforms around real business goals.",
+      "textPreview": "Workmate helps organizations strategize, design, build, modernize, secure and scale web platforms around real business goals.",
+      "resolvedFontSize": 16,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 16,
+        "typeface": "Calibri",
+        "color": "#454141",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Workmate helps organizations strategize, design, build, modernize, secure and scale web"
+          },
+          {
+            "index": 2,
+            "text": "platforms around real business goals."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Workmate helps organizations strategize, design, build, modernize, secure and scale web platforms around real business goals.",
+          "lineSpacingPercent": 118000,
+          "resolvedTextStyle": {
+            "fontSize": 16,
+            "typeface": "Calibri",
+            "color": "#454141",
+            "alignment": "left",
+            "lineSpacing": 1.18
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Workmate helps organizations strategize, design, build, modernize, secure and scale web platforms around real business goals.",
+              "fontSize": 16,
+              "typeface": "Calibri",
+              "color": "#454141",
+              "alignment": "left",
+              "lineSpacing": 1.18
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 22,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/e5wzu9kj",
+      "id": "22",
+      "bbox": [
+        72,
+        952,
+        672,
+        0
+      ],
+      "geometry": "line",
+      "lineColor": "#A6A6A6",
+      "lineWidth": 1.2
+    },
+    {
+      "order": 23,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/f6503elo",
+      "id": "23",
+      "bbox": [
+        72,
+        970,
+        170,
+        18
+      ],
+      "geometry": "rect",
+      "text": "www.wcspl.net",
+      "textPreview": "www.wcspl.net",
+      "resolvedFontSize": 9.51,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 9.51,
+        "typeface": "Calibri",
+        "color": "#6B6868",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "www.wcspl.net"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "www.wcspl.net",
+          "lineSpacingPercent": 108000,
+          "resolvedTextStyle": {
+            "fontSize": 9.51,
+            "typeface": "Calibri",
+            "color": "#6B6868",
+            "alignment": "left",
+            "lineSpacing": 1.08
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "www.wcspl.net",
+              "fontSize": 9.51,
+              "typeface": "Calibri",
+              "color": "#6B6868",
+              "alignment": "left",
+              "lineSpacing": 1.08
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 24,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/s3ehsj2d",
+      "id": "24",
+      "bbox": [
+        374,
+        970,
+        370,
+        18
+      ],
+      "geometry": "rect",
+      "text": "Strategy  |  Design  |  Engineering  |  Quality  |  Support",
+      "textPreview": "Strategy  |  Design  |  Engineering  |  Quality  |  Support",
+      "resolvedFontSize": 9.51,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 9.51,
+        "typeface": "Calibri",
+        "color": "#6B6868",
+        "alignment": "right",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Strategy  |  Design  |  Engineering  |  Quality  |  Support"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Strategy  |  Design  |  Engineering  |  Quality  |  Support",
+          "lineSpacingPercent": 108000,
+          "resolvedTextStyle": {
+            "fontSize": 9.51,
+            "typeface": "Calibri",
+            "color": "#6B6868",
+            "alignment": "right",
+            "lineSpacing": 1.08
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Strategy  |  Design  |  Engineering  |  Quality  |  Support",
+              "fontSize": 9.51,
+              "typeface": "Calibri",
+              "color": "#6B6868",
+              "alignment": "right",
+              "lineSpacing": 1.08
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

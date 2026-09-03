@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { FileText, Loader2, CheckCircle2, Building2, TrendingUp, MessageCircleQuestion, AlertCircle, Clock } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
+import { FileText, Loader2, CheckCircle2, Building2, TrendingUp, MessageCircleQuestion, AlertCircle, Clock, X } from 'lucide-react'
 import { LineChart, Line, PieChart, Pie, Cell, BarChart, Bar, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend } from 'recharts'
 import AdminShell from '../../components/layout/AdminShell'
-import { StatCard, Card, Badge, Skeleton, SkeletonText } from '../../components/ui'
+import { StatCard, Card, Badge, Skeleton, SkeletonText, Button } from '../../components/ui'
+import RegistrationTypeFilter from '../../components/filters/RegistrationTypeFilter'
+import DateRangeFilter from '../../components/filters/DateRangeFilter'
 import { usePermission } from '../../hooks/useAuth.jsx'
+import { useRegistrationTypes } from '../../hooks/useRegistrationTypes'
 import { featurePermissions } from '../../permissions/featurePermissions'
 import { getDashboardSummary, getDashboardActivity, getDashboardTrends } from '../../api/dashboardApi'
 
@@ -31,10 +35,34 @@ const ACTIVITY_STATUS_VARIANT = {
 const chartTooltipStyle = { borderRadius: 12, border: '1px solid var(--color-line)', fontSize: 13, background: 'var(--color-card)', color: 'var(--color-ink)' }
 const axisTick = { fontSize: 12, fill: 'var(--color-text-secondary)' }
 
+// The one filter context every dashboard query shares - registration type
+// and/or a date range narrow the KPI cards, the trend chart, the audience
+// pie and the onboarding funnel identically, so none of them can ever show
+// data for a different slice than the others.
+function useDashboardFilters() {
+    const [params, setParams] = useSearchParams()
+    const registrationType = params.get('type') || ''
+    const from = params.get('from') || null
+    const to = params.get('to') || null
+    const preset = params.get('preset') || ''
+
+    const setFilters = (next) => {
+        const merged = { registrationType, from, to, preset, ...next }
+        const nextParams = new URLSearchParams(params)
+        if (merged.registrationType) nextParams.set('type', merged.registrationType); else nextParams.delete('type')
+        if (merged.from) nextParams.set('from', merged.from); else nextParams.delete('from')
+        if (merged.to) nextParams.set('to', merged.to); else nextParams.delete('to')
+        if (merged.preset) nextParams.set('preset', merged.preset); else nextParams.delete('preset')
+        setParams(nextParams, { replace: true })
+    }
+
+    return { registrationType, from, to, preset, setFilters }
+}
+
 function AdminDashboard() {
     const hasPermission = usePermission()
-    const [summary, setSummary] = useState(null)
-    const [summaryError, setSummaryError] = useState('')
+    const registrationTypes = useRegistrationTypes()
+    const { registrationType, from, to, preset, setFilters } = useDashboardFilters()
 
     const [activity, setActivity] = useState(null)
     const [activityError, setActivityError] = useState('')
@@ -43,18 +71,31 @@ function AdminDashboard() {
     const [activityLoadingMore, setActivityLoadingMore] = useState(false)
 
     const [range, setRange] = useState('30d')
-    const [trends, setTrends] = useState(null)
-    const [trendsError, setTrendsError] = useState('')
-    const [trendsLoading, setTrendsLoading] = useState(true)
 
     const canViewDashboard = hasPermission(featurePermissions.dashboard)
     const canViewActivity = hasPermission(featurePermissions.dashboardActivity)
     const canViewAnalytics = hasPermission(featurePermissions.dashboardAnalytics)
 
-    useEffect(() => {
-        if (!canViewDashboard) return
-        getDashboardSummary().then(setSummary).catch((err) => setSummaryError(err.message))
-    }, [canViewDashboard])
+    const filterKey = { registrationType, from, to }
+    const hasActiveFilters = Boolean(registrationType || from || to)
+
+    const summaryQuery = useQuery({
+        queryKey: ['dashboard', 'summary', filterKey],
+        queryFn: () => getDashboardSummary({ type: registrationType || undefined, from: from || undefined, to: to || undefined }),
+        enabled: canViewDashboard,
+        placeholderData: keepPreviousData,
+    })
+    const summary = summaryQuery.data
+
+    const trendsQuery = useQuery({
+        queryKey: ['dashboard', 'trends', range, filterKey],
+        queryFn: () => getDashboardTrends(range, { type: registrationType || undefined, from: from || undefined, to: to || undefined }),
+        enabled: canViewAnalytics,
+        placeholderData: keepPreviousData,
+    })
+    const trends = trendsQuery.data
+    const trendsLoading = trendsQuery.isLoading
+    const trendsError = trendsQuery.isError ? trendsQuery.error.message : ''
 
     useEffect(() => {
         if (!canViewActivity) return
@@ -79,16 +120,6 @@ function AdminDashboard() {
             .catch((err) => setActivityError(err.message))
             .finally(() => setActivityLoadingMore(false))
     }
-
-    useEffect(() => {
-        if (!canViewAnalytics) return
-        setTrendsLoading(true)
-        setTrendsError('')
-        getDashboardTrends(range)
-            .then(setTrends)
-            .catch((err) => setTrendsError(err.message))
-            .finally(() => setTrendsLoading(false))
-    }, [canViewAnalytics, range])
 
     if (!canViewDashboard) {
         return <AdminShell><p className='text-text-secondary text-[14px]'>You don't have access to the dashboard.</p></AdminShell>
@@ -128,12 +159,30 @@ function AdminDashboard() {
 
     return (
         <AdminShell>
-            <div className='flex items-center justify-between mb-1'>
+            <div className='flex items-center justify-between mb-1 flex-wrap gap-3'>
                 <h1 className='font-display text-[22px] font-bold text-ink'>Dashboard</h1>
             </div>
-            <p className='text-text-secondary text-[14px] mb-8'>An overview of registrations moving through WorkmateIQ.</p>
+            <p className='text-text-secondary text-[14px] mb-6'>An overview of registrations moving through WorkmateIQ.</p>
 
-            {summaryError && <p className='text-[13.5px] text-red-500 mb-4'>{summaryError}</p>}
+            <div className='flex items-center gap-3 flex-wrap mb-6'>
+                <RegistrationTypeFilter
+                    value={registrationType}
+                    onChange={(type) => setFilters({ registrationType: type })}
+                    options={registrationTypes}
+                    wrapperClassName='w-[190px]'
+                />
+                <DateRangeFilter
+                    value={{ preset, from, to }}
+                    onChange={({ preset: p, from: f, to: t }) => setFilters({ preset: p, from: f, to: t })}
+                />
+                {hasActiveFilters && (
+                    <Button variant='ghost' size='sm' onClick={() => setFilters({ registrationType: '', from: null, to: null, preset: '' })}>
+                        <X size={13} /> Clear Filters
+                    </Button>
+                )}
+            </div>
+
+            {summaryQuery.isError && <p className='text-[13.5px] text-red-500 mb-4'>{summaryQuery.error.message}</p>}
 
             <div className='grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6'>
                 {cards.map(([Icon, label, value, to]) => (

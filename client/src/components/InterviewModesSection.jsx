@@ -1,11 +1,14 @@
 import React from 'react'
 import { motion } from 'motion/react'
-import { Users, Code2, Clock, Gauge, Sparkles, ArrowUpRight } from 'lucide-react'
+import { Clock, Gauge, Sparkles, ArrowUpRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import MarketingIllustration from './MarketingIllustration'
+
+const MotionDiv = motion.div
 
 const MODES = [
     {
-        icon: Users,
+        illustration: 'candidate',
         title: "HR Interview",
         desc: "Behavioral and communication-focused questions that evaluate how you present yourself, handle pressure and articulate your experience.",
         time: "~7 min",
@@ -13,7 +16,7 @@ const MODES = [
         aiFeatures: ["Resume parsing", "Voice transcription", "Communication scoring"],
     },
     {
-        icon: Code2,
+        illustration: 'technical',
         title: "Technical Interview",
         desc: "Role-specific technical questioning grounded in your skills and projects, with difficulty that ramps across five questions.",
         time: "~7 min",
@@ -27,9 +30,8 @@ function InterviewModesSection() {
     return (
         <div className='grid md:grid-cols-2 gap-6'>
             {MODES.map((mode, i) => {
-                const Icon = mode.icon
                 return (
-                    <motion.div
+                    <MotionDiv
                         key={mode.title}
                         initial={{ opacity: 0, y: 24 }}
                         whileInView={{ opacity: 1, y: 0 }}
@@ -39,9 +41,7 @@ function InterviewModesSection() {
                         className='group cursor-pointer relative bg-card border border-line rounded-3xl p-8 transition-all duration-300 hover:-translate-y-1 hover:border-accent/30 hover:shadow-[var(--shadow-lift)]'
                     >
                         <div className='flex items-start justify-between mb-6'>
-                            <div className='w-12 h-12 rounded-2xl bg-black/[0.04] dark:bg-white/[0.06] flex items-center justify-center transition-colors duration-300 group-hover:bg-accent/10'>
-                                <Icon size={20} strokeWidth={1.75} className='text-ink transition-colors duration-300 group-hover:text-accent' />
-                            </div>
+                            <MarketingIllustration type={mode.illustration} className='h-16 w-24 text-accent transition-transform duration-300 group-hover:scale-[1.03]' />
                             <ArrowUpRight size={18} className='text-text-secondary transition-all duration-300 group-hover:text-ink group-hover:rotate-45' />
                         </div>
 
@@ -63,7 +63,7 @@ function InterviewModesSection() {
                                 ))}
                             </div>
                         </div>
-                    </motion.div>
+                    </MotionDiv>
                 )
             })}
         </div>

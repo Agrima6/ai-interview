@@ -1,6 +1,6 @@
 import React from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { motion } from "motion/react"
+import { motion as Motion } from "motion/react"
 import { Coins, LogOut, LogIn, User, ShieldCheck, ClipboardList, Mic } from "lucide-react";
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -9,7 +9,6 @@ import { ServerUrl } from '../constants';
 import { loginWithGoogle } from '../utils/authApi';
 import { setUserData } from '../redux/userSlice';
 import Button from './Button';
-import ThemeToggle from './ThemeToggle';
 import logo from '../assets/logo.png';
 
 const GUEST_EMAIL = "guest@ats-pro.local"
@@ -62,7 +61,7 @@ function Navbar() {
 
     return (
         <div className='sticky top-0 z-50 flex justify-center px-4 pt-4'>
-            <motion.div
+            <Motion.div
                 initial={{ opacity: 0, y: -16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4 }}
@@ -91,8 +90,6 @@ function Navbar() {
                 </div>
 
                 <div className='flex items-center gap-2 md:gap-3 relative shrink-0'>
-                    <ThemeToggle className="!hidden sm:!flex" />
-
                     {userData ? (
                         <>
                             <div className='relative'>
@@ -105,13 +102,13 @@ function Navbar() {
                                 </button>
 
                                 {showCreditPopup && (
-                                    <motion.div
+                                    <Motion.div
                                         initial={{ opacity: 0, y: -6 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         className='absolute right-0 mt-3 w-64 bg-card shadow-[var(--shadow-lift)] border border-line rounded-2xl p-5 z-50'>
                                         <p className='text-[13px] text-text-secondary mb-4 leading-relaxed'>Need more credits to continue interviews?</p>
                                         <Button size="md" className="w-full !py-2.5 !text-[14px]" onClick={() => navigate("/pricing")}>Buy more credits</Button>
-                                    </motion.div>
+                                    </Motion.div>
                                 )}
                             </div>
 
@@ -125,7 +122,7 @@ function Navbar() {
                                 </button>
 
                                 {showUserPopup && (
-                                    <motion.div
+                                    <Motion.div
                                         initial={{ opacity: 0, y: -6 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         className='absolute right-0 mt-3 w-52 bg-card shadow-[var(--shadow-lift)] border border-line rounded-2xl p-2 z-50'>
@@ -162,7 +159,7 @@ function Navbar() {
                                             className='w-full text-left text-[13px] px-3 py-2.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-2 text-red-500 transition-colors'>
                                             <LogOut size={14} />
                                             Logout</button>
-                                    </motion.div>
+                                    </Motion.div>
                                 )}
                             </div>
                         </>
@@ -177,7 +174,7 @@ function Navbar() {
                     </Button>
                 </div>
 
-            </motion.div>
+            </Motion.div>
 
         </div>
     )

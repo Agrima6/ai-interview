@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Input, Button, Card } from '../../components/ui'
 import { useAuth } from '../../hooks/useAuth.jsx'
 import * as authApi from '../../api/authApi'
+import { getOrganizationProfile } from '../../api/organization/organizationApi'
 
 // Forced first-login step for client accounts, which are created with a
 // system-generated temporary password (see the approval email).
@@ -26,7 +27,14 @@ function ChangePassword() {
         try {
             await authApi.changePassword(currentPassword, newPassword)
             await refresh()
-            navigate('/platform/client/dashboard')
+            const profile = await getOrganizationProfile().catch(() => null)
+            if (profile?.type === 'COLLEGE') {
+                navigate('/college/dashboard')
+            } else if (profile?.type === 'CANDIDATE') {
+                navigate('/candidate/dashboard')
+            } else {
+                navigate('/organization/dashboard')
+            }
         } catch (err) {
             setError(err.message || 'Could not change password.')
         } finally {

@@ -1,13 +1,13 @@
 import React from 'react'
 import { motion } from "motion/react"
 
-const base = "inline-flex items-center justify-center gap-2 rounded-full font-medium transition-all duration-300 select-none disabled:opacity-40 disabled:pointer-events-none"
+const base = "type-button inline-flex items-center justify-center gap-2 rounded-full transition-all duration-300 select-none disabled:opacity-40 disabled:pointer-events-none"
 
 const sizes = {
-  xs: "px-3 py-1.5 text-[12.5px]",
-  sm: "px-4 py-2 text-[13.5px]",
-  md: "px-6 py-3 text-[15px]",
-  lg: "px-8 py-3.5 text-[16px]",
+  xs: "type-button-xs px-3 py-1.5",
+  sm: "type-button-sm px-4 py-2",
+  md: "type-button-md px-6 py-3",
+  lg: "type-button-lg px-8 py-3.5",
 }
 
 const variants = {

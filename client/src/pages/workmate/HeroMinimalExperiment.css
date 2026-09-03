@@ -1,0 +1,147 @@
+.hero-minimal-area {
+    isolation: isolate;
+}
+
+.hero-minimal-ambient {
+    position: absolute;
+    z-index: 0;
+    pointer-events: none;
+    border-radius: 999px;
+    filter: blur(72px);
+}
+
+.hero-minimal-ambient-left {
+    top: -160px;
+    left: 8%;
+    width: 620px;
+    height: 560px;
+    opacity: 0.14;
+    background: radial-gradient(closest-side, #c4161f, transparent);
+}
+
+.hero-minimal-ambient-right {
+    top: 60px;
+    right: -160px;
+    width: 380px;
+    height: 380px;
+    opacity: 0.07;
+    background: radial-gradient(closest-side, #e0271b, transparent);
+}
+
+.hero-minimal-reveal,
+.hero-minimal-image-reveal {
+    opacity: 0;
+    transform: translateY(12px);
+    animation: hero-minimal-rise 620ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.hero-minimal-reveal-eyebrow {
+    animation-delay: 0ms;
+}
+
+.hero-minimal-reveal-headline {
+    animation-delay: 30ms;
+}
+
+.hero-minimal-reveal-copy {
+    transform: translateY(8px);
+    animation-delay: 150ms;
+}
+
+.hero-minimal-reveal-actions {
+    transform: translateY(8px);
+    animation-delay: 245ms;
+}
+
+.hero-minimal-image-reveal {
+    transform: translateY(8px);
+    animation-duration: 700ms;
+    animation-delay: 310ms;
+}
+
+.hero-minimal-gradient {
+    display: inline;
+    background-size: 100% 100%;
+    background-position: 0% 50%;
+    transition: filter 220ms ease, background-position 220ms ease;
+    animation: hero-minimal-gradient-sweep 690ms cubic-bezier(0.16, 1, 0.3, 1) 110ms both;
+}
+
+.hero-minimal-gradient:hover {
+    filter: saturate(1.04) brightness(1.02);
+    background-position: 2px 50%;
+}
+
+.hero-minimal-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 11px 25px -6px rgba(139, 14, 22, 0.56);
+}
+
+.hero-minimal-secondary:hover {
+    border-color: rgba(196, 22, 31, 0.28);
+    background-color: rgba(196, 22, 31, 0.04);
+}
+
+.hero-minimal-image-shell {
+    box-shadow: 0 30px 80px -24px rgba(30, 10, 12, 0.25);
+    transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1), border-color 250ms ease, box-shadow 300ms ease;
+}
+
+.hero-minimal-image-shell:hover {
+    transform: translateY(-3px) scale(1.005);
+    border-color: rgba(196, 22, 31, 0.28);
+    box-shadow: 0 34px 86px -22px rgba(30, 10, 12, 0.34);
+}
+
+@keyframes hero-minimal-rise {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes hero-minimal-gradient-sweep {
+    0% {
+        background-position: -70% 50%;
+        background-size: 170% 100%;
+    }
+    55% {
+        background-position: 42% 50%;
+        background-size: 120% 100%;
+    }
+    100% {
+        background-position: 0% 50%;
+        background-size: 100% 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hero-minimal-reveal,
+    .hero-minimal-image-reveal {
+        opacity: 1;
+        transform: none;
+        animation: none;
+    }
+
+    .hero-minimal-gradient {
+        background-position: 0% 50%;
+        background-size: 100% 100%;
+        animation: none;
+    }
+
+    .hero-minimal-image-shell,
+    .hero-minimal-image-shell:hover {
+        transform: none;
+        transition: none;
+    }
+}
+
+@media (max-width: 639px) {
+    .hero-minimal-ambient-left {
+        left: -42%;
+    }
+
+    .hero-minimal-ambient-right {
+        right: -48%;
+    }
+}

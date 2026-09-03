@@ -1,30 +1,37 @@
 import React, { useEffect, useRef, useState } from 'react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { AnimatePresence, motion as Motion } from 'motion/react'
+import { useNavigate } from 'react-router-dom'
 import WorkmateLayout from './WorkmateLayout'
-import useReveal, { useParallax } from './useReveal'
+import useReveal from './useReveal'
 import Button from '../../components/Button'
 import AIScorePanel from './AIScorePanel'
+import FiberBurstCanvas from './FiberBurstCanvas'
 import NetworkGraphic from './NetworkGraphic'
+import JourneySection from './JourneySection'
+import HeroThreadsBackground from './HeroThreadsBackground'
+import MarketingIllustration from '../../components/MarketingIllustration'
+import NexaChatbot from '../../components/NexaChatbot'
+import InterviewPreview from './InterviewPreview'
+import VerticalScrollShowcase from './VerticalScrollShowcase'
+import PowerfulFeatures from './PowerfulFeatures'
+import institutionImage from '../../assets/workmate/institution-student-screening.png'
+import audienceCandidatesImage from '../../assets/workmate/audience-candidates.png'
+import organizationRecruitmentImage from '../../assets/workmate/organization-recruitment.png'
+import securityIcon from '../../assets/workmate/security.png'
+import reliableIcon from '../../assets/workmate/security2.png'
 import { submitPlatformEnquiry } from '../../api/enquiriesApi'
+
 import {
-    ArrowRight, Building2, GraduationCap, User, ShieldCheck, Zap, LineChart,
-    FileText, Users, Star, ChevronDown, Sparkles, Scale, Lock, TrendingUp,
+    ArrowRight, Building2, Check, ChevronDown, GraduationCap, Network, ShieldCheck, UserRound,
 } from 'lucide-react'
 
 gsap.registerPlugin(ScrollTrigger)
 const REDUCE_MOTION = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
-import handsConnect from '../../assets/workmate/hands-connect.jpg'
-import isometricAudience from '../../assets/workmate/isometric-audience.jpg'
-import journeyPath from '../../assets/workmate/journey-path.jpg'
-import journeyDesk from '../../assets/workmate/journey-desk.jpg'
-import collegeNetwork from '../../assets/workmate/college-network.jpg'
-import candidateInterview from '../../assets/workmate/candidate-interview.jpg'
-import journeyArch from '../../assets/workmate/journey-arch.jpg'
-
-const H2 = 'font-display text-[30px] sm:text-[42px] font-bold text-ink leading-[1.1] tracking-tight'
-const EYEBROW = 'text-[13px] tracking-[0.16em] uppercase text-accent font-semibold mb-4'
+const H2 = 'type-h2 text-ink'
+const EYEBROW = 'type-eyebrow text-accent mb-4'
 
 function CTAButton({ children, ...props }) {
     return (
@@ -35,56 +42,143 @@ function CTAButton({ children, ...props }) {
     )
 }
 
+function HeroFeatureIcon({ type }) {
+    if (type === 'secure') {
+        return <img src={securityIcon} alt='' width='15' height='15' className='shrink-0 object-contain' />
+    }
+
+    if (type === 'reliable') {
+        return <img src={reliableIcon} alt='' width='15' height='15' className='shrink-0 object-contain' />
+    }
+
+    return (
+        <svg width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.9' strokeLinecap='round' strokeLinejoin='round' className='shrink-0 text-[#ab2323]' aria-hidden='true'>
+            {type === 'smart' && (
+                <>
+                    <path d='m12 3 1.4 4.1a2 2 0 0 0 1.2 1.2L18.7 9.7l-4.1 1.4a2 2 0 0 0-1.2 1.2L12 16.4l-1.4-4.1a2 2 0 0 0-1.2-1.2L5.3 9.7l4.1-1.4a2 2 0 0 0 1.2-1.2L12 3Z' />
+                    <path d='m5 16 .5 1.5L7 18l-1.5.5L5 20l-.5-1.5L3 18l1.5-.5L5 16Z' />
+                </>
+            )}
+        </svg>
+    )
+}
+
+function AboutPointer({ icon: IconComponent, children }) {
+    const PointerIcon = IconComponent
+
+    return (
+        <div className='about-pointer group flex min-h-[82px] items-start gap-3 transition-transform duration-300 hover:-translate-y-0.5'>
+            <span className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/[0.07] text-accent transition-all duration-300 group-hover:bg-accent/[0.12] group-hover:shadow-[0_8px_18px_-12px_rgba(196,22,31,0.5)]'>
+                <PointerIcon size={19} strokeWidth={1.8} aria-hidden='true' />
+            </span>
+            <p className='type-body-small pt-0.5 leading-relaxed text-ink'>{children}</p>
+        </div>
+    )
+}
+
 /* ============================================================ HERO ============================================================ */
-function Hero({ jump }) {
+function Hero({ jump, experimental = false }) {
     const heroRef = useReveal('.reveal')
+    const heroAreaRef = useRef(null)
     const wrapRef = useRef(null)
+    const navigate = useNavigate()
 
     useEffect(() => {
         if (REDUCE_MOTION || !wrapRef.current) return
-        const el = wrapRef.current
+        if (!window.matchMedia('(min-width: 1024px) and (hover: hover) and (pointer: fine)').matches) return
+        const el = experimental ? heroAreaRef.current : wrapRef.current
+        const image = wrapRef.current.querySelector('.hero-tilt')
+        if (!el || !image) return
         const onMove = (e) => {
             const r = el.getBoundingClientRect()
             const px = (e.clientX - r.left) / r.width - 0.5
             const py = (e.clientY - r.top) / r.height - 0.5
-            gsap.to('.hero-tilt', { rotateY: px * 6, rotateX: -py * 6, duration: 0.6, ease: 'power2.out' })
+            if (experimental) {
+                gsap.to(image, {
+                    x: px * 7,
+                    y: py * 5,
+                    rotateY: px * 1.4,
+                    rotateX: -py * 1.2,
+                    duration: 0.8,
+                    ease: 'power2.out',
+                    overwrite: 'auto',
+                })
+            } else {
+                gsap.to(image, { rotateY: px * 6, rotateX: -py * 6, duration: 0.6, ease: 'power2.out' })
+            }
+        }
+        const onLeave = () => {
+            if (!experimental) return
+            gsap.to(image, { x: 0, y: 0, rotateY: 0, rotateX: 0, duration: 0.9, ease: 'power2.out', overwrite: 'auto' })
         }
         el.addEventListener('mousemove', onMove)
-        return () => el.removeEventListener('mousemove', onMove)
-    }, [])
+        el.addEventListener('mouseleave', onLeave)
+        return () => {
+            el.removeEventListener('mousemove', onMove)
+            el.removeEventListener('mouseleave', onLeave)
+        }
+    }, [experimental])
 
     return (
-        <section id='home' className='scroll-mt-20 relative overflow-hidden'>
-            <div className='absolute top-[-160px] left-[8%] w-[620px] h-[560px] rounded-full opacity-[0.14] blur-3xl pointer-events-none'
+        <section ref={heroAreaRef} id='home' className='workmate-hero scroll-mt-20 relative overflow-hidden'>
+            {experimental && <HeroThreadsBackground />}
+            <div className={`absolute top-[-160px] left-[8%] w-[620px] h-[560px] rounded-full ${experimental ? 'opacity-[0.08]' : 'opacity-[0.14]'} blur-3xl pointer-events-none`}
                 style={{ background: 'radial-gradient(closest-side, #c4161f, transparent)' }} />
-            <div className='absolute top-[60px] right-[-160px] w-[380px] h-[380px] rounded-full opacity-[0.07] blur-3xl pointer-events-none'
+            <div className={`absolute top-[60px] right-[-160px] w-[380px] h-[380px] rounded-full ${experimental ? 'opacity-[0.12]' : 'opacity-[0.07]'} blur-3xl pointer-events-none`}
                 style={{ background: 'radial-gradient(closest-side, #e0271b, transparent)' }} />
 
-            <div className='relative max-w-[1280px] mx-auto px-6 lg:px-8 pt-32 sm:pt-36 pb-24 grid lg:grid-cols-[1fr_1.05fr] gap-14 items-center'>
-                <div ref={heroRef}>
-                    <p className={`reveal ${EYEBROW} inline-flex items-center gap-2`}>
-                        <span className='w-1.5 h-1.5 rounded-full bg-accent animate-pulse-glow' />
-                        WorkmateIQ
-                    </p>
-                    <h1 className='reveal font-display text-[42px] sm:text-[62px] font-bold text-ink leading-[1.03] tracking-tight mb-6'>
-                        Where <span className='gradient-brand-text'>better talent journeys</span> begin.
+            <div className='workmate-shell workmate-hero__shell relative grid items-center gap-14 pb-16 pt-24 sm:pt-28 lg:grid-cols-[1fr_1.05fr] lg:pb-20 lg:pt-32 xl:gap-16'>
+                <div ref={heroRef} className='workmate-hero__content'>
+                    <h1 className='reveal type-display workmate-hero__title mb-6 max-w-[760px] text-ink'>
+                        <span>AI Interviews.</span>{' '}
+                        <span className='text-accent-dark'>Better Decisions.</span>{' '}
+                        <span>Faster Hiring.</span>
                     </h1>
-                    <p className='reveal text-[18px] text-text-secondary leading-relaxed max-w-lg mb-9'>
-                        One intelligent platform for hiring, onboarding and connecting people with opportunity — from first interaction to first day.
+                    <p className='reveal type-lead workmate-hero__description mb-6 max-w-[640px] text-text-secondary'>
+                        WorkmateIQ helps organizations, colleges, and candidates conduct AI-powered interviews with full security, evaluate performance, and benchmark results to find the right people faster and and with greater transparency.
                     </p>
-                    <div className='reveal flex flex-wrap gap-3'>
-                        <CTAButton size='lg' onClick={jump('contact')}>Get Started</CTAButton>
-                        <Button size='lg' variant='secondary' onClick={jump('how-it-works')}>Explore WorkmateIQ</Button>
+                    <div className='reveal workmate-hero__benefits mb-8 flex flex-wrap gap-2.5' aria-label='WorkmateIQ platform benefits'>
+                        <span className='workmate-hero__benefit inline-flex items-center gap-2 rounded-full border border-accent/15 bg-accent/[0.04] px-3 py-2 type-body-small font-semibold text-ink transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/35 hover:bg-accent/[0.07]'>
+                            <HeroFeatureIcon type='secure' />
+                            Secure
+                        </span>
+                        <span className='workmate-hero__benefit inline-flex items-center gap-2 rounded-full border border-accent/15 bg-accent/[0.04] px-3 py-2 type-body-small font-semibold text-ink transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/35 hover:bg-accent/[0.07]'>
+                            <HeroFeatureIcon type='reliable' />
+                            Reliable
+                        </span>
+                        <span className='workmate-hero__benefit inline-flex items-center gap-2 rounded-full border border-accent/15 bg-accent/[0.04] px-3 py-2 type-body-small font-semibold text-ink transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/35 hover:bg-accent/[0.07]'>
+                            <HeroFeatureIcon type='smart' />
+                            Smart
+                        </span>
+                    </div>
+                    <div className='reveal workmate-hero__actions flex flex-wrap gap-3'>
+                        <CTAButton size='lg' className='workmate-hero__action lg:!px-10 lg:!py-[17px]' onClick={jump('contact')}>Send an Enquiry</CTAButton>
+                        <Button size='lg' variant='secondary' className='workmate-hero__action !duration-200 hover:!border-accent hover:!bg-accent/[0.08] hover:!text-accent hover:!shadow-[0_8px_20px_-12px_rgba(196,22,31,0.24)] hover:-translate-y-0.5 lg:!px-10 lg:!py-[17px]' onClick={() => navigate('/platform/register')}>Register</Button>
+                        <Button size='lg' variant='secondary' className='workmate-hero__action !border-accent/15 !bg-accent/[0.025] !duration-200 backdrop-blur-sm hover:!border-accent/30 hover:!bg-accent/[0.06] lg:!px-10 lg:!py-[17px]' onClick={jump('how-it-works')}>Explore WorkmateIQ</Button>
                     </div>
                 </div>
-
-                <div ref={wrapRef} className='relative' style={{ perspective: '1200px' }}>
+                <div ref={wrapRef} className='workmate-hero__visual relative' style={{ perspective: '1200px' }}>
                     <div className='hero-tilt relative' style={{ transformStyle: 'preserve-3d' }}>
-                        <div className='rounded-[28px] overflow-hidden border border-line shadow-[0_30px_80px_-24px_rgba(30,10,12,0.25)] bg-card'>
-                            <img src={handsConnect} alt='Organizations, colleges and candidates connected through WorkmateIQ' className='w-full h-auto' style={{ filter: 'contrast(1.12) saturate(1.18) brightness(1.02)' }} />
-                        </div>
+                        <InterviewPreview />
                     </div>
                 </div>
+            </div>
+        </section>
+    )
+}
+
+/* ============================================================ QUOTE STRIP ============================================================ */
+function QuoteStrip() {
+    const ref = useReveal('.quote-reveal', { blur: true, y: 14 })
+    return (
+        <section ref={ref} className='workmate-shell relative py-4 sm:py-6 lg:py-8'>
+            <div className='quote-reveal max-w-[820px] mx-auto rounded-2xl border border-accent/40 bg-accent/[0.03] px-7 py-6 sm:px-10 sm:py-8 text-center shadow-[0_0_35px_rgba(196,22,31,0.18),inset_0_0_15px_rgba(196,22,31,0.05)] transition-all duration-300 hover:scale-[1.015] hover:border-accent/80 hover:shadow-[0_0_55px_rgba(196,22,31,0.42),inset_0_0_20px_rgba(196,22,31,0.12)] group cursor-default'>
+                <blockquote className='type-h3 text-ink text-balance'>
+                    &ldquo;Success is where preparation and opportunity meet.&rdquo;
+                </blockquote>
+                <p className='type-body-small text-accent font-medium tracking-wide mt-3 transition-colors duration-300'>
+                    &mdash; Bobby Unser
+                </p>
             </div>
         </section>
     )
@@ -93,194 +187,478 @@ function Hero({ jump }) {
 /* ============================================================ ABOUT ============================================================ */
 function About() {
     const ref = useReveal('.about-reveal', { blur: true, y: 18, stagger: 0.1 })
-    const imgRef = useRef(null)
-    useEffect(() => {
-        if (REDUCE_MOTION || !imgRef.current) return
-        const ctx = gsap.context(() => {
-            gsap.fromTo(imgRef.current, { opacity: 0, scale: 0.9, y: 30 }, {
-                opacity: 1, scale: 1, y: 0, duration: 1, ease: 'power3.out',
-                scrollTrigger: { trigger: imgRef.current, start: 'top 82%', once: true },
-            })
-        }, imgRef)
-        return () => ctx.revert()
-    }, [])
-
-    return (
-        <section id='about' ref={ref} className='scroll-mt-20 max-w-[1280px] mx-auto px-6 lg:px-8 py-28'>
-            <div className='grid lg:grid-cols-[0.85fr_1.15fr] gap-16 items-center'>
-                <div className='about-reveal'>
-                    <p className={EYEBROW}>About Us</p>
-                    <h2 className={`${H2} mb-5`}>One hub for every side of hiring.</h2>
-                    <p className='text-text-secondary text-[16px] leading-relaxed mb-4'>
-                        We believe hiring should be intelligent, fair and fast. WorkmateIQ brings organizations, colleges and candidates into one platform to evaluate and move talent forward — clearly, and without the usual friction.
-                    </p>
-                    <p className='text-text-secondary text-[15px] leading-relaxed'>
-                        Every registration, onboarding link and review moves through the same connected hub — so nothing gets lost between the people trying to find each other.
-                    </p>
-                </div>
-                <div ref={imgRef} className='relative'>
-                    <div className='absolute inset-0 scale-90 opacity-30 blur-2xl' style={{ background: 'radial-gradient(closest-side, #c4161f, transparent)' }} />
-                    <img src={isometricAudience} alt='WorkmateIQ connecting organizations, colleges and candidates around one hub' className='relative w-full h-auto animate-float' style={{ animationDuration: '8s' }} />
-                </div>
-            </div>
-        </section>
-    )
-}
-
-function ValuesStrip() {
-    const ref = useReveal('.value-item', { stagger: 0.06, y: 14 })
-    const values = [
-        [Sparkles, 'Intelligence First', 'We build for clarity, not complexity — every feature earns its place.'],
-        [Scale, 'Fairness & Inclusion', 'Every organization, college and candidate is treated with the same rigor.'],
-        [Zap, 'Speed & Efficiency', 'A journey that used to take weeks should take days.'],
-        [Lock, 'Security & Trust', 'Professional information is handled with real, structured care.'],
+    const valuePoints = [
+        [Building2, 'Intelligent and efficient hiring for organizations'],
+        [GraduationCap, 'Better preparation and career connections for colleges'],
+        [UserRound, 'Skill improvement and personalized feedback for candidates'],
+        [Network, 'All workflows connected in one seamless platform'],
+        [ShieldCheck, 'Committed to fairness, transparency and a better hiring experience'],
     ]
+
     return (
-        <section ref={ref} className='bg-card border-y border-line py-16'>
-            <div className='max-w-[1280px] mx-auto px-6 lg:px-8 grid sm:grid-cols-2 lg:grid-cols-4 gap-6'>
-                {values.map(([Icon, t, d]) => (
-                    <div key={t} className='value-item p-5 rounded-2xl transition-all duration-300 hover:bg-bg hover:-translate-y-1'>
-                        <div className='w-9 h-9 rounded-xl bg-accent/10 text-accent flex items-center justify-center mb-3.5'>
-                            <Icon size={16} />
-                        </div>
-                        <h4 className='font-display text-ink text-[15px] font-bold mb-2'>{t}</h4>
-                        <p className='text-text-secondary text-[13.5px] leading-relaxed'>{d}</p>
-                    </div>
-                ))}
+        <section id='about' ref={ref} className='workmate-shell scroll-mt-20 pb-12 pt-8 sm:pb-16 lg:pb-20 lg:pt-10'>
+            <div className='about-reveal rounded-[28px] border border-accent/[0.08] bg-white/55 px-6 py-9 shadow-[0_24px_70px_-52px_rgba(125,39,49,0.35)] sm:px-10 sm:py-12 lg:px-14 lg:py-14'>
+                <p className={EYEBROW}>About Us</p>
+                <h2 className={`${H2} mb-6`}>One hub for every side of hiring.</h2>
+                <p className='type-body max-w-none text-ink'>
+                    WorkmateIQ brings organizations, colleges, and candidates into a single connected platform to streamline evaluation and accelerate professional journeys. By keeping registration, onboarding, feedback, and placement workflows in one secure hub, we eliminate friction and bring transparency to the hiring process for everyone involved.
+                </p>
+                <div className='mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5 lg:gap-7'>
+                    {valuePoints.map(([icon, text]) => <AboutPointer key={text} icon={icon}>{text}</AboutPointer>)}
+                </div>
             </div>
         </section>
     )
 }
 
-/* ============================================================ HOW IT WORKS ============================================================ */
+/* ============================================================ SOLUTION ============================================================ */
 function HowItWorks() {
-    const ref = useReveal('.hiw-reveal', { y: 20 })
-    const imgRef = useRef(null)
-    useEffect(() => {
-        if (REDUCE_MOTION || !imgRef.current) return
-        const ctx = gsap.context(() => {
-            gsap.fromTo(imgRef.current, { opacity: 0, y: 50, scale: 0.96 }, {
-                opacity: 1, y: 0, scale: 1, duration: 1.1, ease: 'power3.out',
-                scrollTrigger: { trigger: imgRef.current, start: 'top 85%', once: true },
-            })
-        }, imgRef)
-        return () => ctx.revert()
-    }, [])
-
-    const steps = ['Discover', 'Connect', 'Register', 'Onboard', 'Review', 'Move Forward']
-
-    return (
-        <section id='how-it-works' ref={ref} className='scroll-mt-20 max-w-[1280px] mx-auto px-6 lg:px-8 py-28'>
-            <div className='hiw-reveal text-center mb-14'>
-                <p className={`${EYEBROW} justify-center flex`}>The Platform Journey</p>
-                <h2 className={`${H2} max-w-2xl mx-auto`}>From first conversation to first opportunity.</h2>
-            </div>
-
-            <div ref={imgRef} className='relative'>
-                <div className='absolute inset-x-10 -bottom-6 top-10 rounded-[32px] opacity-40 blur-3xl' style={{ background: 'radial-gradient(closest-side, #f0938f, transparent)' }} />
-                <div className='relative rounded-[28px] overflow-hidden border border-line shadow-[0_30px_80px_-24px_rgba(30,10,12,0.2)]'>
-                    <img src={journeyPath} alt='The WorkmateIQ journey: discover, connect, register, onboard, review, move forward' className='w-full h-auto' />
-                </div>
-            </div>
-
-            <div className='hiw-reveal flex flex-wrap justify-center gap-2 mt-8'>
-                {steps.map((s, i) => (
-                    <span key={s} className='inline-flex items-center gap-2 text-[12.5px] text-text-secondary'>
-                        <span className='text-accent font-mono font-semibold'>{String(i + 1).padStart(2, '0')}</span> {s}
-                        {i < steps.length - 1 && <span className='text-line mx-1'>—</span>}
-                    </span>
-                ))}
-            </div>
-        </section>
-    )
+    return <JourneySection />
 }
 
 /* ============================================================ AI / ENTERPRISE ============================================================ */
+const enterpriseCapabilities = [
+    ['security', 'Enterprise Security', 'SOC 2-aligned practices, encrypted storage and controlled access at every layer.'],
+    ['speed', 'Fast by Design', 'Registrations, onboarding links and reviews move in minutes, not weeks.'],
+    ['analytics', 'Real-Time Analytics', 'Every organization, college and candidate sees live progress on their journey.'],
+]
+
 function EnterpriseAI() {
     const ref = useReveal('.ent-item', { stagger: 0.08, y: 18 })
-    const capabilities = [
-        [ShieldCheck, 'Enterprise Security', 'SOC 2-aligned practices, encrypted storage and controlled access at every layer.'],
-        [Zap, 'Fast by Design', 'Registrations, onboarding links and reviews move in minutes, not weeks.'],
-        [TrendingUp, 'Real-Time Analytics', 'Every organization, college and candidate sees live progress on their journey.'],
-    ]
+    const [activeCapability, setActiveCapability] = useState(0)
+    const [overallScore, setOverallScore] = useState(null)
+    const [isDesktop, setIsDesktop] = useState(() => (
+        typeof window !== 'undefined' && window.matchMedia?.('(min-width: 1024px)').matches
+    ))
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined
+
+        const query = window.matchMedia('(min-width: 1024px)')
+        const handleChange = (event) => setIsDesktop(event.matches)
+
+        if (query.addEventListener) query.addEventListener('change', handleChange)
+        else query.addListener(handleChange)
+
+        return () => {
+            if (query.removeEventListener) query.removeEventListener('change', handleChange)
+            else query.removeListener(handleChange)
+        }
+    }, [])
+
+    useEffect(() => {
+        if (REDUCE_MOTION) return
+        const timer = window.setInterval(() => {
+            setActiveCapability((current) => (current + 1) % enterpriseCapabilities.length)
+        }, 4200)
+        return () => window.clearInterval(timer)
+    }, [])
+
+    const [illustration, title, description] = enterpriseCapabilities[activeCapability]
+
     return (
-        <section className='bg-card border-y border-line py-28 overflow-hidden'>
-            <div ref={ref} className='max-w-[1280px] mx-auto px-6 lg:px-8'>
-                <div className='grid lg:grid-cols-2 gap-16 items-center mb-20'>
-                    <div className='ent-item'>
-                        <p className={EYEBROW}>Enterprise capabilities</p>
-                        <h2 className={`${H2} mb-5`}>Built for real screening speed.</h2>
-                        <p className='text-text-secondary text-[16px] leading-relaxed max-w-md'>
-                            Every score, note and decision is generated the moment an interview ends — organizations see clear, comparable insight instead of a pile of recordings to review later.
-                        </p>
-                    </div>
-                    <div className='ent-item'>
-                        <AIScorePanel />
-                    </div>
+        <section id='ai-evaluation' className='relative overflow-hidden border-y border-line bg-card py-6 md:py-8 lg:py-8'>
+            {isDesktop && overallScore !== null && <FiberBurstCanvas overallScore={overallScore} />}
+            <div ref={ref} className='relative z-10 mx-auto w-full max-w-[1440px] px-6 sm:px-8 lg:px-10'>
+                <div className='ent-item mx-auto w-full'>
+                    <AIScorePanel onOverallScoreChange={setOverallScore} />
                 </div>
-                <div className='grid sm:grid-cols-3 gap-6'>
-                    {capabilities.map(([Icon, t, d]) => (
-                        <div key={t} className='ent-item bg-bg border border-line rounded-2xl p-7 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-lift hover:border-accent/25'>
-                            <div className='w-10 h-10 rounded-xl bg-accent/10 text-accent flex items-center justify-center mb-4 animate-breathe'>
-                                <Icon size={17} />
-                            </div>
-                            <h3 className='font-display text-[16.5px] font-bold text-ink mb-2'>{t}</h3>
-                            <p className='text-text-secondary text-[14px] leading-relaxed'>{d}</p>
-                        </div>
-                    ))}
+                <div className='mx-auto mt-4 max-w-[720px] md:mt-5 lg:mt-5'>
+                    <div className='relative min-h-[150px] md:min-h-[180px] lg:min-h-[170px]'>
+                        <AnimatePresence mode='sync' initial={false}>
+                            <Motion.article
+                                key={title}
+                                initial={{ opacity: 0, y: 22, scale: 0.98 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                whileHover={!REDUCE_MOTION ? { y: -8, scale: 1.015 } : undefined}
+                                exit={{ opacity: 0, y: -18, scale: 0.98 }}
+                                transition={{ duration: REDUCE_MOTION ? 0 : 0.28, ease: [0.16, 1, 0.3, 1] }}
+                                className='capability-card group absolute inset-x-0 top-0 isolate mx-auto grid min-h-[150px] w-full max-w-[520px] grid-cols-[64px_minmax(0,1fr)] grid-rows-[auto_auto] items-center gap-x-3 overflow-hidden rounded-2xl border border-line bg-bg p-4 shadow-[0_24px_70px_-35px_rgba(125,39,49,0.38)] transition-[border-color,background-color,box-shadow] duration-300 ease-out hover:border-accent/35 hover:bg-white hover:shadow-[0_34px_78px_-28px_rgba(125,39,49,0.46),0_10px_28px_-18px_rgba(196,22,31,0.24)] md:flex md:min-h-[144px] md:max-w-[480px] md:flex-col md:gap-0 md:p-5 lg:min-h-[160px] lg:max-w-[520px] lg:p-6'
+                                aria-live='polite'
+                            >
+                                <span className='pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-accent/[0.1] opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-100' aria-hidden='true' />
+                                <span className='pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-accent/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100' aria-hidden='true' />
+                                <MarketingIllustration type={illustration} className='relative z-10 row-span-2 mb-0 h-12 w-16 justify-self-center animate-breathe transition-transform duration-300 ease-out group-hover:-translate-y-1.5 group-hover:scale-110 md:mb-3 md:h-12 md:w-20 lg:mb-4 lg:h-16 lg:w-24' />
+                                <h3 className='relative z-10 col-start-2 row-start-1 type-card-title text-ink transition-colors duration-300 group-hover:text-accent'>{title}</h3>
+                                <p className='relative z-10 col-start-2 row-start-2 mt-1 max-w-[580px] type-body-small text-text-secondary transition-colors duration-300 group-hover:text-ink/75 md:mt-2'>{description}</p>
+                            </Motion.article>
+                        </AnimatePresence>
+                    </div>
+                    <div className='mt-2 flex justify-center gap-2 lg:mt-4' aria-label='Enterprise capability rotation'>
+                        {enterpriseCapabilities.map(([, capabilityTitle], index) => (
+                            <span key={capabilityTitle} className={`h-1.5 rounded-full transition-all duration-500 ${index === activeCapability ? 'w-9 bg-accent' : 'w-1.5 bg-accent/20'}`} aria-hidden='true' />
+                        ))}
+                    </div>
                 </div>
             </div>
         </section>
     )
 }
 
-/* ============================================================ SOLUTIONS ============================================================ */
-function SolutionPanel({ p, i, jump }) {
+/* ============================================================
+   SOLUTIONS
+============================================================ */
+
+function CategoryBadgeIcon({ type }) {
+    if (type === 'college') {
+        return (
+            <svg className='h-14 w-14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.7' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
+                <path d='m3 8.5 9-4 9 4-9 4-9-4Z' />
+                <path d='M6.5 10.3v4.2c3.6 2.7 7.4 2.7 11 0v-4.2' />
+                <path d='M21 9v5.2' />
+                <path d='M19.5 18.5c.8-1 1.2-2.1 1.2-3.3' />
+            </svg>
+        )
+    }
+
+    return (
+        <svg className='h-14 w-14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.7' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
+            <circle cx='12' cy='7.5' r='3.2' />
+            <path d='M5.2 20c.5-3.8 2.8-6 6.8-6s6.3 2.2 6.8 6' />
+            <path d='M18.2 4.8a3.2 3.2 0 0 1 0 5.4' />
+        </svg>
+    )
+}
+function SolutionPanel({ p, i }) {
+    const panelRef = useRef(null)
     const cardRef = useRef(null)
+
     useEffect(() => {
-        if (REDUCE_MOTION || !cardRef.current) return
-        const el = cardRef.current
-        const onMove = (e) => {
-            const r = el.getBoundingClientRect()
-            const px = (e.clientX - r.left) / r.width - 0.5
-            const py = (e.clientY - r.top) / r.height - 0.5
-            gsap.to(el.querySelector('.tilt-img'), { rotateY: px * 8, rotateX: -py * 8, duration: 0.5, ease: 'power2.out' })
+        if (REDUCE_MOTION || !panelRef.current || !cardRef.current) {
+            return undefined
         }
-        const onLeave = () => gsap.to(el.querySelector('.tilt-img'), { rotateY: 0, rotateX: 0, duration: 0.6, ease: 'power2.out' })
-        el.addEventListener('mousemove', onMove)
-        el.addEventListener('mouseleave', onLeave)
-        return () => { el.removeEventListener('mousemove', onMove); el.removeEventListener('mouseleave', onLeave) }
+
+        const context = gsap.context(() => {
+            const introItems =
+                cardRef.current.querySelectorAll('.solution-intro > *')
+
+            const pointerItems =
+                cardRef.current.querySelectorAll('.solution-pointer')
+
+            const visual =
+                cardRef.current.querySelector('.solution-audience-visual')
+
+            gsap.set(
+                [...introItems, ...pointerItems, visual],
+                {
+                    opacity: 0,
+                    y: 18,
+                }
+            )
+
+            ScrollTrigger.create({
+                trigger: panelRef.current,
+                start: 'top 78%',
+                once: true,
+                onEnter: () => {
+                    gsap.to(introItems, {
+                        opacity: 1,
+                        y: 0,
+                        duration: 0.65,
+                        stagger: 0.07,
+                        ease: 'power3.out',
+                    })
+
+                    gsap.to(pointerItems, {
+                        opacity: 1,
+                        y: 0,
+                        duration: 0.55,
+                        delay: 0.16,
+                        stagger: 0.08,
+                        ease: 'power3.out',
+                    })
+
+                    gsap.to(visual, {
+                        opacity: 1,
+                        y: 0,
+                        duration: 0.7,
+                        delay: 0.1,
+                        ease: 'power3.out',
+                    })
+                },
+            })
+
+            gsap.to(cardRef.current, {
+                scale: 0.975,
+                y: -8,
+                ease: 'none',
+                scrollTrigger: {
+                    trigger: panelRef.current,
+                    start: 'top 12%',
+                    end: 'top -12%',
+                    scrub: 0.8,
+                },
+            })
+        }, panelRef)
+
+        return () => context.revert()
     }, [])
 
     return (
-        <div key={p.id} id={p.id} className='panel scroll-mt-20'>
-            <div className={`grid lg:grid-cols-2 gap-12 items-center mb-8 ${i % 2 === 1 ? 'lg:[&>*:first-child]:order-2' : ''}`}>
-                <div ref={cardRef} className='relative' style={{ perspective: '1000px' }}>
-                    <div className='tilt-img rounded-2xl overflow-hidden border border-line shadow-soft' style={{ transformStyle: 'preserve-3d' }}>
-                        <img src={p.img} alt={p.label} className='w-full h-auto' />
-                    </div>
-                </div>
-                <div>
-                    <div className='w-11 h-11 rounded-2xl bg-accent/10 text-accent flex items-center justify-center mb-5'>
-                        <p.icon size={19} />
-                    </div>
-                    <h3 className='font-display text-[25px] font-bold text-ink mb-4'>{p.label}</h3>
-                    <p className='text-text-secondary text-[16px] leading-relaxed max-w-md mb-7'>{p.copy}</p>
-                    <CTAButton variant='secondary' onClick={jump('contact')}>{p.label}</CTAButton>
-                </div>
-            </div>
-            <div className='grid sm:grid-cols-3 gap-6 border-t border-line pt-8'>
-                {p.features.map(([Icon, t, d]) => (
-                    <div key={t}>
-                        <div className='w-8 h-8 rounded-xl bg-accent/10 text-accent flex items-center justify-center mb-3 transition-transform duration-300 hover:scale-110'>
-                            <Icon size={14} />
+<article
+            ref={panelRef}
+            id={p.id}
+            style={{ zIndex: i + 1 }}
+            className="panel relative scroll-mt-20 pt-4 md:sticky md:top-24 lg:top-28 min-h-0 md:min-h-[86vh] lg:min-h-[90vh]"
+        >
+            <div
+                ref={cardRef}
+                className={`
+                    solution-card
+                    relative
+                    overflow-hidden
+                    rounded-[28px]
+                    border
+                    border-line/80
+                    p-6
+                    shadow-[0_24px_70px_-42px_rgba(125,39,49,0.48)]
+                    sm:p-8
+                    lg:p-10
+                    xl:p-12
+                    ${p.surface}
+                `}
+            >
+                <div className='pointer-events-none absolute bottom-[-120px] left-[32%] h-[220px] w-[220px] rounded-full bg-accent/[0.035] blur-3xl' aria-hidden='true' />
+                <div className='relative z-10 grid gap-0 md:grid-cols-[minmax(0,1fr)_minmax(210px,240px)] md:items-center md:gap-6 lg:grid-cols-[0.92fr_1.08fr] lg:items-stretch lg:gap-12 xl:gap-16'>
+                    <div className='solution-intro min-w-0 flex flex-col'>
+                        <div className='flex items-start justify-end'>
+                            <span className='rounded-full border border-accent/15 bg-white/55 px-3 py-1.5 type-caption font-semibold tracking-[0.16em] text-accent'>0{i + 1} / AUDIENCE</span>
                         </div>
-                        <h4 className='font-display text-[14.5px] font-bold text-ink mb-1'>{t}</h4>
-                        <p className='text-text-secondary text-[13.5px] leading-relaxed'>{d}</p>
+
+                        {/* Eyebrow */}
+                        <p
+                            className="
+                                mt-5
+                                text-[12px]
+                                font-semibold
+                                uppercase
+                                tracking-[0.12em]
+                                text-accent/75
+
+                                sm:mt-6
+                            "
+                        >
+                            {p.eyebrow}
+                        </p>
+
+                        {/* Heading */}
+                        <h3
+                            className="
+                                mt-2
+                                max-w-[620px]
+                                text-[28px]
+                                font-semibold
+                                leading-[1.12]
+                                tracking-[-0.025em]
+                                text-ink
+
+                                sm:text-[32px]
+
+                                lg:text-[34px]
+
+                                xl:text-[38px]
+                            "
+                        >
+                            {p.label}
+                        </h3>
+
+                        {/* Statement */}
+                        <p
+                            className="
+                                mt-3
+                                max-w-[620px]
+                                text-[15px]
+                                font-semibold
+                                leading-[1.45]
+                                text-ink
+
+                                sm:text-base
+
+                                lg:text-[17px]
+                            "
+                        >
+                            {p.statement}
+                        </p>
+
+                        {/* Feature list */}
+                        <ul
+                            className="
+                                mt-5
+                                grid
+                                max-w-[700px]
+                                gap-3
+
+                                sm:mt-6
+                                sm:gap-3.5
+                            "
+                        >
+                            {p.features.map((feature) => (
+                                <li
+                                    key={feature}
+                                    className="
+                                        solution-pointer
+                                        flex
+                                        min-w-0
+                                        items-start
+                                        gap-2.5
+                                        text-[14px]
+                                        leading-[1.45]
+                                        text-text-secondary
+
+                                        sm:gap-3
+                                        sm:text-[15px]
+
+                                        lg:text-[16px]
+                                    "
+                                >
+                                    <span
+                                        className="
+                                            mt-[2px]
+                                            flex
+                                            h-[20px]
+                                            w-[20px]
+                                            shrink-0
+                                            items-center
+                                            justify-center
+                                            rounded-full
+                                            bg-accent/[0.09]
+                                            text-accent
+                                        "
+                                    >
+                                        <Check
+                                            size={12}
+                                            strokeWidth={2.5}
+                                            aria-hidden="true"
+                                        />
+                                    </span>
+
+                                    <span className="min-w-0">
+                                        {feature}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
                     </div>
-                ))}
+
+                    {/* =====================================================
+                        RIGHT VISUAL
+                    ====================================================== */}
+
+                    <div
+                        className="
+                            solution-audience-visual
+                            relative
+                            hidden
+                            min-w-0
+                            items-center
+                            justify-center
+                            overflow-hidden
+                            rounded-[22px]
+                            bg-[#fff8f8]
+
+                            md:flex
+                            md:min-h-[300px]
+                            md:self-stretch
+                            md:p-4
+
+                            lg:min-h-[360px]
+                            lg:p-5
+
+                            xl:min-h-[400px]
+                            xl:p-6
+                        "
+                    >
+                        {/* Candidate decoration */}
+                        {p.category === 'candidate' && (
+                            <div
+                                className="
+                                    solution-visual-decorations
+                                    pointer-events-none
+                                    absolute
+                                    inset-0
+                                    z-[11]
+                                    hidden
+                                    lg:block
+                                "
+                                aria-hidden="true"
+                            >
+                                <span
+                                    className="
+                                        absolute
+                                        right-[6%]
+                                        top-[6%]
+                                        flex
+                                        h-16
+                                        w-16
+                                        items-center
+                                        justify-center
+                                        rounded-full
+                                        bg-[#8b0e16]
+                                        text-[#fff8f8]
+                                        shadow-[0_8px_18px_-12px_rgba(30,8,12,0.65)]
+
+                                        xl:h-20
+                                        xl:w-20
+                                    "
+                                >
+                                    <CategoryBadgeIcon type={p.category} />
+                                </span>
+                            </div>
+                        )}
+
+                        {/* Illustration */}
+                        <img
+                            src={p.image}
+                            alt={p.imageAlt}
+                            className={`
+                                relative
+                                z-10
+                                block
+                                h-auto
+                                w-auto
+                                max-w-full
+                                object-contain
+
+                                max-h-[270px]
+                                md:max-h-[300px]
+                                lg:max-h-[350px]
+                                xl:max-h-[390px]
+
+                                ${p.category === 'college'
+                                    ? 'mix-blend-multiply'
+                                    : ''
+                                }
+                            `}
+                        />
+                    </div>
+                </div>
             </div>
-        </div>
+        </article>
+    )
+}
+
+function AudienceCards({ panels }) {
+    return (
+        <section
+            id="who-it-works-for"
+            className="
+                workmate-shell
+                scroll-mt-20
+                space-y-0
+                pb-8
+
+                lg:pb-12
+            "
+            aria-label="Who it works for"
+        >
+            {panels.map((panel, index) => (
+                <SolutionPanel
+                    key={panel.id}
+                    p={panel}
+                    i={index}
+                />
+            ))}
+        </section>
     )
 }
 
@@ -290,14 +668,14 @@ function FaqItem({ q, a }) {
     return (
         <div className='faq-item border-b border-line'>
             <button onClick={() => setOpen(!open)} className='w-full flex items-center justify-between text-left py-5 px-3 -mx-3 rounded-xl transition-colors hover:bg-card cursor-pointer group'>
-                <span className='text-[15.5px] font-medium text-ink group-hover:text-accent transition-colors'>{q}</span>
+                <span className='type-component-title text-ink group-hover:text-accent transition-colors'>{q}</span>
                 <span className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 ${open ? 'bg-accent text-white rotate-180' : 'bg-accent/10 text-accent'}`}>
                     <ChevronDown size={14} />
                 </span>
             </button>
             <div className='grid transition-[grid-template-rows] duration-300 ease-out' style={{ gridTemplateRows: open ? '1fr' : '0fr' }}>
                 <div className='overflow-hidden'>
-                    <p className='text-text-secondary text-[14.5px] leading-relaxed pb-5 px-3 -mx-3 max-w-2xl'>{a}</p>
+                    <p className='type-body text-text-secondary pb-5 px-3 -mx-3 max-w-2xl'>{a}</p>
                 </div>
             </div>
         </div>
@@ -311,7 +689,7 @@ function EnquiryForm() {
     const [status, setStatus] = useState('idle')
     const [error, setError] = useState('')
     const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
-    const inputCls = 'w-full bg-bg border border-line rounded-xl px-4 py-3.5 text-[15px] text-ink placeholder-text-secondary/60 focus:ring-2 focus:ring-accent/25 focus:border-accent outline-none transition-all'
+    const inputCls = 'type-body w-full bg-bg border border-line rounded-xl px-4 py-3.5 text-ink placeholder-text-secondary/60 focus:ring-2 focus:ring-accent/25 focus:border-accent outline-none transition-all'
 
     const submit = async (e) => {
         e.preventDefault()
@@ -337,8 +715,8 @@ function EnquiryForm() {
         <div ref={ref} className='max-w-[640px] mx-auto'>
             {status === 'done' ? (
                 <div className='form-el bg-bg border border-line rounded-2xl p-8 text-center'>
-                    <p className='text-ink text-[19px] font-semibold mb-2'>Thank you, {form.name}.</p>
-                    <p className='text-text-secondary text-[14.5px]'>Your enquiry has been received. Our team will contact you shortly.</p>
+                    <p className='type-card-title text-ink mb-2'>Thank you, {form.name}.</p>
+                    <p className='type-body-small text-text-secondary'>Your enquiry has been received. Our team will contact you shortly.</p>
                 </div>
             ) : (
                 <form onSubmit={submit} className='form-el space-y-4'>
@@ -356,7 +734,7 @@ function EnquiryForm() {
                     </div>
                     <input placeholder='Subject' value={form.subject} onChange={set('subject')} className={inputCls} />
                     <textarea required rows={4} placeholder='Message' value={form.message} onChange={set('message')} className={`${inputCls} resize-none`} />
-                    {status === 'error' && <p className='text-[13px] text-red-500'>{error}</p>}
+                    {status === 'error' && <p className='type-body-small text-red-500'>{error}</p>}
                     <Button type='submit' size='lg' disabled={status === 'sending'} className='w-full'>
                         {status === 'sending' ? 'Submitting...' : 'Submit Enquiry'}
                     </Button>
@@ -368,28 +746,54 @@ function EnquiryForm() {
 
 /* ============================================================ PAGE ============================================================ */
 function WHome() {
-    const panelRef = useReveal('.panel')
+    const navigate = useNavigate()
+    const [showThreadsHero] = useState(() => (
+        typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('hero') === 'threads'
+    ))
     const planRef = useReveal('.plan')
+    const pricingTrackRef = useRef(null)
+    const pricingScrollFrameRef = useRef(null)
+    const [isMobilePricing, setIsMobilePricing] = useState(() => (
+        typeof window !== 'undefined' && window.matchMedia?.('(max-width: 767px)').matches
+    ))
+    const [activePricingIndex, setActivePricingIndex] = useState(0)
     const faqRef = useReveal('.faq-item', { y: 12 })
-    const ctaImgRef = useParallax('.cta-parallax', { distance: 50 })
 
     const jump = (id) => (e) => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }) }
 
     const panels = [
         {
-            id: 'organizations', icon: Building2, label: 'For Organizations', img: journeyDesk,
-            copy: 'Build stronger talent pipelines, simplify onboarding and create a clearer path from candidate to contributor.',
-            features: [[Zap, 'Streamline Hiring', 'End-to-end hiring workflow that saves time.'], [ShieldCheck, 'Smart Onboarding', 'Personalized onboarding that boosts engagement.'], [LineChart, 'Stronger Teams', 'Data-driven insights for better team decisions.']],
+            id: 'colleges', eyebrow: 'For education', surface: 'bg-[#fff8f8]', label: 'For Colleges & Institutions',
+            statement: 'Prepare students for real interview success.', image: institutionImage, imageAlt: 'Institution recruitment and candidate screening illustration', category: 'college',
+            features: [
+                'Identify interview-ready students through structured AI scores and reports',
+                'Give students timed, role-specific practice in a realistic interview environment',
+                'Assess answer quality, communication, confidence, and correctness consistently',
+                'Use personalized feedback to surface strengths and clear improvement areas',
+                'Support placement preparation with more consistent readiness signals',
+            ],
         },
         {
-            id: 'colleges', icon: GraduationCap, label: 'For Colleges & Institutions', img: collegeNetwork,
-            copy: 'Connect students with organizations and create structured pathways from education to opportunity.',
-            features: [[FileText, 'Student Opportunities', 'Connect students to verified organizations and roles.'], [Users, 'Institutional Tools', 'Manage placements, drives and communications.'], [Star, 'Better Outcomes', 'Improve placement rates and student success.']],
+            id: 'candidates', eyebrow: 'For people building what is next', surface: 'bg-[#fffafa]', label: 'For Candidates',
+            statement: 'Practice with purpose. Improve with clarity.', image: audienceCandidatesImage, imageAlt: 'Candidate in a maroon hoodie reviewing business analytics beside a profile card', category: 'candidate',
+            features: [
+                'Practice role- and experience-specific AI interviews using resume-informed questions',
+                'Prepare for HR and technical interview modes with realistic time limits',
+                'Receive personalized feedback on confidence, communication, and correctness',
+                'Review detailed scores, answer feedback, and past interview reports',
+                'Focus on strengths and gaps before the real interview',
+            ],
         },
         {
-            id: 'candidates', icon: User, label: 'For Candidates', img: candidateInterview,
-            copy: 'Present your potential, experience and aspirations in one professional journey.',
-            features: [[FileText, 'Build Your Profile', 'Highlight skills, experience and achievements.'], [Zap, 'Discover Opportunities', 'Find relevant roles at verified organizations.'], [Star, 'Grow Your Career', 'Track progress and unlock new possibilities.']],
+            id: 'organizations', eyebrow: 'For teams that move talent forward', surface: 'bg-[#fbf7f7]', label: 'For Organizations',
+            statement: 'Evaluate the right talent, faster.', image: organizationRecruitmentImage, imageAlt: 'Professional reviewing candidate resumes on a laptop', category: 'organization',
+            features: [
+                'Build role-specific interview templates with structured rounds and question sources',
+                'Invite candidates and track progress from sent to completed',
+                'Run consistent AI interviews with timed questions and security checks',
+                'Review detailed scores, feedback, reports, and organization-level trends',
+                'Benchmark and shortlist candidates against the role’s evaluation criteria',
+            ],
         },
     ]
 
@@ -399,6 +803,89 @@ function WHome() {
         { name: 'Enterprise', price: 'Custom', period: '', desc: 'For organizations requiring a tailored deployment.', features: ['Dedicated onboarding', 'Custom integrations', 'SLA-backed support'] },
     ]
 
+    const displayedPlans = isMobilePricing ? [plans[1], plans[0], plans[2]] : plans
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined
+
+        const query = window.matchMedia('(max-width: 767px)')
+        const handleChange = (event) => {
+            setIsMobilePricing(event.matches)
+            if (event.matches) {
+                setActivePricingIndex(0)
+                window.requestAnimationFrame(() => {
+                    if (pricingTrackRef.current) pricingTrackRef.current.scrollLeft = 0
+                })
+            }
+        }
+
+        if (query.addEventListener) query.addEventListener('change', handleChange)
+        else query.addListener(handleChange)
+
+        return () => {
+            if (query.removeEventListener) query.removeEventListener('change', handleChange)
+            else query.removeListener(handleChange)
+        }
+    }, [])
+
+    useEffect(() => {
+        const track = pricingTrackRef.current
+        if (!track || !isMobilePricing) return undefined
+
+        const updateActivePlan = () => {
+            pricingScrollFrameRef.current = null
+            const cards = [...track.querySelectorAll('[data-pricing-plan]')]
+            if (!cards.length) return
+
+            const trackBounds = track.getBoundingClientRect()
+            const trackCenter = trackBounds.left + trackBounds.width / 2
+            let nearestIndex = 0
+            let nearestDistance = Number.POSITIVE_INFINITY
+
+            cards.forEach((card, index) => {
+                const bounds = card.getBoundingClientRect()
+                const distance = Math.abs(bounds.left + bounds.width / 2 - trackCenter)
+                if (distance < nearestDistance) {
+                    nearestDistance = distance
+                    nearestIndex = index
+                }
+            })
+
+            setActivePricingIndex((current) => current === nearestIndex ? current : nearestIndex)
+        }
+
+        const handleScroll = () => {
+            if (pricingScrollFrameRef.current === null) {
+                pricingScrollFrameRef.current = window.requestAnimationFrame(updateActivePlan)
+            }
+        }
+
+        track.addEventListener('scroll', handleScroll, { passive: true })
+        updateActivePlan()
+
+        return () => {
+            track.removeEventListener('scroll', handleScroll)
+            if (pricingScrollFrameRef.current !== null) {
+                window.cancelAnimationFrame(pricingScrollFrameRef.current)
+                pricingScrollFrameRef.current = null
+            }
+        }
+    }, [isMobilePricing])
+
+    const scrollToPricingPlan = (index) => {
+        const track = pricingTrackRef.current
+        const card = track?.querySelectorAll('[data-pricing-plan]')?.[index]
+        if (!track || !card) return
+
+        const targetLeft = Math.max(0, card.offsetLeft - (track.clientWidth - card.offsetWidth) / 2)
+        if (typeof track.scrollTo === 'function') {
+            track.scrollTo({ left: targetLeft, behavior: REDUCE_MOTION ? 'auto' : 'smooth' })
+        } else {
+            track.scrollLeft = targetLeft
+        }
+        setActivePricingIndex(index)
+    }
+
     const faqs = [
         ['Can I upgrade or downgrade my plan at any time?', 'Yes — changes take effect from your next billing cycle, and we\'ll prorate the difference.'],
         ['Do you offer special pricing for academic institutions?', 'Yes — mention your institution in the enquiry form below for tailored pricing.'],
@@ -407,71 +894,71 @@ function WHome() {
 
     return (
         <WorkmateLayout>
-            <Hero jump={jump} />
+            <Hero jump={jump} experimental={showThreadsHero} />
+            <QuoteStrip />
             <About />
-            <ValuesStrip />
+            <VerticalScrollShowcase />
+            <AudienceCards panels={panels} jump={jump} />
             <HowItWorks />
+            <PowerfulFeatures />
             <EnterpriseAI />
 
-            {/* ============ SOLUTIONS ============ */}
-            <section id='solutions' className='scroll-mt-20 max-w-[1280px] mx-auto px-6 lg:px-8 pt-28 pb-10'>
-                <p className={`${EYEBROW} justify-center flex`}>Solutions</p>
-                <h2 className={`${H2} max-w-2xl mx-auto text-center`}>Built around the people who move work forward.</h2>
-            </section>
-
-            <div ref={panelRef} className='max-w-[1280px] mx-auto px-6 lg:px-8 pb-28 space-y-28'>
-                {panels.map((p, i) => <SolutionPanel key={p.id} p={p} i={i} jump={jump} />)}
-            </div>
-
-            {/* ============ VISUAL STORY ============ */}
-            <section ref={ctaImgRef} className='parallax-wrap relative py-32 overflow-hidden'>
-                <img src={journeyArch} alt='' className='cta-parallax absolute inset-0 w-full h-[130%] -top-[15%] object-cover will-change-transform' />
-                <div className='absolute inset-0 bg-white/72' />
-                <div className='relative max-w-[900px] mx-auto px-6 text-center'>
-                    <h2 className='font-display text-[28px] sm:text-[42px] font-bold text-ink mb-4 leading-[1.15]'>Potential is everywhere. The right connection changes everything.</h2>
-                    <p className='text-text-secondary text-[16px] mb-8'>Join the organizations, colleges and candidates already building better journeys with WorkmateIQ.</p>
-                    <CTAButton size='lg' onClick={jump('contact')}>Get Started</CTAButton>
-                </div>
-            </section>
-
             {/* ============ PRICING ============ */}
-            <section id='pricing' className='scroll-mt-20 max-w-[1280px] mx-auto px-6 lg:px-8 py-28'>
+            <section ref={planRef} id='pricing' className='workmate-shell scroll-mt-20 pb-12 pt-16 sm:pb-14 sm:pt-20 lg:pb-16 lg:pt-24'>
                 <p className={`${EYEBROW} justify-center flex`}>Pricing</p>
                 <h2 className={`${H2} mb-4 text-center`}>Simple, transparent pricing.</h2>
-                <p className='text-text-secondary text-[16px] mb-16 text-center'>Choose the plan that fits how you hire, place or apply.</p>
+                <p className='type-body text-text-secondary mb-16 text-center'>Choose the plan that fits how you hire, place or apply.</p>
 
-                <div ref={planRef} className='grid md:grid-cols-3 gap-6 mb-20'>
-                    {plans.map((p) => (
-                        <div key={p.name} className={`plan rounded-2xl p-8 border transition-transform duration-300 hover:-translate-y-1.5 ${p.featured ? 'gradient-border-sweep border-transparent bg-accent/[0.03]' : 'border-line bg-card'}`}>
-                            {p.featured && <p className='text-[11px] text-accent font-semibold uppercase tracking-wide mb-3'>Most popular</p>}
-                            <h3 className='font-display text-ink text-[19px] font-bold mb-1'>{p.name}</h3>
-                            <p className='text-text-secondary text-[13.5px] mb-5'>{p.desc}</p>
-                            <p className='font-display text-ink text-[34px] font-bold mb-6'>{p.price}<span className='text-[15px] text-text-secondary font-normal'>{p.period}</span></p>
-                            <ul className='space-y-2.5 mb-8'>
-                                {p.features.map((f) => <li key={f} className='text-text-secondary text-[13.5px] flex items-start gap-2'><span className='text-accent mt-0.5'>—</span>{f}</li>)}
+                <div ref={pricingTrackRef} tabIndex='0' aria-label='Pricing plans' className='pricing-track -mx-6 mb-3 flex snap-x snap-mandatory items-start gap-4 overflow-x-auto overscroll-x-contain px-6 pb-2 [scroll-padding-inline:1.5rem] md:mx-0 md:mb-14 md:grid md:grid-cols-3 md:items-stretch md:gap-4 md:overflow-visible md:overscroll-auto md:px-0 md:pb-0 md:snap-none'>
+                    {displayedPlans.map((p) => (
+                        <div key={p.name} data-pricing-plan={p.name} className={`plan pricing-card flex h-auto min-w-0 w-[86vw] max-w-[360px] shrink-0 snap-center flex-col rounded-2xl border px-6 py-7 md:h-full md:w-auto md:max-w-none md:p-5 lg:p-8 ${p.featured ? 'pricing-card-growth gradient-border-sweep border-transparent bg-accent/[0.03]' : 'border-line bg-card'}`}>
+                            {p.featured && <p className='type-eyebrow text-accent mb-3'>Most popular</p>}
+                            <h3 className='type-card-title text-ink mb-1'>{p.name}</h3>
+                            <p className='type-body-small text-text-secondary mb-4 lg:mb-5'>{p.desc}</p>
+                            <div className='mb-5 inline-flex items-baseline gap-1 whitespace-nowrap lg:mb-6'>
+                                <span className='type-metric text-ink'>{p.price}</span>
+                                {p.period && <span className='type-body-small text-text-secondary'>{p.period}</span>}
+                            </div>
+                            <ul className='mb-7 space-y-3 lg:mb-8 lg:space-y-2.5'>
+                                {p.features.map((f) => <li key={f} className='type-body-small text-text-secondary flex min-w-0 items-start gap-2'><span aria-hidden='true' className='mt-0.5 shrink-0 text-accent'>—</span><span className='min-w-0'>{f}</span></li>)}
                             </ul>
-                            <Button variant={p.featured ? 'primary' : 'secondary'} className='w-full' onClick={jump('contact')}>
+                            <Button variant={p.featured ? 'primary' : 'secondary'} className='pricing-card-cta w-full whitespace-nowrap md:mt-auto' onClick={() => navigate('/platform/register')}>
                                 {p.name === 'Enterprise' ? 'Talk to us' : 'Get Started'}
                             </Button>
                         </div>
                     ))}
                 </div>
 
+                <div className='pricing-pagination mb-14 flex justify-center gap-1.5 md:hidden' aria-label='Pricing plan navigation'>
+                    {displayedPlans.map((p, index) => (
+                        <button
+                            key={p.name}
+                            type='button'
+                            aria-label={`Show ${p.name} plan`}
+                            aria-current={activePricingIndex === index ? 'true' : undefined}
+                            onClick={() => scrollToPricingPlan(index)}
+                            className='flex h-8 w-8 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2'
+                        >
+                            <span className={`h-1.5 rounded-full transition-all duration-200 ${activePricingIndex === index ? 'w-6 bg-accent' : 'w-1.5 bg-accent/25'}`} aria-hidden='true' />
+                        </button>
+                    ))}
+                </div>
+
                 <div ref={faqRef} className='max-w-[720px] mx-auto'>
-                    <h3 className='font-display text-[20px] font-bold text-ink mb-6'>Frequently asked questions</h3>
+                    <h3 className='type-card-title text-ink mb-6'>Frequently asked questions</h3>
                     {faqs.map(([q, a]) => <FaqItem key={q} q={q} a={a} />)}
                 </div>
             </section>
 
             {/* ============ CONTACT ============ */}
-            <section id='contact' className='scroll-mt-20 relative pt-28 pb-28 overflow-hidden'>
+            <section id='contact' aria-labelledby='contact-heading' tabIndex={-1} className='relative scroll-mt-20 overflow-hidden pt-10 pb-12 outline-none md:pt-20 md:pb-24'>
                 <div className='absolute -top-32 left-1/2 -translate-x-1/2 w-[700px] h-[460px] rounded-full opacity-[0.10] blur-3xl pointer-events-none'
                     style={{ background: 'radial-gradient(closest-side, #c4161f, transparent)' }} />
                 <NetworkGraphic className='absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[420px] opacity-60 pointer-events-none' />
-                <div className='relative max-w-[900px] mx-auto px-6 text-center mb-14'>
+                <div className='relative max-w-[900px] mx-auto px-6 text-center mb-10'>
                     <p className={`${EYEBROW} justify-center flex`}>Contact</p>
-                    <h2 className={`${H2} mb-5`}>Let's build better talent journeys.</h2>
-                    <p className='text-text-secondary text-[16px]'>Start your WorkmateIQ journey today — tell us a bit about you below.</p>
+                    <h2 id='contact-heading' className={`${H2} mb-5`}>Let's build better talent journeys.</h2>
+                    <p className='type-body text-text-secondary'>Start your WorkmateIQ journey today — tell us a bit about you below.</p>
                 </div>
                 <div className='relative px-6'>
                     <div className='max-w-[640px] mx-auto bg-card border border-line rounded-3xl p-8 sm:p-10 shadow-lift'>
@@ -479,6 +966,8 @@ function WHome() {
                     </div>
                 </div>
             </section>
+
+            <NexaChatbot />
         </WorkmateLayout>
     )
 }

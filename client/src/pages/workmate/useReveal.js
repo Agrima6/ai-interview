@@ -10,6 +10,7 @@ const useReveal = (selector, opts = {}) => {
     const ref = useRef(null)
     useEffect(() => {
         if (REDUCE_MOTION || !ref.current) return
+        if (!window.matchMedia('(min-width: 768px)').matches) return
         const els = ref.current.querySelectorAll(selector)
         if (!els.length) return
         const ctx = gsap.context(() => {
@@ -34,6 +35,7 @@ export const useParallax = (selector, opts = {}) => {
     const ref = useRef(null)
     useEffect(() => {
         if (REDUCE_MOTION || !ref.current) return
+        if (!window.matchMedia('(min-width: 768px)').matches) return
         const els = ref.current.querySelectorAll(selector)
         if (!els.length) return
         const ctx = gsap.context(() => {

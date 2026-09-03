@@ -1,12 +1,11 @@
 import React, { useState } from 'react'
 import { useDispatch } from 'react-redux'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { motion } from "motion/react"
+import { motion as Motion } from "motion/react"
 import { LogIn } from "lucide-react"
 import { setUserData } from '../redux/userSlice'
 import { loginWithGoogle, loginAsGuest } from '../utils/authApi'
 import Button from '../components/Button'
-import ThemeToggle from '../components/ThemeToggle'
 import logo from '../assets/logo.png'
 
 function Login() {
@@ -50,8 +49,7 @@ function Login() {
 
     return (
         <div className='min-h-screen bg-bg flex items-center justify-center px-4 relative'>
-            <ThemeToggle className="!absolute top-5 right-5" />
-            <motion.div
+            <Motion.div
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4 }}
@@ -69,7 +67,7 @@ function Login() {
                 </Button>
 
                 {error && <p className='text-[13px] text-red-500 mt-5 leading-relaxed'>{error}</p>}
-            </motion.div>
+            </Motion.div>
         </div>
     )
 }

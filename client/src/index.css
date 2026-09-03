@@ -1,9 +1,11 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:where(.dark, .dark *));
+/* Keep legacy dark: utilities inert. The product is intentionally light-only. */
+@custom-variant dark (&:where(.light-only-dark-variant, .light-only-dark-variant *));
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-sans: "Manrope", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: "Manrope", ui-sans-serif, system-ui, -apple-system, sans-serif;
 
   --color-ink: #1a1215;
   --color-accent: #c4161f;
@@ -20,17 +22,6 @@
   --shadow-lift: 0 4px 12px rgba(30, 10, 12, 0.06), 0 24px 48px -16px rgba(30, 10, 12, 0.18);
 }
 
-.dark {
-  --color-ink: #f7f1f1;
-  --color-bg: #0f0a0a;
-  --color-card: #1a1213;
-  --color-line: rgba(255, 255, 255, 0.09);
-  --color-text-secondary: #ab9c9d;
-
-  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.25), 0 8px 24px -8px rgba(0, 0, 0, 0.45);
-  --shadow-lift: 0 4px 16px rgba(0, 0, 0, 0.35), 0 24px 48px -16px rgba(196, 22, 31, 0.25);
-}
-
 /* gradient accent used sparingly - hero glows, CTA banners, score rings */
 .gradient-brand {
   background-image: linear-gradient(135deg, var(--color-accent), var(--color-accent-cyan));
@@ -44,19 +35,237 @@
 
 html {
   scroll-behavior: smooth;
+  color-scheme: light;
 }
 
-/* Display font for the Workmate.IQ marketing page's headings - a distinct
-   counterpoint to Inter body text, tighter tracking, heavier weight. */
+/* Display font for the Workmate.IQ marketing page's headings. */
 .font-display {
-  font-family: "Manrope", var(--font-sans);
+  font-family: var(--font-display);
   letter-spacing: -0.02em;
+}
+
+/* WorkmateIQ landing typography tokens. Keep hierarchy here so marketing
+   sections do not accumulate one-off sizes and weights. */
+.type-display,
+.type-h1,
+.type-h2,
+.type-h3,
+.type-card-title,
+.type-component-title,
+.type-brand,
+.type-metric,
+.type-eyebrow,
+.type-nav,
+.type-button,
+.type-button-xs,
+.type-button-sm,
+.type-button-md,
+.type-button-lg,
+.type-lead,
+.type-body,
+.type-body-small,
+.type-caption,
+.type-footer-heading,
+.type-footer-link,
+.type-chat-title,
+.type-chat-status,
+.type-chat-message,
+.type-chat-option,
+.type-chat-contact {
+  font-family: var(--font-sans);
+}
+
+.type-display {
+  font-size: 64px;
+  font-weight: 700;
+  line-height: 1.06;
+  letter-spacing: -0.035em;
+}
+
+.type-h1 {
+  font-size: 52px;
+  font-weight: 650;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.type-h2 {
+  font-size: 44px;
+  font-weight: 650;
+  line-height: 1.12;
+  letter-spacing: -0.025em;
+}
+
+.type-h3 {
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.type-card-title {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.type-component-title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.type-brand {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.type-lead {
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.type-body {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.type-body-small {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.type-eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.type-nav {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.type-button {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.type-button-xs {
+  font-size: 12.5px;
+}
+
+.type-button-sm {
+  font-size: 13.5px;
+}
+
+.type-button-md,
+.type-button-lg {
+  font-size: 15px;
+}
+
+.type-metric {
+  font-size: 44px;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: -0.025em;
+}
+
+.type-caption {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.type-footer-heading {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.type-footer-link {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.type-chat-title {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.type-chat-status {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.type-chat-message {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.55;
+}
+
+.type-chat-option,
+.type-chat-contact {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+@media (max-width: 767px) {
+  .type-display {
+    font-size: 42px;
+    line-height: 1.08;
+    letter-spacing: -0.025em;
+  }
+
+  .type-h1 {
+    font-size: 36px;
+  }
+
+  .type-h2 {
+    font-size: 32px;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+  }
+
+  .type-h3 {
+    font-size: 24px;
+  }
+
+  .type-card-title {
+    font-size: 18px;
+  }
+
+  .type-lead {
+    font-size: 17px;
+  }
+
+  .type-eyebrow {
+    font-size: 12px;
+  }
+
+  .type-metric {
+    font-size: 36px;
+  }
 }
 
 body {
   background: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   transition: background-color 0.25s ease, color 0.25s ease;
@@ -80,20 +289,11 @@ body {
   mix-blend-mode: multiply;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
-.dark .bg-noise::before {
-  mix-blend-mode: overlay;
-  opacity: 0.06;
-}
-
 .glass {
   background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(16px) saturate(160%);
   -webkit-backdrop-filter: blur(16px) saturate(160%);
 }
-.dark .glass {
-  background: rgba(26, 23, 24, 0.7);
-}
-
 .text-balance {
   text-wrap: balance;
 }
@@ -137,8 +337,770 @@ body {
   animation: border-angle-spin 4s linear infinite;
   pointer-events: none;
 }
+
+/* Active WorkmateIQ marketing pages use a larger desktop baseline without
+   changing the dashboard/application type or spacing system. */
+.workmate-shell {
+  width: min(100%, 1920px);
+  margin-inline: auto;
+  padding-inline: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .workmate-shell {
+    padding-inline: clamp(2rem, 2.5vw, 2.5rem);
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .workmate-marketing .type-display {
+    font-size: 56px;
+  }
+
+  .workmate-marketing .solution-card .type-h3 {
+    font-size: 32px;
+  }
+
+  .workmate-marketing .solution-card .type-component-title {
+    font-size: 17px;
+  }
+
+  .workmate-marketing .solution-card .solution-pointer {
+    font-size: 15px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .workmate-marketing .type-display {
+    font-size: clamp(72px, 4.2vw, 80px);
+  }
+
+  .workmate-marketing .type-h1 {
+    font-size: clamp(58px, 3.4vw, 65px);
+  }
+
+  .workmate-marketing .type-h2 {
+    font-size: clamp(48px, 2.85vw, 54px);
+  }
+
+  .workmate-marketing .type-h3 {
+    font-size: clamp(34px, 2vw, 38px);
+  }
+
+  .workmate-marketing .type-card-title {
+    font-size: 23px;
+  }
+
+  .workmate-marketing .type-component-title,
+  .workmate-marketing .type-brand {
+    font-size: 18px;
+  }
+
+  .workmate-marketing .type-lead {
+    font-size: 21px;
+  }
+
+  .workmate-marketing .type-body {
+    font-size: 18px;
+  }
+
+  .workmate-marketing .type-body-small,
+  .workmate-marketing .type-nav,
+  .workmate-marketing .type-footer-heading,
+  .workmate-marketing .type-footer-link {
+    font-size: 16px;
+  }
+
+  .workmate-marketing .type-eyebrow,
+  .workmate-marketing .type-caption {
+    font-size: 13px;
+  }
+
+  .workmate-marketing .type-button,
+  .workmate-marketing .type-button-lg {
+    font-size: 16px;
+  }
+
+  .workmate-marketing .type-button-sm {
+    font-size: 15px;
+  }
+
+  .workmate-marketing .type-metric {
+    font-size: 52px;
+  }
+
+  .workmate-marketing .score-num {
+    font-size: 46px;
+  }
+}
+
+/* The score gauge scales as one unit below the wide-desktop baseline. Keep
+   the global metric token unchanged because it is shared by other metrics. */
+.workmate-marketing .score-gauge {
+  width: clamp(96px, 30vw, 126px);
+  max-width: 100%;
+  aspect-ratio: 180 / 116;
+}
+
+.workmate-marketing .score-gauge > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.workmate-marketing .score-gauge__value {
+  bottom: 21%;
+}
+
+.workmate-marketing .score-gauge .score-num {
+  font-size: clamp(1.75rem, 8vw, 2.25rem);
+}
+
+@media (min-width: 768px) and (max-width: 1279px) {
+  .workmate-marketing .score-gauge {
+    width: clamp(140px, 18vw, 168px);
+  }
+
+  .workmate-marketing .score-gauge .score-num {
+    font-size: clamp(2rem, 4vw, 2.5rem);
+  }
+}
+
+@media (min-width: 1280px) {
+  .workmate-marketing .score-gauge {
+    width: min(100%, 195px);
+  }
+
+  .workmate-marketing .score-gauge .score-num {
+    font-size: 46px;
+  }
+}
+
+/* Pricing cards share the same restrained lift/glow language as the landing
+   page imagery, but only on devices that genuinely support hover. */
+.pricing-card {
+  transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 300ms ease,
+    border-color 300ms ease, background-color 300ms ease;
+}
+.workmate-marketing .pricing-track {
+  scrollbar-width: none;
+}
+.workmate-marketing .pricing-track::-webkit-scrollbar {
+  display: none;
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  .workmate-marketing .pricing-card-cta {
+    padding-inline: 0.75rem;
+    font-size: 14px;
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  .pricing-card:hover {
+    transform: translateY(-6px) scale(1.01);
+    border-color: rgba(196, 22, 31, 0.35);
+    background-color: #fffafa;
+    box-shadow: 0 18px 42px -18px rgba(196, 22, 31, 0.32), 0 10px 22px -14px rgba(30, 10, 12, 0.14);
+  }
+  .pricing-card-growth:hover {
+    transform: translateY(-8px) scale(1.015);
+    border-color: rgba(196, 22, 31, 0.7);
+    background-color: rgba(196, 22, 31, 0.06);
+    box-shadow: 0 24px 54px -18px rgba(196, 22, 31, 0.46), 0 12px 28px -16px rgba(30, 10, 12, 0.18);
+  }
+  .pricing-card:not(.pricing-card-growth) .pricing-card-cta:hover {
+    border-color: rgba(196, 22, 31, 0.45);
+    background-color: rgba(196, 22, 31, 0.04);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pricing-card {
+    transition: box-shadow 300ms ease, border-color 300ms ease, background-color 300ms ease;
+  }
+  .pricing-card:hover {
+    transform: none;
+  }
+}
 @keyframes border-angle-spin {
   to { --border-angle: 360deg; }
+}
+
+/* WorkmateIQ hero responsiveness. Keep this scoped so the marketing tokens
+   and layout used by the remaining landing sections stay unchanged. */
+.workmate-marketing .workmate-hero__shell {
+  width: min(100%, 1920px);
+  min-width: 0;
+  margin-inline: auto;
+  padding: 92px 20px 40px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
+.workmate-marketing .workmate-hero__shell > *,
+.workmate-marketing .workmate-hero__content,
+.workmate-marketing .workmate-hero__title,
+.workmate-marketing .workmate-hero__description,
+.workmate-marketing .workmate-hero__benefits,
+.workmate-marketing .workmate-hero__actions,
+.workmate-marketing .workmate-hero__visual {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.workmate-marketing .workmate-hero__title {
+  margin-bottom: 18px;
+  font-size: clamp(34px, 9vw, 38px);
+  line-height: 1.06;
+  letter-spacing: -0.028em;
+}
+
+.workmate-marketing .workmate-hero__title > span {
+  display: block;
+  max-width: 100%;
+}
+
+.workmate-marketing .workmate-hero__description {
+  width: 100%;
+  max-width: 640px;
+  margin-bottom: 20px;
+  overflow-wrap: break-word;
+  font-size: clamp(15.5px, 4vw, 17px);
+  line-height: 1.55;
+}
+
+.workmate-marketing .workmate-hero__benefits {
+  display: grid;
+  width: 100%;
+  max-width: 360px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.workmate-marketing .workmate-hero__benefit {
+  min-width: 0;
+  height: 42px;
+  justify-content: center;
+  gap: 6px;
+  padding-inline: 10px;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.workmate-marketing .workmate-hero__benefit > img,
+.workmate-marketing .workmate-hero__benefit > svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+.workmate-marketing .workmate-hero__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.workmate-marketing .workmate-hero__action {
+  width: min(100%, 320px);
+  min-width: 0;
+  min-height: 52px;
+  padding-inline: 20px;
+  font-size: 16px;
+  white-space: nowrap;
+}
+
+.workmate-marketing .workmate-hero__visual {
+  display: none;
+}
+
+@media (max-width: 375px) {
+  .workmate-marketing .workmate-hero__shell {
+    padding: 88px 16px 36px;
+  }
+
+  .workmate-marketing .workmate-hero__title {
+    margin-bottom: 16px;
+  }
+
+  .workmate-marketing .workmate-hero__description {
+    margin-bottom: 18px;
+    font-size: 15.5px;
+    line-height: 1.5;
+  }
+
+  .workmate-marketing .workmate-hero__benefits {
+    gap: 6px;
+  }
+
+  .workmate-marketing .workmate-hero__benefit {
+    height: 40px;
+    gap: 5px;
+    padding-inline: 7px;
+    font-size: 13px;
+  }
+
+  .workmate-marketing .workmate-hero__benefit > img,
+  .workmate-marketing .workmate-hero__benefit > svg {
+    width: 13px;
+    height: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .workmate-marketing .workmate-hero__action {
+    min-height: 50px;
+    font-size: 15.5px;
+  }
+}
+
+@media (min-width: 481px) {
+  .workmate-marketing .workmate-hero__title {
+    margin-bottom: 18px;
+    font-size: clamp(38px, 7.5vw, 44px);
+    letter-spacing: -0.03em;
+  }
+
+  .workmate-marketing .workmate-hero__description {
+    font-size: clamp(16px, 2.4vw, 17px);
+  }
+}
+
+@media (min-width: 768px) {
+  .workmate-marketing .workmate-hero__shell {
+    padding: 112px 24px 64px;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    gap: 32px;
+  }
+
+  .workmate-marketing .workmate-hero__title {
+    max-width: 680px;
+    margin-bottom: 20px;
+    font-size: clamp(34px, 4.8vw, 44px);
+    letter-spacing: -0.03em;
+  }
+
+  .workmate-marketing .workmate-hero__description {
+    max-width: 620px;
+    margin-bottom: 22px;
+    font-size: clamp(15.5px, 2vw, 17px);
+    line-height: 1.55;
+  }
+
+  .workmate-marketing .workmate-hero__benefits {
+    display: flex;
+    max-width: none;
+    gap: 10px;
+    margin-bottom: 32px;
+  }
+
+  .workmate-marketing .workmate-hero__benefit {
+    height: auto;
+    justify-content: initial;
+    gap: 8px;
+    padding-inline: 12px;
+    font-size: 14px;
+  }
+
+  .workmate-marketing .workmate-hero__actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .workmate-marketing .workmate-hero__action {
+    width: auto;
+    min-height: 52px;
+    padding-inline: 28px;
+    font-size: 15px;
+  }
+
+  .workmate-marketing .workmate-hero__visual {
+    display: block;
+    width: 100%;
+    justify-self: stretch;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .workmate-marketing .workmate-hero__shell {
+    grid-template-columns: minmax(0, 1fr) clamp(280px, 34vw, 340px);
+    align-items: start;
+    column-gap: clamp(20px, 3vw, 32px);
+    row-gap: 0;
+  }
+
+  .workmate-marketing .workmate-hero__title {
+    font-size: clamp(46px, 5.9vw, 56px);
+  }
+
+  .workmate-marketing .workmate-hero__visual {
+    width: 100%;
+    max-width: 340px;
+    align-self: start;
+    justify-self: end;
+  }
+}
+
+@media (min-width: 1024px) {
+  .workmate-marketing .workmate-hero__shell {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    padding: 128px clamp(32px, 2.5vw, 40px) 80px;
+    gap: 56px;
+  }
+
+  .workmate-marketing .workmate-hero__title {
+    max-width: 760px;
+    margin-bottom: 24px;
+    font-size: 56px;
+    letter-spacing: -0.035em;
+  }
+
+  .workmate-marketing .workmate-hero__description {
+    max-width: 640px;
+    margin-bottom: 24px;
+    font-size: 18px;
+    line-height: 1.55;
+  }
+
+  .workmate-marketing .workmate-hero__visual {
+    width: 100%;
+    justify-self: stretch;
+  }
+}
+
+@media (min-width: 1280px) {
+  .workmate-marketing .workmate-hero__shell {
+    gap: 64px;
+  }
+
+  .workmate-marketing .workmate-hero__title {
+    font-size: clamp(72px, 4.2vw, 80px);
+  }
+
+  .workmate-marketing .workmate-hero__description {
+    font-size: 21px;
+    line-height: 1.6;
+  }
+
+  .workmate-marketing .workmate-hero__benefit {
+    font-size: 16px;
+  }
+
+  .workmate-marketing .workmate-hero__action {
+    min-height: 57px;
+    font-size: 16px;
+  }
+}
+
+/* Landing header keeps branding and auth controls aligned on small screens
+   without changing the desktop navigation layout. */
+.workmate-marketing .workmate-nav__shell {
+  height: 68px;
+  padding-inline: 20px;
+}
+
+.workmate-marketing .workmate-nav__shell--scrolled {
+  height: 60px;
+}
+
+.workmate-marketing .workmate-nav__logo {
+  width: 34px;
+  height: 34px;
+}
+
+.workmate-marketing .workmate-nav__brand {
+  font-size: 15px;
+}
+
+@media (min-width: 768px) {
+  .workmate-marketing .workmate-nav__shell {
+    height: 72px;
+    padding-inline: 24px;
+  }
+
+  .workmate-marketing .workmate-nav__shell--scrolled {
+    height: 64px;
+  }
+
+  .workmate-marketing .workmate-nav__logo {
+    width: 38px;
+    height: 38px;
+  }
+
+  .workmate-marketing .workmate-nav__brand {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 1023px) {
+  .workmate-marketing .workmate-nav__identity,
+  .workmate-marketing .workmate-nav__auth {
+    white-space: nowrap;
+  }
+
+  .workmate-marketing .workmate-nav__identity,
+  .workmate-marketing .workmate-nav__auth,
+  .workmate-marketing .workmate-nav__auth-button {
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .workmate-marketing .workmate-nav__shell {
+    padding-inline: 12px;
+  }
+
+  .workmate-marketing .workmate-nav__identity {
+    gap: 8px;
+  }
+
+  .workmate-marketing .workmate-nav__logo {
+    width: 30px;
+    height: 30px;
+  }
+
+  .workmate-marketing .workmate-nav__brand {
+    font-size: 14px;
+  }
+
+  .workmate-marketing .workmate-nav__auth {
+    gap: 6px;
+    margin-left: 8px;
+  }
+
+  .workmate-marketing .workmate-nav__auth-button {
+    min-height: 36px;
+    padding: 8px 12px;
+    font-size: 13px;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .workmate-marketing .workmate-nav__auth-button--demo {
+    padding-inline: 8px;
+  }
+}
+
+@media (max-width: 375px) {
+  .workmate-marketing .workmate-nav__shell {
+    height: 64px;
+    padding-inline: 12px;
+  }
+
+  .workmate-marketing .workmate-nav__shell--scrolled {
+    height: 58px;
+  }
+
+  .workmate-marketing .workmate-nav__identity {
+    gap: 6px;
+  }
+
+  .workmate-marketing .workmate-nav__logo {
+    width: 28px;
+    height: 28px;
+  }
+
+  .workmate-marketing .workmate-nav__brand {
+    font-size: 13px;
+  }
+
+  .workmate-marketing .workmate-nav__auth {
+    gap: 6px;
+    margin-left: 8px;
+  }
+
+  .workmate-marketing .workmate-nav__auth-button {
+    min-height: 36px;
+    padding-inline: 10px;
+    font-size: 12.5px;
+  }
+
+  .workmate-marketing .workmate-nav__auth-button--demo {
+    padding-inline: 6px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .workmate-marketing .workmate-nav__shell {
+    height: 80px;
+    padding-inline: clamp(32px, 2.5vw, 40px);
+  }
+
+  .workmate-marketing .workmate-nav__shell--scrolled {
+    height: 66px;
+  }
+
+  .workmate-marketing .workmate-nav__logo {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (min-width: 481px) {
+  .workmate-marketing .nexa-launcher__avatar {
+    display: block;
+    width: 42px;
+    height: 42px;
+  }
+
+  .workmate-marketing .nexa-launcher__avatar svg {
+    width: 42px;
+    height: 42px;
+  }
+}
+
+@media (max-width: 480px) {
+  .workmate-marketing .nexa-launcher-wrap {
+    right: 16px;
+    bottom: max(16px, env(safe-area-inset-bottom));
+  }
+
+  .workmate-marketing .nexa-launcher {
+    width: 52px;
+    height: 52px;
+  }
+
+  .workmate-marketing .nexa-launcher__avatar,
+  .workmate-marketing .nexa-launcher__avatar svg {
+    width: 38px;
+    height: 38px;
+  }
+
+  .workmate-marketing .nexa-launcher__status {
+    width: 14px;
+    height: 14px;
+  }
+
+  .workmate-marketing .nexa-panel {
+    width: min(360px, calc(100vw - 32px));
+    max-height: calc(100dvh - 120px);
+  }
+}
+
+/* Footer responsiveness is deliberately bounded below the desktop baseline.
+   The existing utility-driven footer remains authoritative at 1024px+. */
+@media (max-width: 767px) {
+  .workmate-marketing .workmate-footer {
+    padding-top: 24px;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .workmate-marketing .workmate-footer__main {
+    row-gap: 24px;
+    margin-bottom: 32px;
+  }
+
+  .workmate-marketing .workmate-footer__brand {
+    margin-bottom: 12px;
+  }
+
+  .workmate-marketing .workmate-footer__column > .type-footer-heading {
+    margin-bottom: 12px;
+  }
+
+  .workmate-marketing .workmate-footer__links > :not(:first-child) {
+    margin-top: 8px;
+  }
+
+  .workmate-marketing .workmate-footer__bottom-row {
+    row-gap: 12px;
+    padding-top: 24px;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .workmate-marketing .workmate-footer__social-nav {
+    order: 1;
+    margin-bottom: 8px;
+  }
+
+  .workmate-marketing .workmate-footer__social-button {
+    width: 52px;
+    height: 52px;
+    flex: 0 0 52px;
+  }
+
+  .workmate-marketing .workmate-footer__social-button > svg {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+@media (max-width: 639px) {
+  .workmate-marketing .workmate-footer__main {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    column-gap: 16px;
+  }
+
+  .workmate-marketing .workmate-footer__main > * {
+    min-width: 0;
+  }
+
+  .workmate-marketing .workmate-footer__identity,
+  .workmate-marketing .workmate-footer__column--get-started {
+    grid-column: 1 / -1;
+  }
+
+  .workmate-marketing .workmate-footer__column--solutions {
+    grid-column: 1;
+  }
+
+  .workmate-marketing .workmate-footer__column--company {
+    grid-column: 2;
+  }
+
+  .workmate-marketing .workmate-footer__column--solutions .workmate-footer__links a {
+    white-space: nowrap;
+  }
+
+  .workmate-marketing .workmate-footer__column--get-started .workmate-footer__links {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .workmate-marketing .workmate-footer__column--get-started .workmate-footer__links > :not(:first-child) {
+    margin-top: 0;
+  }
+
+  .workmate-marketing .workmate-footer__column--get-started .workmate-footer__links a {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .workmate-marketing .workmate-footer__social-nav {
+    gap: 13px;
+  }
+
+  .workmate-marketing .workmate-footer__social-button {
+    width: 52px;
+    height: 52px;
+    flex: 0 0 52px;
+  }
+
+  .workmate-marketing .workmate-footer__social-button > svg {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+/* Mobile menu position matching navbar height at all media queries */
+.workmate-marketing .workmate-mobile-menu {
+  top: 60px;
+}
+@media (max-width: 375px) {
+  .workmate-marketing .workmate-mobile-menu {
+    top: 58px;
+  }
+}
+@media (min-width: 768px) {
+  .workmate-marketing .workmate-mobile-menu {
+    top: 64px;
+  }
 }
 
 /* Pure-CSS entrance fade - deliberately NOT GSAP-driven. A one-shot JS
@@ -183,3 +1145,107 @@ body {
   background: var(--color-line);
   border-radius: 4px;
 }
+
+/* Interactive score controls keep the branded red thumb while the filled
+   track changes tone with the selected skill percentage. */
+.score-range {
+  width: 100%;
+  height: 8px;
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+  background: linear-gradient(to right, var(--score-color) 0 var(--score), var(--color-bg) var(--score) 100%);
+}
+.score-range::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 2px solid var(--color-accent);
+  border-radius: 999px;
+  background: var(--color-card);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+.score-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--color-accent);
+  border-radius: 999px;
+  background: var(--color-card);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+.score-range:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 20%, transparent);
+}
+
+/* Height-based responsive scaling for solution panels to prevent cropping when sticky is enabled */
+@media (max-height: 860px) {
+  .solution-card {
+    padding: 1.5rem !important;
+  }
+  .solution-intro {
+    gap: 0.5rem !important;
+  }
+  .solution-intro h3 {
+    margin-top: 0.5rem !important;
+    font-size: 1.75rem !important; /* Make title slightly smaller */
+    line-height: 1.15 !important;
+  }
+  .solution-intro p {
+    margin-top: 0.75rem !important;
+    font-size: 0.92rem !important;
+  }
+  .solution-module {
+    padding: 1rem !important;
+  }
+  .solution-module .relative.mt-7 {
+    margin-top: 1rem !important;
+  }
+  .solution-module .mt-7.flex {
+    margin-top: 1rem !important;
+    padding-top: 0.75rem !important;
+  }
+  .solution-feature {
+    padding: 0.75rem !important;
+  }
+  .solution-feature h4 {
+    margin-top: 0.5rem !important;
+    font-size: 0.875rem !important;
+  }
+  .solution-feature p {
+    font-size: 0.75rem !important;
+    line-height: 1.3 !important;
+  }
+}
+
+@media (max-height: 740px) {
+  .solution-card {
+    padding: 1rem !important;
+  }
+  .solution-intro h3 {
+    font-size: 1.5rem !important;
+  }
+  .solution-intro p {
+    margin-top: 0.5rem !important;
+    font-size: 0.85rem !important;
+  }
+  .solution-module {
+    padding: 0.75rem !important;
+  }
+  .solution-module .relative.mt-7 {
+    margin-top: 0.75rem !important;
+  }
+  .solution-module .mt-7.flex {
+    margin-top: 0.75rem !important;
+    padding-top: 0.5rem !important;
+  }
+  .solution-module ol {
+    gap: 0.25rem !important;
+  }
+  .solution-feature {
+    padding: 0.5rem !important;
+  }
+}
+

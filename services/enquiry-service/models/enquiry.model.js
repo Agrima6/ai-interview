@@ -19,5 +19,6 @@ const enquirySchema = new mongoose.Schema({
 
 enquirySchema.index({ status: 1, createdAt: -1 })
 enquirySchema.index({ assignedTo: 1, status: 1 })
+enquirySchema.index({ type: 1, createdAt: -1 })
 
 export default mongoose.model("Enquiry", enquirySchema)

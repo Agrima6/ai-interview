@@ -21,7 +21,7 @@ const run = async () => {
         "ONBOARDING_READ", "ONBOARDING_REVIEW", "ONBOARDING_APPROVE", "ONBOARDING_REJECT",
         "CLIENT_READ",
     ])
-    await roleRepo.upsertSystemRole("CLIENT_ADMIN", ["CLIENT_SELF_READ"])
+    await roleRepo.upsertSystemRole("CLIENT_ADMIN", ["CLIENT_SELF_READ", "CLIENT_SELF_UPDATE"])
 
     const email = process.argv[2] || "admin@workmateiq.local"
     const password = process.argv[3] || "Agrima123"

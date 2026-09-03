@@ -1,0 +1,174 @@
+.hero-experiment-area {
+    isolation: isolate;
+    --hero-image-x: 0px;
+    --hero-image-y: 0px;
+    --hero-glow-x: 50%;
+    --hero-glow-y: 38%;
+}
+
+.hero-experiment-area::after {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    content: '';
+    pointer-events: none;
+    opacity: 0;
+    background: radial-gradient(circle 260px at var(--hero-glow-x) var(--hero-glow-y), rgba(224, 39, 27, 0.1), transparent 72%);
+    filter: blur(22px);
+    transition: opacity 700ms ease;
+}
+
+.hero-experiment-pointer-active::after {
+    opacity: 0.38;
+}
+
+.hero-experiment-ambient {
+    position: absolute;
+    z-index: 0;
+    pointer-events: none;
+    border-radius: 999px;
+    filter: blur(72px);
+}
+
+.hero-experiment-ambient-left {
+    top: -160px;
+    left: 8%;
+    width: 620px;
+    height: 560px;
+    opacity: 0.14;
+    background: radial-gradient(closest-side, #c4161f, transparent);
+}
+
+.hero-experiment-ambient-right {
+    top: 60px;
+    right: -160px;
+    width: 380px;
+    height: 380px;
+    opacity: 0.07;
+    background: radial-gradient(closest-side, #e0271b, transparent);
+}
+
+.hero-experiment-headline-visual {
+    display: inline;
+}
+
+.hero-experiment-word {
+    display: inline-block;
+    white-space: nowrap;
+}
+
+.hero-experiment-letter {
+    display: inline-block;
+    opacity: 0;
+    transform: translateY(0.24em);
+    animation: hero-experiment-letter-in 720ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation-delay: calc(90ms + (var(--letter-index) * 22ms));
+}
+
+.hero-experiment-gradient {
+    background-size: 190% 100%;
+    background-position: 0% 50%;
+    animation: hero-experiment-gradient-drift 14s ease-in-out 900ms infinite alternate;
+}
+
+.hero-experiment-gradient .hero-experiment-letter {
+    color: transparent;
+    background-image: linear-gradient(135deg, var(--color-accent), var(--color-accent-cyan));
+    background-size: 190% 100%;
+    background-position: 0% 50%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    animation:
+        hero-experiment-letter-in 720ms cubic-bezier(0.16, 1, 0.3, 1) forwards,
+        hero-experiment-gradient-drift 14s ease-in-out 900ms infinite alternate;
+    animation-delay: calc(90ms + (var(--letter-index) * 22ms)), 900ms;
+}
+
+.hero-experiment-fade-in {
+    opacity: 0;
+    transform: translateY(12px);
+    animation: hero-experiment-fade-in 620ms cubic-bezier(0.16, 1, 0.3, 1) 760ms forwards;
+}
+
+.hero-experiment-image-shell {
+    transform: translate3d(var(--hero-image-x), var(--hero-image-y), 0);
+    box-shadow: 0 30px 80px -24px rgba(30, 10, 12, 0.25);
+    transition: transform 700ms cubic-bezier(0.16, 1, 0.3, 1), border-color 300ms ease, box-shadow 300ms ease;
+    will-change: transform;
+}
+
+.hero-experiment-image-shell:hover {
+    transform: translate3d(var(--hero-image-x), var(--hero-image-y), 0) translateY(-2px) scale(1.006);
+    border-color: rgba(196, 22, 31, 0.42);
+    box-shadow: 0 30px 90px -18px rgba(196, 22, 31, 0.32);
+}
+
+.hero-experiment-primary:hover {
+    box-shadow: 0 12px 26px -6px rgba(139, 14, 22, 0.56);
+}
+
+.hero-experiment-secondary:hover {
+    border-color: rgba(196, 22, 31, 0.28);
+    background-color: rgba(196, 22, 31, 0.04);
+}
+
+@keyframes hero-experiment-letter-in {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes hero-experiment-fade-in {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes hero-experiment-gradient-drift {
+    from {
+        background-position: 0% 50%;
+    }
+    to {
+        background-position: 100% 50%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hero-experiment-area::after {
+        transition: none;
+    }
+
+    .hero-experiment-letter,
+    .hero-experiment-fade-in {
+        opacity: 1;
+        transform: none;
+        animation: none;
+    }
+
+    .hero-experiment-gradient .hero-experiment-letter {
+        animation: none;
+    }
+
+    .hero-experiment-gradient {
+        background-position: 0% 50%;
+        animation: none;
+    }
+
+    .hero-experiment-image-shell,
+    .hero-experiment-image-shell:hover {
+        transform: none;
+        transition: none;
+    }
+}
+
+@media (max-width: 639px) {
+    .hero-experiment-ambient-left {
+        left: -42%;
+    }
+
+    .hero-experiment-ambient-right {
+        right: -48%;
+    }
+}

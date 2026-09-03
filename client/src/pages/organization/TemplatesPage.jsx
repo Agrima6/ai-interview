@@ -1,0 +1,224 @@
+import React, { useState, useEffect } from 'react'
+import { Check, Save, AlertCircle, Eye } from 'lucide-react'
+import OrganizationLayout from '../../components/organization/OrganizationLayout'
+import Modal from '../../components/ui/Modal'
+import { Card, Button, Input, Textarea, Badge, Skeleton, useToast } from '../../components/ui'
+import { getNotificationTemplates, updateNotificationTemplate, getOrganizationProfile } from '../../api/organization/organizationApi'
+import logo from '../../assets/logo.png'
+
+const VARIABLE_TAGS = ['{candidate_name}', '{drive_title}', '{company_name}', '{interview_link}', '{expiry_date}']
+
+// Sample data so an admin can see roughly what a real send will look like
+// without needing a real candidate/drive. Handles both the {var} and
+// {{var}} interpolation styles so it works regardless of which one a given
+// template's text happens to use.
+const SAMPLE_VALUES = {
+  candidate_name: 'Aarav Sharma',
+  drive_title: 'Senior Backend Engineer',
+  company_name: 'Your Organization',
+  interview_link: 'https://workmateiq.com/apply/sample123abc',
+  expiry_date: new Date(Date.now() + 14 * 86400000).toLocaleDateString(),
+}
+
+const renderWithSamples = (text, values) =>
+  (text || '').replace(/\{\{?\s*(\w+)\s*\}?\}/g, (match, key) => (key in values ? values[key] : match))
+
+function TemplatesPage() {
+  const toast = useToast()
+  const [templates, setTemplates] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [activeTemplateId, setActiveTemplateId] = useState(null)
+  const [savedSuccess, setSavedSuccess] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [orgName, setOrgName] = useState('Your Organization')
+
+  useEffect(() => {
+    getOrganizationProfile().then((p) => p?.name && setOrgName(p.name)).catch(() => {})
+  }, [])
+
+  const fetchTemplates = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const data = await getNotificationTemplates()
+      const mapped = (data || []).map((t) => ({ ...t, id: t.templateId || t._id || t.id }))
+      setTemplates(mapped)
+      setActiveTemplateId((prev) => prev || mapped[0]?.id || null)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchTemplates()
+  }, [])
+
+  const activeTemplate = templates.find((t) => t.id === activeTemplateId || t.templateId === activeTemplateId)
+
+  const handleUpdateActiveField = (field, value) => {
+    setTemplates((prev) =>
+      prev.map((t) => ((t.id === activeTemplateId || t.templateId === activeTemplateId) ? { ...t, [field]: value } : t))
+    )
+  }
+
+  const insertTag = (tag) => {
+    handleUpdateActiveField('body', activeTemplate.body + ' ' + tag)
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await updateNotificationTemplate(activeTemplate.templateId || activeTemplate.id, {
+        subject: activeTemplate.subject,
+        body: activeTemplate.body,
+      })
+      setSavedSuccess(true)
+      setTimeout(() => setSavedSuccess(false), 2500)
+    } catch (err) {
+      // A failed save must never look like "Saved!" - the admin needs to
+      // know the template text wasn't actually persisted.
+      toast.error(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <OrganizationLayout
+      title="Notification Templates"
+      description="Customize candidate email invitations, reminders, and evaluation updates."
+    >
+      {error ? (
+        <Card className="p-10 text-center">
+          <AlertCircle size={20} className="text-red-500 mx-auto mb-3" />
+          <p className="text-[14px] text-ink font-medium mb-1">Couldn't load templates</p>
+          <p className="text-[13px] text-text-secondary mb-4">{error}</p>
+          <Button variant="secondary" onClick={fetchTemplates}>Retry</Button>
+        </Card>
+      ) : loading ? (
+        <div className="grid lg:grid-cols-3 gap-6">
+          <Skeleton className="h-64" />
+          <div className="lg:col-span-2"><Skeleton className="h-96" /></div>
+        </div>
+      ) : !activeTemplate ? (
+        <Card className="p-12 text-center"><p className="text-[14px] text-text-secondary">No templates found.</p></Card>
+      ) : (
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Template Selector List */}
+        <div className="space-y-3">
+          <h3 className="text-[13px] font-bold text-text-secondary uppercase tracking-wider px-1">
+            Communication Templates
+          </h3>
+          {templates.map((tmpl) => {
+            const tmplKey = tmpl.templateId || tmpl.id
+            const isActive = activeTemplateId === tmplKey
+            return (
+              <div
+                key={tmplKey}
+                onClick={() => setActiveTemplateId(tmplKey)}
+                className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                  isActive
+                    ? 'border-accent bg-accent/5 ring-1 ring-accent/30'
+                    : 'border-line bg-card hover:border-black/20 dark:hover:border-white/20'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-semibold text-[13.5px] text-ink">{tmpl.name}</span>
+                  <Badge variant="purple">{tmpl.type}</Badge>
+                </div>
+                <p className="text-[12px] text-text-secondary line-clamp-1">{tmpl.subject}</p>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Live Template Editor */}
+        <div className="lg:col-span-2">
+          <Card className="p-6 space-y-5">
+            <div className="flex items-center justify-between border-b border-line pb-4">
+              <div>
+                <h2 className="font-display text-[16px] font-bold text-ink">{activeTemplate.name}</h2>
+                <p className="text-[12.5px] text-text-secondary">Edit template text and dynamic variable tags below.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="secondary" size="sm" onClick={() => setPreviewOpen(true)}>
+                  <Eye size={14} /> Preview
+                </Button>
+                <Button size="sm" onClick={handleSave} disabled={saving}>
+                  {savedSuccess ? <Check size={14} /> : <Save size={14} />} {saving ? 'Saving...' : savedSuccess ? 'Saved!' : 'Save Template'}
+                </Button>
+              </div>
+            </div>
+
+            <Input
+              label="Email Subject Line"
+              value={activeTemplate.subject}
+              onChange={(e) => handleUpdateActiveField('subject', e.target.value)}
+            />
+
+            {/* Variable Tag Toolbar */}
+            <div>
+              <label className="block text-[12.5px] font-semibold text-ink mb-1.5">Insert Dynamic Tags</label>
+              <div className="flex flex-wrap gap-2">
+                {VARIABLE_TAGS.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => insertTag(tag)}
+                    className="px-2.5 py-1 rounded-lg border border-line bg-black/[0.03] dark:bg-white/[0.05] text-[12px] font-mono text-accent font-semibold hover:bg-accent/10 transition-colors"
+                  >
+                    + {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Textarea
+              label="Email Body Content"
+              rows={8}
+              value={activeTemplate.body}
+              onChange={(e) => handleUpdateActiveField('body', e.target.value)}
+              className="font-sans text-[13px] leading-relaxed"
+            />
+          </Card>
+        </div>
+      </div>
+      )}
+
+      {activeTemplate && (
+        <Modal open={previewOpen} onClose={() => setPreviewOpen(false)} title="Email Preview" size="md">
+          <p className="text-[12.5px] text-text-secondary mb-4">
+            Rendered with sample data (candidate/drive names are placeholders) - your organization name below is real.
+          </p>
+          <div style={{ background: '#f7f5f5', padding: '24px 16px', fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif', borderRadius: 12 }}>
+            <div style={{ maxWidth: 420, margin: '0 auto', background: '#fff', borderRadius: 16, border: '1px solid #eee6e6', overflow: 'hidden' }}>
+              <div style={{ padding: '24px 24px 8px', textAlign: 'center' }}>
+                <img src={logo} alt="" width={28} height={28} style={{ borderRadius: '50%', verticalAlign: 'middle' }} />
+                <span style={{ fontSize: 15, fontWeight: 700, color: '#1a1215', verticalAlign: 'middle', marginLeft: 8 }}>WorkmateIQ</span>
+              </div>
+              <div style={{ padding: '16px 24px 24px' }}>
+                <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#8a8085', margin: '0 0 4px' }}>Subject</p>
+                <p style={{ fontSize: 14.5, fontWeight: 700, color: '#1a1215', margin: '0 0 16px' }}>
+                  {renderWithSamples(activeTemplate.subject, { ...SAMPLE_VALUES, company_name: orgName })}
+                </p>
+                <div style={{ fontSize: 13.5, color: '#1a1215', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+                  {renderWithSamples(activeTemplate.body, { ...SAMPLE_VALUES, company_name: orgName })}
+                </div>
+              </div>
+              <div style={{ padding: '16px 24px 20px', borderTop: '1px solid #f1eaea', textAlign: 'center' }}>
+                <p style={{ margin: '0 0 4px', fontSize: 12, color: '#6b6570' }}>We appreciate your time and look forward to working with you.</p>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#c4161f' }}>{orgName} via WorkmateIQ</p>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </OrganizationLayout>
+  )
+}
+
+export default TemplatesPage

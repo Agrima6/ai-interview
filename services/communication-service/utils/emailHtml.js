@@ -23,6 +23,30 @@ export const wrapEmailBody = (innerHtml) => `
   </div>
 </div>`
 
+// Org-branded variant for emails an ORGANIZATION sends to its own team/
+// candidates (invites) - the org's name is the primary identity here, not
+// WorkmateIQ (which is just the platform they're using), matching how the
+// rest of the org's dashboard is already themed by their own branding.
+// `brandVar` is the {{variable}} name holding the org's display name
+// (different per template - "company_name" for candidate invites,
+// "organizationName" for team invites).
+export const wrapOrgEmailBody = (innerHtml, brandVar) => `
+<div style="background:#f7f5f5;padding:32px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:16px;border:1px solid #eee6e6;overflow:hidden;">
+    <div style="padding:32px 32px 8px;text-align:center;">
+      <span style="font-size:19px;font-weight:800;color:${INK};">{{${brandVar}}}</span>
+    </div>
+    <div style="padding:8px 32px 32px;">
+      ${innerHtml}
+    </div>
+    <div style="padding:20px 32px 28px;border-top:1px solid #f1eaea;text-align:center;">
+      <p style="margin:0 0 4px;font-size:13px;color:${TEXT_SECONDARY};">We appreciate your time and look forward to working with you.</p>
+      <p style="margin:0;font-size:13px;font-weight:700;color:${ACCENT};">{{${brandVar}}} Team</p>
+      <p style="margin:8px 0 0;font-size:11px;color:${TEXT_SECONDARY};">Sent via WorkmateIQ</p>
+    </div>
+  </div>
+</div>`
+
 export const supportBox = () => `
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fdf1ea;border:1px solid #f7ded0;border-radius:12px;margin:20px 0;">
   <tr>

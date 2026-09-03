@@ -36,7 +36,13 @@ export const sendAndRecord = async ({ entityType, entityId, channel, eventType, 
 
     const destinationMasked = channel === "EMAIL" ? maskEmail(recipient) : maskPhone(recipient)
     const provider = channel === "EMAIL" ? "EMAIL_PROVIDER" : "META"
-    const providerLabel = process.env[`${channel}_MODE`] === "direct" ? provider : "MOCK"
+    // "gmail" is as real a send as "direct" (Resend) - both dispatch to an
+    // actual provider via getEmailProvider()/getWhatsAppProvider(); only
+    // the true no-op mock mode should ever be labeled "MOCK" here. This
+    // previously mislabeled real Gmail-SMTP sends as MOCK in the audit
+    // trail even though the email genuinely went out.
+    const REAL_MODES = ["direct", "gmail"]
+    const providerLabel = REAL_MODES.includes(process.env[`${channel}_MODE`]) ? provider : "MOCK"
 
     const communication = await communicationRepo.create({
         entityType, entityId, channel, eventType,
@@ -47,8 +53,14 @@ export const sendAndRecord = async ({ entityType, entityId, channel, eventType, 
     try {
         const body = interpolate(template.body, variables)
         const html = template.htmlBody ? interpolate(template.htmlBody, variables) : undefined
+        // Organization-sent emails (candidate/team invites) carry the org's
+        // own name in one of these variables - used as the visible sender
+        // name so the recipient sees "QA Test Co", not just "WorkmateIQ",
+        // without requiring every organization to have its own verified
+        // mailbox/domain.
+        const fromName = variables?.company_name || variables?.organizationName || undefined
         const result = channel === "EMAIL"
-            ? await getEmailProvider().send({ to: recipient, subject: interpolate(template.subject || "", variables), body, html, from: resolveSender(eventType) })
+            ? await getEmailProvider().send({ to: recipient, subject: interpolate(template.subject || "", variables), body, html, from: resolveSender(eventType), fromName })
             : await getWhatsAppProvider().send({ to: recipient, body })
 
         const sentLike = result.status === "SENT" || result.status === "MOCK_SENT"

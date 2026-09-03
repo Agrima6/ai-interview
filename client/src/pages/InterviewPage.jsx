@@ -3,7 +3,6 @@ import { useState } from 'react'
 import Step1SetUp from '../components/Step1SetUp'
 import Step2Interview from '../components/Step2Interview'
 import Step3Report from '../components/Step3Report'
-import ThemeToggle from '../components/ThemeToggle'
 
 function InterviewPage() {
     const [step,setStep] = useState(1)
@@ -11,9 +10,6 @@ function InterviewPage() {
 
   return (
     <div className='min-h-screen bg-bg relative'>
-        {/* hidden during the proctored interview step (step 2) to keep that screen distraction-free */}
-        {step !== 2 && <ThemeToggle className="!fixed top-5 right-5 z-40 !bg-card" />}
-
         {step===1 && (
             <Step1SetUp onStart={(data)=>{
                 setInterviewData(data);

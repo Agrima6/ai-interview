@@ -3,6 +3,7 @@ import { useNavigate, useLocation, useParams } from 'react-router-dom'
 import { Mail, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { forgotPassword } from '../../api/authApi'
+import { getOrganizationProfile } from '../../api/organization/organizationApi'
 import AuthLayout from '../../components/auth/AuthLayout'
 import AuthHeader from '../../components/auth/AuthHeader'
 import AuthBrandPanel from '../../components/auth/AuthBrandPanel'
@@ -91,8 +92,27 @@ function AuthPage() {
         setError('')
         setLoading(true)
         try {
-            await login(email, password)
-            navigate('/platform/dashboard')
+            const user = await login(email, password)
+            if (user?.mustChangePassword) {
+                navigate('/platform/client/change-password')
+                return
+            }
+            if (user?.tenantId || user?.roles?.includes('CLIENT_ADMIN')) {
+                try {
+                    const profile = await getOrganizationProfile()
+                    if (profile?.type === 'COLLEGE') {
+                        navigate('/college/dashboard')
+                    } else if (profile?.type === 'CANDIDATE') {
+                        navigate('/candidate/dashboard')
+                    } else {
+                        navigate('/organization/dashboard')
+                    }
+                } catch {
+                    navigate('/organization/dashboard')
+                }
+            } else {
+                navigate('/platform/dashboard')
+            }
         } catch (err) {
             setError(err.message || 'Invalid email or password.')
         } finally {

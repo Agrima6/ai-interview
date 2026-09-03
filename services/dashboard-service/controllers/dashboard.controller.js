@@ -1,8 +1,30 @@
 import * as dashboardService from "../services/dashboard.service.js"
 import { ok, okList } from "../utils/response.js"
 
+const REGISTRATION_TYPES = new Set(["ORGANIZATION", "COLLEGE", "CANDIDATE"])
+
+// The one filter context every dashboard endpoint (summary/trends) resolves
+// through - keeps KPI cards, the funnel and the charts from ever disagreeing
+// about which registrations they're describing.
+const parseDashboardFilters = (query) => {
+    const filters = {}
+    if (REGISTRATION_TYPES.has(query.type)) filters.registrationType = query.type
+    if (query.from) {
+        const from = new Date(query.from)
+        if (!Number.isNaN(from.getTime())) filters.from = from.toISOString()
+    }
+    if (query.to) {
+        const to = new Date(query.to)
+        if (!Number.isNaN(to.getTime())) filters.to = to.toISOString()
+    }
+    return filters
+}
+
 export const getSummary = async (req, res, next) => {
-    try { ok(res, await dashboardService.getSummary({ requestId: req.requestId, correlationId: req.correlationId })) }
+    try {
+        const filters = parseDashboardFilters(req.query)
+        ok(res, await dashboardService.getSummary(filters, { requestId: req.requestId, correlationId: req.correlationId }))
+    }
     catch (error) { next(error) }
 }
 
@@ -25,6 +47,7 @@ const VALID_RANGES = new Set(["7d", "30d", "90d"])
 export const getTrends = async (req, res, next) => {
     try {
         const range = VALID_RANGES.has(req.query.range) ? req.query.range : "30d"
-        ok(res, await dashboardService.getTrends(range, { requestId: req.requestId, correlationId: req.correlationId }))
+        const filters = parseDashboardFilters(req.query)
+        ok(res, await dashboardService.getTrends(range, filters, { requestId: req.requestId, correlationId: req.correlationId }))
     } catch (error) { next(error) }
 }

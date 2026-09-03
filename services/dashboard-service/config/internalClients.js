@@ -4,15 +4,16 @@ const client = createInternalApiClient({ serviceName: process.env.SERVICE_NAME }
 const ctxHeaders = (ctx) => ({ requestId: ctx?.requestId, correlationId: ctx?.correlationId })
 
 export const onboardingServiceClient = {
-    getStatistics: (ctx) =>
+    getStatistics: ({ type, from, to } = {}, ctx) =>
         client.get(`${process.env.ONBOARDING_SERVICE_URL}/internal/v1/statistics`, {
             apiKey: process.env.ONBOARDING_SERVICE_API_KEY,
+            params: { type, from, to },
             ...ctxHeaders(ctx),
         }),
-    getTrend: (days, ctx) =>
+    getTrend: (days, { type, from, to } = {}, ctx) =>
         client.get(`${process.env.ONBOARDING_SERVICE_URL}/internal/v1/statistics/trend`, {
             apiKey: process.env.ONBOARDING_SERVICE_API_KEY,
-            params: { days },
+            params: { days, type, from, to },
             ...ctxHeaders(ctx),
         }),
     getActivity: ({ cursor, limit }, ctx) =>
@@ -24,23 +25,25 @@ export const onboardingServiceClient = {
 }
 
 export const clientServiceClient = {
-    getStatistics: (ctx) =>
+    getStatistics: ({ type, from, to } = {}, ctx) =>
         client.get(`${process.env.CLIENT_SERVICE_URL}/internal/v1/clients/statistics`, {
             apiKey: process.env.CLIENT_SERVICE_API_KEY,
+            params: { type, from, to },
             ...ctxHeaders(ctx),
         }),
 }
 
 export const enquiryServiceClient = {
-    getStatistics: (ctx) =>
+    getStatistics: ({ type, from, to } = {}, ctx) =>
         client.get(`${process.env.ENQUIRY_SERVICE_URL}/internal/v1/enquiries/statistics`, {
             apiKey: process.env.ENQUIRY_SERVICE_API_KEY,
+            params: { type, from, to },
             ...ctxHeaders(ctx),
         }),
-    getTrend: (days, ctx) =>
+    getTrend: (days, { type, from, to } = {}, ctx) =>
         client.get(`${process.env.ENQUIRY_SERVICE_URL}/internal/v1/enquiries/statistics/trend`, {
             apiKey: process.env.ENQUIRY_SERVICE_API_KEY,
-            params: { days },
+            params: { days, type, from, to },
             ...ctxHeaders(ctx),
         }),
 }

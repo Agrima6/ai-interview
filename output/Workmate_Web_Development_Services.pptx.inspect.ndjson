@@ -1,0 +1,244 @@
+{"kind":"deck","id":"pr/v5n0e2","name":"Deck"}
+{"kind":"layout","layoutId":"c910c265-c467-469f-ba61-3a336a478891","name":"Master","type":"master"}
+{"kind":"layout","layoutId":"de64c475-c1f8-4375-9e30-669fe25de0f6","name":"Title Slide","type":"title"}
+{"kind":"slide","id":"sl/8z1t7w","slide":1,"title":"Web Development That","textShapes":4}
+{"kind":"shape","id":"sh/d8fy9cne","slide":1,"name":"top-accent","bbox":[0,0,816,14]}
+{"kind":"shape","id":"sh/r6xg7258","slide":1,"bbox":[686,100,10,10]}
+{"kind":"shape","id":"sh/4jmhw7mh","slide":1,"bbox":[703,100,10,10]}
+{"kind":"shape","id":"sh/p4vy5cn2","slide":1,"bbox":[720,100,10,10]}
+{"kind":"shape","id":"sh/2h4fux4r","slide":1,"bbox":[737,100,10,10]}
+{"kind":"shape","id":"sh/3idg325w","slide":1,"bbox":[686,117,10,10]}
+{"kind":"shape","id":"sh/gfmxsn6l","slide":1,"bbox":[703,117,10,10]}
+{"kind":"shape","id":"sh/hgvy1sn6","slide":1,"bbox":[720,117,10,10]}
+{"kind":"shape","id":"sh/lw3ih8b6","slide":1,"bbox":[737,117,10,10]}
+{"kind":"shape","id":"sh/kvuho3ul","slide":1,"bbox":[686,134,10,10]}
+{"kind":"shape","id":"sh/jul0fyt0","slide":1,"bbox":[703,134,10,10]}
+{"kind":"shape","id":"sh/ytczmtcv","slide":1,"bbox":[720,134,10,10]}
+{"kind":"shape","id":"sh/xs3idoba","slide":1,"bbox":[737,134,10,10]}
+{"kind":"shape","id":"sh/cruhk3up","slide":1,"bbox":[686,151,10,10]}
+{"kind":"shape","id":"sh/bql0byt4","slide":1,"bbox":[703,151,10,10]}
+{"kind":"shape","id":"sh/apczitcj","slide":1,"bbox":[720,151,10,10]}
+{"kind":"shape","id":"sh/poji9ovy","slide":1,"bbox":[737,151,10,10]}
+{"kind":"textbox","id":"sh/onahgjud","slide":1,"name":"cover-title","text":"Web Development That\nMoves Business Forward.","textPreview":"Web Development That | Moves Business Forward.","textChars":44,"textLines":2,"bbox":[74,470,650,126]}
+{"kind":"shape","id":"sh/g7ehwj29","slide":1,"bbox":[75,607,78,5]}
+{"kind":"textbox","id":"sh/18ni5o3u","slide":1,"name":"cover-subtitle","text":"Workmate helps organizations strategize, design, build, modernize, secure and scale web platforms around real business goals.","textPreview":"Workmate helps organizations strategize, design, build, modernize, secure and scale web platforms around real business goals.","textChars":125,"textLines":1,"bbox":[74,635,610,88]}
+{"kind":"shape","id":"sh/e5wzu9kj","slide":1,"bbox":[72,952,672,0]}
+{"kind":"textbox","id":"sh/f6503elo","slide":1,"text":"www.wcspl.net","textPreview":"www.wcspl.net","textChars":13,"textLines":1,"bbox":[72,970,170,18]}
+{"kind":"textbox","id":"sh/s3ehsj2d","slide":1,"text":"Strategy  |  Design  |  Engineering  |  Quality  |  Support","textPreview":"Strategy  |  Design  |  Engineering  |  Quality  |  Support","textChars":59,"textLines":1,"bbox":[374,970,370,18]}
+{"kind":"image","id":"im/vyp4vmd0","slide":1,"name":"","alt":"Workmate Consultancy Services logo","bbox":[90,92,390,122]}
+{"kind":"notes","id":"nt/8z1t7w","slide":1,"text":"[Sources]\nWorkmate Consultancy Services Introduction.pdf - visual template, company positioning and web/software service scope.\nWorkmate_Cybersecurity_Proposal.pptx (3).pdf - consulting tone and secure delivery positioning."}
+{"kind":"slide","id":"sl/j5m23j","slide":2,"title":"WORKMATE CONSULTANCY SERVICES","textShapes":23}
+{"kind":"textbox","id":"sh/o7edore5","slide":2,"name":"brand-name","text":"WORKMATE CONSULTANCY SERVICES","textPreview":"WORKMATE CONSULTANCY SERVICES","textChars":29,"textLines":1,"bbox":[120,55,390,24]}
+{"kind":"textbox","id":"sh/98nexwfq","slide":2,"name":"section-label","text":"BUSINESS CONTEXT","textPreview":"BUSINESS CONTEXT","textChars":16,"textLines":1,"bbox":[565,55,179,24]}
+{"kind":"shape","id":"sh/e1cvihw3","slide":2,"name":"header-rule","bbox":[72,108,672,0]}
+{"kind":"shape","id":"sh/z2lwrmxo","slide":2,"name":"footer-rule","bbox":[72,966,672,0]}
+{"kind":"textbox","id":"sh/03udkre9","slide":2,"name":"footer-company","text":"Workmate Consultancy Services Pvt. Ltd.","textPreview":"Workmate Consultancy Services Pvt. Ltd.","textChars":39,"textLines":1,"bbox":[72,980,330,18]}
+{"kind":"textbox","id":"sh/14netcfu","slide":2,"name":"page-number","text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[710,980,34,18]}
+{"kind":"textbox","id":"sh/yxgvu1wn","slide":2,"name":"slide-title","text":"Your Website Is Business Infrastructure","textPreview":"Your Website Is Business Infrastructure","textChars":39,"textLines":1,"bbox":[74,144,668,48]}
+{"kind":"textbox","id":"sh/jypw36ds","slide":2,"name":"slide-subtitle","text":"When the experience, architecture or release process falls behind, the business feels it.","textPreview":"When the experience, architecture or release process falls behind, the business feels it.","textChars":89,"textLines":1,"bbox":[74,202,668,54]}
+{"kind":"textbox","id":"sh/fm10n2d4","slide":2,"text":"CONSTRAINT","textPreview":"CONSTRAINT","textChars":10,"textLines":1,"bbox":[132,270,230,22]}
+{"kind":"textbox","id":"sh/ulsjexcj","slide":2,"text":"BUSINESS IMPACT","textPreview":"BUSINESS IMPACT","textChars":15,"textLines":1,"bbox":[390,270,330,22]}
+{"kind":"shape","id":"sh/hojipcvu","slide":2,"bbox":[74,410,668,0]}
+{"kind":"textbox","id":"sh/gna1g7up","slide":2,"text":"01","textPreview":"01","textChars":2,"textLines":1,"bbox":[76,322,38,38]}
+{"kind":"textbox","id":"sh/3q10r2d0","slide":2,"text":"Legacy technology","textPreview":"Legacy technology","textChars":17,"textLines":1,"bbox":[132,322,220,42]}
+{"kind":"shape","id":"sh/2psjixcf","slide":2,"bbox":[368,322,3,70]}
+{"kind":"textbox","id":"sh/pc3itcv6","slide":2,"text":"Higher maintenance effort and slower change","textPreview":"Higher maintenance effort and slower change","textChars":43,"textLines":1,"bbox":[392,322,325,70]}
+{"kind":"shape","id":"sh/4ba1k7ul","slide":2,"bbox":[74,530,668,0]}
+{"kind":"textbox","id":"sh/relkvmdc","slide":2,"text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[76,442,38,38]}
+{"kind":"textbox","id":"sh/qdcjmhcr","slide":2,"text":"Poor user journeys","textPreview":"Poor user journeys","textChars":18,"textLines":1,"bbox":[132,442,220,42]}
+{"kind":"shape","id":"sh/m9w3elwz","slide":2,"bbox":[368,442,3,70]}
+{"kind":"textbox","id":"sh/na54nqxk","slide":2,"text":"Lost engagement, trust and conversion","textPreview":"Lost engagement, trust and conversion","textChars":37,"textLines":1,"bbox":[392,442,325,70]}
+{"kind":"shape","id":"sh/obylgvep","slide":2,"bbox":[74,650,668,0]}
+{"kind":"textbox","id":"sh/9c7mpgfa","slide":2,"text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[76,562,38,38]}
+{"kind":"textbox","id":"sh/e5w3a1wn","slide":2,"text":"Performance bottlenecks","textPreview":"Performance bottlenecks","textChars":23,"textLines":1,"bbox":[132,562,220,42]}
+{"kind":"shape","id":"sh/z654j6x8","slide":2,"bbox":[368,562,3,70]}
+{"kind":"textbox","id":"sh/07elcbet","slide":2,"text":"Abandonment across mobile and low-bandwidth users","textPreview":"Abandonment across mobile and low-bandwidth users","textChars":49,"textLines":1,"bbox":[392,562,325,70]}
+{"kind":"shape","id":"sh/18nmlgfe","slide":2,"bbox":[74,770,668,0]}
+{"kind":"textbox","id":"sh/y1gnm5w7","slide":2,"text":"04","textPreview":"04","textChars":2,"textLines":1,"bbox":[76,682,38,38]}
+{"kind":"textbox","id":"sh/j294vaxc","slide":2,"text":"Fragmented integrations","textPreview":"Fragmented integrations","textChars":23,"textLines":1,"bbox":[132,682,220,42]}
+{"kind":"shape","id":"sh/twb6l4zu","slide":2,"bbox":[368,682,3,70]}
+{"kind":"textbox","id":"sh/sv2pczy9","slide":2,"text":"Manual work, inconsistent data and brittle operations","textPreview":"Manual work, inconsistent data and brittle operations","textChars":53,"textLines":1,"bbox":[392,682,325,70]}
+{"kind":"shape","id":"sh/7atojuho","slide":2,"bbox":[74,890,668,0]}
+{"kind":"textbox","id":"sh/6907apg3","slide":2,"text":"05","textPreview":"05","textChars":2,"textLines":1,"bbox":[76,802,38,38]}
+{"kind":"textbox","id":"sh/l8r6hkzi","slide":2,"text":"Rigid architecture","textPreview":"Rigid architecture","textChars":18,"textLines":1,"bbox":[132,802,220,42]}
+{"kind":"shape","id":"sh/k7ip8fyx","slide":2,"bbox":[368,802,3,70]}
+{"kind":"textbox","id":"sh/j69ofuhs","slide":2,"text":"Slower product launches and limited room to scale","textPreview":"Slower product launches and limited room to scale","textChars":49,"textLines":1,"bbox":[392,802,325,70]}
+{"kind":"image","id":"im/qp87ydwz","slide":2,"name":"","alt":"Workmate mark","bbox":[72,49,34,34]}
+{"kind":"notes","id":"nt/j5m23j","slide":2,"text":"[Sources]\nUser-provided brief - stated client web-development challenges and business-impact framing.\nWorkmate Consultancy Services Introduction.pdf - consulting and custom software positioning."}
+{"kind":"slide","id":"sl/juac5a","slide":3,"title":"WORKMATE CONSULTANCY SERVICES","textShapes":24}
+{"kind":"textbox","id":"sh/sbilkfq5","slide":3,"name":"brand-name","text":"WORKMATE CONSULTANCY SERVICES","textPreview":"WORKMATE CONSULTANCY SERVICES","textChars":29,"textLines":1,"bbox":[120,55,390,24]}
+{"kind":"textbox","id":"sh/dcrmdk7q","slide":3,"name":"section-label","text":"WEB DEVELOPMENT","textPreview":"WEB DEVELOPMENT","textChars":15,"textLines":1,"bbox":[565,55,179,24]}
+{"kind":"shape","id":"sh/ed03mp8b","slide":3,"name":"header-rule","bbox":[72,108,672,0]}
+{"kind":"shape","id":"sh/ze94fupw","slide":3,"name":"footer-rule","bbox":[72,966,672,0]}
+{"kind":"textbox","id":"sh/0f2lofqh","slide":3,"name":"footer-company","text":"Workmate Consultancy Services Pvt. Ltd.","textPreview":"Workmate Consultancy Services Pvt. Ltd.","textChars":39,"textLines":1,"bbox":[72,980,330,18]}
+{"kind":"textbox","id":"sh/1gbmhk72","slide":3,"name":"page-number","text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[710,980,34,18]}
+{"kind":"textbox","id":"sh/mhk3qp8n","slide":3,"name":"slide-title","text":"One Partner Across the Web Lifecycle","textPreview":"One Partner Across the Web Lifecycle","textChars":36,"textLines":1,"bbox":[74,144,668,48]}
+{"kind":"textbox","id":"sh/nit4jups","slide":3,"name":"slide-subtitle","text":"Strategy, experience design, engineering and post-launch support stay connected from the start.","textPreview":"Strategy, experience design, engineering and post-launch support stay connected from the start.","textChars":95,"textLines":1,"bbox":[74,202,668,54]}
+{"kind":"shape","id":"sh/7idcvylw","slide":3,"bbox":[74,278,326,178]}
+{"kind":"textbox","id":"sh/mh4bmd4b","slide":3,"text":"01","textPreview":"01","textChars":2,"textLines":1,"bbox":[92,294,42,22]}
+{"kind":"textbox","id":"sh/9kvux832","slide":3,"text":"Strategy & Discovery","textPreview":"Strategy & Discovery","textChars":20,"textLines":1,"bbox":[92,322,290,28]}
+{"kind":"textbox","id":"sh/8jmto3mh","slide":3,"text":"Business goals, requirements, user journeys, system context and a practical delivery roadmap.","textPreview":"Business goals, requirements, user journeys, system context and a practical delivery roadmap.","textChars":93,"textLines":1,"bbox":[92,362,288,74]}
+{"kind":"shape","id":"sh/zedcryl0","slide":3,"bbox":[416,278,326,178]}
+{"kind":"textbox","id":"sh/yt4bit4f","slide":3,"text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[434,294,42,22]}
+{"kind":"textbox","id":"sh/lgvut83q","slide":3,"text":"UI/UX Design","textPreview":"UI/UX Design","textChars":12,"textLines":1,"bbox":[434,322,290,28]}
+{"kind":"textbox","id":"sh/kfmtk3m5","slide":3,"text":"Wireframes, prototypes, responsive interaction patterns and a reusable visual system.","textPreview":"Wireframes, prototypes, responsive interaction patterns and a reusable visual system.","textChars":85,"textLines":1,"bbox":[434,362,288,74]}
+{"kind":"shape","id":"sh/jaxc3il4","slide":3,"bbox":[74,483,326,178]}
+{"kind":"textbox","id":"sh/i9obux4j","slide":3,"text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[92,499,42,22]}
+{"kind":"textbox","id":"sh/e5sfm1or","slide":3,"text":"Frontend Development","textPreview":"Frontend Development","textChars":20,"textLines":1,"bbox":[92,527,290,28]}
+{"kind":"textbox","id":"sh/f61wvm5c","slide":3,"text":"Maintainable interfaces designed for accessibility, performance and consistent behavior.","textPreview":"Maintainable interfaces designed for accessibility, performance and consistent behavior.","textChars":88,"textLines":1,"bbox":[92,567,288,74]}
+{"kind":"shape","id":"sh/g7axor6x","slide":3,"bbox":[416,483,326,178]}
+{"kind":"textbox","id":"sh/18jexwni","slide":3,"text":"04","textPreview":"04","textChars":2,"textLines":1,"bbox":[434,499,42,22]}
+{"kind":"textbox","id":"sh/29sfq1on","slide":3,"text":"Backend & APIs","textPreview":"Backend & APIs","textChars":14,"textLines":1,"bbox":[434,527,290,28]}
+{"kind":"textbox","id":"sh/3a1wz658","slide":3,"text":"Business logic, data services, integrations, authentication and reliable application workflows.","textPreview":"Business logic, data services, integrations, authentication and reliable application workflows.","textChars":95,"textLines":1,"bbox":[434,567,288,74]}
+{"kind":"shape","id":"sh/obuxsb6t","slide":3,"bbox":[74,688,326,178]}
+{"kind":"textbox","id":"sh/pc3e1gne","slide":3,"text":"05","textPreview":"05","textChars":2,"textLines":1,"bbox":[92,704,42,22]}
+{"kind":"textbox","id":"sh/id8vexoj","slide":3,"text":"Cloud & Release","textPreview":"Cloud & Release","textChars":15,"textLines":1,"bbox":[92,732,290,28]}
+{"kind":"textbox","id":"sh/jehwn254","slide":3,"text":"Scalable deployment, release automation, monitoring and operational readiness.","textPreview":"Scalable deployment, release automation, monitoring and operational readiness.","textChars":78,"textLines":1,"bbox":[92,772,288,74]}
+{"kind":"shape","id":"sh/l8nitk7m","slide":3,"bbox":[416,688,326,178]}
+{"kind":"textbox","id":"sh/k7ehkfq1","slide":3,"text":"06","textPreview":"06","textChars":2,"textLines":1,"bbox":[434,704,42,22]}
+{"kind":"textbox","id":"sh/z650rapg","slide":3,"text":"Support & Optimization","textPreview":"Support & Optimization","textChars":22,"textLines":1,"bbox":[434,732,290,28]}
+{"kind":"textbox","id":"sh/y5wzi58v","slide":3,"text":"Maintenance, issue resolution, enhancements and continuous performance improvement.","textPreview":"Maintenance, issue resolution, enhancements and continuous performance improvement.","textChars":83,"textLines":1,"bbox":[434,772,288,74]}
+{"kind":"image","id":"im/ex4ny9cj","slide":3,"name":"","alt":"Workmate mark","bbox":[72,49,34,34]}
+{"kind":"notes","id":"nt/juac5a","slide":3,"text":"[Sources]\nWorkmate Consultancy Services Introduction.pdf - Custom Software Development, Cloud Services, DevOps & Quality Engineering, Managed IT Services.\nUser-provided brief - requested end-to-end web development capability groups."}
+{"kind":"slide","id":"sl/raxqp6","slide":4,"title":"WORKMATE CONSULTANCY SERVICES","textShapes":23}
+{"kind":"textbox","id":"sh/543mtgbq","slide":4,"name":"brand-name","text":"WORKMATE CONSULTANCY SERVICES","textPreview":"WORKMATE CONSULTANCY SERVICES","textChars":29,"textLines":1,"bbox":[120,55,390,24]}
+{"kind":"textbox","id":"sh/k3u5kbu5","slide":4,"name":"section-label","text":"HOW WE DELIVER","textPreview":"HOW WE DELIVER","textChars":14,"textLines":1,"bbox":[565,55,179,24]}
+{"kind":"shape","id":"sh/76l4vqtw","slide":4,"name":"header-rule","bbox":[72,108,672,0]}
+{"kind":"shape","id":"sh/65cnmlcb","slide":4,"name":"footer-rule","bbox":[72,966,672,0]}
+{"kind":"textbox","id":"sh/t83mx0b2","slide":4,"name":"footer-company","text":"Workmate Consultancy Services Pvt. Ltd.","textPreview":"Workmate Consultancy Services Pvt. Ltd.","textChars":39,"textLines":1,"bbox":[72,980,330,18]}
+{"kind":"textbox","id":"sh/s7u5ovuh","slide":4,"name":"page-number","text":"04","textPreview":"04","textChars":2,"textLines":1,"bbox":[710,980,34,18]}
+{"kind":"textbox","id":"sh/fu54zats","slide":4,"name":"slide-title","text":"A Clear Path From First Workshop to Scale","textPreview":"A Clear Path From First Workshop to Scale","textChars":41,"textLines":1,"bbox":[74,144,668,48]}
+{"kind":"textbox","id":"sh/u9cnq5c7","slide":4,"name":"slide-subtitle","text":"Each phase turns uncertainty into an agreed decision, a working release or a measurable next step.","textPreview":"Each phase turns uncertainty into an agreed decision, a working release or a measurable next step.","textChars":98,"textLines":1,"bbox":[74,202,668,54]}
+{"kind":"shape","id":"sh/83ul0f6t","slide":4,"bbox":[93,312,0,0]}
+{"kind":"shape","id":"sh/9432tk7e","slide":4,"bbox":[91,312,3,520]}
+{"kind":"textbox","id":"sh/m1c3y5o3","slide":4,"text":"01","textPreview":"01","textChars":2,"textLines":1,"bbox":[73,304,40,40]}
+{"kind":"shape","id":"sh/72lkrapo","slide":4,"bbox":[133,286,606,96]}
+{"kind":"textbox","id":"sh/g7ul4f65","slide":4,"text":"Discover","textPreview":"Discover","textChars":8,"textLines":1,"bbox":[153,303,190,26]}
+{"kind":"textbox","id":"sh/hsn2xk7q","slide":4,"text":"Align on business objectives, users, current systems, constraints and success measures.","textPreview":"Align on business objectives, users, current systems, constraints and success measures.","textChars":87,"textLines":1,"bbox":[344,302,370,62]}
+{"kind":"textbox","id":"sh/u5c32poz","slide":4,"text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[73,416,40,40]}
+{"kind":"shape","id":"sh/v6lkvupk","slide":4,"bbox":[133,398,606,96]}
+{"kind":"textbox","id":"sh/4vel8z61","slide":4,"text":"Design & Architect","textPreview":"Design & Architect","textChars":18,"textLines":1,"bbox":[153,415,190,26]}
+{"kind":"textbox","id":"sh/5wnm147m","slide":4,"text":"Define the experience, solution architecture, integrations, roadmap and acceptance criteria.","textPreview":"Define the experience, solution architecture, integrations, roadmap and acceptance criteria.","textChars":92,"textLines":1,"bbox":[344,414,370,62]}
+{"kind":"textbox","id":"sh/dgzu50vu","slide":4,"text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[73,528,40,40]}
+{"kind":"shape","id":"sh/sfqtwvu9","slide":4,"bbox":[133,510,606,96]}
+{"kind":"textbox","id":"sh/rehc3qdo","slide":4,"text":"Build & Integrate","textPreview":"Build & Integrate","textChars":17,"textLines":1,"bbox":[153,527,190,26]}
+{"kind":"textbox","id":"sh/qd8bulc3","slide":4,"text":"Develop frontend and backend capabilities in visible increments with transparent progress.","textPreview":"Develop frontend and backend capabilities in visible increments with transparent progress.","textChars":90,"textLines":1,"bbox":[344,526,370,62]}
+{"kind":"textbox","id":"sh/14ju9kvq","slide":4,"text":"04","textPreview":"04","textChars":2,"textLines":1,"bbox":[73,640,40,40]}
+{"kind":"shape","id":"sh/03at0fu5","slide":4,"bbox":[133,622,606,96]}
+{"kind":"textbox","id":"sh/f21c7adk","slide":4,"text":"Test & Launch","textPreview":"Test & Launch","textChars":13,"textLines":1,"bbox":[153,639,190,26]}
+{"kind":"textbox","id":"sh/e1sby5cz","slide":4,"text":"Validate function, responsiveness, performance, compatibility and security before release.","textPreview":"Validate function, responsiveness, performance, compatibility and security before release.","textChars":90,"textLines":1,"bbox":[344,638,370,62]}
+{"kind":"textbox","id":"sh/h8faxgvm","slide":4,"text":"05","textPreview":"05","textChars":2,"textLines":1,"bbox":[73,752,40,40]}
+{"kind":"shape","id":"sh/w76tobu1","slide":4,"bbox":[133,734,606,96]}
+{"kind":"textbox","id":"sh/md4ryhsz","slide":4,"text":"Sustain & Scale","textPreview":"Sustain & Scale","textChars":15,"textLines":1,"bbox":[153,751,190,26]}
+{"kind":"textbox","id":"sh/7ed87mt4","slide":4,"text":"Monitor, maintain, optimize and extend the platform as demand and priorities evolve.","textPreview":"Monitor, maintain, optimize and extend the platform as demand and priorities evolve.","textChars":84,"textLines":1,"bbox":[344,750,370,62]}
+{"kind":"shape","id":"sh/8fm90rap","slide":4,"bbox":[133,866,606,56]}
+{"kind":"textbox","id":"sh/9gvq9wba","slide":4,"text":"VISIBLE DELIVERY RHYTHM","textPreview":"VISIBLE DELIVERY RHYTHM","textChars":23,"textLines":1,"bbox":[151,882,174,20]}
+{"kind":"textbox","id":"sh/uh4r21sv","slide":4,"text":"Named ownership, agreed checkpoints and clear communication throughout.","textPreview":"Named ownership, agreed checkpoints and clear communication throughout.","textChars":71,"textLines":1,"bbox":[332,879,382,30]}
+{"kind":"image","id":"im/je5wvi5k","slide":4,"name":"","alt":"Workmate mark","bbox":[72,49,34,34]}
+{"kind":"notes","id":"nt/raxqp6","slide":4,"text":"[Sources]\nWorkmate Consultancy Services Introduction.pdf - Discover, Design & Plan, Deliver, Sustain & Scale process pattern.\nWorkmate_Cybersecurity_Proposal.pptx (3).pdf - structured planning, status updates, quality review and closure discipline.\nUser-provided reference image - information organization only; visual system follows PDF 1."}
+{"kind":"slide","id":"sl/bekaes","slide":5,"title":"WORKMATE CONSULTANCY SERVICES","textShapes":19}
+{"kind":"textbox","id":"sh/yl43adcr","slide":5,"name":"brand-name","text":"WORKMATE CONSULTANCY SERVICES","textPreview":"WORKMATE CONSULTANCY SERVICES","textChars":29,"textLines":1,"bbox":[120,55,390,24]}
+{"kind":"textbox","id":"sh/zmd4jidc","slide":5,"name":"section-label","text":"ENGINEERING QUALITY","textPreview":"ENGINEERING QUALITY","textChars":19,"textLines":1,"bbox":[565,55,179,24]}
+{"kind":"shape","id":"sh/cjml83ul","slide":5,"name":"header-rule","bbox":[72,108,672,0]}
+{"kind":"shape","id":"sh/dkvmh8v6","slide":5,"name":"footer-rule","bbox":[72,966,672,0]}
+{"kind":"textbox","id":"sh/qh436tcv","slide":5,"name":"footer-company","text":"Workmate Consultancy Services Pvt. Ltd.","textPreview":"Workmate Consultancy Services Pvt. Ltd.","textChars":39,"textLines":1,"bbox":[72,980,330,18]}
+{"kind":"textbox","id":"sh/bid4fydg","slide":5,"name":"page-number","text":"05","textPreview":"05","textChars":2,"textLines":1,"bbox":[710,980,34,18]}
+{"kind":"textbox","id":"sh/of2lkjup","slide":5,"name":"slide-title","text":"Built Beyond the Interface","textPreview":"Built Beyond the Interface","textChars":26,"textLines":1,"bbox":[74,144,668,48]}
+{"kind":"textbox","id":"sh/pgbmdova","slide":5,"name":"slide-subtitle","text":"The visible experience is supported by engineering choices that protect speed, reliability and room to grow.","textPreview":"The visible experience is supported by engineering choices that protect speed, reliability and room to grow.","textChars":108,"textLines":1,"bbox":[74,202,668,54]}
+{"kind":"shape","id":"sh/x4je1ov2","slide":5,"bbox":[74,278,326,160]}
+{"kind":"shape","id":"sh/wjadsjuh","slide":5,"bbox":[74,278,7,160]}
+{"kind":"textbox","id":"sh/vi1wzedw","slide":5,"text":"PERFORMANCE","textPreview":"PERFORMANCE","textChars":11,"textLines":1,"bbox":[98,298,278,24]}
+{"kind":"textbox","id":"sh/ahsvq9cb","slide":5,"text":"Efficient assets, rendering and delivery designed for responsive load and interaction.","textPreview":"Efficient assets, rendering and delivery designed for responsive load and interaction.","textChars":86,"textLines":1,"bbox":[98,334,278,82]}
+{"kind":"shape","id":"sh/9gzex4v6","slide":5,"bbox":[416,278,326,160]}
+{"kind":"shape","id":"sh/ofqdozul","slide":5,"bbox":[416,278,7,160]}
+{"kind":"textbox","id":"sh/nehwved0","slide":5,"text":"RESPONSIVE EXPERIENCE","textPreview":"RESPONSIVE EXPERIENCE","textChars":21,"textLines":1,"bbox":[440,298,278,24]}
+{"kind":"textbox","id":"sh/md8vm9cf","slide":5,"text":"Consistent journeys across desktop, tablet and mobile breakpoints.","textPreview":"Consistent journeys across desktop, tablet and mobile breakpoints.","textChars":66,"textLines":1,"bbox":[440,334,278,82]}
+{"kind":"shape","id":"sh/1czet4vu","slide":5,"bbox":[74,468,326,160]}
+{"kind":"shape","id":"sh/0bqdkzu9","slide":5,"bbox":[74,468,7,160]}
+{"kind":"textbox","id":"sh/svudgz25","slide":5,"text":"SCALABLE ARCHITECTURE","textPreview":"SCALABLE ARCHITECTURE","textChars":21,"textLines":1,"bbox":[98,488,278,24]}
+{"kind":"textbox","id":"sh/dw3e943q","slide":5,"text":"Modular components and services that can evolve with traffic and product scope.","textPreview":"Modular components and services that can evolve with traffic and product scope.","textChars":79,"textLines":1,"bbox":[98,524,278,82]}
+{"kind":"shape","id":"sh/qtsvepkz","slide":5,"bbox":[416,468,326,160]}
+{"kind":"shape","id":"sh/rulw7ulk","slide":5,"bbox":[416,468,7,160]}
+{"kind":"textbox","id":"sh/4radcz29","slide":5,"text":"INTEGRATION","textPreview":"INTEGRATION","textChars":11,"textLines":1,"bbox":[440,488,278,24]}
+{"kind":"textbox","id":"sh/5sje5k3u","slide":5,"text":"Connections to APIs, cloud services and business platforms where the solution requires them.","textPreview":"Connections to APIs, cloud services and business platforms where the solution requires them.","textChars":92,"textLines":1,"bbox":[440,524,278,82]}
+{"kind":"shape","id":"sh/ipsvapk3","slide":5,"bbox":[74,658,326,160]}
+{"kind":"shape","id":"sh/3q1w3ulo","slide":5,"bbox":[74,658,7,160]}
+{"kind":"textbox","id":"sh/onexoj2d","slide":5,"text":"QUALITY ENGINEERING","textPreview":"QUALITY ENGINEERING","textChars":19,"textLines":1,"bbox":[98,678,278,24]}
+{"kind":"textbox","id":"sh/9oneho3y","slide":5,"text":"Functional, compatibility and regression validation with disciplined release readiness.","textPreview":"Functional, compatibility and regression validation with disciplined release readiness.","textChars":87,"textLines":1,"bbox":[98,714,278,82]}
+{"kind":"shape","id":"sh/jipg7i50","slide":5,"bbox":[416,658,326,160]}
+{"kind":"shape","id":"sh/yhgzed4f","slide":5,"bbox":[416,658,7,160]}
+{"kind":"textbox","id":"sh/lk7i9sn6","slide":5,"text":"SECURITY","textPreview":"SECURITY","textChars":8,"textLines":1,"bbox":[440,678,278,24]}
+{"kind":"textbox","id":"sh/kjyhgnml","slide":5,"text":"Secure development practices, access controls, API protection, dependency hygiene and validation.","textPreview":"Secure development practices, access controls, API protection, dependency hygiene and validation.","textChars":97,"textLines":1,"bbox":[440,714,278,82]}
+{"kind":"shape","id":"sh/7m90b25c","slide":5,"bbox":[74,862,668,68]}
+{"kind":"textbox","id":"sh/6l0zix4r","slide":5,"text":"Quality, performance and security are designed into delivery - not checked at the end.","textPreview":"Quality, performance and security are designed into delivery - not checked at the end.","textChars":86,"textLines":1,"bbox":[96,881,624,34]}
+{"kind":"image","id":"im/kn6h0ryh","slide":5,"name":"","alt":"Workmate mark","bbox":[72,49,34,34]}
+{"kind":"notes","id":"nt/bekaes","slide":5,"text":"[Sources]\nWorkmate Consultancy Services Introduction.pdf - DevOps & Quality Engineering, Cloud Services and Cybersecurity & Compliance capability descriptions.\nWorkmate_Cybersecurity_Proposal.pptx (3).pdf - application/API security, authentication/authorization and validation themes.\nUser-provided brief - engineering pillars for web delivery."}
+{"kind":"slide","id":"sl/8jouex","slide":6,"title":"WORKMATE CONSULTANCY SERVICES","textShapes":22}
+{"kind":"textbox","id":"sh/43up43m5","slide":6,"name":"brand-name","text":"WORKMATE CONSULTANCY SERVICES","textPreview":"WORKMATE CONSULTANCY SERVICES","textChars":29,"textLines":1,"bbox":[120,55,390,24]}
+{"kind":"textbox","id":"sh/p436d8nq","slide":6,"name":"section-label","text":"HOW WE ENGAGE","textPreview":"HOW WE ENGAGE","textChars":13,"textLines":1,"bbox":[565,55,179,24]}
+{"kind":"shape","id":"sh/q5c76d4b","slide":6,"name":"header-rule","bbox":[72,108,672,0]}
+{"kind":"shape","id":"sh/r6lofi5g","slide":6,"name":"footer-rule","bbox":[72,966,672,0]}
+{"kind":"textbox","id":"sh/c7up8nm1","slide":6,"name":"footer-company","text":"Workmate Consultancy Services Pvt. Ltd.","textPreview":"Workmate Consultancy Services Pvt. Ltd.","textChars":39,"textLines":1,"bbox":[72,980,330,18]}
+{"kind":"textbox","id":"sh/d8n6h8nm","slide":6,"name":"page-number","text":"06","textPreview":"06","textChars":2,"textLines":1,"bbox":[710,980,34,18]}
+{"kind":"textbox","id":"sh/69snu9or","slide":6,"name":"slide-title","text":"Engage the Way Your Team Works","textPreview":"Engage the Way Your Team Works","textChars":30,"textLines":1,"bbox":[74,144,668,48]}
+{"kind":"textbox","id":"sh/7a1o3e5c","slide":6,"name":"slide-subtitle","text":"One specialist, a focused product team, a defined project or ongoing ownership - Workmate adapts to the need.","textPreview":"One specialist, a focused product team, a defined project or ongoing ownership - Workmate adapts to the need.","textChars":109,"textLines":1,"bbox":[74,202,668,54]}
+{"kind":"shape","id":"sh/7u5wve9k","slide":6,"bbox":[74,286,326,266]}
+{"kind":"textbox","id":"sh/6twf29sz","slide":6,"text":"01","textPreview":"01","textChars":2,"textLines":1,"bbox":[96,308,38,38]}
+{"kind":"textbox","id":"sh/twnex4ra","slide":6,"text":"Staff Augmentation","textPreview":"Staff Augmentation","textChars":18,"textLines":1,"bbox":[96,364,282,34]}
+{"kind":"shape","id":"sh/8vex4jap","slide":6,"bbox":[96,408,72,0]}
+{"kind":"textbox","id":"sh/j6lwru98","slide":6,"text":"Add skilled professionals to your existing team and delivery rhythm.","textPreview":"Add skilled professionals to your existing team and delivery rhythm.","textChars":68,"textLines":1,"bbox":[96,430,282,62]}
+{"kind":"textbox","id":"sh/y5cfypsn","slide":6,"text":"Best when you retain roadmap and day-to-day ownership.","textPreview":"Best when you retain roadmap and day-to-day ownership.","textChars":54,"textLines":1,"bbox":[96,501,282,34]}
+{"kind":"shape","id":"sh/lsnet4re","slide":6,"bbox":[416,286,326,266]}
+{"kind":"textbox","id":"sh/k7ex0zat","slide":6,"text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[438,308,38,38]}
+{"kind":"textbox","id":"sh/b2lwnu9c","slide":6,"text":"Dedicated Team","textPreview":"Dedicated Team","textChars":14,"textLines":1,"bbox":[438,364,282,34]}
+{"kind":"shape","id":"sh/a1cvupsr","slide":6,"bbox":[438,408,72,0]}
+{"kind":"textbox","id":"sh/exsf6pcj","slide":6,"text":"A focused cross-functional team aligned to your product roadmap.","textPreview":"A focused cross-functional team aligned to your product roadmap.","textChars":64,"textLines":1,"bbox":[438,430,282,62]}
+{"kind":"textbox","id":"sh/zy1gfud4","slide":6,"text":"Best when continuity, context and delivery capacity matter.","textPreview":"Best when continuity, context and delivery capacity matter.","textChars":59,"textLines":1,"bbox":[438,501,282,34]}
+{"kind":"shape","id":"sh/0zax8fup","slide":6,"bbox":[74,578,326,266]}
+{"kind":"textbox","id":"sh/103yhkva","slide":6,"text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[96,600,38,38]}
+{"kind":"textbox","id":"sh/m1cfapcf","slide":6,"text":"Project-Based Delivery","textPreview":"Project-Based Delivery","textChars":22,"textLines":1,"bbox":[96,656,282,34]}
+{"kind":"shape","id":"sh/n2lgjud0","slide":6,"bbox":[96,700,72,0]}
+{"kind":"textbox","id":"sh/o3uxczul","slide":6,"text":"Defined scope, milestones, timeline and delivery accountability.","textPreview":"Defined scope, milestones, timeline and delivery accountability.","textChars":64,"textLines":1,"bbox":[96,722,282,62]}
+{"kind":"textbox","id":"sh/943yl4v6","slide":6,"text":"Best when the outcome and boundaries can be agreed upfront.","textPreview":"Best when the outcome and boundaries can be agreed upfront.","textChars":59,"textLines":1,"bbox":[96,793,282,34]}
+{"kind":"shape","id":"sh/a5cfe9cr","slide":6,"bbox":[416,578,326,266]}
+{"kind":"textbox","id":"sh/bqlgnedc","slide":6,"text":"04","textPreview":"04","textChars":2,"textLines":1,"bbox":[438,600,38,38]}
+{"kind":"textbox","id":"sh/lk7id8fe","slide":6,"text":"Managed Services","textPreview":"Managed Services","textChars":16,"textLines":1,"bbox":[438,656,282,34]}
+{"kind":"shape","id":"sh/kzy143et","slide":6,"bbox":[438,700,72,0]}
+{"kind":"textbox","id":"sh/jy50byx8","slide":6,"text":"Ongoing maintenance, monitoring, support, optimization and enhancement.","textPreview":"Ongoing maintenance, monitoring, support, optimization and enhancement.","textChars":71,"textLines":1,"bbox":[438,722,282,62]}
+{"kind":"textbox","id":"sh/yxwz2twn","slide":6,"text":"Best when the platform needs dependable post-launch care.","textPreview":"Best when the platform needs dependable post-launch care.","textChars":57,"textLines":1,"bbox":[438,793,282,34]}
+{"kind":"image","id":"im/ahwzqdsz","slide":6,"name":"","alt":"Workmate mark","bbox":[72,49,34,34]}
+{"kind":"notes","id":"nt/8jouex","slide":6,"text":"[Sources]\nWorkmate Consultancy Services Introduction.pdf - Staff Augmentation, Dedicated Team, Project-Based Delivery and Managed Services models.\nUser-provided reference image - clean 2x2 information architecture only; visual system follows PDF 1."}
+{"kind":"slide","id":"sl/42ipql","slide":7,"title":"WORKMATE CONSULTANCY SERVICES","textShapes":23}
+{"kind":"textbox","id":"sh/nyl0rq9c","slide":7,"name":"brand-name","text":"WORKMATE CONSULTANCY SERVICES","textPreview":"WORKMATE CONSULTANCY SERVICES","textChars":29,"textLines":1,"bbox":[120,55,390,24]}
+{"kind":"textbox","id":"sh/2dczilsr","slide":7,"name":"section-label","text":"WHY WORKMATE","textPreview":"WHY WORKMATE","textChars":12,"textLines":1,"bbox":[565,55,179,24]}
+{"kind":"shape","id":"sh/x4nix0re","slide":7,"name":"header-rule","bbox":[72,108,672,0]}
+{"kind":"shape","id":"sh/c3ehovat","slide":7,"name":"footer-rule","bbox":[72,966,672,0]}
+{"kind":"textbox","id":"sh/b250vq98","slide":7,"name":"footer-company","text":"Workmate Consultancy Services Pvt. Ltd.","textPreview":"Workmate Consultancy Services Pvt. Ltd.","textChars":39,"textLines":1,"bbox":[72,980,330,18]}
+{"kind":"textbox","id":"sh/a1wzmls3","slide":7,"name":"page-number","text":"07","textPreview":"07","textChars":2,"textLines":1,"bbox":[710,980,34,18]}
+{"kind":"textbox","id":"sh/t83ilwra","slide":7,"name":"slide-title","text":"A Partner From Workshop to What Comes Next","textPreview":"A Partner From Workshop to What Comes Next","textChars":42,"textLines":1,"bbox":[74,144,668,48]}
+{"kind":"textbox","id":"sh/s7uhcbap","slide":7,"name":"slide-subtitle","text":"Business context, technical depth and delivery accountability stay connected through the full lifecycle.","textPreview":"Business context, technical depth and delivery accountability stay connected through the full lifecycle.","textChars":104,"textLines":1,"bbox":[74,202,668,54]}
+{"kind":"textbox","id":"sh/2xwvm54n","slide":7,"text":"01","textPreview":"01","textChars":2,"textLines":1,"bbox":[76,281,48,30]}
+{"kind":"textbox","id":"sh/ny5wfal8","slide":7,"text":"Proficiency-first delivery","textPreview":"Proficiency-first delivery","textChars":26,"textLines":1,"bbox":[136,278,250,28]}
+{"kind":"textbox","id":"sh/ozydofmd","slide":7,"text":"Hands-on specialists focused on the work, not generic resourcing.","textPreview":"Hands-on specialists focused on the work, not generic resourcing.","textChars":65,"textLines":1,"bbox":[390,279,334,40]}
+{"kind":"shape","id":"sh/p07ehk3y","slide":7,"bbox":[74,336,668,0]}
+{"kind":"textbox","id":"sh/a1gvqp4j","slide":7,"text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[76,357,48,30]}
+{"kind":"textbox","id":"sh/b2pwjul4","slide":7,"text":"Fixed accountability","textPreview":"Fixed accountability","textChars":20,"textLines":1,"bbox":[136,354,250,28]}
+{"kind":"textbox","id":"sh/c3ydszmp","slide":7,"text":"Named ownership, transparent progress and clear delivery commitments.","textPreview":"Named ownership, transparent progress and clear delivery commitments.","textChars":69,"textLines":1,"bbox":[390,355,334,40]}
+{"kind":"shape","id":"sh/x47elk3a","slide":7,"bbox":[74,412,668,0]}
+{"kind":"textbox","id":"sh/y5gvup4v","slide":7,"text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[76,433,48,30]}
+{"kind":"textbox","id":"sh/z69wnul0","slide":7,"text":"Full lifecycle coverage","textPreview":"Full lifecycle coverage","textChars":23,"textLines":1,"bbox":[136,430,250,28]}
+{"kind":"textbox","id":"sh/vu9cbu18","slide":7,"text":"Strategy, design, engineering, secure validation and long-term support.","textPreview":"Strategy, design, engineering, secure validation and long-term support.","textChars":71,"textLines":1,"bbox":[390,431,334,40]}
+{"kind":"shape","id":"sh/u90vip0n","slide":7,"bbox":[74,488,668,0]}
+{"kind":"textbox","id":"sh/hwrud4je","slide":7,"text":"04","textPreview":"04","textChars":2,"textLines":1,"bbox":[76,509,48,30]}
+{"kind":"textbox","id":"sh/wvidkzit","slide":7,"text":"Flexible engagement","textPreview":"Flexible engagement","textChars":19,"textLines":1,"bbox":[136,506,250,28]}
+{"kind":"textbox","id":"sh/769c7u1c","slide":7,"text":"Capacity and commercial shape aligned to how your team needs to operate.","textPreview":"Capacity and commercial shape aligned to how your team needs to operate.","textChars":72,"textLines":1,"bbox":[390,507,334,40]}
+{"kind":"shape","id":"sh/m5gvep0r","slide":7,"bbox":[74,564,668,0]}
+{"kind":"shape","id":"sh/98ru94ji","slide":7,"bbox":[52,606,712,326]}
+{"kind":"textbox","id":"sh/87idgzix","slide":7,"text":"Let's Build What's Next.","textPreview":"Let's Build What's Next.","textChars":24,"textLines":1,"bbox":[94,666,600,48]}
+{"kind":"textbox","id":"sh/z2pc3a10","slide":7,"text":"Tell us the business problem. We'll bring the strategy, design, engineering and delivery discipline to turn it into a scalable web experience.","textPreview":"Tell us the business problem. We'll bring the strategy, design, engineering and delivery discipline to turn it into a scalable web experi...","textChars":142,"textLines":1,"bbox":[94,734,600,76]}
+{"kind":"shape","id":"sh/y1gba50f","slide":7,"bbox":[94,836,578,0]}
+{"kind":"textbox","id":"sh/o7e94byd","slide":7,"text":"info@wcspl.net","textPreview":"info@wcspl.net","textChars":14,"textLines":1,"bbox":[94,860,190,22]}
+{"kind":"textbox","id":"sh/p8nadgzy","slide":7,"text":"+91 8130396263","textPreview":"+91 8130396263","textChars":14,"textLines":1,"bbox":[310,860,180,22]}
+{"kind":"textbox","id":"sh/25cr2lg7","slide":7,"text":"www.wcspl.net","textPreview":"www.wcspl.net","textChars":13,"textLines":1,"bbox":[520,860,170,22]}
+{"kind":"image","id":"im/lw7exkr2","slide":7,"name":"","alt":"Workmate mark","bbox":[72,49,34,34]}
+{"kind":"notes","id":"nt/42ipql","slide":7,"text":"[Sources]\nWorkmate Consultancy Services Introduction.pdf - verified differentiators and official contact information.\nWorkmate_Cybersecurity_Proposal.pptx (3).pdf - senior involvement, transparent reporting and long-term partnership positioning."}
