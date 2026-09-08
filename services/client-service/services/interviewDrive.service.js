@@ -10,6 +10,34 @@ import * as clientRepo from "../repositories/client.repository.js"
 // candidate-facing URL no server-side record ever agreed to.
 const generatePublicLink = () => crypto.randomBytes(6).toString("hex")
 
+const normalizeRoundType = (value) => {
+    const normalized = String(value || "Technical").trim().toLowerCase()
+    if (normalized === "hr" || normalized === "hr round") return "HR"
+    if (normalized === "technical" || normalized === "technical round") return "Technical"
+    if (normalized === "managerial" || normalized === "managerial round") return "Managerial Round"
+    return String(value || "Technical").trim()
+}
+
+const normalizeCandidate = (candidate, index = 0) => {
+    const name = String(candidate?.name || "").trim()
+    const email = String(candidate?.email || "").trim().toLowerCase()
+    const phone = String(candidate?.phone || "").trim()
+    const exp = String(candidate?.exp || "").trim()
+    if (!name || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        throw new ApiError(400, "INVALID_CANDIDATE", `Candidate ${index + 1} needs a valid name and email.`)
+    }
+    if (phone && !/^\d{10}$/.test(phone)) {
+        throw new ApiError(400, "INVALID_PHONE", `Candidate ${index + 1} phone must contain exactly 10 digits.`)
+    }
+    const experienceNumber = exp.match(/^\d+(?:\.\d+)?/)?.[0]
+    if (exp && (!/^\d+(?:\.\d+)?(?:\s*(?:years?|yrs?))?$/.test(exp) || !experienceNumber || Number(experienceNumber) <= 0 || Number(experienceNumber) > 70)) {
+        throw new ApiError(400, "INVALID_EXPERIENCE", `Candidate ${index + 1} experience must be greater than 0 and no more than 70 years.`)
+    }
+    return { id: candidate.id || `candidate-${crypto.randomBytes(8).toString("hex")}`, name, email, phone, exp, status: candidate.status || "INVITED", aiScore: Number(candidate.aiScore) || 0, malpracticeFlags: Number(candidate.malpracticeFlags) || 0 }
+}
+
+const normalizeCandidates = (candidates = []) => candidates.map((candidate, index) => normalizeCandidate(candidate, index))
+
 // Fires one CANDIDATE_INVITE email per candidate - best-effort (a slow/
 // unavailable communication-service must never fail drive/round creation,
 // the roster is already persisted regardless of whether the email goes
@@ -19,7 +47,8 @@ const generatePublicLink = () => crypto.randomBytes(6).toString("hex")
 const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
     if (!candidates?.length || !drive.publicLink) return
     const org = await clientRepo.findById(tenantId).catch(() => null)
-    const interviewLink = `${process.env.FRONTEND_BASE_URL}/apply/${drive.publicLink}`
+    const frontendBaseUrl = (process.env.FRONTEND_BASE_URL || "http://localhost:5173").replace(/\/$/, "")
+    const interviewLink = `${frontendBaseUrl}/apply/${drive.publicLink}`
     const expiryDate = new Date(drive.expiryDate).toLocaleDateString()
 
     for (const candidate of candidates) {
@@ -41,35 +70,76 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
 
 export const createDrive = async (tenantId, driveData, ctx) => {
     if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
-    if (!driveData.title || !driveData.expiryDate) {
-        throw new ApiError(400, "MISSING_FIELDS", "Title and expiry date are mandatory.")
+    if (!driveData.title || !driveData.roleCategory || !driveData.department || !driveData.roundType || !driveData.startDate || !driveData.expiryDate) {
+        throw new ApiError(400, "MISSING_FIELDS", "Title, role, department, interview type, start date, and expiry date are mandatory.")
     }
+    const startDate = new Date(`${driveData.startDate}T00:00:00`)
+    const expiryDate = new Date(`${driveData.expiryDate}T00:00:00`)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const windowDays = (expiryDate - startDate) / 86400000
+    if (Number.isNaN(startDate.getTime()) || startDate < today) throw new ApiError(400, "INVALID_START_DATE", "Start date cannot be earlier than today.")
+    if (Number.isNaN(expiryDate.getTime()) || expiryDate < startDate || windowDays > 50) throw new ApiError(400, "INVALID_EXPIRY_DATE", "Expiry date must be within 50 days of the start date.")
 
+    const initialCandidates = normalizeCandidates(driveData.importedCandidateList || [])
     const firstRound = {
         roundNumber: 1,
         title: `Round 1: ${driveData.roundType || "Technical Assessment"}`,
-        type: driveData.roundType || "Technical Round",
+        type: normalizeRoundType(driveData.roundType),
         status: "ACTIVE",
-        expiryDate: driveData.expiryDate,
+        expiryDate,
         passingThreshold: driveData.passingThreshold || 70,
         skillRubrics: driveData.skillRubrics || [],
         questionMode: driveData.questionMode || "PREBUILT",
         questionBankTitle: driveData.questionBankTitle,
         customQuestions: driveData.customQuestionsList || [],
-        candidates: driveData.importedCandidateList || [],
+        candidates: initialCandidates,
     }
 
+    const status = driveData.status === "DRAFT" ? "DRAFT" : "ACTIVE"
     const newDrive = new InterviewDrive({
         ...driveData,
         tenantId,
+        startDate,
+        expiryDate,
+        status,
         currentRound: 1,
         rounds: [firstRound],
-        publicLink: driveData.enablePublicLink === false ? null : generatePublicLink(),
+        publicLink: status === "ACTIVE" && driveData.enablePublicLink !== false ? generatePublicLink() : null,
     })
 
     const saved = await newDrive.save()
-    await inviteCandidates(tenantId, saved, driveData.importedCandidateList, ctx)
+    if (status === "ACTIVE") await inviteCandidates(tenantId, saved, initialCandidates, ctx)
     return saved
+}
+
+export const addCandidatesToDrive = async (tenantId, driveId, candidates, ctx) => {
+    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+    requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    if (!Array.isArray(candidates) || candidates.length === 0) throw new ApiError(400, "CANDIDATES_REQUIRED", "At least one candidate is required.")
+    if (candidates.length > 500) throw new ApiError(400, "CANDIDATE_LIMIT", "Maximum 500 candidates can be imported at once.")
+
+    const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
+    if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    const round = drive.rounds?.[0]
+    if (!round) throw new ApiError(409, "ROUND_NOT_FOUND", "This drive has no active round.")
+
+    const existingEmails = new Set(round.candidates.map((candidate) => candidate.email.toLowerCase()))
+    const additions = []
+    for (const candidate of candidates) {
+        const normalized = normalizeCandidate(candidate, additions.length)
+        const { email } = normalized
+        if (existingEmails.has(email)) continue
+        existingEmails.add(email)
+        additions.push(normalized)
+    }
+    if (additions.length === 0) throw new ApiError(400, "NO_NEW_CANDIDATES", "No valid new candidates were found.")
+
+    round.candidates.push(...additions)
+    drive.candidatesCount = round.candidates.length
+    await drive.save()
+    await inviteCandidates(tenantId, drive, additions, ctx)
+    return drive
 }
 
 // Public (unauthenticated) - a candidate clicking their invite link isn't
@@ -148,16 +218,20 @@ export const addRoundToDrive = async (tenantId, driveId, roundData, ctx) => {
     return drive
 }
 
-export const updateDriveStatus = async (tenantId, driveId, status) => {
+export const updateDriveStatus = async (tenantId, driveId, status, ctx = {}) => {
     if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
     requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
 
-    const drive = await InterviewDrive.findOneAndUpdate(
-        { _id: driveId, tenantId },
-        { $set: { status } },
-        { new: true }
-    )
+    if (!["ACTIVE", "COMPLETED", "DRAFT", "ARCHIVED"].includes(status)) {
+        throw new ApiError(400, "INVALID_STATUS", "Invalid drive status.")
+    }
+    const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
     if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    const activatingDraft = drive.status === "DRAFT" && status === "ACTIVE"
+    drive.status = status
+    if (activatingDraft && drive.enablePublicLink && !drive.publicLink) drive.publicLink = generatePublicLink()
+    await drive.save()
+    if (activatingDraft) await inviteCandidates(tenantId, drive, drive.rounds?.[0]?.candidates || [], ctx)
     return drive
 }
 
@@ -182,6 +256,45 @@ export const updateCandidateStatus = async (tenantId, driveId, roundNumber, cand
         }
     )
     if (!drive) throw new ApiError(404, "CANDIDATE_NOT_FOUND", "Candidate not found in this round.")
+    return drive
+}
+
+export const updateCandidate = async (tenantId, driveId, roundNumber, candidateId, data) => {
+    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+    requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
+
+    const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
+    if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    const round = drive.rounds.find((item) => item.roundNumber === Number(roundNumber))
+    const candidate = round?.candidates.find((item) => item.id === candidateId)
+    if (!candidate) throw new ApiError(404, "CANDIDATE_NOT_FOUND", "Candidate not found in this round.")
+
+    const normalized = normalizeCandidate({ ...data, id: candidateId }, 0)
+    const { name, email } = normalized
+    const duplicate = round.candidates.some((item) => item.id !== candidateId && item.email.toLowerCase() === email)
+    if (duplicate) throw new ApiError(409, "DUPLICATE_CANDIDATE", "Another candidate in this round already uses that email.")
+
+    candidate.name = name
+    candidate.email = email
+    candidate.phone = normalized.phone
+    candidate.exp = normalized.exp
+    await drive.save()
+    return drive
+}
+
+export const removeCandidate = async (tenantId, driveId, roundNumber, candidateId) => {
+    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+    requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
+
+    const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
+    if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    const round = drive.rounds.find((item) => item.roundNumber === Number(roundNumber))
+    if (!round?.candidates.some((item) => item.id === candidateId)) {
+        throw new ApiError(404, "CANDIDATE_NOT_FOUND", "Candidate not found in this round.")
+    }
+    round.candidates = round.candidates.filter((item) => item.id !== candidateId)
+    drive.candidatesCount = drive.rounds.reduce((total, item) => total + item.candidates.length, 0)
+    await drive.save()
     return drive
 }
 

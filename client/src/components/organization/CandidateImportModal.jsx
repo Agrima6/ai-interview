@@ -26,6 +26,16 @@ const guessMapping = (headers) => {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const PHONE_RE = /^\d{10}$/
+const EXPERIENCE_RE = /^\d+(?:\.\d+)?(?:\s*(?:years?|yrs?))?$/
+
+const validateCandidateDetails = (phone, exp) => {
+    if (phone && !PHONE_RE.test(phone.trim())) return 'Phone must contain exactly 10 digits'
+    const normalizedExp = exp.trim()
+    const experienceNumber = normalizedExp.match(/^\d+(?:\.\d+)?/)?.[0]
+    if (normalizedExp && (!EXPERIENCE_RE.test(normalizedExp) || !experienceNumber || Number(experienceNumber) <= 0 || Number(experienceNumber) > 70)) return 'Experience must be greater than 0 and no more than 70 years'
+    return null
+}
 
 function CandidateImportModal({ open, onClose, onImportComplete }) {
     const [step, setStep] = useState(1) // 1: Upload, 2: Map Headers, 3: Verify & Fix
@@ -75,6 +85,7 @@ function CandidateImportModal({ open, onClose, onImportComplete }) {
             if (!name?.trim()) { status = 'ERROR'; error = 'Empty Name Field' }
             else if (!EMAIL_RE.test(email)) { status = 'ERROR'; error = "Missing/invalid Email" }
             else if (seenEmails.has(email)) { status = 'DUPLICATE'; error = 'Duplicate email in this file' }
+            else if (validateCandidateDetails(phone, exp)) { status = 'ERROR'; error = validateCandidateDetails(phone, exp) }
 
             if (status !== 'ERROR' || email) seenEmails.add(email)
             return { row: i + 2, name: name?.trim() || '', email, phone: phone?.trim() || '', exp: exp?.trim() || '', status, error }
@@ -96,6 +107,7 @@ function CandidateImportModal({ open, onClose, onImportComplete }) {
                 if (!hasName) { status = 'ERROR'; error = 'Empty Name Field' }
                 else if (!EMAIL_RE.test(email)) { status = 'ERROR'; error = "Missing/invalid Email" }
                 else if (seenEmails.has(email)) { status = 'DUPLICATE'; error = 'Duplicate email in this file' }
+                else if (validateCandidateDetails(updatedData.phone || '', updatedData.exp || '')) { status = 'ERROR'; error = validateCandidateDetails(updatedData.phone || '', updatedData.exp || '') }
                 return { ...r, ...updatedData, email, status, error }
             })
         })

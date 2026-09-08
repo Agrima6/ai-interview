@@ -25,6 +25,10 @@ const DEFAULT_TEMPLATES = [
     },
 ]
 
+const renderText = (text, values) => (text || "").replace(/\{\{?\s*(\w+)\s*\}?\}/g, (match, key) =>
+    Object.prototype.hasOwnProperty.call(values, key) ? values[key] : match
+)
+
 export const listTemplates = async (tenantId) => {
     if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
 
@@ -41,11 +45,35 @@ export const listTemplates = async (tenantId) => {
 export const updateTemplate = async (tenantId, templateId, { subject, body }) => {
     if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
 
+    if (!subject?.trim() || !body?.trim()) throw new ApiError(400, "INVALID_TEMPLATE", "Subject and body are required.")
+
     const updated = await NotificationTemplate.findOneAndUpdate(
         { tenantId, templateId },
-        { $set: { subject, body, lastUpdated: new Date() } },
+        { $set: { subject: subject.trim(), body: body.trim(), lastUpdated: new Date() } },
         { new: true, upsert: true }
     )
 
     return updated
+}
+
+export const previewTemplate = async (tenantId, templateId, changes = {}) => {
+    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+
+    const template = await NotificationTemplate.findOne({ tenantId, templateId }).lean()
+    if (!template) throw new ApiError(404, "TEMPLATE_NOT_FOUND", "Notification template was not found.")
+
+    const values = {
+        candidate_name: "Aarav Sharma",
+        drive_title: "Senior Backend Engineer",
+        company_name: "Your Organization",
+        interview_link: "https://workmateiq.com/interview/invite/preview",
+        expiry_date: new Date(Date.now() + 14 * 86400000).toLocaleDateString(),
+        ...(changes.values || {}),
+    }
+
+    return {
+        subject: renderText(changes.subject ?? template.subject, values),
+        body: renderText(changes.body ?? template.body, values),
+        values,
+    }
 }

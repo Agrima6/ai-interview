@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Plus, Check, ArrowRight, ArrowLeft, CheckSquare, Square, Upload, Users, FileSpreadsheet, AlertCircle } from 'lucide-react'
 import Modal from '../ui/Modal'
-import { Button, Input, Select, Badge } from '../ui'
+import { Button, Input, Select, Badge, EditableSelect } from '../ui'
 import CriteriaWeightageBuilder from './CriteriaWeightageBuilder'
 import QuestionSetBuilder from './QuestionSetBuilder'
 import CandidateImportModal from './CandidateImportModal'
@@ -62,7 +62,16 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
 
   const handleCriteriaWeightChange = (idx, newWeight) => {
     setErrorMessage('')
-    setSkillWeightages((prev) => prev.map((item, i) => (i === idx ? { ...item, weight: Number(newWeight) || 0 } : item)))
+    const weight = Number(newWeight) || 0
+    const clampedWeight = Math.min(weight, 100)
+
+    const otherTotal = skillWeightages.reduce((acc, s, i) => acc + (i === idx ? 0 : s.weight), 0)
+    if (otherTotal + clampedWeight > 100) {
+      setErrorMessage(`Weight cannot exceed 100% total. Maximum allowed: ${Math.max(0, 100 - otherTotal)}%`)
+      return
+    }
+
+    setSkillWeightages((prev) => prev.map((item, i) => (i === idx ? { ...item, weight: clampedWeight } : item)))
   }
 
   const handleAddCriteria = () =>
@@ -216,9 +225,9 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
         <div className="flex items-center justify-between mb-8 pb-4 border-b border-line overflow-x-auto">
           {[
             { num: 1, label: `1. Round ${roundNumber} Setup` },
-            { num: 2, label: '2. Evaluation Criteria & Weightages' },
+            { num: 2, label: '2. Evaluation Criteria' },
             { num: 3, label: '3. Interview Questions Setup' },
-            { num: 4, label: '4. Round Candidate Roster' },
+            { num: 4, label: '4. Question Screen' },
           ].map((s) => (
             <div key={s.num} className="flex items-center gap-2.5 shrink-0 px-2">
               <div
@@ -251,7 +260,7 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
             />
 
             <div className="grid sm:grid-cols-2 gap-6">
-              <Select
+              <EditableSelect
                 label="Round Type *"
                 value={formData.roundType}
                 onChange={(e) => handleChange('roundType', e.target.value)}
@@ -260,6 +269,7 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
                   { value: 'Technical Deep-Dive', label: 'Technical Deep-Dive / Live Coding' },
                   { value: 'HR & Executive Round', label: 'HR & Executive Culture Fit' },
                 ]}
+                placeholder="Select or type a round type…"
               />
               <Input
                 label="AI Qualification Passing Threshold (%)"

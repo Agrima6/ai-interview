@@ -35,6 +35,16 @@ export const getDriveById = async (req, res, next) => {
     }
 }
 
+export const addCandidatesToDrive = async (req, res, next) => {
+    try {
+        const tenantId = req.user?.tenantId
+        const drive = await driveService.addCandidatesToDrive(tenantId, req.params.id, req.body.candidates, { requestId: req.requestId, correlationId: req.correlationId })
+        ok(res, drive)
+    } catch (error) {
+        next(error)
+    }
+}
+
 export const addRoundToDrive = async (req, res, next) => {
     try {
         const tenantId = req.user?.tenantId
@@ -48,7 +58,7 @@ export const addRoundToDrive = async (req, res, next) => {
 export const updateDriveStatus = async (req, res, next) => {
     try {
         const tenantId = req.user?.tenantId
-        const drive = await driveService.updateDriveStatus(tenantId, req.params.id, req.body.status)
+        const drive = await driveService.updateDriveStatus(tenantId, req.params.id, req.body.status, { requestId: req.requestId, correlationId: req.correlationId })
         ok(res, drive)
     } catch (error) {
         next(error)
@@ -60,6 +70,24 @@ export const updateCandidateStatus = async (req, res, next) => {
         const tenantId = req.user?.tenantId
         const { id: driveId, roundNumber, candidateId } = req.params
         const drive = await driveService.updateCandidateStatus(tenantId, driveId, roundNumber, candidateId, req.body.status)
+        ok(res, drive)
+    } catch (error) {
+        next(error)
+    }
+}
+
+export const updateCandidate = async (req, res, next) => {
+    try {
+        const drive = await driveService.updateCandidate(req.user?.tenantId, req.params.id, req.params.roundNumber, req.params.candidateId, req.body)
+        ok(res, drive)
+    } catch (error) {
+        next(error)
+    }
+}
+
+export const removeCandidate = async (req, res, next) => {
+    try {
+        const drive = await driveService.removeCandidate(req.user?.tenantId, req.params.id, req.params.roundNumber, req.params.candidateId)
         ok(res, drive)
     } catch (error) {
         next(error)

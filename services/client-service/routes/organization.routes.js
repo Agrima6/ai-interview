@@ -21,5 +21,6 @@ router.post("/question-banks", authenticate, requirePermission("CLIENT_SELF_UPDA
 // Notification Templates
 router.get("/organization/templates", authenticate, requirePermission("CLIENT_SELF_READ"), portalController.listTemplates)
 router.put("/organization/templates/:id", authenticate, requirePermission("CLIENT_SELF_UPDATE"), portalController.updateTemplate)
+router.post("/organization/templates/:id/preview", authenticate, requirePermission("CLIENT_SELF_READ"), portalController.previewTemplate)
 
 export default router

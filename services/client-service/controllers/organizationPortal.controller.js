@@ -70,3 +70,12 @@ export const updateTemplate = async (req, res, next) => {
         next(error)
     }
 }
+
+export const previewTemplate = async (req, res, next) => {
+    try {
+        const preview = await templateService.previewTemplate(req.user?.tenantId, req.params.id, req.body)
+        ok(res, preview)
+    } catch (error) {
+        next(error)
+    }
+}

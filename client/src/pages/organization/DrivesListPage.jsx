@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Plus, ListChecks, Users, Trash2, Link2, Sparkles, AlertCircle } from 'lucide-react'
+import { Plus, ListChecks, Users, Trash2, Link2, Sparkles, AlertCircle, Copy, Check, ExternalLink } from 'lucide-react'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
 import CreateDriveModal from '../../components/organization/CreateDriveModal'
 import { Card, Button, Badge, SearchInput, Tabs, StatCard, Skeleton, ConfirmModal, useToast } from '../../components/ui'
@@ -21,11 +21,12 @@ function DrivesListPage() {
   const [search, setSearch] = useState('')
   const [activeTab, setActiveTab] = useState('ALL')
   const [modalOpen, setModalOpen] = useState(false)
-  const [copiedId, setCopiedId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [archiveTarget, setArchiveTarget] = useState(null)
   const [archiving, setArchiving] = useState(false)
+  const [copiedId, setCopiedId] = useState(null)
+  const [visibleLinkId, setVisibleLinkId] = useState(null)
 
   const basePath = location.pathname.startsWith('/college')
     ? '/college'
@@ -60,6 +61,29 @@ function DrivesListPage() {
     fetchDrives()
   }
 
+  const handleCopyLink = async (e, link, id) => {
+    e.stopPropagation()
+    if (!link) {
+      toast.error('Public link is not available for this drive.')
+      return
+    }
+    const fullUrl = `${window.location.origin}/apply/${link}`
+    try {
+      await navigator.clipboard.writeText(fullUrl)
+      setCopiedId(id)
+      setTimeout(() => setCopiedId(null), 2000)
+      toast.success('Public link copied to clipboard.')
+    } catch (err) {
+      toast.error('Could not copy link. Please copy it manually.')
+    }
+  }
+
+  const handleOpenLink = (e, link) => {
+    e.stopPropagation()
+    if (!link) return
+    window.open(`${window.location.origin}/apply/${link}`, '_blank', 'noopener,noreferrer')
+  }
+
   const runArchive = async () => {
     if (!archiveTarget) return
     setArchiving(true)
@@ -73,16 +97,6 @@ function DrivesListPage() {
     } finally {
       setArchiving(false)
     }
-  }
-
-  const handleCopyLink = (e, link, id) => {
-    e.stopPropagation()
-    // `link` is just the server-generated slug (e.g. "18b484c6fe9e") - not
-    // a URL on its own. The real, working candidate-facing page lives at
-    // /apply/:link (see ApplyPage.jsx + the public drive lookup endpoint).
-    navigator.clipboard.writeText(`${window.location.origin}/apply/${link}`)
-    setCopiedId(id)
-    setTimeout(() => setCopiedId(null), 2000)
   }
 
   const totalDrives = drives.length
@@ -210,20 +224,43 @@ function DrivesListPage() {
                     </div>
                   </div>
 
-                  <div className="pt-4 mt-4 border-t border-line flex items-center justify-between text-[12.5px]">
-                    <div className="flex items-center gap-1.5 text-text-secondary font-medium">
-                      <Users size={14} className="text-accent" />
-                      <span>{drive.candidatesCount} Candidates</span>
-                    </div>
+                  <div className="pt-4 mt-4 border-t border-line space-y-2">
+                    <div className="flex items-center justify-between text-[12.5px]">
+                      <div className="flex items-center gap-1.5 text-text-secondary font-medium">
+                        <Users size={14} className="text-accent" />
+                        <span>{drive.candidatesCount} Candidates</span>
+                      </div>
 
-                    {drive.publicLink && (
-                      <button
-                        type="button"
-                        onClick={(e) => handleCopyLink(e, drive.publicLink, driveId)}
-                        className="flex items-center gap-1 text-accent hover:underline font-semibold"
-                      >
-                        <Link2 size={13} /> {copiedId === driveId ? 'Copied Link!' : 'Public Link'}
-                      </button>
+                      {drive.publicLink ? (
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={(e) => handleOpenLink(e, drive.publicLink)}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-text-secondary hover:text-ink hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                            title="Open candidate link in a new tab"
+                          >
+                            <ExternalLink size={12} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setVisibleLinkId((current) => current === driveId ? null : driveId) }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-accent/10 text-accent border border-accent/20 hover:bg-accent/15 transition-colors font-semibold"
+                            title="Show public link"
+                          >
+                            <Link2 size={12} /> Public Link
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-text-secondary/60 text-[11.5px] font-medium">No public link</span>
+                      )}
+                    </div>
+                    {visibleLinkId === driveId && drive.publicLink && (
+                      <div className="flex items-center gap-2 rounded-lg border border-accent/20 bg-accent/5 p-2">
+                        <input readOnly value={`${window.location.origin}/apply/${drive.publicLink}`} className="min-w-0 flex-1 bg-transparent text-[11px] text-ink outline-none" onClick={(e) => e.stopPropagation()} />
+                        <button type="button" onClick={(e) => handleCopyLink(e, drive.publicLink, driveId)} className="shrink-0 rounded-md p-1.5 text-accent hover:bg-accent/10" title="Copy public URL">
+                          {copiedId === driveId ? <Check size={14} /> : <Copy size={14} />}
+                        </button>
+                      </div>
                     )}
                   </div>
                 </Card>

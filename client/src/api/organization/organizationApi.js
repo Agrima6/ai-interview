@@ -9,12 +9,17 @@ export const updateOrganizationBranding = (payload) => apiPatch("/api/v1/organiz
 export const listInterviewDrives = (params) => apiGet("/api/v1/drives", params)
 export const createInterviewDrive = (payload) => apiPost("/api/v1/drives", payload)
 export const getInterviewDriveById = (id) => apiGet(`/api/v1/drives/${id}`)
+export const addCandidatesToDrive = (driveId, candidates) => apiPost(`/api/v1/drives/${driveId}/candidates`, { candidates })
 // Public/unauthenticated - what a candidate sees when they open their invite link.
 export const getPublicDrive = (link) => apiGet(`/api/v1/drives/public/${link}`)
 export const addRoundToInterviewDrive = (driveId, payload) => apiPost(`/api/v1/drives/${driveId}/rounds`, payload)
 export const updateDriveStatus = (driveId, status) => apiPatch(`/api/v1/drives/${driveId}/status`, { status })
 export const updateCandidateStatus = (driveId, roundNumber, candidateId, status) =>
     apiPatch(`/api/v1/drives/${driveId}/rounds/${roundNumber}/candidates/${candidateId}/status`, { status })
+export const updateCandidate = (driveId, roundNumber, candidateId, payload) =>
+    apiPatch(`/api/v1/drives/${driveId}/rounds/${roundNumber}/candidates/${candidateId}`, payload)
+export const removeCandidate = (driveId, roundNumber, candidateId) =>
+    apiDelete(`/api/v1/drives/${driveId}/rounds/${roundNumber}/candidates/${candidateId}`)
 
 // Candidates (aggregated across every drive/round for the organization)
 export const listAllCandidates = (params) => apiGetList("/api/v1/candidates", params)
@@ -31,3 +36,4 @@ export const createQuestionBank = (payload) => apiPost("/api/v1/question-banks",
 // Notification Templates APIs
 export const getNotificationTemplates = () => apiGet("/api/v1/organization/templates")
 export const updateNotificationTemplate = (id, payload) => apiPut(`/api/v1/organization/templates/${id}`, payload)
+export const previewNotificationTemplate = (id, payload) => apiPost(`/api/v1/organization/templates/${id}/preview`, payload)

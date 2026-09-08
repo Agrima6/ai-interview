@@ -50,6 +50,7 @@ const InterviewDriveSchema = new mongoose.Schema(
         totalRounds: { type: Number, default: 2 },
         currentRound: { type: Number, default: 1 },
         roundType: { type: String, default: "Technical Round" },
+        startDate: { type: Date },
         expiryDate: { type: Date, required: true },
         status: { type: String, enum: ["ACTIVE", "COMPLETED", "DRAFT", "ARCHIVED"], default: "ACTIVE" },
         questionMode: { type: String, enum: ["PREBUILT", "CUSTOM"], default: "PREBUILT" },

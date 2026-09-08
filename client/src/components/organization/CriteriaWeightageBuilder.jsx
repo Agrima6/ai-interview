@@ -54,7 +54,20 @@ function CriteriaWeightageBuilder({
                   min="0"
                   max="100"
                   value={item.weight}
-                  onChange={(e) => onCriteriaWeightChange(idx, e.target.value)}
+                  onChange={(e) => {
+                    const val = Number(e.target.value)
+                    if (isNaN(val) || val < 0) {
+                      onCriteriaWeightChange(idx, 0)
+                      return
+                    }
+                    const clamped = Math.min(val, 100)
+                    const otherTotal = skillWeightages.reduce((acc, s, i) => acc + (i === idx ? 0 : s.weight), 0)
+                    if (otherTotal + clamped > 100) {
+                      onCriteriaWeightChange(idx, String(Math.max(0, 100 - otherTotal)))
+                      return
+                    }
+                    onCriteriaWeightChange(idx, String(clamped))
+                  }}
                   className="w-full px-3 py-2 text-[13.5px] font-bold text-accent bg-card border border-line rounded-lg text-right"
                 />
                 <span className="text-[13px] font-bold text-text-secondary">%</span>

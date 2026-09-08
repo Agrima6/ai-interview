@@ -3,25 +3,10 @@ import { Check, Save, AlertCircle, Eye } from 'lucide-react'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
 import Modal from '../../components/ui/Modal'
 import { Card, Button, Input, Textarea, Badge, Skeleton, useToast } from '../../components/ui'
-import { getNotificationTemplates, updateNotificationTemplate, getOrganizationProfile } from '../../api/organization/organizationApi'
+import { getNotificationTemplates, updateNotificationTemplate, previewNotificationTemplate } from '../../api/organization/organizationApi'
 import logo from '../../assets/logo.png'
 
 const VARIABLE_TAGS = ['{candidate_name}', '{drive_title}', '{company_name}', '{interview_link}', '{expiry_date}']
-
-// Sample data so an admin can see roughly what a real send will look like
-// without needing a real candidate/drive. Handles both the {var} and
-// {{var}} interpolation styles so it works regardless of which one a given
-// template's text happens to use.
-const SAMPLE_VALUES = {
-  candidate_name: 'Aarav Sharma',
-  drive_title: 'Senior Backend Engineer',
-  company_name: 'Your Organization',
-  interview_link: 'https://workmateiq.com/apply/sample123abc',
-  expiry_date: new Date(Date.now() + 14 * 86400000).toLocaleDateString(),
-}
-
-const renderWithSamples = (text, values) =>
-  (text || '').replace(/\{\{?\s*(\w+)\s*\}?\}/g, (match, key) => (key in values ? values[key] : match))
 
 function TemplatesPage() {
   const toast = useToast()
@@ -32,11 +17,8 @@ function TemplatesPage() {
   const [savedSuccess, setSavedSuccess] = useState(false)
   const [saving, setSaving] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
-  const [orgName, setOrgName] = useState('Your Organization')
-
-  useEffect(() => {
-    getOrganizationProfile().then((p) => p?.name && setOrgName(p.name)).catch(() => {})
-  }, [])
+  const [preview, setPreview] = useState(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
 
   const fetchTemplates = async () => {
     setLoading(true)
@@ -84,6 +66,22 @@ function TemplatesPage() {
       toast.error(err.message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handlePreview = async () => {
+    setPreviewLoading(true)
+    try {
+      const rendered = await previewNotificationTemplate(activeTemplate.templateId || activeTemplate.id, {
+        subject: activeTemplate.subject,
+        body: activeTemplate.body,
+      })
+      setPreview(rendered)
+      setPreviewOpen(true)
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setPreviewLoading(false)
     }
   }
 
@@ -145,8 +143,8 @@ function TemplatesPage() {
                 <p className="text-[12.5px] text-text-secondary">Edit template text and dynamic variable tags below.</p>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="secondary" size="sm" onClick={() => setPreviewOpen(true)}>
-                  <Eye size={14} /> Preview
+                <Button variant="secondary" size="sm" onClick={handlePreview} disabled={previewLoading}>
+                  <Eye size={14} /> {previewLoading ? 'Loading...' : 'Preview'}
                 </Button>
                 <Button size="sm" onClick={handleSave} disabled={saving}>
                   {savedSuccess ? <Check size={14} /> : <Save size={14} />} {saving ? 'Saving...' : savedSuccess ? 'Saved!' : 'Save Template'}
@@ -189,10 +187,10 @@ function TemplatesPage() {
       </div>
       )}
 
-      {activeTemplate && (
+      {activeTemplate && preview && (
         <Modal open={previewOpen} onClose={() => setPreviewOpen(false)} title="Email Preview" size="md">
           <p className="text-[12.5px] text-text-secondary mb-4">
-            Rendered with sample data (candidate/drive names are placeholders) - your organization name below is real.
+            Rendered by the notification service using the current template values.
           </p>
           <div style={{ background: '#f7f5f5', padding: '24px 16px', fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif', borderRadius: 12 }}>
             <div style={{ maxWidth: 420, margin: '0 auto', background: '#fff', borderRadius: 16, border: '1px solid #eee6e6', overflow: 'hidden' }}>
@@ -203,15 +201,15 @@ function TemplatesPage() {
               <div style={{ padding: '16px 24px 24px' }}>
                 <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#8a8085', margin: '0 0 4px' }}>Subject</p>
                 <p style={{ fontSize: 14.5, fontWeight: 700, color: '#1a1215', margin: '0 0 16px' }}>
-                  {renderWithSamples(activeTemplate.subject, { ...SAMPLE_VALUES, company_name: orgName })}
+                  {preview.subject}
                 </p>
                 <div style={{ fontSize: 13.5, color: '#1a1215', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
-                  {renderWithSamples(activeTemplate.body, { ...SAMPLE_VALUES, company_name: orgName })}
+                  {preview.body}
                 </div>
               </div>
               <div style={{ padding: '16px 24px 20px', borderTop: '1px solid #f1eaea', textAlign: 'center' }}>
                 <p style={{ margin: '0 0 4px', fontSize: 12, color: '#6b6570' }}>We appreciate your time and look forward to working with you.</p>
-                <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#c4161f' }}>{orgName} via WorkmateIQ</p>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#c4161f' }}>{preview.values.company_name} via WorkmateIQ</p>
               </div>
             </div>
           </div>

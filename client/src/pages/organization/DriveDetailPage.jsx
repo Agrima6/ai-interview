@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { ArrowLeft, Plus, CheckCircle2, ShieldAlert, Sparkles, Eye, FileSpreadsheet, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Plus, CheckCircle2, ShieldAlert, Sparkles, Eye, FileSpreadsheet, AlertCircle, Link2, Copy, Check, ExternalLink } from 'lucide-react'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
 import CandidateDetailModal from '../../components/organization/CandidateDetailModal'
 import CreateRoundModal from '../../components/organization/CreateRoundModal'
@@ -24,6 +24,7 @@ function DriveDetailPage() {
   const [flagFilter, setFlagFilter] = useState('ALL')
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [selectedCandidate, setSelectedCandidate] = useState(null)
+  const [copiedLink, setCopiedLink] = useState(false)
 
   const basePath = location.pathname.startsWith('/college')
     ? '/college'
@@ -186,6 +187,58 @@ function DriveDetailPage() {
         />
         <StatCard icon={CheckCircle2} label="Drive Status" value={drive.status} helperText={`Round ${drive.currentRound} of ${drive.totalRounds}`} />
       </div>
+
+      {drive.publicLink && (
+        <Card className="p-6 mb-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-accent/10 text-accent flex items-center justify-center shrink-0">
+                <Link2 size={20} />
+              </div>
+              <div>
+                <h3 className="text-[16px] font-bold text-ink">Public Apply Link</h3>
+                <p className="text-[12.5px] text-text-secondary mt-0.5">
+                  Share this link with candidates, post it on job boards, or embed it in Google Forms / career pages.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => window.open(`${window.location.origin}/apply/${drive.publicLink}`, '_blank', 'noopener,noreferrer')}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-line text-[13px] font-semibold text-text-secondary hover:text-ink hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+              >
+                <ExternalLink size={14} /> Open
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(`${window.location.origin}/apply/${drive.publicLink}`)
+                    setCopiedLink(true)
+                    toast.success('Public link copied to clipboard.')
+                    setTimeout(() => setCopiedLink(false), 2000)
+                  } catch (err) {
+                    toast.error('Could not copy link. Please copy it manually.')
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-accent text-white text-[13px] font-semibold hover:bg-accent-dark transition-colors"
+              >
+                {copiedLink ? <Check size={14} /> : <Copy size={14} />}
+                {copiedLink ? 'Copied!' : 'Copy Link'}
+              </button>
+            </div>
+          </div>
+          <div className="mt-4 rounded-xl border border-line bg-black/[0.02] dark:bg-white/[0.04] p-3 flex items-center gap-2">
+            <Link2 size={15} className="text-accent shrink-0" />
+            <input
+              readOnly
+              value={`${window.location.origin}/apply/${drive.publicLink}`}
+              className="flex-1 bg-transparent text-[12.5px] font-mono text-ink outline-none truncate"
+            />
+          </div>
+        </Card>
+      )}
 
       <Card className="p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-line">
