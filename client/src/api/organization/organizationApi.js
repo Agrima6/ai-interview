@@ -6,7 +6,7 @@ export const getOrganizationProfile = () => apiGet("/api/v1/organizations/me")
 export const updateOrganizationBranding = (payload) => apiPatch("/api/v1/organizations/me/branding", payload)
 
 // Interview Drives & Round Management APIs
-export const listInterviewDrives = (params) => apiGet("/api/v1/drives", params)
+export const listInterviewDrives = (params) => apiGetList("/api/v1/drives", params)
 export const createInterviewDrive = (payload) => apiPost("/api/v1/drives", payload)
 export const getInterviewDriveById = (id) => apiGet(`/api/v1/drives/${id}`)
 // Public/unauthenticated - what a candidate sees when they open their invite link.

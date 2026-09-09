@@ -107,12 +107,27 @@ export const listDrives = async (tenantId, filters = {}) => {
 
     const query = { tenantId }
     if (filters.status && filters.status !== "ALL") query.status = filters.status
+    if (filters.department) query.department = filters.department
+    if (filters.roleCategory) query.roleCategory = filters.roleCategory
+    if (filters.experienceLevel) query.experienceLevel = filters.experienceLevel
     if (filters.search) {
         query.title = { $regex: filters.search, $options: "i" }
     }
+    if (filters.createdFrom || filters.createdTo) {
+        query.createdAt = {}
+        if (filters.createdFrom) query.createdAt.$gte = new Date(filters.createdFrom)
+        if (filters.createdTo) query.createdAt.$lte = new Date(filters.createdTo)
+    }
 
-    const drives = await InterviewDrive.find(query).sort({ createdAt: -1 })
-    return drives
+    const page = Math.max(Number(filters.page) || 1, 1)
+    const pageSize = Math.min(Math.max(Number(filters.pageSize) || 25, 1), 100)
+
+    const [drives, total] = await Promise.all([
+        InterviewDrive.find(query).sort({ createdAt: -1 }).skip((page - 1) * pageSize).limit(pageSize),
+        InterviewDrive.countDocuments(query),
+    ])
+
+    return { items: drives, total, page, pageSize }
 }
 
 export const getDriveById = async (tenantId, driveId) => {

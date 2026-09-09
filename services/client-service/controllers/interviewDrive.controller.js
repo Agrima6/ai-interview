@@ -18,8 +18,8 @@ export const getPublicDriveBySlug = async (req, res, next) => {
 export const listDrives = async (req, res, next) => {
     try {
         const tenantId = req.user?.tenantId
-        const drives = await driveService.listDrives(tenantId, req.query)
-        ok(res, drives)
+        const { items, total, page, pageSize } = await driveService.listDrives(tenantId, req.query)
+        ok(res, items, { total, page, pageSize })
     } catch (error) {
         next(error)
     }

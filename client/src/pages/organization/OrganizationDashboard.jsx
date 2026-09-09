@@ -44,8 +44,8 @@ function useActiveDrivesPreview() {
         setLoading(true)
         setError('')
         try {
-            const drives = await listInterviewDrives({ status: 'ACTIVE' })
-            setData((drives || []).slice(0, 5))
+            const { items } = await listInterviewDrives({ status: 'ACTIVE', pageSize: 5 })
+            setData(items || [])
         } catch (err) {
             setError(err.message)
         } finally {
