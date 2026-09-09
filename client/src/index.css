@@ -31,6 +31,19 @@
   --shadow-lift: 0 4px 12px rgba(30, 10, 12, 0.06), 0 24px 48px -16px rgba(30, 10, 12, 0.18);
 }
 
+/* Single source of truth for overlay stacking (integration.md section 12) -
+   every dropdown/drawer/modal/toast in the app should be built with one of
+   these instead of a one-off z-[99999]-style value, so nothing accidentally
+   renders behind (or permanently in front of) something it shouldn't. */
+:root {
+  --z-dropdown: 100;
+  --z-sticky-header: 200;
+  --z-popover: 300;
+  --z-drawer: 400;
+  --z-modal: 500;
+  --z-toast: 600;
+}
+
 /* gradient accent used sparingly - hero glows, CTA banners, score rings */
 .gradient-brand {
   background-image: linear-gradient(135deg, var(--color-accent), var(--color-accent-cyan));

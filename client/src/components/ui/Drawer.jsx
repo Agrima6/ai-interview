@@ -25,7 +25,7 @@ function Drawer({ open, onClose, title, children, footer, widthClassName = 'max-
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-[400] flex justify-end">
+        <div className="fixed inset-0 z-[var(--z-drawer)] flex justify-end">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

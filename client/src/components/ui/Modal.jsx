@@ -25,7 +25,7 @@ function Modal({ open, onClose, title, children, footer, size = 'md' }) {
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div className={`fixed inset-0 z-[100] flex items-center justify-center ${isFull ? 'p-0' : 'px-4'}`}>
+        <div className={`fixed inset-0 z-[var(--z-modal)] flex items-center justify-center ${isFull ? 'p-0' : 'px-4'}`}>
           {!isFull && (
             <motion.div
               initial={{ opacity: 0 }}
@@ -42,7 +42,7 @@ function Modal({ open, onClose, title, children, footer, size = 'md' }) {
             transition={{ duration: 0.2 }}
             className={`relative ${
               isFull
-                ? 'w-full h-full min-h-screen bg-card flex flex-col overflow-hidden z-[101]'
+                ? 'w-full h-full min-h-screen bg-card flex flex-col overflow-hidden'
                 : `w-full ${widths[size]} bg-card border border-line rounded-2xl shadow-[var(--shadow-lift)] max-h-[85vh] overflow-y-auto`
             }`}
           >

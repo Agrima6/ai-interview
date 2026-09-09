@@ -24,11 +24,11 @@ function OrganizationSidebar({ profile, profileLoading, mobileOpen, onClose }) {
     return (
         <>
             {mobileOpen && (
-                <div className='fixed inset-0 z-40 bg-black/40 lg:hidden' onClick={onClose} aria-hidden='true' />
+                <div className='fixed inset-0 z-[var(--z-drawer)] bg-black/40 lg:hidden' onClick={onClose} aria-hidden='true' />
             )}
             <aside
                 className={`
-                    fixed inset-y-0 left-0 z-50 w-[240px] shrink-0 border-r border-line bg-card flex flex-col
+                    fixed inset-y-0 left-0 z-[var(--z-drawer)] w-[240px] shrink-0 border-r border-line bg-card flex flex-col
                     transition-transform duration-200
                     lg:static lg:translate-x-0
                     ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
