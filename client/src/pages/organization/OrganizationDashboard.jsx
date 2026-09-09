@@ -153,15 +153,15 @@ function OrganizationDashboard() {
             <Tabs tabs={sectionTabs} value='overview' onChange={handleTabChange} className='mb-6' />
 
             <div className='grid lg:grid-cols-[1.3fr_1fr] gap-6 mb-6'>
-                <Card className='p-6 flex items-center justify-between gap-6 overflow-hidden'>
-                    <div className='flex flex-col justify-between h-full min-w-0'>
+                <Card className='p-6 flex items-center justify-between gap-6 overflow-hidden self-start'>
+                    <div className='flex flex-col gap-4 min-w-0'>
                         <div>
                             <h2 className='text-[19px] font-bold text-ink mb-1.5'>Find the right talent, faster.</h2>
                             <p className='text-[13.5px] text-text-secondary leading-relaxed max-w-md'>
                                 Create interview drives, assess candidates, and make data-driven hiring decisions — all in one place.
                             </p>
                         </div>
-                        <div className='flex items-center gap-2.5 mt-5'>
+                        <div className='flex items-center gap-2.5'>
                             <Button size='sm' onClick={() => navigate(`${basePath}/drives`)}><Plus size={14} /> Create Interview Drive</Button>
                             <Button size='sm' variant='secondary' onClick={() => navigate(`${basePath}/drives`)}>View All Drives</Button>
                         </div>

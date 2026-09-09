@@ -55,14 +55,11 @@ function FunnelChart({ stages, className = '' }) {
                 })}
             </svg>
 
-            <div className='flex-1 space-y-3.5 min-w-0'>
-                {stages.map((stage, i) => (
-                    <div key={stage.key} className='flex items-center justify-between gap-3'>
-                        <span className='flex items-center gap-2 min-w-0'>
-                            <span className='w-2.5 h-2.5 rounded-[3px] shrink-0' style={{ background: STAGE_COLORS[i % STAGE_COLORS.length] }} />
-                            <span className='text-[13px] font-medium text-ink truncate'>{stage.label}</span>
-                        </span>
-                        <span className='text-[12.5px] text-text-secondary shrink-0'>{stage.count.toLocaleString()} · {stage.percentage}%</span>
+            <div className='flex-1 flex flex-col justify-between min-w-0' style={{ height: totalHeight }}>
+                {stages.map((stage) => (
+                    <div key={stage.key} className='flex items-baseline gap-2 min-w-0'>
+                        <span className='text-[15px] font-bold text-ink shrink-0'>{stage.count.toLocaleString()}</span>
+                        <span className='text-[13px] text-text-secondary truncate'>{stage.label}</span>
                     </div>
                 ))}
             </div>
