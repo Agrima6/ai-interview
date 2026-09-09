@@ -326,7 +326,7 @@ function DriveDetailPage() {
                       </Badge>
                     </td>
                     <td className="py-4 px-3 text-right">
-                      <Button size="xs" variant="secondary" onClick={() => setSelectedCandidate(cand)}>
+                      <Button size="xs" variant="secondary" onClick={() => setSelectedCandidate({ ...cand, driveTitle: drive.title })}>
                         <Eye size={13} /> Scorecard Report
                       </Button>
                     </td>
