@@ -46,7 +46,14 @@ function DriveDetailPage() {
     try {
       const data = await getInterviewDriveById(id)
       setDrive(data)
-      setActiveRoundTab((prev) => (data.rounds?.some((r) => String(r.roundNumber) === prev) ? prev : String(data.rounds?.[0]?.roundNumber || 1)))
+      setActiveRoundTab((prev) => {
+        const rounds = data.rounds || []
+        const activeRound = rounds.find((round) => round.status === 'ACTIVE')
+        if (activeRound) return String(activeRound.roundNumber)
+        return rounds.some((round) => String(round.roundNumber) === prev)
+          ? prev
+          : String(rounds[0]?.roundNumber || 1)
+      })
     } catch (err) {
       setError(err.message)
     } finally {
