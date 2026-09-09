@@ -26,9 +26,7 @@ app.use(cors({
     },
     credentials: true,
 }))
-// Branding logos are submitted as data URLs during local portal setup and
-// can legitimately exceed Express's 100kb default JSON limit.
-app.use(express.json({ limit: "10mb" }))
+app.use(express.json())
 app.use(requestContext)
 
 app.get("/healthz", (req, res) => res.json({ status: "ok", service: process.env.SERVICE_NAME }))

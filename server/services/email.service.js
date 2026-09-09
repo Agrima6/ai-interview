@@ -1,6 +1,4 @@
 import nodemailer from "nodemailer"
-import NotificationTemplate from "../models/notificationTemplate.model.js"
-import Organization from "../models/organization.model.js"
 
 let transporter = null
 
@@ -27,21 +25,6 @@ const getTransporter = () => {
 const escapeHtml = (str = "") =>
     str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 
-const DEFAULT_INVITATION_TEMPLATE = {
-    subject: "You have been invited to attempt the AI Interview for {drive_title} at {company_name}",
-    body: "Hello {candidate_name},\n\nWe are pleased to invite you to take the AI-powered video interview for the position of {drive_title} at {company_name}.\n\nPlease click the link below to start your interview attempt before {expiry_date}:\n\n{interview_link}\n\nBest regards,\nRecruitment Team",
-}
-
-const renderTemplate = (text, values) => (text || "").replace(/\{\{?\s*(\w+)\s*\}?\}/g, (match, key) =>
-    Object.prototype.hasOwnProperty.call(values, key) ? values[key] : match
-)
-
-const getInvitationTemplate = async (organizationId) => {
-    const tenantId = String(organizationId)
-    const stored = await NotificationTemplate.findOne({ tenantId, templateId: "tmpl-1", type: "EMAIL" }).lean()
-    return stored || DEFAULT_INVITATION_TEMPLATE
-}
-
 /**
  * sendInterviewInvite
  * Emails a candidate a unique link to start their interview from an invite.
@@ -54,28 +37,22 @@ export const sendInterviewInvite = async (invite, template) => {
 
     const candidateName = invite.candidateName?.trim() || "there"
     const title = template?.title || "Interview"
-        const organization = invite.organizationId
-                ? await Organization.findById(invite.organizationId).select("name").lean()
-                : null
-        const companyName = organization?.name || "Your Organization"
-        const values = {
-                candidate_name: candidateName,
-                drive_title: title,
-                company_name: companyName,
-                interview_link: inviteLink,
-                expiry_date: invite.expiresAt ? new Date(invite.expiresAt).toLocaleDateString() : "the expiry date",
-        }
-        const notificationTemplate = await getInvitationTemplate(invite.organizationId)
-        const subject = renderTemplate(notificationTemplate.subject, values)
-        const body = renderTemplate(notificationTemplate.body, values)
-        const escapedInviteLink = escapeHtml(inviteLink)
-        const htmlBody = escapeHtml(body)
-            .replace(escapedInviteLink, `<a href="${escapedInviteLink}">${escapedInviteLink}</a>`)
-            .replace(/\n/g, "<br/>" )
+    const description = template?.description || ""
 
     const html = `
     <div style="font-family: Arial, Helvetica, sans-serif; max-width: 560px; margin: 0 auto; color: #1f2937;">
-            <div style="white-space: pre-wrap;">${htmlBody}</div>
+      <h2 style="color: #111827;">You're invited to interview: ${escapeHtml(title)}</h2>
+      <p>Hi ${escapeHtml(candidateName)},</p>
+      <p>You've been invited to complete an interview${description ? ` for <strong>${escapeHtml(title)}</strong>` : ""}.</p>
+      ${description ? `<p style="color:#4b5563;">${escapeHtml(description)}</p>` : ""}
+      <p style="margin: 24px 0;">
+        <a href="${inviteLink}" style="background:#c4161f;color:#ffffff;padding:12px 20px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block;">
+          Start Interview
+        </a>
+      </p>
+      <p style="font-size: 13px; color: #6b7280;">Or copy this link into your browser:<br/>${inviteLink}</p>
+      ${invite.expiresAt ? `<p style="font-size: 13px; color: #6b7280;">This invite expires on ${new Date(invite.expiresAt).toLocaleString()}.</p>` : ""}
+      <p style="margin-top: 32px; font-size: 13px; color: #9ca3af;">Sent via InterviewIQ.</p>
     </div>
     `
 
@@ -84,7 +61,7 @@ export const sendInterviewInvite = async (invite, template) => {
     return mailer.sendMail({
         from: `InterviewIQ <${process.env.SMTP_USER}>`,
         to: invite.candidateEmail,
-        subject,
+        subject: `You're invited to interview: ${title}`,
         html,
     })
 }

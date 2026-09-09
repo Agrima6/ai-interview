@@ -26,7 +26,7 @@ function QuestionSetBuilder({
           </p>
         </div>
 
-        <div className="flex items-center gap-2 p-1.5 bg-black/4 dark:bg-white/6 rounded-xl border border-line">
+        <div className="flex items-center gap-2 p-1.5 bg-black/[0.04] dark:bg-white/[0.06] rounded-xl border border-line">
           <button
             type="button"
             onClick={() => onQuestionModeChange('PREBUILT')}
@@ -49,37 +49,27 @@ function QuestionSetBuilder({
       </div>
 
       {questionMode === 'PREBUILT' ? (
-        <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
-          <div className="space-y-2 rounded-2xl border border-line bg-card p-3 shadow-(--shadow-soft)">
-            <p className="px-2 pb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-text-secondary">Question banks</p>
-            {questionBanks.map((bank) => (
-              <button
-                type="button"
-                key={bank.id}
-                onClick={() => onSelectBankId(bank.id)}
-                className={`w-full rounded-xl border p-3 text-left transition-all ${selectedBankId === bank.id ? 'border-accent bg-accent/5 shadow-sm' : 'border-transparent hover:border-line hover:bg-bg'}`}
-              >
-                <span className="flex items-start gap-2 text-[13px] font-bold text-ink"><FileText size={15} className="mt-0.5 shrink-0 text-accent" /> {bank.title}</span>
-                <span className="mt-1 block pl-6 text-[11px] text-text-secondary">{bank.questions} questions {bank.duration && `• ${bank.duration}`}</span>
-              </button>
-            ))}
-            {!questionBanks.length && <p className="p-3 text-[12px] text-text-secondary">No question banks available.</p>}
-          </div>
-
-          <div className="rounded-2xl border border-line bg-card p-4 shadow-(--shadow-soft)">
-            {(() => {
-              const selectedBank = questionBanks.find((bank) => bank.id === selectedBankId)
-              const questions = selectedBank?.questionList || []
-              return (
-                <>
-                  <div className="mb-3 flex items-center justify-between gap-3 border-b border-line pb-3"><div><h4 className="text-[15px] font-bold text-ink">{selectedBank?.title || 'Select a question bank'}</h4><p className="mt-1 text-[11px] text-text-secondary">Preselected questions candidates will answer.</p></div><span className="rounded-full bg-accent/10 px-2.5 py-1 text-[11px] font-bold text-accent">{questions.length || selectedBank?.questions || 0} questions</span></div>
-                  <div className="space-y-2">
-                    {questions.length ? questions.map((question, index) => <div key={question.id || index} className="flex gap-3 rounded-xl border border-line bg-bg p-3"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-card text-[11px] font-bold text-text-secondary">{index + 1}</span><div><p className="text-[12.5px] font-semibold leading-relaxed text-ink">{question.text || question.question || question.prompt}</p><div className="mt-1 flex gap-2 text-[10px] text-text-secondary"><span>{question.topic || 'General'}</span><span>•</span><span>{question.timeLimit || 120}s response</span></div></div></div>) : <div className="flex min-h-48 items-center justify-center rounded-xl border border-dashed border-line bg-bg px-5 text-center text-[12px] text-text-secondary">Select a question bank to preview its questions.</div>}
-                  </div>
-                </>
-              )
-            })()}
-          </div>
+        <div className="grid sm:grid-cols-2 gap-4">
+          {questionBanks.map((bank) => (
+            <div
+              key={bank.id}
+              onClick={() => onSelectBankId(bank.id)}
+              className={`p-5 rounded-2xl border cursor-pointer transition-all ${
+                selectedBankId === bank.id
+                  ? 'border-accent bg-accent/5 ring-2 ring-accent/20 shadow-sm'
+                  : 'border-line hover:border-black/20 bg-card'
+              }`}
+            >
+              <div className="flex items-start justify-between mb-2">
+                <span className="font-bold text-[14.5px] text-ink flex items-center gap-2">
+                  <FileText size={16} className="text-accent" /> {bank.title}
+                </span>
+              </div>
+              <div className="text-[13px] text-text-secondary font-medium">
+                {bank.questions} Questions • Estimated {bank.duration}
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
         /* Custom Questions Builder */
