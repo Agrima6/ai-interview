@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react'
-import { FileQuestion, Plus, Clock, Check, Trash2, Sparkles, Layers, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { FileQuestion, Plus, Clock, Check, Trash2, Sparkles, Layers, AlertCircle, ListChecks } from 'lucide-react'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
 import Modal from '../../components/ui/Modal'
-import { Card, Button, Badge, Input, Select, Textarea, StatCard, Skeleton, useToast } from '../../components/ui'
+import { Card, Button, Badge, Input, Select, Textarea, SearchInput, StatCard, Skeleton, EmptyState, useToast } from '../../components/ui'
 import { getQuestionBanks, createQuestionBank } from '../../api/organization/organizationApi'
+import { formatEnumLabel } from '../../utils/formatEnumLabel'
 
 const CATEGORY_OPTIONS = [
   { value: 'SOFTWARE_ENGINEERING', label: 'Software Engineering' },
@@ -21,7 +22,10 @@ function QuestionSetsPage() {
   const [error, setError] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [expandedId, setExpandedId] = useState(null)
+  const [previewSet, setPreviewSet] = useState(null)
+
+  const [search, setSearch] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('')
 
   const [setTitle, setSetTitle] = useState('')
   const [setCategory, setSetCategory] = useState('SOFTWARE_ENGINEERING')
@@ -41,6 +45,19 @@ function QuestionSetsPage() {
   }, [])
 
   useEffect(() => { fetchSets() }, [fetchSets])
+
+  // Question banks are a small, bounded list per tenant (system defaults +
+  // custom sets) - the API returns them all in one call, so search/category
+  // narrowing happens client-side rather than adding query params the
+  // backend doesn't support yet.
+  const filteredSets = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return questionSets.filter((set) => {
+      if (categoryFilter && set.category !== categoryFilter) return false
+      if (q && !set.title.toLowerCase().includes(q)) return false
+      return true
+    })
+  }, [questionSets, search, categoryFilter])
 
   const handleAddQuestion = () => setQuestions((prev) => [...prev, { text: '', topic: '', timeLimit: 120 }])
   const handleRemoveQuestion = (idx) => setQuestions((prev) => prev.filter((_, i) => i !== idx))
@@ -87,70 +104,114 @@ function QuestionSetsPage() {
         <StatCard icon={Sparkles} label="Custom Sets Created" value={questionSets.filter((s) => !s.isSystemDefault).length} />
       </div>
 
-      {error ? (
-        <Card className="p-10 text-center">
-          <AlertCircle size={20} className="text-red-500 mx-auto mb-3" />
-          <p className="text-[14px] text-ink font-medium mb-1">Couldn't load question sets</p>
-          <p className="text-[13px] text-text-secondary mb-4">{error}</p>
-          <Button variant="secondary" onClick={fetchSets}>Retry</Button>
-        </Card>
-      ) : loading ? (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-[220px]" />)}
+      <Card className="p-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-5">
+          <SearchInput placeholder="Search question sets..." value={search} onChange={setSearch} className="w-full sm:w-[280px]" />
+          <Select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            placeholder="All categories"
+            options={CATEGORY_OPTIONS}
+            wrapperClassName="w-full sm:w-[220px]"
+          />
         </div>
-      ) : questionSets.length === 0 ? (
-        <Card className="p-12 text-center">
-          <p className="text-[14px] text-ink font-medium">No question sets yet.</p>
-        </Card>
-      ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {questionSets.map((set) => {
-            const setId = set._id || set.id
-            const isExpanded = expandedId === setId
-            const topics = [...new Set((set.questions || []).map((q) => q.topic))]
-            return (
-              <Card key={setId} className="p-5 flex flex-col justify-between hover:border-accent/40 transition-all">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <Badge variant={set.isSystemDefault ? 'neutral' : 'purple'}>
-                      {set.isSystemDefault ? 'Predefined Bank' : 'Custom Set'}
-                    </Badge>
-                    <span className="text-[12px] text-text-secondary flex items-center gap-1">
-                      <Clock size={12} /> {set.durationMinutes} mins
-                    </span>
-                  </div>
-                  <h3 className="font-display text-[15px] font-bold text-ink mb-1">{set.title}</h3>
-                  <p className="text-[12.5px] text-text-secondary mb-4">{set.category?.replace(/_/g, ' ')} • {set.questionCount} Questions</p>
 
-                  {topics.length > 0 && (
-                    <div className="space-y-2 pt-3 border-t border-line">
-                      <div className="text-[12px] font-semibold text-ink">Topics covered:</div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {topics.map((t) => <Badge key={t} variant="neutral">{t}</Badge>)}
-                      </div>
-                    </div>
-                  )}
+        {error ? (
+          <div className="py-12 text-center">
+            <AlertCircle size={20} className="text-red-500 mx-auto mb-3" />
+            <p className="text-[14px] text-ink font-medium mb-1">Couldn't load question sets</p>
+            <p className="text-[13px] text-text-secondary mb-4">{error}</p>
+            <Button variant="secondary" onClick={fetchSets}>Retry</Button>
+          </div>
+        ) : loading ? (
+          <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14" />)}</div>
+        ) : questionSets.length === 0 ? (
+          <EmptyState
+            icon={FileQuestion}
+            title="No question sets yet"
+            description="Create your first reusable question set to use it across interview drives."
+            actionLabel="Create Question Set"
+            onAction={() => setModalOpen(true)}
+          />
+        ) : filteredSets.length === 0 ? (
+          <EmptyState icon={FileQuestion} title="No question sets match your filters" />
+        ) : (
+          <div className="overflow-x-auto -mx-2">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-line text-[12px] font-semibold uppercase tracking-wider text-text-secondary">
+                  <th className="pb-3 px-3">Name</th>
+                  <th className="pb-3 px-3">Category</th>
+                  <th className="pb-3 px-3">Questions</th>
+                  <th className="pb-3 px-3">Duration</th>
+                  <th className="pb-3 px-3">Type</th>
+                  <th className="pb-3 px-3">Created</th>
+                  <th className="pb-3 px-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line text-[13.5px]">
+                {filteredSets.map((set) => {
+                  const setId = set._id || set.id
+                  return (
+                    <tr key={setId} className="hover:bg-black/[0.015] dark:hover:bg-white/[0.02] transition-colors">
+                      <td className="py-4 px-3 font-semibold text-ink max-w-[280px] truncate">{set.title}</td>
+                      <td className="py-4 px-3 text-text-secondary whitespace-nowrap">{formatEnumLabel(set.category)}</td>
+                      <td className="py-4 px-3 text-text-secondary">{set.questionCount}</td>
+                      <td className="py-4 px-3 text-text-secondary whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1"><Clock size={12} /> {set.durationMinutes} min</span>
+                      </td>
+                      <td className="py-4 px-3">
+                        <Badge variant={set.isSystemDefault ? 'neutral' : 'info'}>{set.isSystemDefault ? 'Predefined' : 'Custom'}</Badge>
+                      </td>
+                      <td className="py-4 px-3 text-text-secondary whitespace-nowrap">
+                        {set.createdAt ? new Date(set.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                      </td>
+                      <td className="py-4 px-3 text-right whitespace-nowrap">
+                        <Button size="xs" variant="secondary" onClick={() => setPreviewSet(set)}>
+                          <ListChecks size={13} /> View Questions
+                        </Button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
 
-                  {isExpanded && (
-                    <div className="mt-3 pt-3 border-t border-line space-y-2">
-                      {(set.questions || []).map((q) => (
-                        <p key={q.id} className="text-[12.5px] text-text-secondary">• {q.text}</p>
-                      ))}
-                    </div>
-                  )}
-                </div>
+      <Modal
+        open={Boolean(previewSet)}
+        onClose={() => setPreviewSet(null)}
+        title={previewSet?.title}
+        size="lg"
+        footer={<Button size="sm" variant="secondary" onClick={() => setPreviewSet(null)}>Close</Button>}
+      >
+        {previewSet && (
+          <div className="space-y-5">
+            <div className="flex items-center gap-4 text-[13px] text-text-secondary">
+              <span>{previewSet.questionCount} Questions</span>
+              <span className="flex items-center gap-1"><Clock size={13} /> {previewSet.durationMinutes} min</span>
+              <Badge variant={previewSet.isSystemDefault ? 'neutral' : 'info'}>{previewSet.isSystemDefault ? 'Predefined' : 'Custom'}</Badge>
+            </div>
 
-                <div className="mt-5 pt-3 border-t border-line flex items-center justify-between text-[12px] text-text-secondary">
-                  <span>{set.createdAt ? new Date(set.createdAt).toLocaleDateString() : ''}</span>
-                  <Button size="xs" variant="secondary" onClick={() => setExpandedId(isExpanded ? null : setId)}>
-                    {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />} {isExpanded ? 'Hide' : 'View'} Questions
-                  </Button>
-                </div>
-              </Card>
-            )
-          })}
-        </div>
-      )}
+            {[...new Set((previewSet.questions || []).map((q) => q.topic))].map((topic) => (
+              <div key={topic}>
+                <h4 className="text-[12px] font-semibold uppercase tracking-wide text-text-secondary mb-2">{topic}</h4>
+                <ol className="space-y-2 list-decimal list-inside">
+                  {(previewSet.questions || []).filter((q) => q.topic === topic).map((q) => (
+                    <li key={q.id} className="text-[13.5px] text-ink leading-relaxed">{q.text}</li>
+                  ))}
+                </ol>
+              </div>
+            ))}
+
+            {!previewSet.questions?.length && (
+              <p className="text-[13.5px] text-text-secondary">No questions have been added to this set yet.</p>
+            )}
+          </div>
+        )}
+      </Modal>
 
       <Modal
         open={modalOpen}
