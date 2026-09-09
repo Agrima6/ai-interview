@@ -80,6 +80,30 @@ export const communicateWithCandidates = async (req, res, next) => {
     }
 }
 
+// Internal (service-to-service) - dashboard-service's per-organization
+// dashboard and Reports page both need this same aggregate; tenantId comes
+// from the query string here since there's no end-user JWT on this call.
+export const getTenantReportInternal = async (req, res, next) => {
+    try {
+        const report = await driveService.getTenantReport(req.query.tenantId, { days: req.query.days })
+        ok(res, report)
+    } catch (error) {
+        next(error)
+    }
+}
+
+export const exportCandidatesCsv = async (req, res, next) => {
+    try {
+        const tenantId = req.user?.tenantId
+        const csv = await driveService.exportCandidatesCsv(tenantId, req.query)
+        res.setHeader("Content-Type", "text/csv; charset=utf-8")
+        res.setHeader("Content-Disposition", `attachment; filename="candidates-export-${new Date().toISOString().slice(0, 10)}.csv"`)
+        res.send(csv)
+    } catch (error) {
+        next(error)
+    }
+}
+
 export const listAllCandidates = async (req, res, next) => {
     try {
         const tenantId = req.user?.tenantId

@@ -214,17 +214,17 @@ export const updateCandidateStatus = async (tenantId, driveId, roundNumber, cand
 // tenant into one searchable/filterable/paginated list - computed with a
 // single aggregation pipeline rather than downloading every drive to the
 // browser and flattening it there.
-export const listAllCandidates = async (tenantId, { search, status, page = 1, limit = 25 } = {}) => {
-    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
-
-    const pageNum = Math.max(Number(page) || 1, 1)
-    const pageSize = Math.min(Math.max(Number(limit) || 25, 1), 100)
-
+// Shared by listAllCandidates (paginated table) and exportCandidatesCsv
+// (full filtered dataset) so the two can never drift on what "matching the
+// filters" means - integration.md section 16 requires the export to
+// contain exactly the filtered rows, not a separately-computed set.
+const buildCandidatePipeline = (tenantId, { search, status, department } = {}) => {
     const matchCandidate = {}
     if (status && status !== "ALL") matchCandidate["candidate.status"] = status
     if (search) matchCandidate["candidate.name"] = { $regex: search, $options: "i" }
+    if (department) matchCandidate["department"] = department
 
-    const basePipeline = [
+    return [
         { $match: { tenantId } },
         { $unwind: "$rounds" },
         { $unwind: "$rounds.candidates" },
@@ -232,6 +232,7 @@ export const listAllCandidates = async (tenantId, { search, status, page = 1, li
             $project: {
                 driveId: "$_id",
                 driveTitle: "$title",
+                department: "$department",
                 roundNumber: "$rounds.roundNumber",
                 roundTitle: "$rounds.title",
                 candidate: "$rounds.candidates",
@@ -239,6 +240,14 @@ export const listAllCandidates = async (tenantId, { search, status, page = 1, li
         },
         ...(Object.keys(matchCandidate).length ? [{ $match: matchCandidate }] : []),
     ]
+}
+
+export const listAllCandidates = async (tenantId, { search, status, department, page = 1, limit = 25 } = {}) => {
+    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+
+    const pageNum = Math.max(Number(page) || 1, 1)
+    const pageSize = Math.min(Math.max(Number(limit) || 25, 1), 100)
+    const basePipeline = buildCandidatePipeline(tenantId, { search, status, department })
 
     const [items, totalResult] = await Promise.all([
         InterviewDrive.aggregate([
@@ -251,6 +260,127 @@ export const listAllCandidates = async (tenantId, { search, status, page = 1, li
     ])
 
     return { items, total: totalResult[0]?.total || 0, page: pageNum, pageSize }
+}
+
+const CSV_EXPORT_CAP = 5000
+
+const csvEscape = (value) => {
+    const str = String(value ?? "")
+    return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str
+}
+
+// Streams the SAME filtered dataset listAllCandidates would page through,
+// as CSV - never "fetch everything, filter on the frontend" (section 16).
+// Capped at CSV_EXPORT_CAP rows as a safety valve against an unbounded
+// export request; large tenants should narrow filters rather than pull
+// every candidate they've ever had in one file.
+export const exportCandidatesCsv = async (tenantId, filters = {}) => {
+    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+
+    const basePipeline = buildCandidatePipeline(tenantId, filters)
+    const rows = await InterviewDrive.aggregate([
+        ...basePipeline,
+        { $sort: { "candidate.attemptedDate": -1, _id: -1 } },
+        { $limit: CSV_EXPORT_CAP },
+    ])
+
+    const header = ["Name", "Email", "Phone", "Experience", "Department", "Drive", "Round", "Status", "AI Score", "Attempted Date"]
+    const lines = rows.map((r) => [
+        r.candidate.name, r.candidate.email, r.candidate.phone || "", r.candidate.exp || "",
+        r.department || "", r.driveTitle, r.roundTitle, r.candidate.status,
+        r.candidate.aiScore ?? "", r.candidate.attemptedDate ? new Date(r.candidate.attemptedDate).toISOString().slice(0, 10) : "",
+    ].map(csvEscape).join(","))
+
+    return [header.join(","), ...lines].join("\n")
+}
+
+// Powers both dashboard-service's per-organization dashboard (which used to
+// return hardcoded zeros - see backend.md's "Organization + Dashboard
+// services only" scoping note, now that this drive/candidate data actually
+// exists) and the Reports page's KPI/funnel/breakdown widgets. One
+// aggregation pass over every candidate in every round of every drive for
+// this tenant, rather than each caller re-deriving its own slice.
+export const getTenantReport = async (tenantId, { days = 30 } = {}) => {
+    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+
+    const [drives, candidateRows] = await Promise.all([
+        InterviewDrive.find({ tenantId }).select("status department createdAt").lean(),
+        InterviewDrive.aggregate([
+            { $match: { tenantId } },
+            { $unwind: "$rounds" },
+            { $unwind: "$rounds.candidates" },
+            {
+                $project: {
+                    department: "$department",
+                    status: "$rounds.candidates.status",
+                    aiScore: "$rounds.candidates.aiScore",
+                    attemptedDate: "$rounds.candidates.attemptedDate",
+                },
+            },
+        ]),
+    ])
+
+    const totalDrives = drives.length
+    const activeDrives = drives.filter((d) => d.status === "ACTIVE").length
+
+    const now = new Date()
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const candidatesThisMonth = candidateRows.filter((c) => c.attemptedDate && new Date(c.attemptedDate) >= startOfMonth).length
+    const interviewsDone = candidateRows.filter((c) => c.status !== "INVITED").length
+    const scored = candidateRows.filter((c) => c.aiScore > 0)
+    const averageScore = scored.length ? Math.round(scored.reduce((acc, c) => acc + c.aiScore, 0) / scored.length) : 0
+
+    const totalCandidates = candidateRows.length
+    const stageCount = (predicate) => candidateRows.filter(predicate).length
+    const pct = (n) => (totalCandidates ? Math.round((n / totalCandidates) * 100) : 0)
+    const invited = totalCandidates
+    const completedCount = stageCount((c) => c.status !== "INVITED")
+    const shortlistedCount = stageCount((c) => c.status === "SHORTLISTED")
+    const rejectedCount = stageCount((c) => c.status === "REJECTED")
+    const pipeline = totalCandidates === 0 ? [] : [
+        { key: "invited", label: "Invited", count: invited, percentage: 100, colorVariant: "neutral" },
+        { key: "completed", label: "Completed Interview", count: completedCount, percentage: pct(completedCount), colorVariant: "cyan" },
+        { key: "shortlisted", label: "Shortlisted", count: shortlistedCount, percentage: pct(shortlistedCount), colorVariant: "primary" },
+        { key: "rejected", label: "Rejected", count: rejectedCount, percentage: pct(rejectedCount), colorVariant: "neutral" },
+    ]
+
+    const scoreBuckets = [
+        { bucket: "0-40", min: 0, max: 40 },
+        { bucket: "41-60", min: 41, max: 60 },
+        { bucket: "61-75", min: 61, max: 75 },
+        { bucket: "76-90", min: 76, max: 90 },
+        { bucket: "91-100", min: 91, max: 100 },
+    ]
+    const scoreDistribution = scoreBuckets.map(({ bucket, min, max }) => ({
+        bucket,
+        count: scored.filter((c) => c.aiScore >= min && c.aiScore <= max).length,
+    }))
+
+    const departmentTotals = new Map()
+    for (const row of candidateRows) {
+        const dept = row.department || "Unspecified"
+        departmentTotals.set(dept, (departmentTotals.get(dept) || 0) + 1)
+    }
+    const departmentBreakdown = [...departmentTotals.entries()]
+        .map(([department, count]) => ({ department, count, percentage: pct(count) }))
+        .sort((a, b) => b.count - a.count)
+
+    const trendWindowStart = new Date(Date.now() - Number(days) * 24 * 60 * 60 * 1000)
+    const dayBuckets = new Map()
+    for (const row of candidateRows) {
+        if (!row.attemptedDate || new Date(row.attemptedDate) < trendWindowStart) continue
+        const day = new Date(row.attemptedDate).toISOString().slice(0, 10)
+        dayBuckets.set(day, (dayBuckets.get(day) || 0) + 1)
+    }
+    const interviewTrend = [...dayBuckets.entries()].map(([date, count]) => ({ date, count }))
+
+    return {
+        summary: { totalDrives, activeDrives, candidatesThisMonth, interviewsDone, averageScore, totalCandidates },
+        pipeline,
+        scoreDistribution,
+        departmentBreakdown,
+        interviewTrend,
+    }
 }
 
 // Sends a recruiter-triggered CONGRATULATIONS/REJECTION communication to a

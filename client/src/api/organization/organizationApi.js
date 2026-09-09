@@ -1,4 +1,4 @@
-import { apiGet, apiGetList, apiPost, apiPatch, apiPut, apiDelete } from "../client"
+import client, { apiGet, apiGetList, apiPost, apiPatch, apiPut, apiDelete } from "../client"
 
 export const getOrganizationProfile = () => apiGet("/api/v1/organizations/me")
 
@@ -20,6 +20,29 @@ export const communicateWithCandidates = (driveId, roundNumber, payload) =>
 
 // Candidates (aggregated across every drive/round for the organization)
 export const listAllCandidates = (params) => apiGetList("/api/v1/candidates", params)
+
+// CSV export bypasses the {success,data} envelope (it's a raw file), so it
+// goes through the axios client directly rather than apiGet/apiGetList.
+// Downloads only the filtered dataset the caller asked for - never the
+// full unfiltered table with client-side filtering (integration.md #16).
+export const exportCandidatesCsv = async (params) => {
+    const res = await client.get("/api/v1/candidates/export", { params, responseType: "blob" })
+    const blob = new Blob([res.data], { type: "text/csv;charset=utf-8" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `candidates-export-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+}
+
+// Reports page KPI/funnel/department-breakdown widgets - same aggregate the
+// per-organization dashboard uses, just consumed directly here instead of
+// through useOrganizationDashboard (Reports doesn't need attention/activity).
+export const getOrganizationReport = (range) => apiGet("/api/v1/organizations/me/dashboard/trends", { range })
+export const getOrganizationReportSummary = () => apiGet("/api/v1/organizations/me/dashboard/summary")
 
 // Team & Access Control APIs
 export const getTeamMembers = () => apiGet("/api/v1/organization/team")

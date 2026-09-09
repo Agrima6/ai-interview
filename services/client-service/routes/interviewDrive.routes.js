@@ -22,5 +22,6 @@ router.patch("/drives/:id/rounds/:roundNumber/candidates/:candidateId/status", a
 router.post("/drives/:id/rounds/:roundNumber/candidates/communicate", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.communicateWithCandidates)
 
 router.get("/candidates", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.listAllCandidates)
+router.get("/candidates/export", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.exportCandidatesCsv)
 
 export default router
