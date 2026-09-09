@@ -13,15 +13,34 @@ import React from 'react'
 const STAGE_COLORS = ['var(--color-accent)', 'var(--color-info)', 'var(--color-success)', 'var(--color-warning)', 'var(--color-neutral)']
 
 const FUNNEL_WIDTH = 130
-const MIN_WIDTH_RATIO = 0.22
+const MIN_PIXEL_WIDTH = 16
 const BAND_HEIGHT = 32
 const BAND_GAP = 4
+
+// Each band's width is driven by its real count relative to the first
+// stage's, but every band is also forced strictly narrower than the one
+// above it. Without that, several tied/zero-count stages in a row (e.g.
+// three stages that all genuinely have 0 candidates so far) would get
+// the exact same clamped-minimum width and render as flat stacked
+// rectangles instead of a continuous taper - a funnel must always look
+// like a funnel, with real data controlling how quickly it narrows.
+const computeWidths = (stages) => {
+    const maxCount = stages[0]?.count || 1
+    let prevWidth = FUNNEL_WIDTH
+    return stages.map((stage, i) => {
+        const byCount = maxCount ? (stage.count / maxCount) * FUNNEL_WIDTH : 0
+        // Guarantees visible narrowing even when byCount is flat/zero for a run of stages.
+        const taperFloor = FUNNEL_WIDTH * Math.pow(0.82, i)
+        const width = Math.min(prevWidth, Math.max(byCount, taperFloor, MIN_PIXEL_WIDTH))
+        prevWidth = width
+        return width
+    })
+}
 
 function FunnelChart({ stages, className = '' }) {
     if (!stages?.length) return <p className='text-text-secondary text-[13.5px]'>No pipeline data yet.</p>
 
-    const maxCount = stages[0]?.count || 1
-    const widths = stages.map((s) => Math.max(maxCount ? s.count / maxCount : 0, MIN_WIDTH_RATIO) * FUNNEL_WIDTH)
+    const widths = computeWidths(stages)
     const totalHeight = stages.length * (BAND_HEIGHT + BAND_GAP) - BAND_GAP
 
     return (
