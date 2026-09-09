@@ -30,4 +30,6 @@ export const createQuestionBank = (payload) => apiPost("/api/v1/question-banks",
 
 // Notification Templates APIs
 export const getNotificationTemplates = () => apiGet("/api/v1/organization/templates")
+export const createNotificationTemplate = (payload) => apiPost("/api/v1/organization/templates", payload)
 export const updateNotificationTemplate = (id, payload) => apiPut(`/api/v1/organization/templates/${id}`, payload)
+export const deleteNotificationTemplate = (id) => apiDelete(`/api/v1/organization/templates/${id}`)

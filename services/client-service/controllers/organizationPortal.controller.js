@@ -70,3 +70,21 @@ export const updateTemplate = async (req, res, next) => {
         next(error)
     }
 }
+
+export const createTemplate = async (req, res, next) => {
+    try {
+        const created = await templateService.createTemplate(req.user?.tenantId, req.body)
+        ok(res, created)
+    } catch (error) {
+        next(error)
+    }
+}
+
+export const deleteTemplate = async (req, res, next) => {
+    try {
+        const result = await templateService.deleteTemplate(req.user?.tenantId, req.params.id)
+        ok(res, result)
+    } catch (error) {
+        next(error)
+    }
+}
