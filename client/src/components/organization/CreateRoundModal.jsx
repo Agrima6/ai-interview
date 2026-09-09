@@ -1,20 +1,38 @@
 import React, { useState, useEffect } from 'react'
 import { Plus, Check, ArrowRight, ArrowLeft, CheckSquare, Square, Upload, Users, FileSpreadsheet, AlertCircle } from 'lucide-react'
 import Modal from '../ui/Modal'
-import { Button, Input, Select, Badge } from '../ui'
+import { Button, Input, Select, Badge, EditableSelect } from '../ui'
 import CriteriaWeightageBuilder from './CriteriaWeightageBuilder'
 import QuestionSetBuilder from './QuestionSetBuilder'
 import CandidateImportModal from './CandidateImportModal'
-import { addRoundToInterviewDrive, getQuestionBanks } from '../../api/organization/organizationApi'
+import { addRoundToInterviewDrive, updateRound, getQuestionBanks } from '../../api/organization/organizationApi'
 
-function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlistedCandidates = [], onCreateRound }) {
+const ROLE_CATEGORIES = [
+  { value: 'SOFTWARE_ENGINEERING', label: 'Software Engineering (SDE / Fullstack)' },
+  { value: 'DATA_SCIENCE', label: 'Data Science & Machine Learning' },
+  { value: 'PRODUCT_DESIGN', label: 'Product & Design (UI/UX)' },
+  { value: 'QUALITY_ASSURANCE', label: 'Quality Assurance & Testing' },
+  { value: 'SALES_MARKETING', label: 'Sales & Business Development' },
+  { value: 'FINANCE_OPERATIONS', label: 'Finance & Accounts' },
+  { value: 'HR_OPERATIONS', label: 'Human Resources & Talent Acquisition' },
+]
+
+const DEPARTMENTS = ['Engineering', 'Core Tech', 'Product Management', 'Quality Assurance', 'Human Resources', 'Finance & Accounts', 'Sales & Business Dev', 'Operations', 'Marketing'].map((value) => ({ value, label: value }))
+const EXPERIENCE_LEVELS = ['0-1 yr (Fresher)', '1-3 yrs (Junior)', '3-5 yrs (Mid Level)', '5-8 yrs (Senior)', '8+ yrs (Lead/Manager)'].map((value) => ({ value, label: value }))
+const INTERVIEW_TYPES = ['Technical', 'Managerial Round', 'HR', 'Behavioral', 'System Design'].map((value) => ({ value, label: value === 'Technical' ? 'Technical Round' : value }))
+
+function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlistedCandidates = [], previousRound = null, driveContext = null, inheritedCommunication = null, existingRound = null, onCreateRound }) {
+  const isEditing = Boolean(existingRound)
+  const hasCandidateStep = true
+  const lastStep = 4
   const [step, setStep] = useState(1)
   const [importModalOpen, setImportModalOpen] = useState(false)
-  const [candidateSource, setCandidateSource] = useState('SHORTLISTED') // SHORTLISTED | EXCEL
+  const [candidateSource, setCandidateSource] = useState(roundNumber === 1 ? 'EXCEL' : 'SHORTLISTED') // SHORTLISTED | EXCEL
   const [excelCandidates, setExcelCandidates] = useState([])
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [questionBanks, setQuestionBanks] = useState([])
+  const [driveFormData, setDriveFormData] = useState({ title: '', roleCategory: '', department: '', experienceLevel: '', roundType: '', language: 'English', totalRounds: '', startDate: '', expiryDate: '' })
 
   useEffect(() => {
     if (!open) return
@@ -25,6 +43,7 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
     roundTitle: `Round ${roundNumber}: Managerial & System Design Assessment`,
     roundType: 'Managerial Round',
     passingThreshold: '75',
+    startDate: '',
     expiryDate: new Date(Date.now() + 10 * 86400000).toISOString().split('T')[0],
     questionMode: 'PREBUILT',
     questionBankId: '',
@@ -48,9 +67,51 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
     { id: 2, text: 'How do you handle conflict between senior architects regarding tech stack migration?', topic: 'Leadership & Team Management', timeLimit: 180 },
   ])
 
+  const safeShortlistedCandidates = Array.isArray(shortlistedCandidates) ? shortlistedCandidates : []
+
   const [selectedCandidateIds, setSelectedCandidateIds] = useState(
-    shortlistedCandidates.map((c) => c.id)
+    () => safeShortlistedCandidates.map((c) => c?.id).filter(Boolean)
   )
+
+  useEffect(() => {
+    if (!open || !existingRound) return
+    setStep(1)
+    setCandidateSource('EXCEL')
+    setExcelCandidates((existingRound.candidates || []).map((candidate) => ({ ...candidate, status: candidate.status || 'INVITED' })))
+    setFormData({
+      roundTitle: existingRound.title || `Round ${roundNumber}: Managerial & System Design Assessment`,
+      roundType: existingRound.type || 'Managerial Round',
+      passingThreshold: String(existingRound.passingThreshold ?? 75),
+      startDate: existingRound.startDate ? new Date(existingRound.startDate).toISOString().split('T')[0] : '',
+      expiryDate: existingRound.expiryDate ? new Date(existingRound.expiryDate).toISOString().split('T')[0] : new Date(Date.now() + 10 * 86400000).toISOString().split('T')[0],
+      questionMode: existingRound.questionMode || 'PREBUILT',
+      questionBankId: '',
+    })
+    setSkillWeightages(Array.isArray(existingRound.skillRubrics) && existingRound.skillRubrics.length ? existingRound.skillRubrics : skillWeightages)
+    setCustomQuestions(Array.isArray(existingRound.customQuestions) && existingRound.customQuestions.length ? existingRound.customQuestions : customQuestions)
+  }, [open, existingRound, roundNumber])
+
+  useEffect(() => {
+    if (!open) return
+    const ids = safeShortlistedCandidates.map((candidate) => candidate?.id).filter(Boolean)
+    setSelectedCandidateIds((prev) => (prev.length ? prev : ids))
+  }, [open, safeShortlistedCandidates])
+
+  useEffect(() => {
+    if (!open || !driveContext) return
+    const asDate = (value) => value ? new Date(value).toISOString().split('T')[0] : ''
+    setDriveFormData({
+      title: driveContext.title || '',
+      roleCategory: driveContext.roleCategory || '',
+      department: driveContext.department || '',
+      experienceLevel: driveContext.experienceLevel || '',
+      roundType: driveContext.roundType || '',
+      language: driveContext.language || 'English',
+      totalRounds: String(driveContext.totalRounds || ''),
+      startDate: asDate(driveContext.startDate),
+      expiryDate: asDate(driveContext.expiryDate),
+    })
+  }, [open, driveContext])
 
   const handleChange = (field, value) => {
     setErrorMessage('')
@@ -62,7 +123,16 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
 
   const handleCriteriaWeightChange = (idx, newWeight) => {
     setErrorMessage('')
-    setSkillWeightages((prev) => prev.map((item, i) => (i === idx ? { ...item, weight: Number(newWeight) || 0 } : item)))
+    const weight = Number(newWeight) || 0
+    const clampedWeight = Math.min(weight, 100)
+
+    const otherTotal = skillWeightages.reduce((acc, s, i) => acc + (i === idx ? 0 : s.weight), 0)
+    if (otherTotal + clampedWeight > 100) {
+      setErrorMessage(`Weight cannot exceed 100% total. Maximum allowed: ${Math.max(0, 100 - otherTotal)}%`)
+      return
+    }
+
+    setSkillWeightages((prev) => prev.map((item, i) => (i === idx ? { ...item, weight: clampedWeight } : item)))
   }
 
   const handleAddCriteria = () =>
@@ -89,7 +159,7 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
     // for them until they do. Fabricating one here would misrepresent an
     // untaken interview as already scored.
     const formatted = importedList.map((c, i) => ({
-      id: `cand-excel-${Date.now()}-${i}`,
+      id: c.id || `cand-excel-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 10)}`,
       name: c.name || c['Candidate Name'] || 'Candidate',
       email: c.email || c['Email Address'] || '',
       phone: c.phone || c['Phone Number'] || '',
@@ -114,7 +184,7 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
         return
       }
     }
-    setStep((prev) => Math.min(prev + 1, 4))
+    setStep((prev) => Math.min(prev + 1, lastStep))
   }
 
   const handleBack = () => {
@@ -136,22 +206,23 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
 
     const selectedBank = questionBanks.find((b) => (b._id || b.id) === formData.questionBankId)
 
-    const roundCandidateRoster =
-      candidateSource === 'SHORTLISTED'
-        ? shortlistedCandidates.filter((c) => selectedCandidateIds.includes(c.id))
-        : excelCandidates
+    const roundCandidateRoster = candidateSource === 'SHORTLISTED'
+      ? safeShortlistedCandidates.filter((c) => selectedCandidateIds.includes(c?.id))
+      : excelCandidates
 
     const payload = {
       roundNumber,
       title: formData.roundTitle,
-      type: formData.roundType,
-      expiryDate: formData.expiryDate,
+      type: roundNumber === 1 ? (driveFormData.roundType || formData.roundType) : formData.roundType,
+      startDate: formData.startDate || driveFormData.startDate,
+      expiryDate: roundNumber === 1 ? (driveFormData.expiryDate || formData.expiryDate) : formData.expiryDate,
       passingThreshold: Number(formData.passingThreshold) || 75,
       questionMode: formData.questionMode,
-      questionBankTitle: formData.questionMode === 'PREBUILT' ? (selectedBank ? selectedBank.title : 'Pre-built Question Set') : `Custom Question Set (${customQuestions.length} Qs)`,
+      questionBankTitle: formData.questionMode === 'PREBUILT' ? (selectedBank ? selectedBank.title : existingRound?.questionBankTitle || 'Pre-built Question Set') : `Custom Question Set (${customQuestions.length} Qs)`,
       skillRubrics: skillWeightages,
       customQuestions,
       candidates: roundCandidateRoster,
+      driveDetails: roundNumber === 1 ? driveFormData : undefined,
     }
 
     if (!driveId) {
@@ -161,7 +232,9 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
     }
 
     try {
-      const response = await addRoundToInterviewDrive(driveId, payload)
+      const response = isEditing
+        ? await updateRound(driveId, roundNumber, { ...payload, status: 'DRAFT' })
+        : await addRoundToInterviewDrive(driveId, payload)
       onCreateRound(response)
       onClose()
       setStep(1)
@@ -180,7 +253,7 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
       <Modal
         open={open}
         onClose={onClose}
-        title={`Create & Setup Round ${roundNumber}`}
+        title={isEditing ? `Edit Draft Round ${roundNumber}` : `Create & Setup Round ${roundNumber}`}
         size="full"
         footer={
           <div className="flex items-center justify-between w-full">
@@ -192,13 +265,13 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
               <div />
             )}
 
-            {step < 4 ? (
+            {step < lastStep ? (
               <Button type="button" size="sm" onClick={handleNext} disabled={step === 1 && (!formData.roundTitle.trim() || !formData.expiryDate)}>
                 Continue <ArrowRight size={14} />
               </Button>
             ) : (
-              <Button type="button" size="sm" onClick={handleLaunchRound} disabled={activeCandidatesCount === 0 || submitting}>
-                <Check size={14} /> {submitting ? 'Launching Round...' : `Activate & Launch Round ${roundNumber} (${activeCandidatesCount} Candidates)`}
+              <Button type="button" size="sm" onClick={handleLaunchRound} disabled={!isEditing && activeCandidatesCount === 0 || submitting}>
+                <Check size={14} /> {submitting ? (isEditing ? 'Saving Draft...' : 'Launching Round...') : (isEditing ? 'Save Draft' : `Activate & Launch Round ${roundNumber} (${activeCandidatesCount} Candidates)`)}
               </Button>
             )}
           </div>
@@ -216,9 +289,9 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
         <div className="flex items-center justify-between mb-8 pb-4 border-b border-line overflow-x-auto">
           {[
             { num: 1, label: `1. Round ${roundNumber} Setup` },
-            { num: 2, label: '2. Evaluation Criteria & Weightages' },
+            { num: 2, label: '2. Evaluation Criteria' },
             { num: 3, label: '3. Interview Questions Setup' },
-            { num: 4, label: '4. Round Candidate Roster' },
+            ...(hasCandidateStep ? [{ num: 4, label: '4. Candidate Selection' }] : []),
           ].map((s) => (
             <div key={s.num} className="flex items-center gap-2.5 shrink-0 px-2">
               <div
@@ -227,7 +300,7 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
                     ? 'bg-accent text-white shadow-sm'
                     : step > s.num
                     ? 'bg-emerald-500 text-white'
-                    : 'bg-black/[0.05] dark:bg-white/[0.08] text-text-secondary'
+                    : 'bg-black/5 dark:bg-white/8 text-text-secondary'
                 }`}
               >
                 {step > s.num ? <Check size={15} /> : s.num}
@@ -242,6 +315,59 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
         {/* Step 1: Round Metadata */}
         {step === 1 && (
           <div className="space-y-6 max-w-4xl mx-auto py-2">
+            {driveContext && roundNumber === 1 && (
+              <div className="rounded-2xl border border-line bg-bg p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-secondary">Drive details</p>
+                <div className="mt-3 space-y-4">
+                  <Input label="Interview name *" value={driveFormData.title} onChange={(e) => setDriveFormData((prev) => ({ ...prev, title: e.target.value }))} />
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <EditableSelect label="Position / role *" options={ROLE_CATEGORIES} value={driveFormData.roleCategory} onChange={(e) => setDriveFormData((prev) => ({ ...prev, roleCategory: e.target.value }))} />
+                    <EditableSelect label="Department *" options={DEPARTMENTS} value={driveFormData.department} onChange={(e) => setDriveFormData((prev) => ({ ...prev, department: e.target.value }))} />
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <EditableSelect label="Experience" options={EXPERIENCE_LEVELS} value={driveFormData.experienceLevel} onChange={(e) => setDriveFormData((prev) => ({ ...prev, experienceLevel: e.target.value }))} />
+                    <EditableSelect label="Interview type *" options={INTERVIEW_TYPES} value={driveFormData.roundType} onChange={(e) => setDriveFormData((prev) => ({ ...prev, roundType: e.target.value }))} />
+                    <Select label="Language" value={driveFormData.language} onChange={(e) => setDriveFormData((prev) => ({ ...prev, language: e.target.value }))} options={[{ value: 'English', label: 'English' }, { value: 'Hindi', label: 'Hindi' }]} />
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <Select label="Number of rounds" value={driveFormData.totalRounds} onChange={(e) => setDriveFormData((prev) => ({ ...prev, totalRounds: e.target.value }))} options={[1, 2, 3, 4].map((value) => ({ value: String(value), label: `${value} round${value === 1 ? '' : 's'}` }))} />
+                    <Input label="Start date *" type="date" value={driveFormData.startDate} onChange={(e) => setDriveFormData((prev) => ({ ...prev, startDate: e.target.value }))} />
+                    <Input label="Expiry date *" type="date" value={driveFormData.expiryDate} onChange={(e) => setDriveFormData((prev) => ({ ...prev, expiryDate: e.target.value }))} />
+                  </div>
+                </div>
+                <p className="mt-3 text-[11px] text-text-secondary">These drive-level details are editable for Round 1 and apply to the overall interview drive.</p>
+              </div>
+            )}
+            {previousRound && (
+              <div className="rounded-2xl border border-line bg-bg p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-secondary">Previous round reference</p>
+                    <p className="mt-1 text-[14px] font-bold text-ink">Round {previousRound.roundNumber}: {previousRound.title}</p>
+                  </div>
+                  <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${previousRound.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-700'}`}>{previousRound.status}</span>
+                </div>
+                <div className="mt-3 grid gap-2 text-[11px] text-text-secondary sm:grid-cols-3">
+                  <span>Type: <strong className="text-ink">{previousRound.type}</strong></span>
+                  <span>Candidates: <strong className="text-ink">{previousRound.candidates?.length || 0}</strong></span>
+                  <span>Criteria: <strong className="text-ink">{previousRound.skillRubrics?.length || 0}</strong></span>
+                </div>
+                <p className="mt-3 text-[11px] text-text-secondary">This round is shown for context only and cannot be edited here.</p>
+              </div>
+            )}
+            {inheritedCommunication && (
+              <div className="rounded-2xl border border-accent/15 bg-accent/5 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-accent">Inherited communication</p>
+                <p className="mt-1 text-[12px] text-ink">The communication settings selected on the main drive will be used for every round.</p>
+                <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold text-text-secondary">
+                  {inheritedCommunication.emailEnabled && <span className="rounded-full bg-card px-2.5 py-1">Email</span>}
+                  {inheritedCommunication.whatsappEnabled && <span className="rounded-full bg-card px-2.5 py-1">WhatsApp</span>}
+                  {inheritedCommunication.callEnabled && <span className="rounded-full bg-card px-2.5 py-1">Call</span>}
+                  {inheritedCommunication.reminderEnabled && <span className="rounded-full bg-card px-2.5 py-1">Reminder</span>}
+                  <span className="rounded-full bg-card px-2.5 py-1">Template locked to drive</span>
+                </div>
+              </div>
+            )}
             <Input
               label={`Round ${roundNumber} Title *`}
               placeholder="e.g. Round 2: System Architecture & Executive Interview"
@@ -251,7 +377,7 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
             />
 
             <div className="grid sm:grid-cols-2 gap-6">
-              <Select
+              {roundNumber > 1 && <EditableSelect
                 label="Round Type *"
                 value={formData.roundType}
                 onChange={(e) => handleChange('roundType', e.target.value)}
@@ -260,7 +386,8 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
                   { value: 'Technical Deep-Dive', label: 'Technical Deep-Dive / Live Coding' },
                   { value: 'HR & Executive Round', label: 'HR & Executive Culture Fit' },
                 ]}
-              />
+                placeholder="Select or type a round type…"
+              />}
               <Input
                 label="AI Qualification Passing Threshold (%)"
                 type="number"
@@ -269,13 +396,24 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
               />
             </div>
 
-            <Input
-              label={`Mandatory Round ${roundNumber} Expiry Date *`}
-              type="date"
-              value={formData.expiryDate}
-              onChange={(e) => handleChange('expiryDate', e.target.value)}
-              required
-            />
+            {roundNumber > 1 && (
+              <>
+                <Input
+                  label={`Round ${roundNumber} Start Date *`}
+                  type="date"
+                  value={formData.startDate || driveFormData.startDate}
+                  onChange={(e) => handleChange('startDate', e.target.value)}
+                  required
+                />
+                <Input
+                  label={`Round ${roundNumber} Expiry Date *`}
+                  type="date"
+                  value={formData.expiryDate}
+                  onChange={(e) => handleChange('expiryDate', e.target.value)}
+                  required
+                />
+              </>
+            )}
           </div>
         )}
 
@@ -313,27 +451,27 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
         )}
 
         {/* Step 4: Candidate Roster & Excel Import Option */}
-        {step === 4 && (
+        {hasCandidateStep && step === 4 && (
           <div className="space-y-6 max-w-4xl mx-auto py-2">
             {/* Candidate Source Selector */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-2xl border border-line bg-card shadow-sm">
               <div>
                 <h4 className="text-[16px] font-bold text-ink">Round {roundNumber} Candidate Selection</h4>
                 <p className="text-[13px] text-text-secondary mt-0.5">
-                  Advance shortlisted candidates from Round 1 or upload a new candidate Excel/CSV batch.
+                  {roundNumber === 1 ? 'Upload candidates for the first round using a CSV file.' : `Advance shortlisted candidates from Round ${previousRound?.roundNumber || roundNumber - 1} or upload a new candidate Excel/CSV batch.`}
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 p-1.5 bg-black/[0.04] dark:bg-white/[0.06] rounded-xl border border-line">
-                <button
+              <div className="flex items-center gap-2 p-1.5 bg-black/4 dark:bg-white/6 rounded-xl border border-line">
+                {roundNumber > 1 && <button
                   type="button"
                   onClick={() => setCandidateSource('SHORTLISTED')}
                   className={`px-3.5 py-1.5 rounded-lg text-[12.5px] font-bold transition-all ${
                     candidateSource === 'SHORTLISTED' ? 'bg-accent text-white shadow-sm' : 'text-text-secondary hover:text-ink'
                   }`}
                 >
-                  Round 1 Shortlisted ({shortlistedCandidates.length})
-                </button>
+                  Round {previousRound?.roundNumber || roundNumber - 1} Shortlisted ({shortlistedCandidates.length})
+                </button>}
                 <button
                   type="button"
                   onClick={() => setCandidateSource('EXCEL')}
@@ -349,23 +487,23 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
             {candidateSource === 'SHORTLISTED' ? (
               <div className="overflow-x-auto border border-line rounded-2xl bg-card">
                 <table className="w-full text-left text-[13.5px]">
-                  <thead className="bg-black/[0.02] dark:bg-white/[0.04] border-b border-line text-[12px] font-semibold text-text-secondary">
+                  <thead className="bg-black/2 dark:bg-white/4 border-b border-line text-[12px] font-semibold text-text-secondary">
                     <tr>
                       <th className="py-3.5 px-4">Select</th>
                       <th className="py-3.5 px-4">Candidate Name</th>
                       <th className="py-3.5 px-4">Email Address</th>
-                      <th className="py-3.5 px-4">Round 1 AI Score</th>
+                      <th className="py-3.5 px-4">Previous Round AI Score</th>
                       <th className="py-3.5 px-4">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
-                    {shortlistedCandidates.map((cand) => {
-                      const isSelected = selectedCandidateIds.includes(cand.id)
+                    {safeShortlistedCandidates.map((cand) => {
+                      const isSelected = selectedCandidateIds.includes(cand?.id)
                       return (
                         <tr
                           key={cand.id}
                           onClick={() => handleToggleCandidate(cand.id)}
-                          className="hover:bg-black/[0.015] cursor-pointer transition-colors"
+                          className="hover:bg-black/1.5 cursor-pointer transition-colors"
                         >
                           <td className="py-3.5 px-4">
                             {isSelected ? (
