@@ -149,7 +149,6 @@ function OrganizationDashboard() {
         <OrganizationLayout
             title={title}
             description={description}
-            action={<Button size='sm' onClick={() => navigate(`${basePath}/drives`)}><Plus size={14} /> Create interview drive</Button>}
         >
             <Tabs tabs={sectionTabs} value='overview' onChange={handleTabChange} className='mb-6' />
 
