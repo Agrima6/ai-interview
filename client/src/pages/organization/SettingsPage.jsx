@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Palette, Upload, Building2, Check, Sparkles } from 'lucide-react'
+import { Palette, Upload, Building2, Check, Sparkles, Mail } from 'lucide-react'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
-import { Card, Button, Input, Select, Skeleton } from '../../components/ui'
+import { Card, Button, Input, Select, Skeleton, Tabs } from '../../components/ui'
 import { getOrganizationProfile, updateOrganizationBranding } from '../../api/organization/organizationApi'
 import Avatar from '../../components/ui/Avatar'
+import SmtpSettingsSection from '../../components/organization/SmtpSettingsSection'
 
 const TYPOGRAPHY_OPTIONS = [
   { value: 'Inter, sans-serif', label: 'Inter (Modern & Clean)' },
@@ -14,8 +15,14 @@ const TYPOGRAPHY_OPTIONS = [
   { value: '"DM Sans", sans-serif', label: 'DM Sans (Editorial & Friendly)' },
 ]
 
+const SETTINGS_TABS = [
+  { id: 'branding', label: 'Branding & Typography', icon: Palette },
+  { id: 'email', label: 'Email (SMTP)', icon: Mail },
+]
+
 function SettingsPage() {
   const queryClient = useQueryClient()
+  const [activeSection, setActiveSection] = useState('branding')
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -101,6 +108,11 @@ function SettingsPage() {
       title="Portal & Branding Settings"
       description="Customize portal organization details, email, branding logo, colors, and typography."
     >
+      <Tabs tabs={SETTINGS_TABS} value={activeSection} onChange={setActiveSection} className="mb-6" />
+
+      {activeSection === 'email' ? (
+        <SmtpSettingsSection />
+      ) : (
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Main Settings Form */}
         <div className="lg:col-span-2 space-y-6">
@@ -248,6 +260,7 @@ function SettingsPage() {
           </Card>
         </div>
       </div>
+      )}
     </OrganizationLayout>
   )
 }

@@ -99,6 +99,7 @@ function QuestionSetBuilder({
                   <button
                     type="button"
                     onClick={() => onRemoveCustomQuestion(idx)}
+                    aria-label={`Remove question prompt ${idx + 1}`}
                     className="text-text-secondary hover:text-red-600 p-1.5 rounded transition-colors"
                   >
                     <Trash2 size={16} />

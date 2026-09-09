@@ -1,32 +1,47 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Plus, ListChecks, Users, Trash2, Link2, Sparkles, AlertCircle, Copy, Check, ExternalLink } from 'lucide-react'
+import { Plus, ListChecks, Users, Trash2, Sparkles, AlertCircle, SlidersHorizontal, X, Download } from 'lucide-react'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
 import CreateDriveModal from '../../components/organization/CreateDriveModal'
-import { Card, Button, Badge, SearchInput, Tabs, StatCard, Skeleton, ConfirmModal, useToast } from '../../components/ui'
-import { listInterviewDrives, updateDriveStatus } from '../../api/organization/organizationApi'
+import PublicLinkPopover from '../../components/organization/PublicLinkPopover'
+import { Card, Button, Badge, SearchInput, Tabs, StatCard, Skeleton, ConfirmModal, Select, Tooltip, Drawer, Pagination, useToast } from '../../components/ui'
+import { listInterviewDrives, updateDriveStatus, exportDrivesCsv } from '../../api/organization/organizationApi'
+import { formatEnumLabel } from '../../utils/formatEnumLabel'
+import { ROLE_CATEGORY_OPTIONS, DEPARTMENT_OPTIONS, EXPERIENCE_LEVEL_OPTIONS } from '../../constants/driveOptions'
 
 const STATUS_BADGE = {
   ACTIVE: 'success',
   DRAFT: 'neutral',
-  COMPLETED: 'purple',
-  ARCHIVED: 'neutral',
+  COMPLETED: 'info',
+  ARCHIVED: 'danger',
 }
+
+const EMPTY_FILTERS = { department: '', roleCategory: '', experienceLevel: '', createdFrom: '', createdTo: '' }
+
+const formatDate = (iso) => (iso ? new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—')
 
 function DrivesListPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const toast = useToast()
   const [drives, setDrives] = useState([])
+  const [total, setTotal] = useState(0)
   const [search, setSearch] = useState('')
   const [activeTab, setActiveTab] = useState('ALL')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(25)
   const [modalOpen, setModalOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [archiveTarget, setArchiveTarget] = useState(null)
   const [archiving, setArchiving] = useState(false)
-  const [copiedId, setCopiedId] = useState(null)
-  const [visibleLinkId, setVisibleLinkId] = useState(null)
+  const [exporting, setExporting] = useState(false)
+
+  const [filters, setFilters] = useState(EMPTY_FILTERS)
+  const [draftFilters, setDraftFilters] = useState(EMPTY_FILTERS)
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
+
+  const activeFilterCount = Object.values(filters).filter(Boolean).length
 
   const basePath = location.pathname.startsWith('/college')
     ? '/college'
@@ -40,48 +55,35 @@ function DrivesListPage() {
     setLoading(true)
     setError('')
     try {
-      const liveDrives = await listInterviewDrives({ search: search || undefined, status: activeTab === 'ALL' ? undefined : activeTab })
-      setDrives((liveDrives || []).map((d) => ({
+      const { items, total: totalCount } = await listInterviewDrives({
+        search: search || undefined,
+        status: activeTab === 'ALL' ? undefined : activeTab,
+        page,
+        pageSize,
+        ...filters,
+      })
+      setDrives((items || []).map((d) => ({
         ...d,
         id: d._id || d.id,
         candidatesCount: d.candidatesCount || d.rounds?.[0]?.candidates?.length || 0,
       })))
+      setTotal(totalCount || 0)
     } catch (err) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
-  }, [search, activeTab])
+  }, [search, activeTab, page, pageSize, filters])
 
-  useEffect(() => {
-    fetchDrives()
-  }, [fetchDrives])
+  useEffect(() => { fetchDrives() }, [fetchDrives])
+
+  // Any change to what's being asked for should land back on page 1 - a
+  // stale page number past the new (usually smaller) result count would
+  // just show an empty page instead of the first matches.
+  useEffect(() => { setPage(1) }, [search, activeTab, pageSize, filters])
 
   const handleCreateDrive = () => {
     fetchDrives()
-  }
-
-  const handleCopyLink = async (e, link, id) => {
-    e.stopPropagation()
-    if (!link) {
-      toast.error('Public link is not available for this drive.')
-      return
-    }
-    const fullUrl = `${window.location.origin}/apply/${link}`
-    try {
-      await navigator.clipboard.writeText(fullUrl)
-      setCopiedId(id)
-      setTimeout(() => setCopiedId(null), 2000)
-      toast.success('Public link copied to clipboard.')
-    } catch (err) {
-      toast.error('Could not copy link. Please copy it manually.')
-    }
-  }
-
-  const handleOpenLink = (e, link) => {
-    e.stopPropagation()
-    if (!link) return
-    window.open(`${window.location.origin}/apply/${link}`, '_blank', 'noopener,noreferrer')
   }
 
   const runArchive = async () => {
@@ -99,8 +101,48 @@ function DrivesListPage() {
     }
   }
 
-  const totalDrives = drives.length
-  const activeDrives = drives.filter((d) => d.status === 'ACTIVE').length
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      await exportDrivesCsv({ search: search || undefined, status: activeTab === 'ALL' ? undefined : activeTab, ...filters })
+      toast.success('Export downloaded.')
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const openFilterDrawer = () => {
+    setDraftFilters(filters)
+    setFilterDrawerOpen(true)
+  }
+
+  const applyFilters = () => {
+    setFilters(draftFilters)
+    setFilterDrawerOpen(false)
+  }
+
+  const resetFilters = () => {
+    setDraftFilters(EMPTY_FILTERS)
+    setFilters(EMPTY_FILTERS)
+    setFilterDrawerOpen(false)
+  }
+
+  const clearOneFilter = (key) => setFilters((prev) => ({ ...prev, [key]: '' }))
+
+  const filterChips = useMemo(() => {
+    const chips = []
+    if (filters.department) chips.push({ key: 'department', label: `Department: ${filters.department}` })
+    if (filters.roleCategory) chips.push({ key: 'roleCategory', label: `Role: ${formatEnumLabel(filters.roleCategory)}` })
+    if (filters.experienceLevel) chips.push({ key: 'experienceLevel', label: `Experience: ${filters.experienceLevel}` })
+    if (filters.createdFrom || filters.createdTo) chips.push({ key: 'createdFrom', label: `Created: ${filters.createdFrom || '…'} – ${filters.createdTo || '…'}`, clearsAlso: 'createdTo' })
+    return chips
+  }, [filters])
+
+  // Server-computed totals shown in the KPI row, so "Total Drives" reflects
+  // the whole tenant, not just the current filtered/paginated page.
+  const activeDrivesCount = activeTab === 'ACTIVE' ? total : drives.filter((d) => d.status === 'ACTIVE').length
   const totalCandidates = drives.reduce((acc, d) => acc + (d.candidatesCount || 0), 0)
 
   return (
@@ -116,12 +158,12 @@ function DrivesListPage() {
       <div className="space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <StatCard
-            icon={ListChecks} label="Total Drives" value={totalDrives}
+            icon={ListChecks} label="Total Drives" value={total}
             helperText="All drives, any status"
             onClick={() => setActiveTab('ALL')}
           />
           <StatCard
-            icon={Sparkles} label="Active Hiring Drives" value={activeDrives}
+            icon={Sparkles} label="Active Hiring Drives" value={activeDrivesCount}
             helperText="Currently accepting candidates"
             onClick={() => setActiveTab('ACTIVE')}
           />
@@ -148,8 +190,33 @@ function DrivesListPage() {
             <div className="w-full md:w-64">
               <SearchInput placeholder="Search by title or department..." value={search} onChange={setSearch} />
             </div>
+            <Button variant="secondary" size="sm" onClick={openFilterDrawer} className="shrink-0">
+              <SlidersHorizontal size={14} /> Filters
+              {activeFilterCount > 0 && (
+                <span className="ml-1 w-4 h-4 rounded-full bg-accent text-white text-[10px] font-bold flex items-center justify-center">{activeFilterCount}</span>
+              )}
+            </Button>
+            <Button variant="secondary" size="sm" onClick={handleExport} disabled={exporting} className="shrink-0">
+              <Download size={14} /> {exporting ? 'Exporting...' : 'Export CSV'}
+            </Button>
           </div>
         </Card>
+
+        {filterChips.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {filterChips.map((chip) => (
+              <span key={chip.key} className="inline-flex items-center gap-1.5 pl-3 pr-2 py-1 rounded-full bg-accent/10 text-accent text-[12.5px] font-medium">
+                {chip.label}
+                <button type="button" onClick={() => { clearOneFilter(chip.key); if (chip.clearsAlso) clearOneFilter(chip.clearsAlso) }} aria-label={`Clear filter: ${chip.label}`} className="hover:bg-accent/20 rounded-full p-0.5">
+                  <X size={12} />
+                </button>
+              </span>
+            ))}
+            <button type="button" onClick={resetFilters} className="text-[12.5px] font-medium text-text-secondary hover:text-ink underline">
+              Clear all
+            </button>
+          </div>
+        )}
 
         {error ? (
           <Card className="p-10 text-center">
@@ -160,24 +227,29 @@ function DrivesListPage() {
           </Card>
         ) : loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-[220px]" />)}
+            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-[240px]" />)}
           </div>
         ) : drives.length === 0 ? (
           <Card className="p-12 text-center space-y-3">
             <div className="w-12 h-12 rounded-full bg-accent/10 text-accent flex items-center justify-center mx-auto">
               <ListChecks size={24} />
             </div>
-            <h3 className="text-[16px] font-bold text-ink">No interview drives yet</h3>
+            <h3 className="text-[16px] font-bold text-ink">
+              {activeFilterCount > 0 || search ? 'No drives match your filters' : 'No interview drives yet'}
+            </h3>
             <p className="text-[13.5px] text-text-secondary max-w-sm mx-auto">
-              Create your first drive to start evaluating candidates.
+              {activeFilterCount > 0 || search ? 'Try adjusting or clearing your filters.' : 'Create your first drive to start evaluating candidates.'}
             </p>
             <div className="pt-2">
-              <Button onClick={() => setModalOpen(true)}>
-                <Plus size={15} /> Create Interview Drive
-              </Button>
+              {activeFilterCount > 0 || search ? (
+                <Button variant="secondary" onClick={() => { setSearch(''); resetFilters() }}>Clear filters</Button>
+              ) : (
+                <Button onClick={() => setModalOpen(true)}><Plus size={15} /> Create Interview Drive</Button>
+              )}
             </div>
           </Card>
         ) : (
+          <>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             {drives.map((drive) => {
               const driveId = drive._id || drive.id
@@ -196,7 +268,7 @@ function DrivesListPage() {
                           {drive.title}
                         </h3>
                         <p className="text-[12.5px] text-text-secondary font-medium mt-0.5">
-                          {drive.department} • {drive.roleCategory}
+                          {formatEnumLabel(drive.department)} • {formatEnumLabel(drive.roleCategory)}
                         </p>
                       </div>
 
@@ -206,6 +278,7 @@ function DrivesListPage() {
                           onClick={(e) => { e.stopPropagation(); setArchiveTarget(driveId) }}
                           className="p-1.5 rounded-lg text-text-secondary hover:text-red-500 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                           title="Archive Drive"
+                          aria-label={`Archive ${drive.title}`}
                         >
                           <Trash2 size={15} />
                         </button>
@@ -222,51 +295,32 @@ function DrivesListPage() {
                         <span className="font-bold text-emerald-600">{drive.passingThreshold}% Pass</span>
                       </div>
                     </div>
+
+                    <div className="flex items-center justify-between text-[11.5px] text-text-secondary">
+                      <Tooltip content={drive.createdAt ? new Date(drive.createdAt).toLocaleString() : ''}>
+                        <span>Created {formatDate(drive.createdAt)}</span>
+                      </Tooltip>
+                      <Tooltip content={drive.updatedAt ? new Date(drive.updatedAt).toLocaleString() : ''}>
+                        <span>Updated {formatDate(drive.updatedAt)}</span>
+                      </Tooltip>
+                    </div>
                   </div>
 
-                  <div className="pt-4 mt-4 border-t border-line space-y-2">
-                    <div className="flex items-center justify-between text-[12.5px]">
-                      <div className="flex items-center gap-1.5 text-text-secondary font-medium">
-                        <Users size={14} className="text-accent" />
-                        <span>{drive.candidatesCount} Candidates</span>
-                      </div>
-
-                      {drive.publicLink ? (
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={(e) => handleOpenLink(e, drive.publicLink)}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-text-secondary hover:text-ink hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                            title="Open candidate link in a new tab"
-                          >
-                            <ExternalLink size={12} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); setVisibleLinkId((current) => current === driveId ? null : driveId) }}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-accent/10 text-accent border border-accent/20 hover:bg-accent/15 transition-colors font-semibold"
-                            title="Show public link"
-                          >
-                            <Link2 size={12} /> Public Link
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-text-secondary/60 text-[11.5px] font-medium">No public link</span>
-                      )}
+                  <div className="pt-4 mt-4 border-t border-line flex items-center justify-between text-[12.5px]">
+                    <div className="flex items-center gap-1.5 text-text-secondary font-medium">
+                      <Users size={14} className="text-accent" />
+                      <span>{drive.candidatesCount} Candidates</span>
                     </div>
-                    {visibleLinkId === driveId && drive.publicLink && (
-                      <div className="flex items-center gap-2 rounded-lg border border-accent/20 bg-accent/5 p-2">
-                        <input readOnly value={`${window.location.origin}/apply/${drive.publicLink}`} className="min-w-0 flex-1 bg-transparent text-[11px] text-ink outline-none" onClick={(e) => e.stopPropagation()} />
-                        <button type="button" onClick={(e) => handleCopyLink(e, drive.publicLink, driveId)} className="shrink-0 rounded-md p-1.5 text-accent hover:bg-accent/10" title="Copy public URL">
-                          {copiedId === driveId ? <Check size={14} /> : <Copy size={14} />}
-                        </button>
-                      </div>
-                    )}
+
+                    <PublicLinkPopover publicLink={drive.publicLink} />
                   </div>
                 </Card>
               )
             })}
           </div>
+
+          <Pagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} onPageSizeChange={setPageSize} />
+          </>
         )}
       </div>
 
@@ -286,6 +340,59 @@ function DrivesListPage() {
       >
         Archived drives are no longer active but remain visible in your drive history.
       </ConfirmModal>
+
+      <Drawer
+        open={filterDrawerOpen}
+        onClose={() => setFilterDrawerOpen(false)}
+        title="Filter Drives"
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={resetFilters}>Reset</Button>
+            <Button size="sm" onClick={applyFilters}>Apply Filters</Button>
+          </>
+        }
+      >
+        <div className="space-y-5">
+          <Select
+            label="Department"
+            value={draftFilters.department}
+            onChange={(e) => setDraftFilters((f) => ({ ...f, department: e.target.value }))}
+            placeholder="All departments"
+            options={DEPARTMENT_OPTIONS}
+          />
+          <Select
+            label="Role Category"
+            value={draftFilters.roleCategory}
+            onChange={(e) => setDraftFilters((f) => ({ ...f, roleCategory: e.target.value }))}
+            placeholder="All roles"
+            options={ROLE_CATEGORY_OPTIONS}
+          />
+          <Select
+            label="Experience"
+            value={draftFilters.experienceLevel}
+            onChange={(e) => setDraftFilters((f) => ({ ...f, experienceLevel: e.target.value }))}
+            placeholder="All experience levels"
+            options={EXPERIENCE_LEVEL_OPTIONS}
+          />
+          <div>
+            <label className="block text-[13.5px] font-semibold text-ink mb-2">Created date</label>
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                type="date"
+                value={draftFilters.createdFrom}
+                onChange={(e) => setDraftFilters((f) => ({ ...f, createdFrom: e.target.value }))}
+                className="w-full bg-card border border-line rounded-xl px-3 py-2.5 text-[13px] text-ink outline-none focus:border-accent/60 focus:ring-2 focus:ring-accent/15"
+              />
+              <input
+                type="date"
+                value={draftFilters.createdTo}
+                onChange={(e) => setDraftFilters((f) => ({ ...f, createdTo: e.target.value }))}
+                className="w-full bg-card border border-line rounded-xl px-3 py-2.5 text-[13px] text-ink outline-none focus:border-accent/60 focus:ring-2 focus:ring-accent/15"
+              />
+            </div>
+          </div>
+        </div>
+      </Drawer>
     </OrganizationLayout>
   )
 }

@@ -1,6 +1,7 @@
 import * as teamService from "../services/teamMember.service.js"
 import * as bankService from "../services/questionBank.service.js"
 import * as templateService from "../services/notificationTemplate.service.js"
+import * as smtpService from "../services/smtpSettings.service.js"
 import { ok } from "../utils/response.js"
 
 // Team Members
@@ -71,10 +72,44 @@ export const updateTemplate = async (req, res, next) => {
     }
 }
 
-export const previewTemplate = async (req, res, next) => {
+export const createTemplate = async (req, res, next) => {
     try {
-        const preview = await templateService.previewTemplate(req.user?.tenantId, req.params.id, req.body)
-        ok(res, preview)
+        const created = await templateService.createTemplate(req.user?.tenantId, req.body)
+        ok(res, created)
+    } catch (error) {
+        next(error)
+    }
+}
+
+export const deleteTemplate = async (req, res, next) => {
+    try {
+        const result = await templateService.deleteTemplate(req.user?.tenantId, req.params.id)
+        ok(res, result)
+    } catch (error) {
+        next(error)
+    }
+}
+
+// SMTP Settings
+export const getSmtpSettings = async (req, res, next) => {
+    try {
+        ok(res, await smtpService.getSmtpSettings(req.user?.tenantId))
+    } catch (error) {
+        next(error)
+    }
+}
+
+export const updateSmtpSettings = async (req, res, next) => {
+    try {
+        ok(res, await smtpService.updateSmtpSettings(req.user?.tenantId, req.body))
+    } catch (error) {
+        next(error)
+    }
+}
+
+export const testSmtpConnection = async (req, res, next) => {
+    try {
+        ok(res, await smtpService.testSmtpConnection(req.user?.tenantId, req.body))
     } catch (error) {
         next(error)
     }

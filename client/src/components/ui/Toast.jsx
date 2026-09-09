@@ -46,7 +46,7 @@ export function ToastProvider({ children }) {
         <ToastContext.Provider value={api}>
             {children}
             {createPortal(
-                <div className='fixed bottom-5 right-5 z-[200] flex flex-col gap-2.5 w-full max-w-sm pointer-events-none'>
+                <div className='fixed bottom-5 right-5 z-[var(--z-toast)] flex flex-col gap-2.5 w-full max-w-sm pointer-events-none'>
                     <AnimatePresence>
                         {toasts.map((t) => {
                             const { icon: Icon, iconClass } = VARIANT[t.variant] || VARIANT.info

@@ -31,6 +31,12 @@ export const clientServiceClient = {
             params: { type, from, to },
             ...ctxHeaders(ctx),
         }),
+    getTenantReport: (tenantId, { days } = {}, ctx) =>
+        client.get(`${process.env.CLIENT_SERVICE_URL}/internal/v1/drives/tenant-report`, {
+            apiKey: process.env.CLIENT_SERVICE_API_KEY,
+            params: { tenantId, days },
+            ...ctxHeaders(ctx),
+        }),
 }
 
 export const enquiryServiceClient = {

@@ -15,5 +15,6 @@ export const organizationPermissions = {
     candidatesExport: 'organization.candidates.export',
     team: 'organization.team.manage',
     templates: 'organization.templates.view',
+    reports: 'organization.reports.view',
     settings: 'organization.settings.update',
 }

@@ -12,13 +12,15 @@ const requireTenant = (req) => {
 }
 
 export const getSummary = async (req, res, next) => {
-    try { ok(res, await orgDashboardService.getSummary(requireTenant(req))) } catch (error) { next(error) }
+    try {
+        ok(res, await orgDashboardService.getSummary(requireTenant(req), { requestId: req.requestId, correlationId: req.correlationId }))
+    } catch (error) { next(error) }
 }
 
 export const getTrends = async (req, res, next) => {
     try {
         const range = VALID_RANGES.has(req.query.range) ? req.query.range : "30d"
-        ok(res, await orgDashboardService.getTrends(requireTenant(req), range))
+        ok(res, await orgDashboardService.getTrends(requireTenant(req), range, { requestId: req.requestId, correlationId: req.correlationId }))
     } catch (error) { next(error) }
 }
 

@@ -23,6 +23,16 @@ const CandidateRosterSchema = new mongoose.Schema({
     malpracticeFlags: { type: Number, default: 0 },
     status: { type: String, enum: ["INVITED", "SHORTLISTED", "COMPLETED", "REJECTED"], default: "INVITED" },
     attemptedDate: { type: Date },
+    // Audit trail + duplicate-send visibility (integration.md section 32/52)
+    // for congratulations/rejection communications sent from the drive
+    // detail page - not every invite/reminder, just the round-outcome ones.
+    communications: [{
+        purpose: { type: String, enum: ["CONGRATULATIONS", "REJECTION"], required: true },
+        channel: { type: String, enum: ["EMAIL", "WHATSAPP"], required: true },
+        templateId: { type: String },
+        status: { type: String, enum: ["SENT", "FAILED"], required: true },
+        sentAt: { type: Date, default: Date.now },
+    }],
 })
 
 const RoundSchema = new mongoose.Schema({

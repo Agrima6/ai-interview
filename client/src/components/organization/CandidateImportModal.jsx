@@ -3,39 +3,20 @@ import { Upload, FileText, Check, Edit2, ArrowRight, Download, AlertCircle } fro
 import Modal from '../ui/Modal'
 import { Button, Input, Select, Badge } from '../ui'
 import { parseCsv, downloadCsv } from '../../utils/candidateCsv'
+import { CANDIDATE_FIELDS, CANDIDATE_SAMPLE_ROWS, guessCandidateMapping, validateCandidateRecord } from '../../constants/candidateSchema'
 
-const SAMPLE_HEADERS = ['Candidate Name', 'Email Address', 'Phone Number', 'Experience (Years)']
-const SAMPLE_ROWS = [
-    { 'Candidate Name': 'Aarav Sharma', 'Email Address': 'aarav.sharma@example.com', 'Phone Number': '+91-9876543210', 'Experience (Years)': '4' },
-    { 'Candidate Name': 'Priya Patel', 'Email Address': 'priya.patel@example.com', 'Phone Number': '+91-9812345678', 'Experience (Years)': '3' },
-]
+const SAMPLE_HEADERS = CANDIDATE_FIELDS.map((f) => f.label)
+const EMPTY_MAPPING = Object.fromEntries(CANDIDATE_FIELDS.map((f) => [`${f.key}Header`, '']))
 
-const FIELD_LABELS = { nameHeader: 'Full Name', emailHeader: 'Email Address', phoneHeader: 'Phone Number', expHeader: 'Years Experience' }
-
-// Guesses the likely source column for each candidate field from the
-// uploaded file's actual headers, so the mapping step starts pre-filled
-// instead of forcing the admin to map four columns by hand every time.
-const guessMapping = (headers) => {
-    const find = (patterns) => headers.find((h) => patterns.some((p) => h.toLowerCase().includes(p))) || ''
-    return {
-        nameHeader: find(['name']),
-        emailHeader: find(['email']),
-        phoneHeader: find(['phone', 'mobile', 'contact']),
-        expHeader: find(['exp']),
-    }
-}
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const PHONE_RE = /^\d{10}$/
-const EXPERIENCE_RE = /^\d+(?:\.\d+)?(?:\s*(?:years?|yrs?))?$/
-
-const validateCandidateDetails = (phone, exp) => {
-    if (phone && !PHONE_RE.test(phone.trim())) return 'Phone must contain exactly 10 digits'
-    const normalizedExp = exp.trim()
-    const experienceNumber = normalizedExp.match(/^\d+(?:\.\d+)?/)?.[0]
-    if (normalizedExp && (!EXPERIENCE_RE.test(normalizedExp) || !experienceNumber || Number(experienceNumber) <= 0 || Number(experienceNumber) > 70)) return 'Experience must be greater than 0 and no more than 70 years'
-    return null
-}
+// Reads every schema field out of one parsed CSV record using the current
+// column mapping - the only place that turns "a row + a mapping" into "a
+// candidate object", so import and the Fix Row editor can't drift apart.
+const extractRecord = (source, mapping) =>
+    Object.fromEntries(CANDIDATE_FIELDS.map((f) => {
+        const raw = mapping[`${f.key}Header`] ? source[mapping[`${f.key}Header`]] : (source[f.key] ?? '')
+        const value = (raw || '').trim()
+        return [f.key, f.type === 'email' ? value.toLowerCase() : value]
+    }))
 
 function CandidateImportModal({ open, onClose, onImportComplete }) {
     const [step, setStep] = useState(1) // 1: Upload, 2: Map Headers, 3: Verify & Fix
@@ -43,13 +24,13 @@ function CandidateImportModal({ open, onClose, onImportComplete }) {
     const [headers, setHeaders] = useState([])
     const [records, setRecords] = useState([])
     const [parseError, setParseError] = useState('')
-    const [mapping, setMapping] = useState({ nameHeader: '', emailHeader: '', phoneHeader: '', expHeader: '' })
+    const [mapping, setMapping] = useState(EMPTY_MAPPING)
     const [candidateRows, setCandidateRows] = useState([])
     const [editingRow, setEditingRow] = useState(null)
 
     const reset = () => {
         setStep(1); setFileName(''); setHeaders([]); setRecords([]); setParseError('')
-        setMapping({ nameHeader: '', emailHeader: '', phoneHeader: '', expHeader: '' }); setCandidateRows([])
+        setMapping(EMPTY_MAPPING); setCandidateRows([])
     }
 
     const handleFileUpload = (e) => {
@@ -66,7 +47,7 @@ function CandidateImportModal({ open, onClose, onImportComplete }) {
             setFileName(file.name)
             setHeaders(parsedHeaders)
             setRecords(parsedRecords)
-            setMapping(guessMapping(parsedHeaders))
+            setMapping(guessCandidateMapping(parsedHeaders))
         }
         reader.onerror = () => setParseError('Could not read this file.')
         reader.readAsText(file)
@@ -74,21 +55,11 @@ function CandidateImportModal({ open, onClose, onImportComplete }) {
 
     const buildRowsFromMapping = () => {
         const seenEmails = new Set()
-        const rows = records.map((record, i) => {
-            const name = mapping.nameHeader ? record[mapping.nameHeader] : ''
-            const email = (mapping.emailHeader ? record[mapping.emailHeader] : '').toLowerCase()
-            const phone = mapping.phoneHeader ? record[mapping.phoneHeader] : ''
-            const exp = mapping.expHeader ? record[mapping.expHeader] : ''
-
-            let status = 'VERIFIED'
-            let error = null
-            if (!name?.trim()) { status = 'ERROR'; error = 'Empty Name Field' }
-            else if (!EMAIL_RE.test(email)) { status = 'ERROR'; error = "Missing/invalid Email" }
-            else if (seenEmails.has(email)) { status = 'DUPLICATE'; error = 'Duplicate email in this file' }
-            else if (validateCandidateDetails(phone, exp)) { status = 'ERROR'; error = validateCandidateDetails(phone, exp) }
-
-            if (status !== 'ERROR' || email) seenEmails.add(email)
-            return { row: i + 2, name: name?.trim() || '', email, phone: phone?.trim() || '', exp: exp?.trim() || '', status, error }
+        const rows = records.map((source, i) => {
+            const candidate = extractRecord(source, mapping)
+            const { severity, issues } = validateCandidateRecord(candidate, seenEmails)
+            if (candidate.email) seenEmails.add(candidate.email)
+            return { row: i + 2, ...candidate, status: severity, issues }
         })
         setCandidateRows(rows)
     }
@@ -100,27 +71,25 @@ function CandidateImportModal({ open, onClose, onImportComplete }) {
             const seenEmails = new Set(prev.filter((r) => r.row !== rowNum && r.email).map((r) => r.email.toLowerCase()))
             return prev.map((r) => {
                 if (r.row !== rowNum) return r
-                const email = (updatedData.email || '').toLowerCase().trim()
-                const hasName = Boolean(updatedData.name?.trim())
-                let status = 'VERIFIED'
-                let error = null
-                if (!hasName) { status = 'ERROR'; error = 'Empty Name Field' }
-                else if (!EMAIL_RE.test(email)) { status = 'ERROR'; error = "Missing/invalid Email" }
-                else if (seenEmails.has(email)) { status = 'DUPLICATE'; error = 'Duplicate email in this file' }
-                else if (validateCandidateDetails(updatedData.phone || '', updatedData.exp || '')) { status = 'ERROR'; error = validateCandidateDetails(updatedData.phone || '', updatedData.exp || '') }
-                return { ...r, ...updatedData, email, status, error }
+                const candidate = extractRecord(updatedData, {}) // updatedData is already keyed by field, not header
+                const { severity, issues } = validateCandidateRecord(candidate, seenEmails)
+                return { ...r, ...candidate, status: severity, issues }
             })
         })
         setEditingRow(null)
     }
 
-    const validCount = candidateRows.filter((r) => r.status === 'VERIFIED').length
+    const validCount = candidateRows.filter((r) => r.status === 'VALID').length
+    const warningCount = candidateRows.filter((r) => r.status === 'WARNING').length
+    const invalidCount = candidateRows.filter((r) => r.status === 'INVALID').length
     const totalCount = candidateRows.length
-    const mappingComplete = mapping.nameHeader && mapping.emailHeader
+    const mappingComplete = CANDIDATE_FIELDS.filter((f) => f.required).every((f) => mapping[`${f.key}Header`])
 
     const handleFinishImport = () => {
-        const verifiedCandidates = candidateRows.filter((r) => r.status === 'VERIFIED')
-        onImportComplete(verifiedCandidates)
+        // Warnings are flagged, not blocking - only rows missing a required
+        // field or duplicating another row's email are excluded.
+        const importableCandidates = candidateRows.filter((r) => r.status !== 'INVALID')
+        onImportComplete(importableCandidates)
         onClose()
         reset()
     }
@@ -152,8 +121,8 @@ function CandidateImportModal({ open, onClose, onImportComplete }) {
                     )}
 
                     {step === 3 && (
-                        <Button type="button" size="sm" onClick={handleFinishImport} disabled={validCount === 0}>
-                            <Check size={14} /> Finish Import ({validCount}/{totalCount})
+                        <Button type="button" size="sm" onClick={handleFinishImport} disabled={validCount + warningCount === 0}>
+                            <Check size={14} /> Finish Import ({validCount + warningCount}/{totalCount})
                         </Button>
                     )}
                 </div>
@@ -173,7 +142,7 @@ function CandidateImportModal({ open, onClose, onImportComplete }) {
                                     ? 'bg-accent text-white shadow-sm'
                                     : step > s.num
                                     ? 'bg-emerald-500 text-white'
-                                    : 'bg-black/5 dark:bg-white/8 text-text-secondary'
+                                    : 'bg-black/[0.05] dark:bg-white/[0.08] text-text-secondary'
                             }`}
                         >
                             {s.num}
@@ -188,7 +157,7 @@ function CandidateImportModal({ open, onClose, onImportComplete }) {
             {/* Step 1: Upload Candidate Spreadsheet */}
             {step === 1 && (
                 <div className="space-y-4">
-                    <div className="border-2 border-dashed border-line rounded-2xl p-8 text-center bg-black/1 dark:bg-white/2 hover:border-accent transition-colors">
+                    <div className="border-2 border-dashed border-line rounded-2xl p-8 text-center bg-black/[0.01] dark:bg-white/[0.02] hover:border-accent transition-colors">
                         <Upload size={32} className="text-accent mx-auto mb-3" />
                         <h3 className="text-[15px] font-bold text-ink mb-1">Upload Candidate Spreadsheet</h3>
                         <p className="text-[13px] text-text-secondary mb-4">Drag and drop your candidate CSV file here or browse files.</p>
@@ -209,16 +178,16 @@ function CandidateImportModal({ open, onClose, onImportComplete }) {
                             <span className="text-[13px] font-medium text-ink flex items-center gap-2">
                                 <FileText size={16} className="text-accent" /> {fileName}
                             </span>
-                            <Badge variant="purple">{records.length} Rows Detected</Badge>
+                            <Badge variant="info">{records.length} Rows Detected</Badge>
                         </div>
                     )}
 
-                    <div className="p-4 rounded-xl border border-line bg-black/2 dark:bg-white/4">
+                    <div className="p-4 rounded-xl border border-line bg-black/[0.02] dark:bg-white/[0.04]">
                         <div className="flex items-center justify-between mb-2">
                             <p className="text-[13px] font-semibold text-ink">Not sure of the format?</p>
                             <Button
                                 type="button" size="xs" variant="secondary"
-                                onClick={() => downloadCsv('candidate_import_template.csv', SAMPLE_HEADERS, SAMPLE_ROWS)}
+                                onClick={() => downloadCsv('candidate_import_template.csv', SAMPLE_HEADERS, CANDIDATE_SAMPLE_ROWS)}
                             >
                                 <Download size={12} /> Download Sample CSV
                             </Button>
@@ -229,7 +198,7 @@ function CandidateImportModal({ open, onClose, onImportComplete }) {
                                     <tr>{SAMPLE_HEADERS.map((h) => <th key={h} className="py-1.5 pr-4">{h}</th>)}</tr>
                                 </thead>
                                 <tbody className="text-ink">
-                                    {SAMPLE_ROWS.map((r, i) => (
+                                    {CANDIDATE_SAMPLE_ROWS.map((r, i) => (
                                         <tr key={i}>{SAMPLE_HEADERS.map((h) => <td key={h} className="py-1 pr-4 font-mono">{r[h]}</td>)}</tr>
                                     ))}
                                 </tbody>
@@ -245,16 +214,19 @@ function CandidateImportModal({ open, onClose, onImportComplete }) {
                 <div className="space-y-5">
                     <div>
                         <h3 className="text-[14.5px] font-bold text-ink mb-1">Map CSV Headers to System Fields</h3>
-                        <p className="text-[12.5px] text-text-secondary">We detected these columns in <strong>{fileName}</strong> - match each one to a candidate field (Name and Email are required).</p>
+                        <p className="text-[12.5px] text-text-secondary">
+                            We detected these columns in <strong>{fileName}</strong> - match each one to a candidate field
+                            ({CANDIDATE_FIELDS.filter((f) => f.required).map((f) => f.label).join(' and ')} required).
+                        </p>
                     </div>
 
                     <div className="grid sm:grid-cols-2 gap-4">
-                        {Object.entries(FIELD_LABELS).map(([field, label]) => (
+                        {CANDIDATE_FIELDS.map((field) => (
                             <Select
-                                key={field}
-                                label={`${label} Column${field === 'nameHeader' || field === 'emailHeader' ? ' *' : ''}`}
-                                value={mapping[field]}
-                                onChange={(e) => setMapping({ ...mapping, [field]: e.target.value })}
+                                key={field.key}
+                                label={`${field.label} Column${field.required ? ' *' : ''}`}
+                                value={mapping[`${field.key}Header`]}
+                                onChange={(e) => setMapping({ ...mapping, [`${field.key}Header`]: e.target.value })}
                                 options={[{ value: '', label: '— Not in file —' }, ...headers.map((h) => ({ value: h, label: h }))]}
                             />
                         ))}
@@ -265,42 +237,53 @@ function CandidateImportModal({ open, onClose, onImportComplete }) {
             {/* Step 3: Verification & Errors List */}
             {step === 3 && (
                 <div className="space-y-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
-                            <h3 className="text-[14.5px] font-bold text-ink">Verification & Errors List</h3>
+                            <h3 className="text-[14.5px] font-bold text-ink">Import Preview</h3>
                             <p className="text-[12.5px] text-text-secondary">Review spreadsheet validation results and fix formatting errors inline.</p>
                         </div>
-                        <span className="text-[12px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
-                            {validCount} Ready / {totalCount} Total
-                        </span>
+                        <div className="flex items-center gap-2 text-[12.5px] font-bold">
+                            <span className="flex items-center gap-1 text-[var(--color-success)] bg-[var(--color-success-soft)] px-2.5 py-1 rounded-lg">
+                                <Check size={13} /> {validCount} valid
+                            </span>
+                            <span className="flex items-center gap-1 text-[var(--color-warning)] bg-[var(--color-warning-soft)] px-2.5 py-1 rounded-lg">
+                                <AlertCircle size={13} /> {warningCount} warnings
+                            </span>
+                            <span className="flex items-center gap-1 text-[var(--color-danger)] bg-[var(--color-danger-soft)] px-2.5 py-1 rounded-lg">
+                                <AlertCircle size={13} /> {invalidCount} invalid
+                            </span>
+                        </div>
                     </div>
 
                     <div className="overflow-x-auto border border-line rounded-xl">
                         <table className="w-full text-left text-[13px]">
-                            <thead className="bg-black/2 dark:bg-white/4 border-b border-line text-[12px] font-semibold text-text-secondary">
+                            <thead className="bg-black/[0.02] dark:bg-white/[0.04] border-b border-line text-[12px] font-semibold text-text-secondary">
                                 <tr>
                                     <th className="py-2.5 px-3">Row</th>
-                                    <th className="py-2.5 px-3">Candidate Name</th>
-                                    <th className="py-2.5 px-3">Email Address</th>
-                                    <th className="py-2.5 px-3">Phone</th>
+                                    {CANDIDATE_FIELDS.map((f) => <th key={f.key} className="py-2.5 px-3">{f.label}</th>)}
                                     <th className="py-2.5 px-3">Status / Validation</th>
                                     <th className="py-2.5 px-3 text-right">Action</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-line">
                                 {candidateRows.map((row) => (
-                                    <tr key={row.row} className="hover:bg-black/1.5">
+                                    <tr key={row.row} className="hover:bg-black/[0.015]">
                                         <td className="py-3 px-3 font-mono text-[12px] text-text-secondary">Row {row.row}</td>
-                                        <td className="py-3 px-3 font-semibold text-ink">{row.name || <span className="text-red-500 italic">[Empty]</span>}</td>
-                                        <td className="py-3 px-3 font-mono text-[12.5px]">{row.email}</td>
-                                        <td className="py-3 px-3 text-text-secondary">{row.phone}</td>
+                                        {CANDIDATE_FIELDS.map((f) => (
+                                            <td key={f.key} className={`py-3 px-3 ${f.key === 'name' ? 'font-semibold text-ink' : f.key === 'email' ? 'font-mono text-[12.5px]' : 'text-text-secondary'}`}>
+                                                {row[f.key] || (f.required ? <span className="text-red-500 italic">[Empty]</span> : '—')}
+                                            </td>
+                                        ))}
                                         <td className="py-3 px-3">
-                                            {row.status === 'VERIFIED' && <Badge variant="success">Verified</Badge>}
-                                            {row.status === 'ERROR' && <Badge variant="danger">{row.error}</Badge>}
-                                            {row.status === 'DUPLICATE' && <Badge variant="warning">{row.error}</Badge>}
+                                            {row.status === 'VALID' && <Badge variant="success">Verified</Badge>}
+                                            {row.issues.map((issue, i) => (
+                                                <Badge key={i} variant={issue.severity === 'INVALID' ? 'danger' : 'warning'} className="mr-1 mb-1">
+                                                    {issue.text}
+                                                </Badge>
+                                            ))}
                                         </td>
                                         <td className="py-3 px-3 text-right">
-                                            {row.status !== 'VERIFIED' && (
+                                            {row.status !== 'VALID' && (
                                                 <Button
                                                     size="xs"
                                                     variant="secondary"
@@ -338,21 +321,15 @@ function CandidateImportModal({ open, onClose, onImportComplete }) {
                     }
                 >
                     <div className="space-y-3">
-                        <Input
-                            label="Candidate Name"
-                            value={editingRow.name}
-                            onChange={(e) => setEditingRow({ ...editingRow, name: e.target.value })}
-                        />
-                        <Input
-                            label="Email Address"
-                            value={editingRow.email}
-                            onChange={(e) => setEditingRow({ ...editingRow, email: e.target.value })}
-                        />
-                        <Input
-                            label="Phone Number"
-                            value={editingRow.phone}
-                            onChange={(e) => setEditingRow({ ...editingRow, phone: e.target.value })}
-                        />
+                        {CANDIDATE_FIELDS.map((field) => (
+                            <Input
+                                key={field.key}
+                                label={field.label}
+                                placeholder={field.type === 'text' && field.key === 'exp' ? 'e.g. 4 or 4 years' : undefined}
+                                value={editingRow[field.key] || ''}
+                                onChange={(e) => setEditingRow({ ...editingRow, [field.key]: e.target.value })}
+                            />
+                        ))}
                     </div>
                 </Modal>
             )}
