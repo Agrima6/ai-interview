@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { Plus, Check, ArrowRight, ArrowLeft, Link2, Upload, Pencil, Trash2, Edit3, AlertCircle, Mail, MessageSquareText, Phone, BellRing, Sparkles, Clock3, CalendarDays } from 'lucide-react'
+import { Plus, Check, ArrowRight, ArrowLeft, Link2, Upload, Pencil, Trash2, Edit3, AlertCircle, Mail, MessageSquareText, Phone, BellRing, Sparkles, Clock3, CalendarDays, Users, FileSpreadsheet, UserPlus } from 'lucide-react'
 import Modal from '../ui/Modal'
 import { Button, Input, Select, EditableSelect, Textarea } from '../ui'
 import CriteriaWeightageBuilder from './CriteriaWeightageBuilder'
 import QuestionSetBuilder from './QuestionSetBuilder'
 import CandidateImportModal from './CandidateImportModal'
-import { createInterviewDrive, getQuestionBanks, getNotificationTemplates, getOrganizationProfile } from '../../api/organization/organizationApi'
+import { createInterviewDrive, getQuestionBanks, getNotificationTemplates, getOrganizationProfile, updateRound } from '../../api/organization/organizationApi'
 
 const ROLE_CATEGORIES = [
   { value: 'SOFTWARE_ENGINEERING', label: 'Software Engineering (SDE / Fullstack)' },
@@ -87,7 +87,8 @@ const formatDateInput = (date) => date.toISOString().split('T')[0]
 const todayInput = formatDateInput(new Date())
 const defaultExpiryInput = formatDateInput(new Date(Date.now() + 14 * 86400000))
 
-function CreateDriveModal({ open, onClose, onCreateDrive }) {
+function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
+  const isEditing = Boolean(editDrive)
   const [step, setStep] = useState(1)
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [importedCandidates, setImportedCandidates] = useState([])
@@ -203,6 +204,19 @@ function CreateDriveModal({ open, onClose, onCreateDrive }) {
     whatsapp: templates.filter((template) => /whatsapp|sms/i.test(template.name || template.category || '')),
   }), [templates])
 
+  const invitationTemplate = useMemo(
+    () => templates.find((template) => template.id === communication.invitationTemplateId) || null,
+    [templates, communication.invitationTemplateId]
+  )
+  const reminderTemplate = useMemo(
+    () => templates.find((template) => template.id === communication.reminderTemplateId) || null,
+    [templates, communication.reminderTemplateId]
+  )
+  const whatsappTemplate = useMemo(
+    () => templates.find((template) => template.id === communication.whatsappTemplateId) || null,
+    [templates, communication.whatsappTemplateId]
+  )
+
   useEffect(() => {
     if (!templates.length) return
 
@@ -217,9 +231,84 @@ function CreateDriveModal({ open, onClose, onCreateDrive }) {
     }))
   }, [templates, mappedTemplates])
 
-  const invitationTemplate = templates.find((template) => template.id === communication.invitationTemplateId) || mappedTemplates.invitation[0] || templates[0]
-  const reminderTemplate = templates.find((template) => template.id === communication.reminderTemplateId) || mappedTemplates.reminder[0] || null
-  const whatsappTemplate = templates.find((template) => template.id === communication.whatsappTemplateId) || mappedTemplates.whatsapp[0] || null
+  // Prefill form data when editing an existing drive (Round 1 edit mode)
+  useEffect(() => {
+    if (!open || !editDrive) return
+
+    const safeEditDrive = editDrive || {}
+    const round1 = Array.isArray(safeEditDrive.rounds) ? safeEditDrive.rounds.find((r) => r?.roundNumber === 1) || {} : {}
+    const existingCandidates = Array.isArray(round1.candidates) ? round1.candidates : Array.isArray(safeEditDrive.importedCandidateList) ? safeEditDrive.importedCandidateList : []
+    const skillRubs = Array.isArray(round1.skillRubrics) ? round1.skillRubrics : Array.isArray(safeEditDrive.skillRubrics) ? safeEditDrive.skillRubrics : []
+    const customQs = Array.isArray(round1.customQuestions) ? round1.customQuestions : Array.isArray(safeEditDrive.customQuestionsList) ? safeEditDrive.customQuestionsList : []
+
+    const formatDate = (val) => {
+      if (!val) return ''
+      const parsed = new Date(val)
+      if (Number.isNaN(parsed.getTime())) return ''
+      return parsed.toISOString().split('T')[0]
+    }
+
+    setFormData({
+      title: safeEditDrive.title || '',
+      roleCategory: safeEditDrive.roleCategory || '',
+      department: safeEditDrive.department || '',
+      experienceLevel: safeEditDrive.experienceLevel || '',
+      totalRounds: String(safeEditDrive.totalRounds || round1.roundNumber || 1),
+      roundType: safeEditDrive.roundType || '',
+      startDate: formatDate(safeEditDrive.startDate) || '',
+      expiryDate: formatDate(safeEditDrive.expiryDate) || '',
+      questionMode: round1.questionMode || safeEditDrive.questionMode || 'PREBUILT',
+      questionBankId: '', // Will be set after questionBanks load
+      passingThreshold: String(round1.passingThreshold || safeEditDrive.passingThreshold || 70),
+      timePerQuestion: '120',
+      enablePublicLink: safeEditDrive.enablePublicLink !== false,
+    })
+
+    setCommunication({
+      emailEnabled: !!safeEditDrive.communicationSettings?.emailEnabled,
+      whatsappEnabled: !!safeEditDrive.communicationSettings?.whatsappEnabled,
+      callEnabled: !!safeEditDrive.communicationSettings?.callEnabled,
+      reminderEnabled: !!safeEditDrive.communicationSettings?.reminderEnabled,
+      reminderTiming: safeEditDrive.communicationSettings?.reminderTiming || '24h',
+      invitationTemplateId: safeEditDrive.communicationSettings?.invitationTemplateId || '',
+      reminderTemplateId: safeEditDrive.communicationSettings?.reminderTemplateId || '',
+      whatsappTemplateId: safeEditDrive.communicationSettings?.whatsappTemplateId || '',
+      invitationCustom: !!safeEditDrive.communicationSettings?.invitationCustom,
+      whatsappCustom: !!safeEditDrive.communicationSettings?.whatsappCustom,
+      callType: safeEditDrive.communicationSettings?.callType || 'automated',
+      callTiming: safeEditDrive.communicationSettings?.callTiming || '1d',
+      invitationText: safeEditDrive.communicationSettings?.invitationText || defaultInvitationBody,
+      whatsappText: safeEditDrive.communicationSettings?.whatsappText || defaultWhatsappBody,
+      reminderText: safeEditDrive.communicationSettings?.reminderText || defaultReminderBody,
+    })
+
+    setSkillWeightages(skillRubs.length ? skillRubs : skillWeightages)
+    setCustomQuestions(customQs.length ? customQs : customQuestions)
+    setImportedCandidates(existingCandidates.map((c, i) => ({
+      id: `csv-${Date.now()}-${i}`,
+      name: c?.name || 'Candidate',
+      email: c?.email || '',
+      phone: c?.phone || '',
+      exp: c?.exp ? `${c.exp} yrs` : '',
+      status: c?.status || 'INVITED',
+      aiScore: Number(c?.aiScore) || 0,
+      malpracticeFlags: Number(c?.malpracticeFlags) || 0,
+    })))
+  }, [open, editDrive])
+
+  // Set questionBankId from existing round data when banks load
+  useEffect(() => {
+    if (!open || !editDrive || formData.questionBankId || !questionBanks.length) return
+    const round1 = editDrive.rounds?.find((r) => r.roundNumber === 1) || {}
+    const bankTitle = round1.questionBankTitle
+    if (bankTitle) {
+      const found = questionBanks.find((b) => b.title === bankTitle || b._id === bankTitle || b.id === bankTitle)
+      if (found) setFormData((prev) => ({ ...prev, questionBankId: found._id || found.id }))
+      else setFormData((prev) => ({ ...prev, questionBankId: questionBanks[0]._id || questionBanks[0].id }))
+    } else {
+      setFormData((prev) => ({ ...prev, questionBankId: questionBanks[0]._id || questionBanks[0].id }))
+    }
+  }, [open, editDrive, questionBanks])
 
   const communicationReady = useMemo(() => {
     if (!communication.emailEnabled && !communication.whatsappEnabled && !communication.callEnabled) {
@@ -407,20 +496,22 @@ function CreateDriveModal({ open, onClose, onCreateDrive }) {
     setSubmitting(true)
     setErrorMessage('')
 
-    if (!formData.title.trim() || !formData.roleCategory.trim() || !formData.department.trim() || !formData.roundType.trim() || !formData.startDate || !formData.expiryDate) {
+    if (!saveAsDraft && (!formData.title.trim() || !formData.roleCategory.trim() || !formData.department.trim() || !formData.roundType.trim() || !formData.startDate || !formData.expiryDate)) {
       setErrorMessage('Please complete the required drive details and dates.')
       setSubmitting(false)
       return
     }
 
-    const start = new Date(`${formData.startDate}T00:00:00`)
-    const expiry = new Date(`${formData.expiryDate}T00:00:00`)
-    const today = new Date(`${todayInput}T00:00:00`)
-    const days = (expiry - start) / 86400000
-    if (start < today || expiry < start || days > 50) {
-      setErrorMessage('Please select dates from today with an expiry no more than 50 days after the start date.')
-      setSubmitting(false)
-      return
+    if (!saveAsDraft) {
+      const start = new Date(`${formData.startDate}T00:00:00`)
+      const expiry = new Date(`${formData.expiryDate}T00:00:00`)
+      const today = new Date(`${todayInput}T00:00:00`)
+      const days = (expiry - start) / 86400000
+      if (start < today || expiry < start || days > 50) {
+        setErrorMessage('Please select dates from today with an expiry no more than 50 days after the start date.')
+        setSubmitting(false)
+        return
+      }
     }
 
     if (!saveAsDraft && !communicationReady) {
@@ -456,10 +547,25 @@ function CreateDriveModal({ open, onClose, onCreateDrive }) {
       candidatesCount: importedCandidates.length,
       importedCandidateList: importedCandidates,
       enablePublicLink: formData.enablePublicLink,
+      communicationSettings: communication,
     }
 
     try {
-      const response = await createInterviewDrive(payload)
+      const response = isEditing
+        ? await updateRound(editDrive._id || editDrive.id, 1, {
+            ...payload,
+            driveDetails: {
+              title: payload.title,
+              roleCategory: payload.roleCategory,
+              department: payload.department,
+              experienceLevel: payload.experienceLevel,
+              roundType: payload.roundType,
+              totalRounds: payload.totalRounds,
+              startDate: payload.startDate,
+              expiryDate: payload.expiryDate,
+            },
+          })
+        : await createInterviewDrive(payload)
       onCreateDrive(response)
       onClose()
       setStep(1)
@@ -475,7 +581,10 @@ function CreateDriveModal({ open, onClose, onCreateDrive }) {
       <Modal
         open={open}
         onClose={onClose}
-        title="Create Interview Drive"
+        title={isEditing ? 'Edit Interview Drive' : 'Create Interview Drive'}
+        subtitle={isEditing ? 'Update the interview drive details and evaluation setup.' : 'Build your interview drive by adding candidates and evaluation steps.'}
+        status={isEditing ? (editDrive?.status || 'Draft') : 'Draft'}
+        headerAction={<Button type="button" variant="secondary" size="xs" onClick={() => handleSubmit(null, true)} disabled={submitting}><Check size={13} /> {submitting ? (isEditing ? 'Saving...' : 'Saving...') : (isEditing ? 'Save Draft' : 'Save as Draft')}</Button>}
         size="full"
         footer={
           <div className="flex items-center justify-between w-full">
@@ -492,8 +601,8 @@ function CreateDriveModal({ open, onClose, onCreateDrive }) {
                 Continue <ArrowRight size={14} />
               </Button>
             ) : (
-              <Button type="button" size="sm" onClick={handleSubmit} disabled={submitting || !communicationReady}>
-                <Check size={14} /> {submitting ? 'Scheduling...' : 'Schedule & Send'}
+              <Button type="button" size="sm" onClick={handleSubmit} disabled={submitting || (!isEditing && !communicationReady)}>
+                <Check size={14} /> {submitting ? (isEditing ? 'Updating...' : 'Scheduling...') : (isEditing ? 'Update Drive' : 'Schedule & Send')}
               </Button>
             )}
           </div>
@@ -506,7 +615,8 @@ function CreateDriveModal({ open, onClose, onCreateDrive }) {
           </div>
         )}
 
-        <div className="flex items-center justify-between mb-8 pb-4 border-b border-line overflow-x-auto">
+        <div className="mx-auto mb-5 w-full max-w-6xl overflow-x-auto rounded-2xl border border-line bg-card px-4 py-3 shadow-(--shadow-soft)">
+          <div className="flex min-w-[760px] items-center justify-between">
           {[
             { num: 1, label: 'Interview / Drive Details' },
             { num: 2, label: 'Evaluation Criteria' },
@@ -515,43 +625,57 @@ function CreateDriveModal({ open, onClose, onCreateDrive }) {
             { num: 5, label: 'Communication' },
             { num: 6, label: 'Review' },
           ].map((s) => (
-            <div key={s.num} className="flex items-center gap-2.5 shrink-0 px-2">
+            <div key={s.num} className="relative flex items-center gap-2.5 shrink-0 px-2">
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-bold transition-colors ${
-                  step === s.num ? 'bg-accent text-white shadow-sm' : step > s.num ? 'bg-emerald-500 text-white' : 'bg-black/[0.05] dark:bg-white/[0.08] text-text-secondary'
+                className={`relative z-[1] flex h-7 w-7 items-center justify-center rounded-full border text-[11px] font-bold transition-colors ${
+                  step === s.num ? 'border-accent bg-accent text-white shadow-(--shadow-soft)' : step > s.num ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-[#dbe2ef] bg-[#f2f5fa] text-text-secondary'
                 }`}
               >
                 {step > s.num ? <Check size={15} /> : s.num}
               </div>
-              <span className={`text-[13.5px] font-medium ${step === s.num ? 'text-ink font-bold' : 'text-text-secondary'}`}>
+              <span className={`text-[10.5px] font-semibold whitespace-nowrap ${step === s.num ? 'text-ink' : 'text-text-secondary'}`}>
                 {s.label}
               </span>
             </div>
           ))}
+          </div>
         </div>
 
         {step === 1 && (
-          <div className="space-y-6 max-w-4xl mx-auto py-2">
-            <Input label="Interview name *" placeholder="e.g. Senior Product Manager Interview Drive" value={formData.title} onChange={(e) => handleChange('title', e.target.value)} required />
-            <div className="grid sm:grid-cols-2 gap-6">
+          <div className="mx-auto max-w-5xl space-y-4 py-1">
+            <div className="rounded-2xl border border-white/90 bg-white p-4 shadow-(--shadow-soft) sm:p-5">
+              <div className="mb-4 flex items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent"><CalendarDays size={18} /></div>
+                <div>
+                  <h3 className="text-[18px] font-bold text-ink">Interview / Drive Details</h3>
+                  <p className="mt-1 text-[12px] text-text-secondary">Provide the basic information for this interview drive.</p>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <Input label="Interview name *" placeholder="e.g. Senior Product Manager Interview Drive" value={formData.title} onChange={(e) => handleChange('title', e.target.value)} required />
+                <div className="grid gap-4 sm:grid-cols-2">
               <EditableSelect label="Position / role *" placeholder="Select or add a role" options={ROLE_CATEGORIES} value={formData.roleCategory} onChange={(e) => handleChange('roleCategory', e.target.value)} />
               <EditableSelect label="Department *" placeholder="Select or add a department" options={DEPARTMENTS} value={formData.department} onChange={(e) => handleChange('department', e.target.value)} />
-            </div>
-            <div className="grid sm:grid-cols-3 gap-6">
+                </div>
+                <div className="grid gap-4 sm:grid-cols-3">
               <EditableSelect label="Experience" placeholder="Select or add experience" options={EXPERIENCE_LEVELS} value={formData.experienceLevel} onChange={(e) => handleChange('experienceLevel', e.target.value)} />
               <EditableSelect label="Interview type *" placeholder="Select or add interview type" options={INTERVIEW_TYPES} value={formData.roundType} onChange={(e) => handleChange('roundType', e.target.value)} />
               <Select label="Language" value={'English'} onChange={() => {}} options={[{ value: 'English', label: 'English' }, { value: 'Hindi', label: 'Hindi' }]} />
-            </div>
-            <div className="grid sm:grid-cols-2 gap-6">
+                </div>
+                <div className="grid gap-4 sm:grid-cols-3">
+              <Select label="Number of rounds" value={formData.totalRounds} onChange={(e) => handleChange('totalRounds', e.target.value)} options={[{ value: '1', label: '1 round' }, { value: '2', label: '2 rounds' }, { value: '3', label: '3 rounds' }, { value: '4', label: '4 rounds' }]} />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
               <Input label="Start date *" type="date" min={todayInput} value={formData.startDate} onChange={(e) => handleChange('startDate', e.target.value)} />
               <Input label="Expiry date *" type="date" min={formData.startDate || todayInput} max={formData.startDate ? formatDateInput(new Date(new Date(`${formData.startDate}T00:00:00`).getTime() + 50 * 86400000)) : undefined} value={formData.expiryDate} onChange={(e) => handleChange('expiryDate', e.target.value)} />
+                </div>
+              </div>
             </div>
-
           </div>
         )}
 
         {step === 2 && (
-          <div className="space-y-6 max-w-4xl mx-auto py-2">
+          <div className="space-y-6 max-w-5xl mx-auto py-2">
             <CriteriaWeightageBuilder
               skillWeightages={skillWeightages}
               onCriteriaNameChange={handleCriteriaNameChange}
@@ -567,12 +691,12 @@ function CreateDriveModal({ open, onClose, onCreateDrive }) {
         )}
 
         {step === 3 && (
-          <div className="space-y-6 max-w-4xl mx-auto py-2">
+          <div className="space-y-6 max-w-5xl mx-auto py-2">
             {banksLoading && <p className="text-[13px] text-text-secondary">Loading question banks...</p>}
             <QuestionSetBuilder
               questionMode={formData.questionMode}
               onQuestionModeChange={(mode) => handleChange('questionMode', mode)}
-              questionBanks={questionBanks.map((b) => ({ id: b._id || b.id, title: b.title, questions: b.questionCount ?? b.questions?.length ?? 0, duration: b.durationMinutes ? `${b.durationMinutes} mins` : '' }))}
+              questionBanks={questionBanks.map((b) => ({ id: b._id || b.id, title: b.title, questions: b.questionCount ?? b.questions?.length ?? 0, questionList: Array.isArray(b.questions) ? b.questions : [], duration: b.durationMinutes ? `${b.durationMinutes} mins` : '' }))}
               selectedBankId={formData.questionBankId}
               onSelectBankId={(id) => handleChange('questionBankId', id)}
               customQuestions={customQuestions}
@@ -585,76 +709,47 @@ function CreateDriveModal({ open, onClose, onCreateDrive }) {
         )}
 
         {step === 4 && (
-          <div className="space-y-6 max-w-5xl mx-auto py-2">
-            <div>
-              <h3 className="text-[22px] font-bold text-ink">Candidate Details</h3>
-              <p className="text-[13px] text-text-secondary mt-1">Add students now and choose how they will access this interview drive.</p>
+          <div className="mx-auto max-w-5xl space-y-5 py-2">
+            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent"><Users size={20} /></div>
+                <div><h3 className="text-[20px] font-bold text-ink">Candidate Details</h3><p className="mt-1 text-[12px] text-text-secondary">Add students and choose how they will access this interview drive.</p></div>
+              </div>
+              <div className="rounded-xl border border-accent/15 bg-accent/5 px-3 py-2 text-[11px] font-semibold text-accent"><Users size={14} className="mr-1.5 inline" />{importedCandidates.length} candidates added</div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-5">
-              <div className="rounded-2xl border border-line bg-card p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2 text-ink">
-                      <Upload size={17} className="text-accent" />
-                      <h4 className="text-[15px] font-bold">Student details</h4>
-                    </div>
-                    <p className="text-[12.5px] text-text-secondary mt-2">Upload the student list with names and email addresses.</p>
-                  </div>
-                  <Button type="button" variant="secondary" size="sm" onClick={() => setImportModalOpen(true)}>
-                    <Upload size={14} /> Upload CSV
-                  </Button>
-                </div>
-                <div className="mt-4 rounded-xl border border-dashed border-line bg-black/[0.02] dark:bg-white/[0.03] p-4">
-                  <p className="text-[13px] font-semibold text-ink">{importedCandidates.length ? `${importedCandidates.length} students ready` : 'No students added yet'}</p>
-                  <p className="text-[12px] text-text-secondary mt-1">Name and email are required. You can manage the full list later from Candidates.</p>
-                </div>
+            <div className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
+              <div className="rounded-2xl border border-line bg-card p-5 shadow-(--shadow-soft) sm:p-6">
+                <div><h4 className="text-[15px] font-bold text-ink">Upload candidate list</h4><p className="mt-1 text-[12px] text-text-secondary">Add multiple candidates at once using a CSV file.</p></div>
+                <button type="button" onClick={() => setImportModalOpen(true)} className="mt-5 flex min-h-40 w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-accent/20 bg-accent/[0.025] px-5 text-center transition hover:border-accent/45 hover:bg-accent/[0.05]">
+                  <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10 text-accent"><FileSpreadsheet size={24} /></div>
+                  <span className="text-[14px] font-bold text-ink">Drag & drop your CSV file here</span>
+                  <span className="my-1 text-[12px] text-text-secondary">or <span className="font-semibold text-accent">click to upload</span></span>
+                  <span className="text-[10px] text-text-secondary">Supported format: .csv (max 5MB)</span>
+                </button>
               </div>
 
-              <div className="rounded-2xl border border-line bg-card p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3">
-                    <Link2 size={18} className="text-accent mt-0.5" />
-                    <div>
-                      <h4 className="text-[15px] font-bold text-ink">Public candidate link</h4>
-                      <p className="text-[12.5px] text-text-secondary mt-2">Let students open this drive from a shareable URL.</p>
-                    </div>
-                  </div>
-                  <button type="button" aria-pressed={formData.enablePublicLink} onClick={() => handleChange('enablePublicLink', !formData.enablePublicLink)} className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition ${formData.enablePublicLink ? 'bg-accent' : 'bg-black/10'}`}>
-                    <span className={`inline-block h-4 w-4 rounded-full bg-white transition ${formData.enablePublicLink ? 'translate-x-6' : 'translate-x-1'}`} />
-                  </button>
-                </div>
-                <div className={`mt-4 rounded-xl border p-4 text-[12px] ${formData.enablePublicLink ? 'border-accent/20 bg-accent/5 text-ink' : 'border-line bg-black/[0.02] text-text-secondary'}`}>
-                  {formData.enablePublicLink ? 'A unique public URL will be generated after you create the drive.' : 'Public access is off. Students must be invited through another channel.'}
-                </div>
+              <div className="rounded-2xl border border-line bg-card p-5 shadow-(--shadow-soft) sm:p-6">
+                <div className="flex items-start justify-between gap-3"><div className="flex items-start gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10 text-accent"><Link2 size={17} /></div><div><h4 className="text-[15px] font-bold text-ink">Public candidate link</h4><p className="mt-1 text-[12px] text-text-secondary">Let candidates open this drive from a shareable URL.</p></div></div><button type="button" aria-pressed={formData.enablePublicLink} onClick={() => handleChange('enablePublicLink', !formData.enablePublicLink)} className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition ${formData.enablePublicLink ? 'bg-accent' : 'bg-black/10'}`}><span className={`inline-block h-4 w-4 rounded-full bg-white transition ${formData.enablePublicLink ? 'translate-x-6' : 'translate-x-1'}`} /></button></div>
+                <div className={`mt-6 rounded-xl border p-4 text-[12px] ${formData.enablePublicLink ? 'border-accent/20 bg-accent/5 text-ink' : 'border-line bg-black/[0.02] text-text-secondary'}`}>{formData.enablePublicLink ? 'A unique public URL will be generated after you create the drive.' : 'Public access is off. Candidates must be invited through another channel.'}</div>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-line bg-card p-5">
-              <div className="mb-4">
-                <h4 className="text-[15px] font-bold text-ink">Add one student manually</h4>
-                <p className="text-[12.5px] text-text-secondary mt-1">Use this when one student was missed from the spreadsheet.</p>
-              </div>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
-                <Input label="Full name *" value={singleStudent.name} onChange={(e) => setSingleStudent((prev) => ({ ...prev, name: e.target.value }))} />
-                <Input label="Email address *" type="email" value={singleStudent.email} onChange={(e) => setSingleStudent((prev) => ({ ...prev, email: e.target.value }))} />
-                <Input label="Phone" inputMode="numeric" maxLength={10} value={singleStudent.phone} onChange={(e) => setSingleStudent((prev) => ({ ...prev, phone: sanitizePhone(e.target.value) }))} />
-                <div className="flex gap-2 items-end">
-                  <Input label="Experience" inputMode="decimal" min="0.01" value={singleStudent.exp} onChange={(e) => setSingleStudent((prev) => ({ ...prev, exp: sanitizePositiveExperience(e.target.value) }))} />
-                  <Button type="button" onClick={addSingleStudent} className="shrink-0">Add</Button>
-                </div>
+            <div className="rounded-2xl border border-line bg-card p-5 shadow-(--shadow-soft) sm:p-6">
+              <div className="mb-5 flex items-start gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10 text-accent"><UserPlus size={17} /></div><div><h4 className="text-[15px] font-bold text-ink">Add candidate manually</h4><p className="mt-1 text-[12px] text-text-secondary">Use this when a candidate was missed from the spreadsheet.</p></div></div>
+              <div className="grid items-end gap-4 md:grid-cols-2 xl:grid-cols-[1.1fr_1.2fr_0.9fr_0.7fr_auto]">
+                <Input label="Full name *" placeholder="e.g. Rahul Verma" value={singleStudent.name} onChange={(e) => setSingleStudent((prev) => ({ ...prev, name: e.target.value }))} />
+                <Input label="Email address *" placeholder="e.g. rahul@gmail.com" type="email" value={singleStudent.email} onChange={(e) => setSingleStudent((prev) => ({ ...prev, email: e.target.value }))} />
+                <Input label="Phone" placeholder="10 digit number" inputMode="numeric" maxLength={10} value={singleStudent.phone} onChange={(e) => setSingleStudent((prev) => ({ ...prev, phone: sanitizePhone(e.target.value) }))} />
+                <Input label="Experience" placeholder="Years" inputMode="decimal" min="0.01" value={singleStudent.exp} onChange={(e) => setSingleStudent((prev) => ({ ...prev, exp: sanitizePositiveExperience(e.target.value) }))} />
+                <Button type="button" onClick={addSingleStudent} className="h-10 whitespace-nowrap"><Plus size={15} /> Add candidate</Button>
               </div>
               {singleStudentError && <p className="mt-3 text-[12px] text-red-600">{singleStudentError}</p>}
             </div>
 
-            <div className="rounded-2xl border border-line bg-card overflow-hidden">
-              <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-line">
-                <div>
-                  <h4 className="text-[15px] font-bold text-ink">Student roster</h4>
-                  <p className="text-[12px] text-text-secondary mt-1">Review all uploaded details before continuing.</p>
-                </div>
-                <span className="text-[12px] font-semibold text-text-secondary">{importedCandidates.length} total</span>
-              </div>
+            <div className="overflow-hidden rounded-2xl border border-line bg-card shadow-(--shadow-soft)
+            ">
+              <div className="flex items-center justify-between gap-4 border-b border-line px-5 py-4 sm:px-6"><div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10 text-accent"><Users size={17} /></div><div><h4 className="text-[15px] font-bold text-ink">Student roster</h4><p className="mt-1 text-[12px] text-text-secondary">Review all candidates before continuing.</p></div></div><span className="rounded-full bg-bg px-3 py-1 text-[11px] font-bold text-text-secondary">{importedCandidates.length} candidates</span></div>
               {importedCandidates.length ? (
                 <div className="overflow-x-auto max-h-64 overflow-y-auto">
                   <table className="w-full text-left text-[12.5px]">
@@ -688,7 +783,7 @@ function CreateDriveModal({ open, onClose, onCreateDrive }) {
                   </table>
                 </div>
               ) : (
-                <div className="px-5 py-8 text-center text-[13px] text-text-secondary">Upload a CSV to see the student details here.</div>
+                <div className="flex min-h-56 flex-col items-center justify-center px-5 py-10 text-center"><div className="relative mb-4 flex h-16 w-20 items-end justify-center text-accent/40"><Users size={45} strokeWidth={1.3} /><Users size={29} className="absolute bottom-0 left-1" strokeWidth={1.5} /><Users size={29} className="absolute bottom-0 right-1" strokeWidth={1.5} /></div><p className="text-[14px] font-bold text-ink">No students added yet</p><p className="mt-1 max-w-sm text-[12px] text-text-secondary">Upload a CSV file or add candidates manually to see them listed here.</p></div>
               )}
             </div>
           </div>
@@ -893,15 +988,15 @@ function CreateDriveModal({ open, onClose, onCreateDrive }) {
         )}
 
         {step === 6 && (
-          <div className="max-w-4xl mx-auto py-2">
+          <div className="max-w-5xl mx-auto py-2">
             <div className="mb-6">
               <h3 className="text-[22px] font-bold text-ink">Review & Schedule</h3>
               <p className="text-[13px] text-text-secondary mt-1">Confirm the interview details and delivery plan before sending.</p>
             </div>
 
-            <div className="grid lg:grid-cols-3 gap-5 mb-6">
+            <div className="grid gap-5 mb-6 lg:grid-cols-4">
               <div className="rounded-2xl border border-line bg-card p-5">
-                <p className="text-[11px] uppercase tracking-[0.12em] text-text-secondary mb-3">Interview</p>
+                <div className="mb-3 flex items-center justify-between gap-3"><p className="text-[11px] uppercase tracking-[0.12em] text-text-secondary">Interview</p><button type="button" onClick={() => setStep(1)} className="inline-flex items-center gap-1 text-[11px] font-bold text-accent hover:text-accent-dark"><Pencil size={12} /> Edit</button></div>
                 <div className="space-y-2 text-[13px] text-text-secondary">
                   <div className="flex justify-between gap-4"><span>Role</span><span className="font-medium text-ink text-right">{formData.title || '—'}</span></div>
                   <div className="flex justify-between gap-4"><span>Type</span><span className="font-medium text-ink text-right">{formData.roundType}</span></div>
@@ -909,12 +1004,18 @@ function CreateDriveModal({ open, onClose, onCreateDrive }) {
                   <div className="flex justify-between gap-4"><span>Expiry date</span><span className="font-medium text-ink text-right">{formData.expiryDate || '—'}</span></div>
                   <div className="flex justify-between gap-4"><span>Time</span><span className="font-medium text-ink text-right">11:00 AM</span></div>
                   <div className="flex justify-between gap-4"><span>Duration</span><span className="font-medium text-ink text-right">{formData.timePerQuestion || '—'} min</span></div>
-                  <div className="flex justify-between gap-4"><span>Evaluation Criteria</span><span className="font-medium text-ink text-right">{skillWeightages.length} criteria</span></div>
+                  <div className="flex items-center justify-between gap-4"><span>Evaluation Criteria</span><button type="button" onClick={() => setStep(2)} className="inline-flex items-center gap-1 font-bold text-accent hover:text-accent-dark"><span>{skillWeightages.length} criteria</span><Pencil size={11} /></button></div>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-line bg-card p-5">
-                <p className="text-[11px] uppercase tracking-[0.12em] text-text-secondary mb-3">Question Screen</p>
+                <div className="mb-3 flex items-center justify-between gap-3"><p className="text-[11px] uppercase tracking-[0.12em] text-text-secondary">Candidates</p><button type="button" onClick={() => setStep(4)} className="inline-flex items-center gap-1 text-[11px] font-bold text-accent hover:text-accent-dark"><Pencil size={12} /> Edit</button></div>
+                <div className="flex items-end gap-2"><span className="text-3xl font-bold text-ink">{importedCandidates.length}</span><span className="pb-1 text-[12px] text-text-secondary">added to roster</span></div>
+                <p className="mt-3 text-[12px] text-text-secondary">{formData.enablePublicLink ? 'Public candidate link enabled' : 'Candidates will be invited directly'}</p>
+              </div>
+
+              <div className="rounded-2xl border border-line bg-card p-5">
+                <div className="mb-3 flex items-center justify-between gap-3"><p className="text-[11px] uppercase tracking-[0.12em] text-text-secondary">Question Screen</p><button type="button" onClick={() => setStep(3)} className="inline-flex items-center gap-1 text-[11px] font-bold text-accent hover:text-accent-dark"><Pencil size={12} /> Edit</button></div>
                 <div className="space-y-2 text-[13px] text-text-secondary">
                   <div className="flex justify-between gap-4"><span>Mode</span><span className="font-medium text-ink">{formData.questionMode === 'PREBUILT' ? 'Pre-built Bank' : 'Custom Questions'}</span></div>
                   <div className="flex justify-between gap-4"><span>Custom Questions</span><span className="font-medium text-ink">{customQuestions.length}</span></div>
@@ -922,7 +1023,7 @@ function CreateDriveModal({ open, onClose, onCreateDrive }) {
               </div>
 
               <div className="rounded-2xl border border-line bg-card p-5">
-                <p className="text-[11px] uppercase tracking-[0.12em] text-text-secondary mb-3">Communication</p>
+                <div className="mb-3 flex items-center justify-between gap-3"><p className="text-[11px] uppercase tracking-[0.12em] text-text-secondary">Communication</p><button type="button" onClick={() => setStep(5)} className="inline-flex items-center gap-1 text-[11px] font-bold text-accent hover:text-accent-dark"><Pencil size={12} /> Edit</button></div>
                 <div className="space-y-2 text-[13px] text-text-secondary">
                   <div className="flex justify-between gap-4"><span>Email</span><span className="font-medium text-ink">{communication.emailEnabled ? 'Enabled' : 'Disabled'}</span></div>
                   <div className="flex justify-between gap-4"><span>WhatsApp</span><span className="font-medium text-ink">{communication.whatsappEnabled ? 'Enabled' : 'Disabled'}</span></div>
@@ -934,9 +1035,12 @@ function CreateDriveModal({ open, onClose, onCreateDrive }) {
             </div>
 
             <div className="rounded-2xl border border-line bg-card p-5">
-              <div className="mb-3 flex items-center gap-2 text-ink">
+              <div className="mb-3 flex items-center justify-between gap-3 text-ink">
+                <div className="flex items-center gap-2">
                 <CalendarDays size={17} className="text-accent" />
                 <h4 className="text-[15px] font-bold">Templates</h4>
+                </div>
+                <button type="button" onClick={() => setStep(5)} className="inline-flex items-center gap-1 text-[11px] font-bold text-accent hover:text-accent-dark"><Pencil size={12} /> Edit</button>
               </div>
               <div className="grid md:grid-cols-3 gap-4 text-[13px] text-text-secondary">
                 <div className="rounded-xl border border-line bg-[#faf7f7] p-3"><span className="block text-[11px] uppercase tracking-[0.12em] mb-1">Invitation</span><span className="font-medium text-ink">{invitationTemplate?.name || 'Standard'}</span></div>
@@ -945,16 +1049,6 @@ function CreateDriveModal({ open, onClose, onCreateDrive }) {
               </div>
             </div>
 
-            <div className="mt-8 rounded-2xl border border-line bg-card p-6">
-              <p className="text-[15px] font-bold text-ink mb-3">Ready to schedule?</p>
-              <div className="flex flex-wrap gap-3">
-                <Button type="button" variant="secondary" onClick={handleBack}>Back</Button>
-                <Button type="button" variant="secondary" onClick={() => handleSubmit(null, true)} disabled={submitting}>
-                  {submitting ? 'Saving...' : 'Save as Draft'}
-                </Button>
-                <Button type="button" onClick={handleSubmit} disabled={!communicationReady}>Schedule & Send</Button>
-              </div>
-            </div>
           </div>
         )}
       </Modal>

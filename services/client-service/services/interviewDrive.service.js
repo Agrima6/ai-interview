@@ -70,41 +70,49 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
 
 export const createDrive = async (tenantId, driveData, ctx) => {
     if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
-    if (!driveData.title || !driveData.roleCategory || !driveData.department || !driveData.roundType || !driveData.startDate || !driveData.expiryDate) {
+    const isDraft = driveData.status === "DRAFT"
+    if (!isDraft && (!driveData.title || !driveData.roleCategory || !driveData.department || !driveData.roundType || !driveData.startDate || !driveData.expiryDate)) {
         throw new ApiError(400, "MISSING_FIELDS", "Title, role, department, interview type, start date, and expiry date are mandatory.")
     }
-    const startDate = new Date(`${driveData.startDate}T00:00:00`)
-    const expiryDate = new Date(`${driveData.expiryDate}T00:00:00`)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
+    const startDate = driveData.startDate ? new Date(`${driveData.startDate}T00:00:00`) : today
+    const expiryDate = driveData.expiryDate ? new Date(`${driveData.expiryDate}T00:00:00`) : new Date(today.getTime() + 14 * 86400000)
     const windowDays = (expiryDate - startDate) / 86400000
-    if (Number.isNaN(startDate.getTime()) || startDate < today) throw new ApiError(400, "INVALID_START_DATE", "Start date cannot be earlier than today.")
-    if (Number.isNaN(expiryDate.getTime()) || expiryDate < startDate || windowDays > 50) throw new ApiError(400, "INVALID_EXPIRY_DATE", "Expiry date must be within 50 days of the start date.")
+    if (!isDraft && (Number.isNaN(startDate.getTime()) || startDate < today)) throw new ApiError(400, "INVALID_START_DATE", "Start date cannot be earlier than today.")
+    if (!isDraft && (Number.isNaN(expiryDate.getTime()) || expiryDate < startDate || windowDays > 50)) throw new ApiError(400, "INVALID_EXPIRY_DATE", "Expiry date must be within 50 days of the start date.")
 
     const initialCandidates = normalizeCandidates(driveData.importedCandidateList || [])
-    const firstRound = {
-        roundNumber: 1,
-        title: `Round 1: ${driveData.roundType || "Technical Assessment"}`,
+    const totalRounds = Math.min(Math.max(Number(driveData.totalRounds) || 1, 1), 4)
+    const status = isDraft ? "DRAFT" : "ACTIVE"
+    const rounds = Array.from({ length: totalRounds }, (_, index) => ({
+        roundNumber: index + 1,
+        title: `Round ${index + 1}: ${driveData.roundType || "Technical Assessment"}`,
         type: normalizeRoundType(driveData.roundType),
-        status: "ACTIVE",
+        status: isDraft ? "DRAFT" : index === 0 ? "ACTIVE" : "PENDING",
+        startDate,
         expiryDate,
         passingThreshold: driveData.passingThreshold || 70,
         skillRubrics: driveData.skillRubrics || [],
         questionMode: driveData.questionMode || "PREBUILT",
         questionBankTitle: driveData.questionBankTitle,
         customQuestions: driveData.customQuestionsList || [],
-        candidates: initialCandidates,
-    }
-
-    const status = driveData.status === "DRAFT" ? "DRAFT" : "ACTIVE"
+        candidates: index === 0 ? initialCandidates : [],
+    }))
     const newDrive = new InterviewDrive({
         ...driveData,
         tenantId,
+        title: driveData.title || "Untitled Interview Drive",
+        roleCategory: driveData.roleCategory || "UNSPECIFIED",
+        department: driveData.department || "UNSPECIFIED",
+        experienceLevel: driveData.experienceLevel || "Not specified",
+        roundType: driveData.roundType || "Technical Round",
+        totalRounds,
         startDate,
         expiryDate,
         status,
         currentRound: 1,
-        rounds: [firstRound],
+        rounds,
         publicLink: status === "ACTIVE" && driveData.enablePublicLink !== false ? generatePublicLink() : null,
     })
 
@@ -113,7 +121,7 @@ export const createDrive = async (tenantId, driveData, ctx) => {
     return saved
 }
 
-export const addCandidatesToDrive = async (tenantId, driveId, candidates, ctx) => {
+export const addCandidatesToDrive = async (tenantId, driveId, candidates, ctx, roundNumber = 1) => {
     if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
     requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
     if (!Array.isArray(candidates) || candidates.length === 0) throw new ApiError(400, "CANDIDATES_REQUIRED", "At least one candidate is required.")
@@ -121,22 +129,27 @@ export const addCandidatesToDrive = async (tenantId, driveId, candidates, ctx) =
 
     const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
     if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
-    const round = drive.rounds?.[0]
+    if (drive.status === "ARCHIVED") throw new ApiError(409, "ARCHIVED_DRIVE", "Archived drives cannot accept candidate uploads.")
+    const round = drive.rounds?.find((item) => item.roundNumber === Number(roundNumber))
     if (!round) throw new ApiError(409, "ROUND_NOT_FOUND", "This drive has no active round.")
+    if (round.status !== "ACTIVE") throw new ApiError(409, "ROUND_NOT_ACTIVE", "Activate this round before adding candidates.")
 
-    const existingEmails = new Set(round.candidates.map((candidate) => candidate.email.toLowerCase()))
+    const existingDriveCandidates = drive.rounds.flatMap((item) => item.candidates || [])
+    const existingEmails = new Set(existingDriveCandidates.map((candidate) => candidate.email.toLowerCase()))
+    const existingPhones = new Set(existingDriveCandidates.map((candidate) => candidate.phone).filter(Boolean))
     const additions = []
     for (const candidate of candidates) {
         const normalized = normalizeCandidate(candidate, additions.length)
         const { email } = normalized
-        if (existingEmails.has(email)) continue
+        if (existingEmails.has(email) || (normalized.phone && existingPhones.has(normalized.phone))) continue
         existingEmails.add(email)
+        if (normalized.phone) existingPhones.add(normalized.phone)
         additions.push(normalized)
     }
-    if (additions.length === 0) throw new ApiError(400, "NO_NEW_CANDIDATES", "No valid new candidates were found.")
+    if (additions.length === 0) throw new ApiError(400, "NO_NEW_CANDIDATES", "No unique new candidates were found. Existing email or phone records were skipped.")
 
     round.candidates.push(...additions)
-    drive.candidatesCount = round.candidates.length
+    drive.candidatesCount = drive.rounds.reduce((total, item) => total + item.candidates.length, 0)
     await drive.save()
     await inviteCandidates(tenantId, drive, additions, ctx)
     return drive
@@ -190,31 +203,46 @@ export const addRoundToDrive = async (tenantId, driveId, roundData, ctx) => {
 
     const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
     if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    if (drive.status === "ARCHIVED") throw new ApiError(409, "ARCHIVED_DRIVE", "Archived drives cannot have new rounds.")
 
     const nextRoundNum = (drive.rounds?.length || 0) + 1
+    if (nextRoundNum > 4) throw new ApiError(400, "ROUND_LIMIT", "An interview drive can have a maximum of 4 rounds.")
+
+    const existingEmails = new Set(drive.rounds.flatMap((round) => round.candidates || []).map((candidate) => candidate.email.toLowerCase()))
+    const existingPhones = new Set(drive.rounds.flatMap((round) => round.candidates || []).map((candidate) => candidate.phone).filter(Boolean))
+    const candidates = []
+    for (const [index, candidate] of (roundData.candidates || []).entries()) {
+        const normalized = normalizeCandidate(candidate, index)
+        if (existingEmails.has(normalized.email) || (normalized.phone && existingPhones.has(normalized.phone))) continue
+        existingEmails.add(normalized.email)
+        if (normalized.phone) existingPhones.add(normalized.phone)
+        candidates.push(normalized)
+    }
 
     const newRound = {
         roundNumber: roundData.roundNumber || nextRoundNum,
         title: roundData.title || `Round ${nextRoundNum}: Managerial & System Design`,
         type: roundData.type || "Managerial Round",
-        status: "ACTIVE",
+        status: drive.status === "DRAFT" ? "DRAFT" : (roundData.status || "ACTIVE"),
+        startDate: roundData.startDate || drive.startDate,
         expiryDate: roundData.expiryDate || drive.expiryDate,
         passingThreshold: roundData.passingThreshold || 75,
         skillRubrics: roundData.skillRubrics || [],
         questionMode: roundData.questionMode || "PREBUILT",
         questionBankTitle: roundData.questionBankTitle,
         customQuestions: roundData.customQuestions || [],
-        candidates: roundData.candidates || [],
+        candidates,
     }
 
     drive.rounds.push(newRound)
-    drive.currentRound = newRound.roundNumber
+    if (newRound.status === "ACTIVE") drive.currentRound = newRound.roundNumber
+    drive.candidatesCount = drive.rounds.reduce((total, round) => total + round.candidates.length, 0)
     if (drive.totalRounds < newRound.roundNumber) {
         drive.totalRounds = newRound.roundNumber
     }
 
     await drive.save()
-    await inviteCandidates(tenantId, drive, roundData.candidates, ctx)
+    if (newRound.status === "ACTIVE") await inviteCandidates(tenantId, drive, candidates, ctx)
     return drive
 }
 
@@ -230,8 +258,86 @@ export const updateDriveStatus = async (tenantId, driveId, status, ctx = {}) => 
     const activatingDraft = drive.status === "DRAFT" && status === "ACTIVE"
     drive.status = status
     if (activatingDraft && drive.enablePublicLink && !drive.publicLink) drive.publicLink = generatePublicLink()
+    if (activatingDraft) {
+        const firstRound = drive.rounds?.find((round) => round.roundNumber === 1)
+        if (firstRound) firstRound.status = "ACTIVE"
+    }
     await drive.save()
     if (activatingDraft) await inviteCandidates(tenantId, drive, drive.rounds?.[0]?.candidates || [], ctx)
+    return drive
+}
+
+export const updateRoundStatus = async (tenantId, driveId, roundNumber, status, ctx = {}) => {
+    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+    requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    if (!['ACTIVE', 'COMPLETED', 'DRAFT', 'PENDING'].includes(status)) {
+        throw new ApiError(400, "INVALID_STATUS", "Invalid round status.")
+    }
+
+    const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
+    if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    if (drive.status === "ARCHIVED") throw new ApiError(409, "ARCHIVED_DRIVE", "Archived drives cannot be activated.")
+    const round = drive.rounds?.find((item) => item.roundNumber === Number(roundNumber))
+    if (!round) throw new ApiError(404, "ROUND_NOT_FOUND", "Interview round not found.")
+
+    const activating = status === 'ACTIVE' && round.status !== 'ACTIVE'
+    const previousRound = drive.rounds?.find((item) => item.roundNumber === Number(roundNumber) - 1)
+    const previousRoundReady = drive.status !== 'DRAFT' && previousRound && ['ACTIVE', 'COMPLETED'].includes(previousRound.status)
+    if (activating && previousRound && !previousRoundReady) {
+        throw new ApiError(409, "PREVIOUS_ROUND_REQUIRED", `Activate Round ${previousRound.roundNumber} before activating Round ${round.roundNumber}.`)
+    }
+    round.status = status
+    if (activating) {
+        drive.currentRound = round.roundNumber
+        if (drive.status === 'DRAFT') {
+            drive.status = 'ACTIVE'
+            if (drive.enablePublicLink && !drive.publicLink) drive.publicLink = generatePublicLink()
+        }
+    }
+    await drive.save()
+    if (activating) await inviteCandidates(tenantId, drive, round.candidates || [], ctx)
+    return drive
+}
+
+export const updateRound = async (tenantId, driveId, roundNumber, roundData) => {
+    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+    requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
+
+    const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
+    if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    if (drive.status === "ARCHIVED") throw new ApiError(409, "ARCHIVED_DRIVE", "Archived drives cannot be edited.")
+    const round = drive.rounds?.find((item) => item.roundNumber === Number(roundNumber))
+    if (!round) throw new ApiError(404, "ROUND_NOT_FOUND", "Interview round not found.")
+
+    if (Number(roundNumber) === 1 && roundData.driveDetails) {
+        const details = roundData.driveDetails
+        if (details.title) drive.title = String(details.title).trim()
+        if (details.roleCategory) drive.roleCategory = String(details.roleCategory).trim()
+        if (details.department) drive.department = String(details.department).trim()
+        if (details.experienceLevel) drive.experienceLevel = String(details.experienceLevel).trim()
+        if (details.roundType) drive.roundType = String(details.roundType).trim()
+        if (details.totalRounds) drive.totalRounds = Math.min(Math.max(Number(details.totalRounds) || drive.totalRounds, drive.rounds.length), 4)
+        if (details.startDate) drive.startDate = new Date(`${details.startDate}T00:00:00`)
+        if (details.expiryDate) {
+            drive.expiryDate = new Date(`${details.expiryDate}T00:00:00`)
+            round.expiryDate = drive.expiryDate
+        }
+    }
+
+    const candidates = (roundData.candidates || []).map((candidate, index) => normalizeCandidate(candidate, index))
+    round.title = String(roundData.title || round.title).trim()
+    round.type = String(roundData.type || round.type).trim()
+    round.startDate = roundData.startDate || round.startDate || drive.startDate
+    round.expiryDate = roundData.expiryDate || round.expiryDate
+    round.passingThreshold = Number(roundData.passingThreshold) || round.passingThreshold
+    round.questionMode = roundData.questionMode || round.questionMode
+    round.questionBankTitle = roundData.questionBankTitle || round.questionBankTitle
+    round.skillRubrics = roundData.skillRubrics || round.skillRubrics
+    round.customQuestions = roundData.customQuestions || round.customQuestions
+    round.candidates = candidates
+    if (drive.status === 'DRAFT' || round.status !== 'ACTIVE') round.status = 'DRAFT'
+    drive.candidatesCount = drive.rounds.reduce((total, item) => total + item.candidates.length, 0)
+    await drive.save()
     return drive
 }
 

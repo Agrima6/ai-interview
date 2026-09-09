@@ -173,7 +173,7 @@ function CandidateImportModal({ open, onClose, onImportComplete }) {
                                     ? 'bg-accent text-white shadow-sm'
                                     : step > s.num
                                     ? 'bg-emerald-500 text-white'
-                                    : 'bg-black/[0.05] dark:bg-white/[0.08] text-text-secondary'
+                                    : 'bg-black/5 dark:bg-white/8 text-text-secondary'
                             }`}
                         >
                             {s.num}
@@ -188,7 +188,7 @@ function CandidateImportModal({ open, onClose, onImportComplete }) {
             {/* Step 1: Upload Candidate Spreadsheet */}
             {step === 1 && (
                 <div className="space-y-4">
-                    <div className="border-2 border-dashed border-line rounded-2xl p-8 text-center bg-black/[0.01] dark:bg-white/[0.02] hover:border-accent transition-colors">
+                    <div className="border-2 border-dashed border-line rounded-2xl p-8 text-center bg-black/1 dark:bg-white/2 hover:border-accent transition-colors">
                         <Upload size={32} className="text-accent mx-auto mb-3" />
                         <h3 className="text-[15px] font-bold text-ink mb-1">Upload Candidate Spreadsheet</h3>
                         <p className="text-[13px] text-text-secondary mb-4">Drag and drop your candidate CSV file here or browse files.</p>
@@ -213,7 +213,7 @@ function CandidateImportModal({ open, onClose, onImportComplete }) {
                         </div>
                     )}
 
-                    <div className="p-4 rounded-xl border border-line bg-black/[0.02] dark:bg-white/[0.04]">
+                    <div className="p-4 rounded-xl border border-line bg-black/2 dark:bg-white/4">
                         <div className="flex items-center justify-between mb-2">
                             <p className="text-[13px] font-semibold text-ink">Not sure of the format?</p>
                             <Button
@@ -277,7 +277,7 @@ function CandidateImportModal({ open, onClose, onImportComplete }) {
 
                     <div className="overflow-x-auto border border-line rounded-xl">
                         <table className="w-full text-left text-[13px]">
-                            <thead className="bg-black/[0.02] dark:bg-white/[0.04] border-b border-line text-[12px] font-semibold text-text-secondary">
+                            <thead className="bg-black/2 dark:bg-white/4 border-b border-line text-[12px] font-semibold text-text-secondary">
                                 <tr>
                                     <th className="py-2.5 px-3">Row</th>
                                     <th className="py-2.5 px-3">Candidate Name</th>
@@ -289,7 +289,7 @@ function CandidateImportModal({ open, onClose, onImportComplete }) {
                             </thead>
                             <tbody className="divide-y divide-line">
                                 {candidateRows.map((row) => (
-                                    <tr key={row.row} className="hover:bg-black/[0.015]">
+                                    <tr key={row.row} className="hover:bg-black/1.5">
                                         <td className="py-3 px-3 font-mono text-[12px] text-text-secondary">Row {row.row}</td>
                                         <td className="py-3 px-3 font-semibold text-ink">{row.name || <span className="text-red-500 italic">[Empty]</span>}</td>
                                         <td className="py-3 px-3 font-mono text-[12.5px]">{row.email}</td>

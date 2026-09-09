@@ -9,11 +9,13 @@ export const updateOrganizationBranding = (payload) => apiPatch("/api/v1/organiz
 export const listInterviewDrives = (params) => apiGet("/api/v1/drives", params)
 export const createInterviewDrive = (payload) => apiPost("/api/v1/drives", payload)
 export const getInterviewDriveById = (id) => apiGet(`/api/v1/drives/${id}`)
-export const addCandidatesToDrive = (driveId, candidates) => apiPost(`/api/v1/drives/${driveId}/candidates`, { candidates })
+export const addCandidatesToDrive = (driveId, candidates, roundNumber = 1) => apiPost(`/api/v1/drives/${driveId}/candidates`, { candidates, roundNumber })
 // Public/unauthenticated - what a candidate sees when they open their invite link.
 export const getPublicDrive = (link) => apiGet(`/api/v1/drives/public/${link}`)
 export const addRoundToInterviewDrive = (driveId, payload) => apiPost(`/api/v1/drives/${driveId}/rounds`, payload)
 export const updateDriveStatus = (driveId, status) => apiPatch(`/api/v1/drives/${driveId}/status`, { status })
+export const updateRoundStatus = (driveId, roundNumber, status) => apiPatch(`/api/v1/drives/${driveId}/rounds/${roundNumber}/status`, { status })
+export const updateRound = (driveId, roundNumber, payload) => apiPatch(`/api/v1/drives/${driveId}/rounds/${roundNumber}`, payload)
 export const updateCandidateStatus = (driveId, roundNumber, candidateId, status) =>
     apiPatch(`/api/v1/drives/${driveId}/rounds/${roundNumber}/candidates/${candidateId}/status`, { status })
 export const updateCandidate = (driveId, roundNumber, candidateId, payload) =>

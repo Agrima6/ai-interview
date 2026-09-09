@@ -1,8 +1,3 @@
-// Shared UI component library.
-// Import from '../components/ui' (or a relative path to this folder) —
-// keep new dashboard/form work built on these instead of one-off styles so
-// the whole app (conduct-interview flow, give-interview flow, public pages)
-// stays visually consistent.
 
 export { default as Button } from '../Button'
 

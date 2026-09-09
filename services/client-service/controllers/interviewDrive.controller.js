@@ -38,7 +38,7 @@ export const getDriveById = async (req, res, next) => {
 export const addCandidatesToDrive = async (req, res, next) => {
     try {
         const tenantId = req.user?.tenantId
-        const drive = await driveService.addCandidatesToDrive(tenantId, req.params.id, req.body.candidates, { requestId: req.requestId, correlationId: req.correlationId })
+        const drive = await driveService.addCandidatesToDrive(tenantId, req.params.id, req.body.candidates, { requestId: req.requestId, correlationId: req.correlationId }, req.body.roundNumber || 1)
         ok(res, drive)
     } catch (error) {
         next(error)
@@ -59,6 +59,25 @@ export const updateDriveStatus = async (req, res, next) => {
     try {
         const tenantId = req.user?.tenantId
         const drive = await driveService.updateDriveStatus(tenantId, req.params.id, req.body.status, { requestId: req.requestId, correlationId: req.correlationId })
+        ok(res, drive)
+    } catch (error) {
+        next(error)
+    }
+}
+
+export const updateRoundStatus = async (req, res, next) => {
+    try {
+        const tenantId = req.user?.tenantId
+        const drive = await driveService.updateRoundStatus(tenantId, req.params.id, req.params.roundNumber, req.body.status, { requestId: req.requestId, correlationId: req.correlationId })
+        ok(res, drive)
+    } catch (error) {
+        next(error)
+    }
+}
+
+export const updateRound = async (req, res, next) => {
+    try {
+        const drive = await driveService.updateRound(req.user?.tenantId, req.params.id, req.params.roundNumber, req.body)
         ok(res, drive)
     } catch (error) {
         next(error)

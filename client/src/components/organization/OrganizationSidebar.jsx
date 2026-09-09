@@ -28,13 +28,13 @@ function OrganizationSidebar({ profile, profileLoading, mobileOpen, onClose }) {
             )}
             <aside
                 className={`
-                    fixed inset-y-0 left-0 z-50 w-[240px] shrink-0 border-r border-line bg-card flex flex-col
+                    fixed inset-y-0 left-0 z-50 w-60 shrink-0 border-r border-line bg-card flex flex-col
                     transition-transform duration-200
                     lg:static lg:translate-x-0
                     ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
                 `}
             >
-                <div className='flex items-center justify-between gap-2.5 px-5 h-[64px] border-b border-line'>
+                <div className='flex items-center justify-between gap-2.5 px-5 h-16 border-b border-line'>
                     <OrganizationBrand profile={profile} loading={profileLoading} />
                     <button onClick={onClose} aria-label='Close menu' className='lg:hidden text-text-secondary hover:text-ink'>
                         <X size={18} />
@@ -47,7 +47,7 @@ function OrganizationSidebar({ profile, profileLoading, mobileOpen, onClose }) {
                             to={item.path}
                             onClick={onClose}
                             className={({ isActive }) =>
-                                `flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-colors ${isActive ? 'bg-accent/10 text-accent' : 'text-text-secondary hover:bg-black/[0.03] dark:hover:bg-white/[0.05] hover:text-ink'}`
+                                `flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-colors ${isActive ? 'bg-accent/10 text-accent' : 'text-text-secondary hover:bg-black/3 dark:hover:bg-white/5 hover:text-ink'}`
                             }
                         >
                             <item.icon size={16} />
@@ -60,7 +60,7 @@ function OrganizationSidebar({ profile, profileLoading, mobileOpen, onClose }) {
                         <p className='text-[13px] font-medium text-ink truncate'>{user?.name}</p>
                         <p className='text-[11.5px] text-text-secondary truncate'>{user?.email}</p>
                     </div>
-                    <button onClick={handleLogout} className='w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13.5px] text-text-secondary hover:bg-black/[0.03] dark:hover:bg-white/[0.05] hover:text-ink transition-colors'>
+                    <button onClick={handleLogout} className='w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13.5px] text-text-secondary hover:bg-black/3 dark:hover:bg-white/5 hover:text-ink transition-colors'>
                         <LogOut size={16} /> Sign out
                     </button>
                 </div>
