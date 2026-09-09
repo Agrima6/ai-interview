@@ -66,6 +66,20 @@ export const updateCandidateStatus = async (req, res, next) => {
     }
 }
 
+export const communicateWithCandidates = async (req, res, next) => {
+    try {
+        const tenantId = req.user?.tenantId
+        const { id: driveId, roundNumber } = req.params
+        const result = await driveService.communicateWithCandidates(
+            tenantId, driveId, roundNumber, req.body,
+            { requestId: req.requestId, correlationId: req.correlationId }
+        )
+        ok(res, result)
+    } catch (error) {
+        next(error)
+    }
+}
+
 export const listAllCandidates = async (req, res, next) => {
     try {
         const tenantId = req.user?.tenantId

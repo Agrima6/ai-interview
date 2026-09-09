@@ -15,6 +15,8 @@ export const addRoundToInterviewDrive = (driveId, payload) => apiPost(`/api/v1/d
 export const updateDriveStatus = (driveId, status) => apiPatch(`/api/v1/drives/${driveId}/status`, { status })
 export const updateCandidateStatus = (driveId, roundNumber, candidateId, status) =>
     apiPatch(`/api/v1/drives/${driveId}/rounds/${roundNumber}/candidates/${candidateId}/status`, { status })
+export const communicateWithCandidates = (driveId, roundNumber, payload) =>
+    apiPost(`/api/v1/drives/${driveId}/rounds/${roundNumber}/candidates/communicate`, payload)
 
 // Candidates (aggregated across every drive/round for the organization)
 export const listAllCandidates = (params) => apiGetList("/api/v1/candidates", params)

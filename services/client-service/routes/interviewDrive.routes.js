@@ -19,6 +19,7 @@ router.get("/drives/:id", authenticate, requirePermission("CLIENT_SELF_READ"), d
 router.post("/drives/:id/rounds", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.addRoundToDrive)
 router.patch("/drives/:id/status", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.updateDriveStatus)
 router.patch("/drives/:id/rounds/:roundNumber/candidates/:candidateId/status", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.updateCandidateStatus)
+router.post("/drives/:id/rounds/:roundNumber/candidates/communicate", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.communicateWithCandidates)
 
 router.get("/candidates", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.listAllCandidates)
 

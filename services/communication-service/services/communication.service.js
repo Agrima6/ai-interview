@@ -27,12 +27,31 @@ const view = (c) => ({
 // Creates + dispatches a communication in one call. QUEUE_MODE=local means
 // there's no SQS hop - we just call the provider directly and record the
 // resulting status, exactly as the local dev flow in the spec describes.
-export const sendAndRecord = async ({ entityType, entityId, channel, eventType, recipient, variables }) => {
+//
+// Two content modes:
+//  - eventType-keyed (default): looks up one of this service's own
+//    platform-wide Templates (channel+eventType), as onboarding/auth do.
+//  - inline (`subject`/`body` passed directly): used by callers sending an
+//    ORGANIZATION-CUSTOM template (e.g. client-service's per-tenant
+//    NotificationTemplate, edited on the Templates page) - that template
+//    store lives outside this service, so the caller renders it and hands
+//    over final text; no template lookup or re-interpolation happens here.
+export const sendAndRecord = async ({ entityType, entityId, channel, eventType, recipient, variables, subject, body }) => {
     if (!recipient) throw new ApiError(400, "RECIPIENT_REQUIRED", "recipient is required.")
     if (!mongoose.isValidObjectId(entityId)) throw new ApiError(400, "INVALID_ENTITY_ID", "entityId must be a valid id.")
 
-    const template = await templateRepo.findPublished(channel, eventType)
-    if (!template) throw new ApiError(404, "TEMPLATE_NOT_FOUND", `No published ${channel} template for ${eventType}.`)
+    let finalSubject, finalBody, templateId = null, templateVersion = null
+    if (body) {
+        finalSubject = subject || ""
+        finalBody = body
+    } else {
+        const template = await templateRepo.findPublished(channel, eventType)
+        if (!template) throw new ApiError(404, "TEMPLATE_NOT_FOUND", `No published ${channel} template for ${eventType}.`)
+        templateId = template._id
+        templateVersion = template.version
+        finalSubject = interpolate(template.subject || "", variables || {})
+        finalBody = interpolate(template.body, variables || {})
+    }
 
     const destinationMasked = channel === "EMAIL" ? maskEmail(recipient) : maskPhone(recipient)
     const provider = channel === "EMAIL" ? "EMAIL_PROVIDER" : "META"
@@ -46,13 +65,11 @@ export const sendAndRecord = async ({ entityType, entityId, channel, eventType, 
 
     const communication = await communicationRepo.create({
         entityType, entityId, channel, eventType,
-        templateId: template._id, templateVersion: template.version,
+        templateId, templateVersion,
         destinationMasked, provider: providerLabel, status: "QUEUED",
     })
 
     try {
-        const body = interpolate(template.body, variables)
-        const html = template.htmlBody ? interpolate(template.htmlBody, variables) : undefined
         // Organization-sent emails (candidate/team invites) carry the org's
         // own name in one of these variables - used as the visible sender
         // name so the recipient sees "QA Test Co", not just "WorkmateIQ",
@@ -60,8 +77,8 @@ export const sendAndRecord = async ({ entityType, entityId, channel, eventType, 
         // mailbox/domain.
         const fromName = variables?.company_name || variables?.organizationName || undefined
         const result = channel === "EMAIL"
-            ? await getEmailProvider().send({ to: recipient, subject: interpolate(template.subject || "", variables), body, html, from: resolveSender(eventType), fromName })
-            : await getWhatsAppProvider().send({ to: recipient, body })
+            ? await getEmailProvider().send({ to: recipient, subject: finalSubject, body: finalBody, from: resolveSender(eventType), fromName })
+            : await getWhatsAppProvider().send({ to: recipient, body: finalBody })
 
         const sentLike = result.status === "SENT" || result.status === "MOCK_SENT"
         const updated = await communicationRepo.updateStatus(communication._id, {

@@ -1,9 +1,19 @@
 import crypto from "crypto"
 import { InterviewDrive } from "../models/interviewDrive.model.js"
+import { NotificationTemplate } from "../models/notificationTemplate.model.js"
 import { ApiError } from "../utils/response.js"
 import { requireValidObjectId } from "../utils/validateId.js"
 import { communicationServiceClient } from "../config/internalClients.js"
 import * as clientRepo from "../repositories/client.repository.js"
+
+// Same {var}/{{var}} interpolation the frontend's renderWithSamples()
+// preview uses (client/src/constants/templateVariables.js) - kept in sync
+// by hand since the two run in different services/languages, but the
+// substitution rule itself (single or double braces, unknown keys left
+// as-is) must match or a saved template would preview differently than it
+// actually sends.
+const renderTemplateText = (text, values) =>
+    (text || "").replace(/\{\{?\s*(\w+)\s*\}?\}/g, (match, key) => (key in values ? values[key] : match))
 
 // The backend owns this, never the frontend - a client-generated
 // Math.random() slug could collide, isn't guaranteed unique, and gives a
@@ -226,4 +236,76 @@ export const listAllCandidates = async (tenantId, { search, status, page = 1, li
     ])
 
     return { items, total: totalResult[0]?.total || 0, page: pageNum, pageSize }
+}
+
+// Sends a recruiter-triggered CONGRATULATIONS/REJECTION communication to a
+// bulk selection of candidates using the organization's own edited
+// NotificationTemplate (Templates page), and - for REJECTION only - moves
+// each candidate to REJECTED once the decision is made. Communication
+// delivery is best-effort per candidate (one slow/failed send must never
+// stop the rest of the batch or the status update the recruiter asked
+// for), but every attempt is recorded on the candidate for audit/duplicate
+// visibility (integration.md section 32/52).
+export const communicateWithCandidates = async (tenantId, driveId, roundNumber, { candidateIds, purpose, templateId }, ctx) => {
+    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+    requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    if (!Array.isArray(candidateIds) || candidateIds.length === 0) {
+        throw new ApiError(400, "MISSING_CANDIDATES", "At least one candidate must be selected.")
+    }
+    if (!["CONGRATULATIONS", "REJECTION"].includes(purpose)) {
+        throw new ApiError(400, "INVALID_PURPOSE", "purpose must be CONGRATULATIONS or REJECTION.")
+    }
+
+    const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
+    if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    const round = drive.rounds.find((r) => r.roundNumber === Number(roundNumber))
+    if (!round) throw new ApiError(404, "ROUND_NOT_FOUND", "Round not found on this drive.")
+
+    const template = await NotificationTemplate.findOne({ tenantId, $or: [{ templateId }, { _id: templateId }] })
+    if (!template) throw new ApiError(404, "TEMPLATE_NOT_FOUND", "Communication template not found.")
+    if (template.type !== "EMAIL" && template.type !== "WHATSAPP") {
+        throw new ApiError(400, "TEMPLATE_NOT_SENDABLE", "Call templates are scripts for manual use and cannot be auto-sent.")
+    }
+
+    const org = await clientRepo.findById(tenantId).catch(() => null)
+    const interviewLink = drive.publicLink ? `${process.env.FRONTEND_BASE_URL}/apply/${drive.publicLink}` : ""
+    const expiryDate = round.expiryDate ? new Date(round.expiryDate).toLocaleDateString() : ""
+
+    const candidates = round.candidates.filter((c) => candidateIds.includes(c.id))
+    if (candidates.length === 0) throw new ApiError(404, "CANDIDATE_NOT_FOUND", "None of the selected candidates were found in this round.")
+
+    const results = []
+    for (const candidate of candidates) {
+        const recipient = template.type === "EMAIL" ? candidate.email : candidate.phone
+        const variables = {
+            candidate_name: candidate.name || "there",
+            drive_title: drive.title,
+            company_name: org?.name || "the hiring team",
+            interview_link: interviewLink,
+            expiry_date: expiryDate,
+        }
+
+        let status = "FAILED"
+        if (recipient) {
+            try {
+                await communicationServiceClient.send({
+                    entityType: "CLIENT", entityId: tenantId, channel: template.type,
+                    eventType: `ROUND_${purpose}`, recipient,
+                    subject: template.type === "EMAIL" ? renderTemplateText(template.subject, variables) : undefined,
+                    body: renderTemplateText(template.body, variables),
+                }, ctx)
+                status = "SENT"
+            } catch (error) {
+                console.error(`[client-service] round communication failed for candidate ${candidate.id}:`, error.message)
+            }
+        }
+
+        candidate.communications.push({ purpose, channel: template.type, templateId: String(template._id), status })
+        if (purpose === "REJECTION") candidate.status = "REJECTED"
+
+        results.push({ candidateId: candidate.id, name: candidate.name, status })
+    }
+
+    await drive.save()
+    return { results, sentCount: results.filter((r) => r.status === "SENT").length, failedCount: results.filter((r) => r.status === "FAILED").length }
 }
