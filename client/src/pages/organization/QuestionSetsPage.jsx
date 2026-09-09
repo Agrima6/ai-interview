@@ -248,7 +248,7 @@ function QuestionSetsPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-[12.5px] font-bold text-accent">Question #{idx + 1}</span>
                   {questions.length > 1 && (
-                    <button type="button" onClick={() => handleRemoveQuestion(idx)} className="text-text-secondary hover:text-red-600 p-1 rounded transition-colors">
+                    <button type="button" onClick={() => handleRemoveQuestion(idx)} aria-label={`Remove question ${idx + 1}`} className="text-text-secondary hover:text-red-600 p-1 rounded transition-colors">
                       <Trash2 size={14} />
                     </button>
                   )}

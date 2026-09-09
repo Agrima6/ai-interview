@@ -191,7 +191,7 @@ function DrivesListPage() {
             {filterChips.map((chip) => (
               <span key={chip.key} className="inline-flex items-center gap-1.5 pl-3 pr-2 py-1 rounded-full bg-accent/10 text-accent text-[12.5px] font-medium">
                 {chip.label}
-                <button type="button" onClick={() => { clearOneFilter(chip.key); if (chip.clearsAlso) clearOneFilter(chip.clearsAlso) }} className="hover:bg-accent/20 rounded-full p-0.5">
+                <button type="button" onClick={() => { clearOneFilter(chip.key); if (chip.clearsAlso) clearOneFilter(chip.clearsAlso) }} aria-label={`Clear filter: ${chip.label}`} className="hover:bg-accent/20 rounded-full p-0.5">
                   <X size={12} />
                 </button>
               </span>
@@ -262,6 +262,7 @@ function DrivesListPage() {
                           onClick={(e) => { e.stopPropagation(); setArchiveTarget(driveId) }}
                           className="p-1.5 rounded-lg text-text-secondary hover:text-red-500 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                           title="Archive Drive"
+                          aria-label={`Archive ${drive.title}`}
                         >
                           <Trash2 size={15} />
                         </button>

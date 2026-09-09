@@ -65,6 +65,7 @@ function CriteriaWeightageBuilder({
                 <button
                   type="button"
                   onClick={() => onRemoveCriteria(idx)}
+                  aria-label={`Remove criteria ${idx + 1}`}
                   className="p-2 text-text-secondary hover:text-red-600 rounded-lg hover:bg-red-500/10 transition-colors"
                 >
                   <Trash2 size={16} />

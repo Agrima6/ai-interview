@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { X } from 'lucide-react'
+import { useFocusTrap } from './useFocusTrap'
 
 /**
  * Side panel sliding in from the right - used for filter panels and other
@@ -11,6 +12,9 @@ import { X } from 'lucide-react'
  * peeking at the page behind it.
  */
 function Drawer({ open, onClose, title, children, footer, widthClassName = 'max-w-sm' }) {
+  const panelRef = useRef(null)
+  useFocusTrap(panelRef, open)
+
   useEffect(() => {
     if (!open) return
     const onKey = (e) => e.key === 'Escape' && onClose?.()
@@ -34,6 +38,11 @@ function Drawer({ open, onClose, title, children, footer, widthClassName = 'max-
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
           />
           <motion.div
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={typeof title === 'string' ? title : undefined}
+            tabIndex={-1}
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}

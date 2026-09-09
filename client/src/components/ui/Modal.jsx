@@ -1,13 +1,17 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { X } from 'lucide-react'
+import { useFocusTrap } from './useFocusTrap'
 
 /**
  * Dialog/modal. Controlled via `open`. Renders through a portal so it
  * escapes any parent overflow/stacking context (dashboards, tables, etc).
  */
 function Modal({ open, onClose, title, children, footer, size = 'md' }) {
+  const panelRef = useRef(null)
+  useFocusTrap(panelRef, open)
+
   useEffect(() => {
     if (!open) return
     const onKey = (e) => e.key === 'Escape' && onClose?.()
@@ -36,6 +40,11 @@ function Modal({ open, onClose, title, children, footer, size = 'md' }) {
             />
           )}
           <motion.div
+            ref={panelRef}
+            role='dialog'
+            aria-modal='true'
+            aria-label={typeof title === 'string' ? title : undefined}
+            tabIndex={-1}
             initial={{ opacity: 0, y: isFull ? 0 : 16, scale: isFull ? 1 : 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: isFull ? 0 : 12, scale: isFull ? 1 : 0.98 }}

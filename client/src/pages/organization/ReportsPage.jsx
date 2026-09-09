@@ -121,7 +121,7 @@ function ReportsPage() {
               {!trends?.departmentBreakdown?.length ? (
                 <p className="text-[13.5px] text-text-secondary py-10 text-center">No candidate data yet.</p>
               ) : (
-                <div className="flex items-center gap-6">
+                <div className="flex flex-col sm:flex-row items-center gap-6">
                   <div className="w-40 h-40 shrink-0">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>

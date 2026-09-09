@@ -162,6 +162,7 @@ function TeamPage() {
                     {member.role !== 'CLIENT_ADMIN' && (
                       <button
                         title="Remove Access"
+                        aria-label={`Remove ${member.name}'s access`}
                         onClick={() => setRemoveTarget(member)}
                         className="p-1.5 text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                       >
