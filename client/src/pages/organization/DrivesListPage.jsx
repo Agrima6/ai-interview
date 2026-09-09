@@ -5,12 +5,13 @@ import OrganizationLayout from '../../components/organization/OrganizationLayout
 import CreateDriveModal from '../../components/organization/CreateDriveModal'
 import { Card, Button, Badge, SearchInput, Tabs, StatCard, Skeleton, ConfirmModal, useToast } from '../../components/ui'
 import { listInterviewDrives, updateDriveStatus } from '../../api/organization/organizationApi'
+import { formatEnumLabel } from '../../utils/formatEnumLabel'
 
 const STATUS_BADGE = {
   ACTIVE: 'success',
   DRAFT: 'neutral',
-  COMPLETED: 'purple',
-  ARCHIVED: 'neutral',
+  COMPLETED: 'info',
+  ARCHIVED: 'danger',
 }
 
 function DrivesListPage() {
@@ -182,7 +183,7 @@ function DrivesListPage() {
                           {drive.title}
                         </h3>
                         <p className="text-[12.5px] text-text-secondary font-medium mt-0.5">
-                          {drive.department} • {drive.roleCategory}
+                          {formatEnumLabel(drive.department)} • {formatEnumLabel(drive.roleCategory)}
                         </p>
                       </div>
 
