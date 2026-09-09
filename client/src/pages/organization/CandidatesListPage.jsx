@@ -2,12 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { Eye, Sparkles, CheckCircle2, UserCheck, AlertCircle } from 'lucide-react'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
 import CandidateDetailModal from '../../components/organization/CandidateDetailModal'
-import { Card, Button, Badge, SearchInput, Tabs, StatCard, Skeleton, useToast } from '../../components/ui'
+import { Card, Button, Badge, SearchInput, Tabs, StatCard, Skeleton, Pagination, useToast } from '../../components/ui'
 import { listAllCandidates, updateCandidateStatus } from '../../api/organization/organizationApi'
 
 const STATUS_BADGES = {
   SHORTLISTED: 'success',
-  COMPLETED: 'purple',
+  COMPLETED: 'info',
   INVITED: 'neutral',
   REJECTED: 'danger',
 }
@@ -18,6 +18,8 @@ function CandidatesListPage() {
   const [total, setTotal] = useState(0)
   const [search, setSearch] = useState('')
   const [activeTab, setActiveTab] = useState('ALL')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(25)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedCandidate, setSelectedCandidate] = useState(null)
@@ -29,7 +31,8 @@ function CandidatesListPage() {
       const { items, total: totalCount } = await listAllCandidates({
         search: search || undefined,
         status: activeTab === 'ALL' ? undefined : activeTab,
-        limit: 100,
+        page,
+        limit: pageSize,
       })
       setRows(items || [])
       setTotal(totalCount || 0)
@@ -38,9 +41,13 @@ function CandidatesListPage() {
     } finally {
       setLoading(false)
     }
-  }, [search, activeTab])
+  }, [search, activeTab, page, pageSize])
 
   useEffect(() => { fetchCandidates() }, [fetchCandidates])
+
+  // Filters/search/page-size changes always land back on page 1 - a stale
+  // page number past the new result count would show an empty page.
+  useEffect(() => { setPage(1) }, [search, activeTab, pageSize])
 
   const handleStatusChange = async (candidateId, newStatus) => {
     const row = rows.find((r) => r.candidate.id === candidateId)
@@ -66,12 +73,12 @@ function CandidatesListPage() {
     >
       <div className="grid sm:grid-cols-3 gap-4 mb-6">
         <StatCard
-          icon={UserCheck} label="Evaluated Candidates" value={evaluated.length}
+          icon={UserCheck} label="Evaluated Candidates (this page)" value={evaluated.length}
           trend={{ value: `${shortlisted.length} Shortlisted`, positive: true }}
           helperText="Everyone except still-invited"
           onClick={() => setActiveTab('COMPLETED')}
         />
-        <StatCard icon={Sparkles} label="Average AI Score" value={`${avgScore}%`} helperText="Across scored candidates" />
+        <StatCard icon={Sparkles} label="Average AI Score" value={`${avgScore}%`} helperText="Across scored candidates on this page" />
         <StatCard
           icon={CheckCircle2} label="Shortlist Rate" value={`${evaluated.length ? Math.round((shortlisted.length / evaluated.length) * 100) : 0}%`}
           helperText="View shortlisted →"
@@ -110,6 +117,8 @@ function CandidatesListPage() {
               <thead>
                 <tr className="border-b border-line text-[12px] font-semibold uppercase tracking-wider text-text-secondary">
                   <th className="pb-3 px-3">Candidate Name</th>
+                  <th className="pb-3 px-3">Phone</th>
+                  <th className="pb-3 px-3">Experience</th>
                   <th className="pb-3 px-3">Drive / Round</th>
                   <th className="pb-3 px-3">Attempted Date</th>
                   <th className="pb-3 px-3">AI Score</th>
@@ -120,7 +129,7 @@ function CandidatesListPage() {
               <tbody className="divide-y divide-line text-[13.5px]">
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center text-text-secondary">
+                    <td colSpan={8} className="py-12 text-center text-text-secondary">
                       No candidates found. Try changing your filters or import candidates into a drive.
                     </td>
                   </tr>
@@ -133,6 +142,8 @@ function CandidatesListPage() {
                           <div className="font-semibold text-ink leading-tight">{cand.name}</div>
                           <div className="text-[12px] text-text-secondary">{cand.email}</div>
                         </td>
+                        <td className="py-4 px-3 text-text-secondary whitespace-nowrap">{cand.phone || '—'}</td>
+                        <td className="py-4 px-3 text-text-secondary whitespace-nowrap">{cand.exp || '—'}</td>
                         <td className="py-4 px-3 font-medium text-ink max-w-[260px] truncate">
                           {row.driveTitle} • {row.roundTitle}
                         </td>
@@ -162,8 +173,14 @@ function CandidatesListPage() {
                 )}
               </tbody>
             </table>
-            {total > rows.length && (
-              <p className="text-[12.5px] text-text-secondary text-center pt-4">Showing {rows.length} of {total} candidates.</p>
+            {total > 0 && (
+              <Pagination
+                page={page}
+                pageSize={pageSize}
+                total={total}
+                onPageChange={setPage}
+                onPageSizeChange={setPageSize}
+              />
             )}
           </div>
         )}
