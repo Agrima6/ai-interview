@@ -4,6 +4,12 @@ import OrganizationLayout from '../../components/organization/OrganizationLayout
 import CandidateDetailModal from '../../components/organization/CandidateDetailModal'
 import { Card, Button, Badge, SearchInput, Tabs, StatCard, Skeleton, Pagination, useToast } from '../../components/ui'
 import { listAllCandidates, updateCandidateStatus } from '../../api/organization/organizationApi'
+import { CANDIDATE_FIELDS } from '../../constants/candidateSchema'
+
+// Name+email render as one combined cell below; every other schema field
+// (phone, experience, ...) gets its own column automatically - adding a
+// field to candidateSchema.js is enough to have it show up here too.
+const EXTRA_CANDIDATE_FIELDS = CANDIDATE_FIELDS.filter((f) => f.key !== 'name' && f.key !== 'email')
 
 const STATUS_BADGES = {
   SHORTLISTED: 'success',
@@ -117,8 +123,7 @@ function CandidatesListPage() {
               <thead>
                 <tr className="border-b border-line text-[12px] font-semibold uppercase tracking-wider text-text-secondary">
                   <th className="pb-3 px-3">Candidate Name</th>
-                  <th className="pb-3 px-3">Phone</th>
-                  <th className="pb-3 px-3">Experience</th>
+                  {EXTRA_CANDIDATE_FIELDS.map((f) => <th key={f.key} className="pb-3 px-3">{f.label}</th>)}
                   <th className="pb-3 px-3">Drive / Round</th>
                   <th className="pb-3 px-3">Attempted Date</th>
                   <th className="pb-3 px-3">AI Score</th>
@@ -129,7 +134,7 @@ function CandidatesListPage() {
               <tbody className="divide-y divide-line text-[13.5px]">
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center text-text-secondary">
+                    <td colSpan={6 + EXTRA_CANDIDATE_FIELDS.length} className="py-12 text-center text-text-secondary">
                       No candidates found. Try changing your filters or import candidates into a drive.
                     </td>
                   </tr>
@@ -142,8 +147,9 @@ function CandidatesListPage() {
                           <div className="font-semibold text-ink leading-tight">{cand.name}</div>
                           <div className="text-[12px] text-text-secondary">{cand.email}</div>
                         </td>
-                        <td className="py-4 px-3 text-text-secondary whitespace-nowrap">{cand.phone || '—'}</td>
-                        <td className="py-4 px-3 text-text-secondary whitespace-nowrap">{cand.exp || '—'}</td>
+                        {EXTRA_CANDIDATE_FIELDS.map((f) => (
+                          <td key={f.key} className="py-4 px-3 text-text-secondary whitespace-nowrap">{cand[f.key] || '—'}</td>
+                        ))}
                         <td className="py-4 px-3 font-medium text-ink max-w-[260px] truncate">
                           {row.driveTitle} • {row.roundTitle}
                         </td>
