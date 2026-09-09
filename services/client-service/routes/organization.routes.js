@@ -24,4 +24,9 @@ router.post("/organization/templates", authenticate, requirePermission("CLIENT_S
 router.put("/organization/templates/:id", authenticate, requirePermission("CLIENT_SELF_UPDATE"), portalController.updateTemplate)
 router.delete("/organization/templates/:id", authenticate, requirePermission("CLIENT_SELF_UPDATE"), portalController.deleteTemplate)
 
+// SMTP Settings
+router.get("/organization/smtp", authenticate, requirePermission("CLIENT_SELF_READ"), portalController.getSmtpSettings)
+router.put("/organization/smtp", authenticate, requirePermission("CLIENT_SELF_UPDATE"), portalController.updateSmtpSettings)
+router.post("/organization/smtp/test", authenticate, requirePermission("CLIENT_SELF_UPDATE"), portalController.testSmtpConnection)
+
 export default router

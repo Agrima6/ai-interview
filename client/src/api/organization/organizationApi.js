@@ -33,3 +33,8 @@ export const getNotificationTemplates = () => apiGet("/api/v1/organization/templ
 export const createNotificationTemplate = (payload) => apiPost("/api/v1/organization/templates", payload)
 export const updateNotificationTemplate = (id, payload) => apiPut(`/api/v1/organization/templates/${id}`, payload)
 export const deleteNotificationTemplate = (id) => apiDelete(`/api/v1/organization/templates/${id}`)
+
+// SMTP Settings APIs
+export const getSmtpSettings = () => apiGet("/api/v1/organization/smtp")
+export const updateSmtpSettings = (payload) => apiPut("/api/v1/organization/smtp", payload)
+export const testSmtpConnection = (payload) => apiPost("/api/v1/organization/smtp/test", payload)
