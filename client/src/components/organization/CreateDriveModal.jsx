@@ -554,6 +554,8 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
       const response = isEditing
         ? await updateRound(editDrive._id || editDrive.id, 1, {
             ...payload,
+          candidates: importedCandidates,
+          customQuestions: payload.customQuestionsList,
             driveDetails: {
               title: payload.title,
               roleCategory: payload.roleCategory,

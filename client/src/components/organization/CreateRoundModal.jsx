@@ -159,7 +159,7 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
     // for them until they do. Fabricating one here would misrepresent an
     // untaken interview as already scored.
     const formatted = importedList.map((c, i) => ({
-      id: `cand-excel-${Date.now()}-${i}`,
+      id: c.id || `cand-excel-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 10)}`,
       name: c.name || c['Candidate Name'] || 'Candidate',
       email: c.email || c['Email Address'] || '',
       phone: c.phone || c['Phone Number'] || '',

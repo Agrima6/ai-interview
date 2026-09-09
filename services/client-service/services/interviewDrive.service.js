@@ -38,6 +38,43 @@ const normalizeCandidate = (candidate, index = 0) => {
 
 const normalizeCandidates = (candidates = []) => candidates.map((candidate, index) => normalizeCandidate(candidate, index))
 
+const repairRoundStatuses = async (drive) => {
+    if (!Array.isArray(drive.rounds) || drive.rounds.length === 0) return drive
+    let changed = false
+
+    if (drive.status === "DRAFT") {
+        drive.rounds.forEach((round) => {
+            if (round.status !== "DRAFT") {
+                round.status = "DRAFT"
+                changed = true
+            }
+        })
+        if (drive.currentRound !== 1) {
+            drive.currentRound = 1
+            changed = true
+        }
+    } else {
+        const activeRounds = drive.rounds.filter((round) => round.status === "ACTIVE")
+        if (activeRounds.length > 1) {
+            const currentRound = drive.rounds.find((round) => round.roundNumber === drive.currentRound) || activeRounds[activeRounds.length - 1]
+            drive.rounds.forEach((round) => {
+                const expectedStatus = round.roundNumber === currentRound.roundNumber
+                    ? "ACTIVE"
+                    : round.roundNumber < currentRound.roundNumber && round.status === "ACTIVE"
+                    ? "COMPLETED"
+                    : round.status
+                if (round.status !== expectedStatus) {
+                    round.status = expectedStatus
+                    changed = true
+                }
+            })
+        }
+    }
+
+    if (changed) await drive.save()
+    return drive
+}
+
 // Fires one CANDIDATE_INVITE email per candidate - best-effort (a slow/
 // unavailable communication-service must never fail drive/round creation,
 // the roster is already persisted regardless of whether the email goes
@@ -85,7 +122,7 @@ export const createDrive = async (tenantId, driveData, ctx) => {
     const initialCandidates = normalizeCandidates(driveData.importedCandidateList || [])
     const totalRounds = Math.min(Math.max(Number(driveData.totalRounds) || 1, 1), 4)
     const status = isDraft ? "DRAFT" : "ACTIVE"
-    const rounds = Array.from({ length: totalRounds }, (_, index) => ({
+    const rounds = Array.from({ length: isDraft ? 1 : totalRounds }, (_, index) => ({
         roundNumber: index + 1,
         title: `Round ${index + 1}: ${driveData.roundType || "Technical Assessment"}`,
         type: normalizeRoundType(driveData.roundType),
@@ -194,7 +231,7 @@ export const getDriveById = async (tenantId, driveId) => {
 
     const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
     if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
-    return drive
+    return repairRoundStatuses(drive)
 }
 
 export const addRoundToDrive = async (tenantId, driveId, roundData, ctx) => {
@@ -207,6 +244,7 @@ export const addRoundToDrive = async (tenantId, driveId, roundData, ctx) => {
 
     const nextRoundNum = (drive.rounds?.length || 0) + 1
     if (nextRoundNum > 4) throw new ApiError(400, "ROUND_LIMIT", "An interview drive can have a maximum of 4 rounds.")
+    if (nextRoundNum > drive.totalRounds) throw new ApiError(400, "ROUND_LIMIT", `This drive is configured for ${drive.totalRounds} rounds.`)
 
     const existingEmails = new Set(drive.rounds.flatMap((round) => round.candidates || []).map((candidate) => candidate.email.toLowerCase()))
     const existingPhones = new Set(drive.rounds.flatMap((round) => round.candidates || []).map((candidate) => candidate.phone).filter(Boolean))
@@ -220,10 +258,10 @@ export const addRoundToDrive = async (tenantId, driveId, roundData, ctx) => {
     }
 
     const newRound = {
-        roundNumber: roundData.roundNumber || nextRoundNum,
+        roundNumber: nextRoundNum,
         title: roundData.title || `Round ${nextRoundNum}: Managerial & System Design`,
         type: roundData.type || "Managerial Round",
-        status: drive.status === "DRAFT" ? "DRAFT" : (roundData.status || "ACTIVE"),
+        status: "DRAFT",
         startDate: roundData.startDate || drive.startDate,
         expiryDate: roundData.expiryDate || drive.expiryDate,
         passingThreshold: roundData.passingThreshold || 75,
@@ -282,9 +320,9 @@ export const updateRoundStatus = async (tenantId, driveId, roundNumber, status, 
 
     const activating = status === 'ACTIVE' && round.status !== 'ACTIVE'
     const previousRound = drive.rounds?.find((item) => item.roundNumber === Number(roundNumber) - 1)
-    const previousRoundReady = drive.status !== 'DRAFT' && previousRound && ['ACTIVE', 'COMPLETED'].includes(previousRound.status)
+    const previousRoundReady = drive.status !== 'DRAFT' && previousRound && previousRound.status === 'COMPLETED'
     if (activating && previousRound && !previousRoundReady) {
-        throw new ApiError(409, "PREVIOUS_ROUND_REQUIRED", `Activate Round ${previousRound.roundNumber} before activating Round ${round.roundNumber}.`)
+        throw new ApiError(409, "PREVIOUS_ROUND_REQUIRED", `Complete Round ${previousRound.roundNumber} before activating Round ${round.roundNumber}.`)
     }
     round.status = status
     if (activating) {
@@ -324,7 +362,10 @@ export const updateRound = async (tenantId, driveId, roundNumber, roundData) => 
         }
     }
 
-    const candidates = (roundData.candidates || []).map((candidate, index) => normalizeCandidate(candidate, index))
+    if (roundData.communicationSettings !== undefined) drive.communicationSettings = roundData.communicationSettings
+    if (roundData.enablePublicLink !== undefined) drive.enablePublicLink = Boolean(roundData.enablePublicLink)
+
+    const candidates = (roundData.candidates || round.candidates || []).map((candidate, index) => normalizeCandidate(candidate, index))
     round.title = String(roundData.title || round.title).trim()
     round.type = String(roundData.type || round.type).trim()
     round.startDate = roundData.startDate || round.startDate || drive.startDate
@@ -333,7 +374,7 @@ export const updateRound = async (tenantId, driveId, roundNumber, roundData) => 
     round.questionMode = roundData.questionMode || round.questionMode
     round.questionBankTitle = roundData.questionBankTitle || round.questionBankTitle
     round.skillRubrics = roundData.skillRubrics || round.skillRubrics
-    round.customQuestions = roundData.customQuestions || round.customQuestions
+    round.customQuestions = roundData.customQuestions || roundData.customQuestionsList || round.customQuestions
     round.candidates = candidates
     if (drive.status === 'DRAFT' || round.status !== 'ACTIVE') round.status = 'DRAFT'
     drive.candidatesCount = drive.rounds.reduce((total, item) => total + item.candidates.length, 0)

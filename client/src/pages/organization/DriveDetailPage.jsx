@@ -56,11 +56,12 @@ function DriveDetailPage() {
 
   useEffect(() => { fetchDrive() }, [fetchDrive])
 
-  const rounds = drive?.rounds || []
+  const rounds = Array.from(new Map((drive?.rounds || []).map((round) => [Number(round.roundNumber), round])).values())
   const activeRoundNumber = rounds.find((round) => drive?.status !== 'DRAFT' && round.status === 'ACTIVE')?.roundNumber || 1
   const currentRound = rounds.find((r) => String(r.roundNumber) === activeRoundTab)
+  const currentRoundStatus = currentRound?.status || 'DRAFT'
   const previousRound = currentRound ? rounds.find((r) => r.roundNumber === currentRound.roundNumber - 1) : null
-  const previousRoundReady = Boolean(drive?.status !== 'DRAFT' && previousRound && ['ACTIVE', 'COMPLETED'].includes(previousRound.status))
+  const previousRoundReady = Boolean(drive?.status !== 'DRAFT' && previousRound && previousRound.status === 'COMPLETED')
   const roundNeedsPreviousActivation = Boolean(currentRound && previousRound && !previousRoundReady)
   const currentCandidates = currentRound?.candidates || []
   const round1 = rounds.find((r) => r.roundNumber === 1)
@@ -90,21 +91,21 @@ function DriveDetailPage() {
     }
   }
 
-  const handleRoundStatusChange = async () => {
+  const handleRoundStatusChange = async (status = 'ACTIVE') => {
     if (!currentRound) return
     if (drive.status === 'ARCHIVED') {
-      toast.error('Archived drives cannot activate rounds.')
+      toast.error('Archived drives cannot update rounds.')
       return
     }
     if (roundNeedsPreviousActivation) {
-      toast.error(`Activate Round ${previousRound.roundNumber} before activating Round ${currentRound.roundNumber}.`)
+      toast.error(`Complete Round ${previousRound.roundNumber} before activating Round ${currentRound.roundNumber}.`)
       return
     }
     setActivatingRound(true)
     try {
-      const updated = await updateRoundStatus(id, currentRound.roundNumber, 'ACTIVE')
+      const updated = await updateRoundStatus(id, currentRound.roundNumber, status)
       setDrive(updated)
-      toast.success(`Round ${currentRound.roundNumber} is now active.`)
+      toast.success(`Round ${currentRound.roundNumber} marked as ${status.toLowerCase()}.`)
     } catch (err) {
       toast.error(err.message)
     } finally {
@@ -201,7 +202,7 @@ function DriveDetailPage() {
   return (
     <OrganizationLayout
       title={drive.title}
-      description={`${drive.roleCategory} • ${drive.department} • Current Round: Round ${activeRoundNumber}`}
+      description={`${drive.roleCategory} • ${drive.department} • Selected Round: Round ${currentRound?.roundNumber || activeRoundNumber} • ${currentRoundStatus}`}
       action={
         <div className="interview-actions flex items-center gap-2 flex-wrap">
           <Button variant="secondary" size="sm" onClick={() => navigate(`${basePath}/drives`)}>
@@ -210,17 +211,22 @@ function DriveDetailPage() {
           <Button variant="secondary" size="sm" onClick={handleExportExcel}>
             <FileSpreadsheet size={14} /> Download Excel Report
           </Button>
-          {drive.status === 'ACTIVE' ? (
-            <Button size="sm" onClick={() => handleDriveStatusChange('COMPLETED')}>
-              <CheckCircle2 size={14} /> Mark Drive Complete
+          {drive.status === 'ACTIVE' && currentRound?.status === 'ACTIVE' ? (
+            <Button variant="secondary" size="sm" onClick={() => handleRoundStatusChange('COMPLETED')} disabled={activatingRound}>
+              <CheckCircle2 size={14} /> Complete Round {currentRound.roundNumber}
             </Button>
           ) : null}
-          {drive.status !== 'ARCHIVED' && currentRound && (drive.status === 'DRAFT' || currentRound.status === 'DRAFT' || currentRound.status === 'PENDING') ? (
+          {drive.status === 'ACTIVE' ? (
+            <Button size="sm" onClick={() => handleDriveStatusChange('COMPLETED')}>
+              <CheckCircle2 size={14} /> Close Drive
+            </Button>
+          ) : null}
+          {drive.status !== 'ARCHIVED' && currentRound && (currentRound.status === 'DRAFT' || currentRound.status === 'PENDING') ? (
             <>
               <Button variant="secondary" size="sm" onClick={() => setEditingRound(currentRound)}>
                 <Pencil size={14} /> Edit Draft Round
               </Button>
-              <Button size="sm" onClick={handleRoundStatusChange} disabled={activatingRound || roundNeedsPreviousActivation} title={roundNeedsPreviousActivation ? `Activate Round ${previousRound.roundNumber} first` : undefined}>
+              <Button size="sm" onClick={() => handleRoundStatusChange('ACTIVE')} disabled={activatingRound || roundNeedsPreviousActivation} title={roundNeedsPreviousActivation ? `Complete Round ${previousRound.roundNumber} first` : undefined}>
                 <CheckCircle2 size={14} /> {activatingRound ? 'Activating...' : `Activate Round ${currentRound.roundNumber}`}
               </Button>
             </>
@@ -228,7 +234,7 @@ function DriveDetailPage() {
           {drive.status !== 'ARCHIVED' && <Button variant="secondary" size="sm" onClick={() => setCandidateImportOpen(true)} disabled={candidateImporting || drive.status === 'DRAFT' || currentRound?.status !== 'ACTIVE'}>
             <Upload size={14} /> Add Candidates
           </Button>}
-          {drive.status !== 'ARCHIVED' && <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white" onClick={() => setCreateRoundModalOpen(true)} disabled={rounds.length >= 4}>
+          {drive.status !== 'ARCHIVED' && <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white" onClick={() => setCreateRoundModalOpen(true)} disabled={rounds.length >= Math.min(Number(drive.totalRounds) || 1, 4)}>
             <Plus size={14} /> Create Round {rounds.length + 1}
           </Button>}
         </div>
@@ -250,7 +256,7 @@ function DriveDetailPage() {
           icon={ShieldAlert} label="Proctoring / Malpractice Flags" value={currentCandidates.filter((c) => c.malpracticeFlags > 0).length}
           helperText="Candidates with any flag"
         />
-        <StatCard icon={CheckCircle2} label="Drive Status" value={drive.status} helperText={`Round ${activeRoundNumber} of ${drive.totalRounds}`} />
+        <StatCard icon={CheckCircle2} label={`Round ${currentRound?.roundNumber || activeRoundNumber} Status`} value={currentRoundStatus} helperText={`Drive ${drive.status} • Round ${currentRound?.roundNumber || activeRoundNumber} of ${drive.totalRounds}`} />
       </div>
 
       {drive.publicLink && (
@@ -308,7 +314,7 @@ function DriveDetailPage() {
       <Card className="interview-panel p-4 sm:p-6">
         {drive.status !== 'ARCHIVED' && roundNeedsPreviousActivation && (
           <div className="mb-5 flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-[12px] font-semibold text-amber-700">
-            <AlertCircle size={16} /> Activate Round {previousRound.roundNumber} before activating or inviting candidates to Round {currentRound.roundNumber}.
+            <AlertCircle size={16} /> Complete Round {previousRound.roundNumber} before activating or inviting candidates to Round {currentRound.roundNumber}.
           </div>
         )}
         <div className="interview-toolbar flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-line">
@@ -325,7 +331,7 @@ function DriveDetailPage() {
                     className={`interview-round-button ${isSelected ? 'is-selected' : ''}`}
                   >
                     <span>Round {round.roundNumber}</span>
-                    <small>{round.type}</small>
+                    <small>{round.type} · {round.status || 'DRAFT'}</small>
                   </button>
                 )
               })}
