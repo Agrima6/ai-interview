@@ -15,6 +15,8 @@ router.get("/drives/public/:link", driveController.getPublicDriveBySlug)
 
 router.get("/drives", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.listDrives)
 router.post("/drives", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.createDrive)
+// Must be registered before "/drives/:id" or Express would treat "export" as a drive id.
+router.get("/drives/export", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.exportDrivesCsv)
 router.get("/drives/:id", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.getDriveById)
 router.post("/drives/:id/rounds", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.addRoundToDrive)
 router.patch("/drives/:id/status", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.updateDriveStatus)

@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Plus, ListChecks, Users, Trash2, Sparkles, AlertCircle, SlidersHorizontal, X } from 'lucide-react'
+import { Plus, ListChecks, Users, Trash2, Sparkles, AlertCircle, SlidersHorizontal, X, Download } from 'lucide-react'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
 import CreateDriveModal from '../../components/organization/CreateDriveModal'
 import PublicLinkPopover from '../../components/organization/PublicLinkPopover'
 import { Card, Button, Badge, SearchInput, Tabs, StatCard, Skeleton, ConfirmModal, Select, Tooltip, Drawer, Pagination, useToast } from '../../components/ui'
-import { listInterviewDrives, updateDriveStatus } from '../../api/organization/organizationApi'
+import { listInterviewDrives, updateDriveStatus, exportDrivesCsv } from '../../api/organization/organizationApi'
 import { formatEnumLabel } from '../../utils/formatEnumLabel'
 import { ROLE_CATEGORY_OPTIONS, DEPARTMENT_OPTIONS, EXPERIENCE_LEVEL_OPTIONS } from '../../constants/driveOptions'
 
@@ -35,6 +35,7 @@ function DrivesListPage() {
   const [error, setError] = useState('')
   const [archiveTarget, setArchiveTarget] = useState(null)
   const [archiving, setArchiving] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
   const [filters, setFilters] = useState(EMPTY_FILTERS)
   const [draftFilters, setDraftFilters] = useState(EMPTY_FILTERS)
@@ -97,6 +98,18 @@ function DrivesListPage() {
       toast.error(err.message)
     } finally {
       setArchiving(false)
+    }
+  }
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      await exportDrivesCsv({ search: search || undefined, status: activeTab === 'ALL' ? undefined : activeTab, ...filters })
+      toast.success('Export downloaded.')
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -182,6 +195,9 @@ function DrivesListPage() {
               {activeFilterCount > 0 && (
                 <span className="ml-1 w-4 h-4 rounded-full bg-accent text-white text-[10px] font-bold flex items-center justify-center">{activeFilterCount}</span>
               )}
+            </Button>
+            <Button variant="secondary" size="sm" onClick={handleExport} disabled={exporting} className="shrink-0">
+              <Download size={14} /> {exporting ? 'Exporting...' : 'Export CSV'}
             </Button>
           </div>
         </Card>

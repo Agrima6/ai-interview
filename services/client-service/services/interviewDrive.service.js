@@ -102,9 +102,11 @@ export const getPublicDriveBySlug = async (link) => {
     }
 }
 
-export const listDrives = async (tenantId, filters = {}) => {
-    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
-
+// Shared by listDrives (paginated table) and exportDrivesCsv (full
+// filtered dataset) so the two can never disagree on what "matching the
+// filters" means - integration.md section 16 requires an export to
+// contain exactly the filtered rows, not a separately-computed set.
+const buildDriveQuery = (tenantId, filters = {}) => {
     const query = { tenantId }
     if (filters.status && filters.status !== "ALL") query.status = filters.status
     if (filters.department) query.department = filters.department
@@ -118,7 +120,13 @@ export const listDrives = async (tenantId, filters = {}) => {
         if (filters.createdFrom) query.createdAt.$gte = new Date(filters.createdFrom)
         if (filters.createdTo) query.createdAt.$lte = new Date(filters.createdTo)
     }
+    return query
+}
 
+export const listDrives = async (tenantId, filters = {}) => {
+    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+
+    const query = buildDriveQuery(tenantId, filters)
     const page = Math.max(Number(filters.page) || 1, 1)
     const pageSize = Math.min(Math.max(Number(filters.pageSize) || 25, 1), 100)
 
@@ -128,6 +136,25 @@ export const listDrives = async (tenantId, filters = {}) => {
     ])
 
     return { items: drives, total, page, pageSize }
+}
+
+const DRIVE_CSV_EXPORT_CAP = 5000
+
+export const exportDrivesCsv = async (tenantId, filters = {}) => {
+    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+
+    const query = buildDriveQuery(tenantId, filters)
+    const drives = await InterviewDrive.find(query).sort({ createdAt: -1 }).limit(DRIVE_CSV_EXPORT_CAP)
+
+    const header = ["Title", "Status", "Department", "Role Category", "Experience Level", "Candidates", "Passing Threshold", "Public Link", "Created", "Updated"]
+    const lines = drives.map((d) => [
+        d.title, d.status, d.department, d.roleCategory, d.experienceLevel,
+        d.candidatesCount || d.rounds?.[0]?.candidates?.length || 0, d.passingThreshold,
+        d.publicLink ? "Enabled" : "Disabled",
+        d.createdAt.toISOString().slice(0, 10), d.updatedAt.toISOString().slice(0, 10),
+    ].map(csvEscape).join(","))
+
+    return [header.join(","), ...lines].join("\n")
 }
 
 export const getDriveById = async (tenantId, driveId) => {

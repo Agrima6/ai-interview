@@ -18,6 +18,22 @@ export const updateCandidateStatus = (driveId, roundNumber, candidateId, status)
 export const communicateWithCandidates = (driveId, roundNumber, payload) =>
     apiPost(`/api/v1/drives/${driveId}/rounds/${roundNumber}/candidates/communicate`, payload)
 
+// Downloads only the drives matching the caller's current filters - same
+// filter set listInterviewDrives accepts, so the exported file always
+// matches what's on screen (integration.md #16).
+export const exportDrivesCsv = async (params) => {
+    const res = await client.get("/api/v1/drives/export", { params, responseType: "blob" })
+    const blob = new Blob([res.data], { type: "text/csv;charset=utf-8" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `drives-export-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+}
+
 // Candidates (aggregated across every drive/round for the organization)
 export const listAllCandidates = (params) => apiGetList("/api/v1/candidates", params)
 

@@ -25,6 +25,18 @@ export const listDrives = async (req, res, next) => {
     }
 }
 
+export const exportDrivesCsv = async (req, res, next) => {
+    try {
+        const tenantId = req.user?.tenantId
+        const csv = await driveService.exportDrivesCsv(tenantId, req.query)
+        res.setHeader("Content-Type", "text/csv; charset=utf-8")
+        res.setHeader("Content-Disposition", `attachment; filename="drives-export-${new Date().toISOString().slice(0, 10)}.csv"`)
+        res.send(csv)
+    } catch (error) {
+        next(error)
+    }
+}
+
 export const getDriveById = async (req, res, next) => {
     try {
         const tenantId = req.user?.tenantId
