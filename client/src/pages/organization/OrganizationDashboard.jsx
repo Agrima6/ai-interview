@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ListChecks, Users, CheckCircle2, Star, Plus, AlertCircle, ArrowRight } from 'lucide-react'
-import { BarChart, Bar, LineChart, Line, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
 import FunnelChart from '../../components/charts/FunnelChart'
 import AttentionPanel from '../../components/organization/AttentionPanel'
@@ -21,6 +21,7 @@ const STATUS_BADGE = { ACTIVE: 'success', DRAFT: 'neutral', COMPLETED: 'info', A
 
 const chartTooltipStyle = { borderRadius: 12, border: '1px solid var(--color-line)', fontSize: 13, background: 'var(--color-card)', color: 'var(--color-ink)' }
 const axisTick = { fontSize: 12, fill: 'var(--color-text-secondary)' }
+const PIE_COLORS = ['var(--color-accent)', 'var(--color-info)', 'var(--color-success)', 'var(--color-warning)', 'var(--color-neutral)', 'var(--color-accent-cyan)']
 
 function SectionError({ message, onRetry }) {
     return (
@@ -227,15 +228,48 @@ function OrganizationDashboard() {
                 </div>
             </Card>
 
-            <div className='grid lg:grid-cols-[1.3fr_1fr] gap-6 mb-6'>
+            <Card className='p-6 mb-6'>
+                <div className='flex items-center justify-between mb-4'>
+                    <h3 className='text-[15px] font-semibold text-ink'>Active Interview Drives</h3>
+                    <button onClick={() => navigate(`${basePath}/drives`)} className='text-[12.5px] font-medium text-accent flex items-center gap-1 hover:underline'>
+                        View All <ArrowRight size={12} />
+                    </button>
+                </div>
+                <ActiveDrivesTable basePath={basePath} />
+            </Card>
+
+            <div className='grid lg:grid-cols-3 gap-6 mb-6'>
                 <Card className='p-6'>
-                    <div className='flex items-center justify-between mb-4'>
-                        <h3 className='text-[15px] font-semibold text-ink'>Active Interview Drives</h3>
-                        <button onClick={() => navigate(`${basePath}/drives`)} className='text-[12.5px] font-medium text-accent flex items-center gap-1 hover:underline'>
-                            View All <ArrowRight size={12} />
-                        </button>
-                    </div>
-                    <ActiveDrivesTable basePath={basePath} />
+                    <h3 className='text-[15px] font-semibold text-ink mb-2'>Department Wise Hiring</h3>
+                    {trends.isError ? <SectionError message='Unable to load department breakdown.' onRetry={trends.refetch} />
+                        : trends.isLoading ? <Skeleton className='h-48 w-full' />
+                        : !trends.data.departmentBreakdown?.length ? (
+                            <p className='text-[13px] text-text-secondary py-10 text-center'>No candidate data yet.</p>
+                        ) : (
+                            <div className='flex items-center gap-4'>
+                                <div className='w-28 h-28 shrink-0'>
+                                    <ResponsiveContainer width='100%' height='100%'>
+                                        <PieChart>
+                                            <Pie data={trends.data.departmentBreakdown} dataKey='count' nameKey='department' innerRadius={34} outerRadius={54} paddingAngle={2}>
+                                                {trends.data.departmentBreakdown.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                                            </Pie>
+                                            <Tooltip contentStyle={chartTooltipStyle} />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+                                <div className='flex-1 space-y-1.5 min-w-0'>
+                                    {trends.data.departmentBreakdown.slice(0, 5).map((d, i) => (
+                                        <div key={d.department} className='flex items-center justify-between text-[12.5px] gap-2'>
+                                            <span className='flex items-center gap-1.5 min-w-0'>
+                                                <span className='w-2 h-2 rounded-full shrink-0' style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
+                                                <span className='text-ink truncate'>{d.department}</span>
+                                            </span>
+                                            <span className='text-text-secondary font-medium shrink-0'>{d.percentage}%</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                 </Card>
 
                 <Card className='p-6'>
@@ -243,26 +277,6 @@ function OrganizationDashboard() {
                     {trends.isError ? <SectionError message='Unable to load the pipeline.' onRetry={trends.refetch} />
                         : trends.isLoading ? <SkeletonText lines={5} />
                             : <FunnelChart stages={trends.data.pipeline} />}
-                </Card>
-            </div>
-
-            <div className='grid lg:grid-cols-[1.3fr_1fr] gap-6'>
-                <Card className='p-6'>
-                    <h3 className='text-[15px] font-semibold text-ink mb-6'>Score Distribution</h3>
-                    <div className='h-56'>
-                        {trends.isError ? <SectionError message='Unable to load score distribution.' onRetry={trends.refetch} />
-                            : trends.isLoading ? <Skeleton className='w-full h-full' /> : (
-                                <ResponsiveContainer width='100%' height='100%'>
-                                    <BarChart data={trends.data.scoreDistribution}>
-                                        <CartesianGrid strokeDasharray='3 3' stroke='var(--color-line)' />
-                                        <XAxis dataKey='bucket' tick={axisTick} axisLine={{ stroke: 'var(--color-line)' }} tickLine={false} />
-                                        <YAxis allowDecimals={false} tick={axisTick} axisLine={false} tickLine={false} />
-                                        <Tooltip contentStyle={chartTooltipStyle} />
-                                        <Bar dataKey='count' fill='var(--color-accent)' radius={[6, 6, 0, 0]} />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            )}
-                    </div>
                 </Card>
 
                 <Card className='p-6'>
@@ -272,6 +286,24 @@ function OrganizationDashboard() {
                             : <ActivityFeed items={activity.data} />}
                 </Card>
             </div>
+
+            <Card className='p-6'>
+                <h3 className='text-[15px] font-semibold text-ink mb-6'>Score Distribution</h3>
+                <div className='h-56'>
+                    {trends.isError ? <SectionError message='Unable to load score distribution.' onRetry={trends.refetch} />
+                        : trends.isLoading ? <Skeleton className='w-full h-full' /> : (
+                            <ResponsiveContainer width='100%' height='100%'>
+                                <BarChart data={trends.data.scoreDistribution}>
+                                    <CartesianGrid strokeDasharray='3 3' stroke='var(--color-line)' />
+                                    <XAxis dataKey='bucket' tick={axisTick} axisLine={{ stroke: 'var(--color-line)' }} tickLine={false} />
+                                    <YAxis allowDecimals={false} tick={axisTick} axisLine={false} tickLine={false} />
+                                    <Tooltip contentStyle={chartTooltipStyle} />
+                                    <Bar dataKey='count' fill='var(--color-accent)' radius={[6, 6, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        )}
+                </div>
+            </Card>
         </OrganizationLayout>
     )
 }
