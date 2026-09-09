@@ -26,6 +26,30 @@ const guessMapping = (headers) => {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+// Loose on purpose - candidate phone numbers arrive in every country/
+// formatting convention (spaces, dashes, parens, leading +). This only
+// rejects things that clearly aren't a phone number (letters, too short).
+const PHONE_RE = /^\+?[\d\s\-()]{7,18}$/
+// Accepts "4", "4.5", "4 years", "4yrs" etc. - whatever an admin's
+// spreadsheet happens to use - but rejects free text that isn't a number
+// at all (e.g. "Senior").
+const EXPERIENCE_RE = /^\d+(\.\d+)?\s*(yrs?|years?)?$/i
+
+// Returns { severity: 'VALID' | 'WARNING' | 'INVALID', issues: string[] }.
+// INVALID rows (missing required field, or a duplicate email within this
+// file) are excluded from import; WARNING rows (optional-field formatting
+// issues) still import, just flagged for the admin to review.
+const validateRow = ({ name, email, phone, exp }, seenEmails) => {
+    const issues = []
+    if (!name?.trim()) issues.push({ text: 'Empty Name Field', severity: 'INVALID' })
+    if (!email || !EMAIL_RE.test(email)) issues.push({ text: 'Missing/invalid Email', severity: 'INVALID' })
+    else if (seenEmails.has(email)) issues.push({ text: 'Duplicate email in this file', severity: 'INVALID' })
+    if (phone?.trim() && !PHONE_RE.test(phone.trim())) issues.push({ text: 'Invalid phone number', severity: 'WARNING' })
+    if (exp?.trim() && !EXPERIENCE_RE.test(exp.trim())) issues.push({ text: 'Invalid experience value', severity: 'WARNING' })
+
+    const severity = issues.some((i) => i.severity === 'INVALID') ? 'INVALID' : issues.length ? 'WARNING' : 'VALID'
+    return { severity, issues }
+}
 
 function CandidateImportModal({ open, onClose, onImportComplete }) {
     const [step, setStep] = useState(1) // 1: Upload, 2: Map Headers, 3: Verify & Fix
@@ -65,19 +89,14 @@ function CandidateImportModal({ open, onClose, onImportComplete }) {
     const buildRowsFromMapping = () => {
         const seenEmails = new Set()
         const rows = records.map((record, i) => {
-            const name = mapping.nameHeader ? record[mapping.nameHeader] : ''
-            const email = (mapping.emailHeader ? record[mapping.emailHeader] : '').toLowerCase()
-            const phone = mapping.phoneHeader ? record[mapping.phoneHeader] : ''
-            const exp = mapping.expHeader ? record[mapping.expHeader] : ''
+            const name = (mapping.nameHeader ? record[mapping.nameHeader] : '')?.trim() || ''
+            const email = (mapping.emailHeader ? record[mapping.emailHeader] : '').toLowerCase().trim()
+            const phone = (mapping.phoneHeader ? record[mapping.phoneHeader] : '')?.trim() || ''
+            const exp = (mapping.expHeader ? record[mapping.expHeader] : '')?.trim() || ''
 
-            let status = 'VERIFIED'
-            let error = null
-            if (!name?.trim()) { status = 'ERROR'; error = 'Empty Name Field' }
-            else if (!EMAIL_RE.test(email)) { status = 'ERROR'; error = "Missing/invalid Email" }
-            else if (seenEmails.has(email)) { status = 'DUPLICATE'; error = 'Duplicate email in this file' }
-
-            if (status !== 'ERROR' || email) seenEmails.add(email)
-            return { row: i + 2, name: name?.trim() || '', email, phone: phone?.trim() || '', exp: exp?.trim() || '', status, error }
+            const { severity, issues } = validateRow({ name, email, phone, exp }, seenEmails)
+            if (email) seenEmails.add(email)
+            return { row: i + 2, name, email, phone, exp, status: severity, issues }
         })
         setCandidateRows(rows)
     }
@@ -89,26 +108,28 @@ function CandidateImportModal({ open, onClose, onImportComplete }) {
             const seenEmails = new Set(prev.filter((r) => r.row !== rowNum && r.email).map((r) => r.email.toLowerCase()))
             return prev.map((r) => {
                 if (r.row !== rowNum) return r
+                const name = (updatedData.name || '').trim()
                 const email = (updatedData.email || '').toLowerCase().trim()
-                const hasName = Boolean(updatedData.name?.trim())
-                let status = 'VERIFIED'
-                let error = null
-                if (!hasName) { status = 'ERROR'; error = 'Empty Name Field' }
-                else if (!EMAIL_RE.test(email)) { status = 'ERROR'; error = "Missing/invalid Email" }
-                else if (seenEmails.has(email)) { status = 'DUPLICATE'; error = 'Duplicate email in this file' }
-                return { ...r, ...updatedData, email, status, error }
+                const phone = (updatedData.phone || '').trim()
+                const exp = (updatedData.exp || '').trim()
+                const { severity, issues } = validateRow({ name, email, phone, exp }, seenEmails)
+                return { ...r, name, email, phone, exp, status: severity, issues }
             })
         })
         setEditingRow(null)
     }
 
-    const validCount = candidateRows.filter((r) => r.status === 'VERIFIED').length
+    const validCount = candidateRows.filter((r) => r.status === 'VALID').length
+    const warningCount = candidateRows.filter((r) => r.status === 'WARNING').length
+    const invalidCount = candidateRows.filter((r) => r.status === 'INVALID').length
     const totalCount = candidateRows.length
     const mappingComplete = mapping.nameHeader && mapping.emailHeader
 
     const handleFinishImport = () => {
-        const verifiedCandidates = candidateRows.filter((r) => r.status === 'VERIFIED')
-        onImportComplete(verifiedCandidates)
+        // Warnings are flagged, not blocking - only rows missing a required
+        // field or duplicating another row's email are excluded.
+        const importableCandidates = candidateRows.filter((r) => r.status !== 'INVALID')
+        onImportComplete(importableCandidates)
         onClose()
         reset()
     }
@@ -140,8 +161,8 @@ function CandidateImportModal({ open, onClose, onImportComplete }) {
                     )}
 
                     {step === 3 && (
-                        <Button type="button" size="sm" onClick={handleFinishImport} disabled={validCount === 0}>
-                            <Check size={14} /> Finish Import ({validCount}/{totalCount})
+                        <Button type="button" size="sm" onClick={handleFinishImport} disabled={validCount + warningCount === 0}>
+                            <Check size={14} /> Finish Import ({validCount + warningCount}/{totalCount})
                         </Button>
                     )}
                 </div>
@@ -197,7 +218,7 @@ function CandidateImportModal({ open, onClose, onImportComplete }) {
                             <span className="text-[13px] font-medium text-ink flex items-center gap-2">
                                 <FileText size={16} className="text-accent" /> {fileName}
                             </span>
-                            <Badge variant="purple">{records.length} Rows Detected</Badge>
+                            <Badge variant="info">{records.length} Rows Detected</Badge>
                         </div>
                     )}
 
@@ -253,14 +274,22 @@ function CandidateImportModal({ open, onClose, onImportComplete }) {
             {/* Step 3: Verification & Errors List */}
             {step === 3 && (
                 <div className="space-y-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
-                            <h3 className="text-[14.5px] font-bold text-ink">Verification & Errors List</h3>
+                            <h3 className="text-[14.5px] font-bold text-ink">Import Preview</h3>
                             <p className="text-[12.5px] text-text-secondary">Review spreadsheet validation results and fix formatting errors inline.</p>
                         </div>
-                        <span className="text-[12px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
-                            {validCount} Ready / {totalCount} Total
-                        </span>
+                        <div className="flex items-center gap-2 text-[12.5px] font-bold">
+                            <span className="flex items-center gap-1 text-[var(--color-success)] bg-[var(--color-success-soft)] px-2.5 py-1 rounded-lg">
+                                <Check size={13} /> {validCount} valid
+                            </span>
+                            <span className="flex items-center gap-1 text-[var(--color-warning)] bg-[var(--color-warning-soft)] px-2.5 py-1 rounded-lg">
+                                <AlertCircle size={13} /> {warningCount} warnings
+                            </span>
+                            <span className="flex items-center gap-1 text-[var(--color-danger)] bg-[var(--color-danger-soft)] px-2.5 py-1 rounded-lg">
+                                <AlertCircle size={13} /> {invalidCount} invalid
+                            </span>
+                        </div>
                     </div>
 
                     <div className="overflow-x-auto border border-line rounded-xl">
@@ -271,6 +300,7 @@ function CandidateImportModal({ open, onClose, onImportComplete }) {
                                     <th className="py-2.5 px-3">Candidate Name</th>
                                     <th className="py-2.5 px-3">Email Address</th>
                                     <th className="py-2.5 px-3">Phone</th>
+                                    <th className="py-2.5 px-3">Experience</th>
                                     <th className="py-2.5 px-3">Status / Validation</th>
                                     <th className="py-2.5 px-3 text-right">Action</th>
                                 </tr>
@@ -282,13 +312,17 @@ function CandidateImportModal({ open, onClose, onImportComplete }) {
                                         <td className="py-3 px-3 font-semibold text-ink">{row.name || <span className="text-red-500 italic">[Empty]</span>}</td>
                                         <td className="py-3 px-3 font-mono text-[12.5px]">{row.email}</td>
                                         <td className="py-3 px-3 text-text-secondary">{row.phone}</td>
+                                        <td className="py-3 px-3 text-text-secondary">{row.exp || '—'}</td>
                                         <td className="py-3 px-3">
-                                            {row.status === 'VERIFIED' && <Badge variant="success">Verified</Badge>}
-                                            {row.status === 'ERROR' && <Badge variant="danger">{row.error}</Badge>}
-                                            {row.status === 'DUPLICATE' && <Badge variant="warning">{row.error}</Badge>}
+                                            {row.status === 'VALID' && <Badge variant="success">Verified</Badge>}
+                                            {row.issues.map((issue, i) => (
+                                                <Badge key={i} variant={issue.severity === 'INVALID' ? 'danger' : 'warning'} className="mr-1 mb-1">
+                                                    {issue.text}
+                                                </Badge>
+                                            ))}
                                         </td>
                                         <td className="py-3 px-3 text-right">
-                                            {row.status !== 'VERIFIED' && (
+                                            {row.status !== 'VALID' && (
                                                 <Button
                                                     size="xs"
                                                     variant="secondary"
@@ -340,6 +374,12 @@ function CandidateImportModal({ open, onClose, onImportComplete }) {
                             label="Phone Number"
                             value={editingRow.phone}
                             onChange={(e) => setEditingRow({ ...editingRow, phone: e.target.value })}
+                        />
+                        <Input
+                            label="Experience"
+                            placeholder="e.g. 4 or 4 years"
+                            value={editingRow.exp}
+                            onChange={(e) => setEditingRow({ ...editingRow, exp: e.target.value })}
                         />
                     </div>
                 </Modal>
