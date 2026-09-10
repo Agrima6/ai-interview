@@ -20,7 +20,14 @@ router.post("/question-banks", authenticate, requirePermission("CLIENT_SELF_UPDA
 
 // Notification Templates
 router.get("/organization/templates", authenticate, requirePermission("CLIENT_SELF_READ"), portalController.listTemplates)
+router.post("/organization/templates", authenticate, requirePermission("CLIENT_SELF_UPDATE"), portalController.createTemplate)
 router.put("/organization/templates/:id", authenticate, requirePermission("CLIENT_SELF_UPDATE"), portalController.updateTemplate)
 router.post("/organization/templates/:id/preview", authenticate, requirePermission("CLIENT_SELF_READ"), portalController.previewTemplate)
+router.delete("/organization/templates/:id", authenticate, requirePermission("CLIENT_SELF_UPDATE"), portalController.deleteTemplate)
+
+// SMTP Settings
+router.get("/organization/smtp", authenticate, requirePermission("CLIENT_SELF_READ"), portalController.getSmtpSettings)
+router.put("/organization/smtp", authenticate, requirePermission("CLIENT_SELF_UPDATE"), portalController.updateSmtpSettings)
+router.post("/organization/smtp/test", authenticate, requirePermission("CLIENT_SELF_UPDATE"), portalController.testSmtpConnection)
 
 export default router

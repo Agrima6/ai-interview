@@ -47,6 +47,7 @@ import CandidatesListPage from './pages/organization/CandidatesListPage'
 import QuestionSetsPage from './pages/organization/QuestionSetsPage'
 import TeamPage from './pages/organization/TeamPage'
 import TemplatesPage from './pages/organization/TemplatesPage'
+import ReportsPage from './pages/organization/ReportsPage'
 import SettingsPage from './pages/organization/SettingsPage'
 import ApplyPage from './pages/ApplyPage'
 import AuthPage from './pages/auth/AuthPage'
@@ -125,6 +126,7 @@ function App() {
       <Route path='/platform/client/candidates' element={<RequireClientAuth><CandidatesListPage/></RequireClientAuth>}/>
       <Route path='/platform/client/team' element={<RequireClientAuth><TeamPage/></RequireClientAuth>}/>
       <Route path='/platform/client/templates' element={<RequireClientAuth><TemplatesPage/></RequireClientAuth>}/>
+      <Route path='/platform/client/reports' element={<RequireClientAuth><ReportsPage/></RequireClientAuth>}/>
       <Route path='/platform/client/settings' element={<RequireClientAuth><SettingsPage/></RequireClientAuth>}/>
 
       {/* Organization Portal Routes */}
@@ -135,6 +137,7 @@ function App() {
       <Route path='/organization/candidates' element={<RequireClientAuth><CandidatesListPage/></RequireClientAuth>}/>
       <Route path='/organization/team' element={<RequireClientAuth><TeamPage/></RequireClientAuth>}/>
       <Route path='/organization/templates' element={<RequireClientAuth><TemplatesPage/></RequireClientAuth>}/>
+      <Route path='/organization/reports' element={<RequireClientAuth><ReportsPage/></RequireClientAuth>}/>
       <Route path='/organization/settings' element={<RequireClientAuth><SettingsPage/></RequireClientAuth>}/>
 
       {/* College Portal Routes */}
@@ -145,6 +148,7 @@ function App() {
       <Route path='/college/candidates' element={<RequireClientAuth><CandidatesListPage/></RequireClientAuth>}/>
       <Route path='/college/team' element={<RequireClientAuth><TeamPage/></RequireClientAuth>}/>
       <Route path='/college/templates' element={<RequireClientAuth><TemplatesPage/></RequireClientAuth>}/>
+      <Route path='/college/reports' element={<RequireClientAuth><ReportsPage/></RequireClientAuth>}/>
       <Route path='/college/settings' element={<RequireClientAuth><SettingsPage/></RequireClientAuth>}/>
 
       {/* Candidate Portal Routes */}
@@ -155,6 +159,7 @@ function App() {
       <Route path='/candidate/candidates' element={<RequireClientAuth><CandidatesListPage/></RequireClientAuth>}/>
       <Route path='/candidate/team' element={<RequireClientAuth><TeamPage/></RequireClientAuth>}/>
       <Route path='/candidate/templates' element={<RequireClientAuth><TemplatesPage/></RequireClientAuth>}/>
+      <Route path='/candidate/reports' element={<RequireClientAuth><ReportsPage/></RequireClientAuth>}/>
       <Route path='/candidate/settings' element={<RequireClientAuth><SettingsPage/></RequireClientAuth>}/>
       <Route path='/dashboard' element={<RequireAuth><Home/></RequireAuth>}/>
       <Route path='/interview' element={<RequireAuth><InterviewPage/></RequireAuth>}/>

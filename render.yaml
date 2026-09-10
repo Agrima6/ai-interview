@@ -240,3 +240,29 @@ services:
         sync: false
       - key: SERVICE_PERMISSIONS
         value: '{"dashboard-service":["STATISTICS_READ"]}'
+
+  - type: web
+    name: client
+    runtime: static
+    rootDir: client
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_GATEWAY_URL
+        sync: false
+      - key: VITE_SERVER_URL
+        sync: false
+      - key: VITE_FIREBASE_APIKEY
+        sync: false
+      - key: VITE_FIREBASE_AUTHDOMAIN
+        sync: false
+      - key: VITE_FIREBASE_PROJECTID
+        sync: false
+      - key: VITE_FIREBASE_APPID
+        sync: false
+      - key: VITE_RAZORPAY_KEY_ID
+        sync: false

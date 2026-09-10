@@ -15,6 +15,8 @@ router.get("/drives/public/:link", driveController.getPublicDriveBySlug)
 
 router.get("/drives", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.listDrives)
 router.post("/drives", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.createDrive)
+// Must be registered before "/drives/:id" or Express would treat "export" as a drive id.
+router.get("/drives/export", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.exportDrivesCsv)
 router.get("/drives/:id", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.getDriveById)
 router.post("/drives/:id/candidates", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.addCandidatesToDrive)
 router.post("/drives/:id/rounds", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.addRoundToDrive)
@@ -24,7 +26,9 @@ router.patch("/drives/:id/rounds/:roundNumber", authenticate, requirePermission(
 router.patch("/drives/:id/rounds/:roundNumber/candidates/:candidateId/status", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.updateCandidateStatus)
 router.patch("/drives/:id/rounds/:roundNumber/candidates/:candidateId", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.updateCandidate)
 router.delete("/drives/:id/rounds/:roundNumber/candidates/:candidateId", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.removeCandidate)
+router.post("/drives/:id/rounds/:roundNumber/candidates/communicate", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.communicateWithCandidates)
 
 router.get("/candidates", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.listAllCandidates)
+router.get("/candidates/export", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.exportCandidatesCsv)
 
 export default router

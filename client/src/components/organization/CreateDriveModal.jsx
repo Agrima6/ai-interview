@@ -567,6 +567,10 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
               expiryDate: payload.expiryDate,
             },
           })
+        // The backend generates and persists the real publicLink (and the
+        // real drive id) - there is no client-side fallback on failure here:
+        // if this call fails the admin sees the real error and nothing is
+        // created, rather than believing a drive exists that was never saved.
         : await createInterviewDrive(payload)
       onCreateDrive(response)
       onClose()

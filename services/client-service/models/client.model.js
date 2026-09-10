@@ -24,6 +24,20 @@ const clientSchema = new mongoose.Schema({
         secondaryColor: { type: String, default: null },
         fontFamily: { type: String, default: null },
     },
+    smtp: {
+        host: { type: String, default: null },
+        port: { type: Number, default: null },
+        encryption: { type: String, enum: ["NONE", "SSL", "TLS"], default: "TLS" },
+        username: { type: String, default: null },
+        // AES-256-GCM ciphertext (utils/crypto.js) - the plaintext password
+        // is never stored and never sent back to the client after saving.
+        encryptedPassword: { type: String, default: null, select: false },
+        fromName: { type: String, default: null },
+        fromEmail: { type: String, default: null },
+        configured: { type: Boolean, default: false },
+        lastTestedAt: { type: Date, default: null },
+        lastTestStatus: { type: String, enum: ["SUCCESS", "FAILED", null], default: null },
+    },
     status: { type: String, enum: ["PENDING", "ACTIVE", "SUSPENDED", "REJECTED"], default: "PENDING" },
     subdomain: { type: String, default: null },
 }, { timestamps: true })

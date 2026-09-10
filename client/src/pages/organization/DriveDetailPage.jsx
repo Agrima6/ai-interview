@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { ArrowLeft, Plus, CheckCircle2, ShieldAlert, Sparkles, Eye, FileSpreadsheet, AlertCircle, Link2, Copy, Check, ExternalLink, Upload, Pencil } from 'lucide-react'
+import { ArrowLeft, Plus, CheckCircle2, ShieldAlert, Sparkles, Eye, FileSpreadsheet, AlertCircle, Link2, Copy, Check, ExternalLink, Upload, Pencil, PartyPopper, XCircle, CheckSquare, Square } from 'lucide-react'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
 import CandidateDetailModal from '../../components/organization/CandidateDetailModal'
 import CreateDriveModal from '../../components/organization/CreateDriveModal'
 import CreateRoundModal from '../../components/organization/CreateRoundModal'
 import CandidateImportModal from '../../components/organization/CandidateImportModal'
+import SendRoundCommunicationModal from '../../components/organization/SendRoundCommunicationModal'
 import { Card, Button, Badge, SearchInput, StatCard, Skeleton, useToast } from '../../components/ui'
 import { getInterviewDriveById, updateDriveStatus, updateRoundStatus, updateCandidateStatus, addCandidatesToDrive } from '../../api/organization/organizationApi'
 
@@ -31,6 +32,8 @@ function DriveDetailPage() {
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [selectedCandidate, setSelectedCandidate] = useState(null)
   const [copiedLink, setCopiedLink] = useState(false)
+  const [selectedIds, setSelectedIds] = useState([])
+  const [communicationModal, setCommunicationModal] = useState(null) // 'CONGRATULATIONS' | 'REJECTION' | null
 
   const basePath = location.pathname.startsWith('/college')
     ? '/college'
@@ -181,6 +184,23 @@ function DriveDetailPage() {
 
     return matchesSearch && matchesScore && matchesFlags && matchesStatus
   })
+
+  // A selection made in one round/filter view shouldn't silently carry over
+  // and get acted on in a different one.
+  useEffect(() => { setSelectedIds([]) }, [activeRoundTab])
+
+  const toggleSelect = (candId) =>
+    setSelectedIds((prev) => (prev.includes(candId) ? prev.filter((selId) => selId !== candId) : [...prev, candId]))
+
+  const toggleSelectAll = () =>
+    setSelectedIds((prev) => (prev.length === filteredCandidates.length ? [] : filteredCandidates.map((c) => c.id)))
+
+  const selectedCandidateObjs = currentCandidates.filter((c) => selectedIds.includes(c.id))
+
+  const handleCommunicationSent = () => {
+    setSelectedIds([])
+    fetchDrive()
+  }
 
   if (loading) {
     return (
@@ -388,6 +408,20 @@ function DriveDetailPage() {
           </div>
         </div>
 
+        {selectedIds.length > 0 && (
+          <div className="flex items-center justify-between gap-3 mb-4 p-3 rounded-xl border border-accent/30 bg-accent/5 flex-wrap">
+            <span className="text-[13px] font-semibold text-ink">{selectedIds.length} candidate{selectedIds.length === 1 ? '' : 's'} selected</span>
+            <div className="flex items-center gap-2">
+              <Button size="xs" onClick={() => setCommunicationModal('CONGRATULATIONS')}>
+                <PartyPopper size={13} /> Send Congratulations
+              </Button>
+              <Button size="xs" variant="danger" onClick={() => setCommunicationModal('REJECTION')}>
+                <XCircle size={13} /> Reject & Send Rejection
+              </Button>
+            </div>
+          </div>
+        )}
+
         <div className="interview-mobile-candidates">
           {filteredCandidates.length === 0 ? (
             <div className="py-10 text-center text-text-secondary">
@@ -396,9 +430,14 @@ function DriveDetailPage() {
           ) : filteredCandidates.map((cand) => (
             <article key={cand.id} className="interview-candidate-card">
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="truncate font-semibold text-ink">{cand.name}</h3>
-                  <p className="mt-0.5 text-[12px] text-text-secondary">{cand.exp} experience</p>
+                <div className="flex items-start gap-2.5 min-w-0">
+                  <button type="button" onClick={() => toggleSelect(cand.id)} aria-label={`Select ${cand.name}`} className="mt-0.5 shrink-0">
+                    {selectedIds.includes(cand.id) ? <CheckSquare size={16} className="text-accent" /> : <Square size={16} className="text-text-secondary" />}
+                  </button>
+                  <div className="min-w-0">
+                    <h3 className="truncate font-semibold text-ink">{cand.name}</h3>
+                    <p className="mt-0.5 text-[12px] text-text-secondary">{cand.exp} experience</p>
+                  </div>
                 </div>
                 <span className={`text-[17px] font-extrabold ${cand.aiScore >= 80 ? 'text-emerald-600' : cand.aiScore >= 70 ? 'text-amber-600' : 'text-red-600'}`}>
                   {cand.aiScore}%
@@ -410,7 +449,7 @@ function DriveDetailPage() {
               </div>
               <div className="flex items-center justify-between gap-2">
                 {cand.malpracticeFlags === 0 ? <Badge variant="success">0 Flags Clean</Badge> : cand.malpracticeFlags === 1 ? <Badge variant="warning">1 Minor Flag</Badge> : <Badge variant="danger">{cand.malpracticeFlags} Suspicious Flags</Badge>}
-                <Button size="xs" variant="secondary" onClick={() => setSelectedCandidate(cand)}><Eye size={13} /> Scorecard</Button>
+                <Button size="xs" variant="secondary" onClick={() => setSelectedCandidate({ ...cand, driveTitle: drive.title })}><Eye size={13} /> Scorecard</Button>
               </div>
             </article>
           ))}
@@ -420,6 +459,15 @@ function DriveDetailPage() {
           <table className="interview-table w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-line text-[12px] font-semibold uppercase tracking-wider text-text-secondary">
+                <th className="pb-3 px-3 w-8">
+                  <button type="button" onClick={toggleSelectAll} aria-label="Select all candidates" className="flex items-center">
+                    {filteredCandidates.length > 0 && selectedIds.length === filteredCandidates.length ? (
+                      <CheckSquare size={16} className="text-accent" />
+                    ) : (
+                      <Square size={16} className="text-text-secondary" />
+                    )}
+                  </button>
+                </th>
                 <th className="pb-3 px-3">Candidate Details</th>
                 <th className="pb-3 px-3">Contact info</th>
                 <th className="pb-3 px-3">AI Score</th>
@@ -431,13 +479,18 @@ function DriveDetailPage() {
             <tbody className="divide-y divide-line text-[13.5px]">
               {filteredCandidates.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-10 text-center text-text-secondary">
+                  <td colSpan={7} className="py-10 text-center text-text-secondary">
                     {currentCandidates.length === 0 ? 'No candidates in this round yet.' : 'No candidates found matching the applied filters.'}
                   </td>
                 </tr>
               ) : (
                 filteredCandidates.map((cand) => (
                   <tr key={cand.id} className="hover:bg-black/1.5 dark:hover:bg-white/2 transition-colors">
+                    <td className="py-4 px-3">
+                      <button type="button" onClick={() => toggleSelect(cand.id)} aria-label={`Select ${cand.name}`} className="flex items-center">
+                        {selectedIds.includes(cand.id) ? <CheckSquare size={16} className="text-accent" /> : <Square size={16} className="text-text-secondary" />}
+                      </button>
+                    </td>
                     <td className="py-4 px-3">
                       <div className="font-semibold text-ink leading-tight">{cand.name}</div>
                       <div className="text-[12px] text-text-secondary">Exp: {cand.exp}</div>
@@ -466,7 +519,7 @@ function DriveDetailPage() {
                       </Badge>
                     </td>
                     <td className="py-4 px-3 text-right">
-                      <Button size="xs" variant="secondary" onClick={() => setSelectedCandidate(cand)}>
+                      <Button size="xs" variant="secondary" onClick={() => setSelectedCandidate({ ...cand, driveTitle: drive.title })}>
                         <Eye size={13} /> Scorecard Report
                       </Button>
                     </td>
@@ -515,6 +568,16 @@ function DriveDetailPage() {
         open={candidateImportOpen}
         onClose={() => setCandidateImportOpen(false)}
         onImportComplete={handleCandidateImport}
+      />
+
+      <SendRoundCommunicationModal
+        open={Boolean(communicationModal)}
+        onClose={() => setCommunicationModal(null)}
+        purpose={communicationModal}
+        candidates={selectedCandidateObjs}
+        driveId={id}
+        roundNumber={currentRound?.roundNumber}
+        onSent={handleCommunicationSent}
       />
     </OrganizationLayout>
   )

@@ -2,11 +2,12 @@ import React from 'react'
 
 // Status-pill badge used for things like pending / sent / completed / failed.
 const VARIANTS = {
-  neutral: 'bg-black/[0.05] dark:bg-white/[0.08] text-text-secondary',
+  neutral: 'bg-[var(--color-neutral-soft)] text-[var(--color-neutral)]',
   brand: 'bg-accent/10 text-accent',
-  success: 'bg-[color-mix(in_srgb,var(--color-accent-cyan)_15%,transparent)] text-[var(--color-accent-cyan)]',
-  warning: 'bg-amber-500/10 text-amber-500',
-  danger: 'bg-red-500/10 text-red-500',
+  success: 'bg-[var(--color-success-soft)] text-[var(--color-success)]',
+  warning: 'bg-[var(--color-warning-soft)] text-[var(--color-warning)]',
+  danger: 'bg-[var(--color-danger-soft)] text-[var(--color-danger)]',
+  info: 'bg-[var(--color-info-soft)] text-[var(--color-info)]',
 }
 
 // Convenience map so callers can pass a raw status string directly.
