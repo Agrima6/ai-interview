@@ -16,7 +16,12 @@ export const getPublicDriveBySlug = async (req, res, next) => {
 }
 
 export const getPublicApplicationPrefill = async (req, res, next) => {
-    try { ok(res, await driveService.getPublicApplicationPrefill(req.params.link, req.query.email)) } catch (error) { next(error) }
+    try {
+        const token = req.query.token || req.query.prefillToken
+        ok(res, await driveService.getPublicApplicationPrefill(req.params.link, req.query.email, token))
+    } catch (error) {
+        next(error)
+    }
 }
 
 export const applyToPublicDrive = async (req, res, next) => {
@@ -104,7 +109,7 @@ export const streamCandidateRecording = async (req, res, next) => {
     try {
         const tenantId = req.user?.tenantId
         const { id, roundNumber, candidateId } = req.params
-        await driveService.streamCandidateRecording(tenantId, id, roundNumber, candidateId, res)
+        await driveService.streamCandidateRecording(tenantId, id, roundNumber, candidateId, res, req)
     } catch (error) {
         next(error)
     }
@@ -273,6 +278,16 @@ export const listAllCandidates = async (req, res, next) => {
         const tenantId = req.user?.tenantId
         const result = await driveService.listAllCandidates(tenantId, req.query)
         ok(res, result.items, { total: result.total, page: result.page, pageSize: result.pageSize })
+    } catch (error) {
+        next(error)
+    }
+}
+
+export const streamCandidateViolationSnapshot = async (req, res, next) => {
+    try {
+        const tenantId = req.user?.tenantId
+        const { id, roundNumber, candidateId, violationIndex, type } = req.params
+        await driveService.streamCandidateViolationSnapshot(tenantId, id, roundNumber, candidateId, violationIndex, type, res)
     } catch (error) {
         next(error)
     }

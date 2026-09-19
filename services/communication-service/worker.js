@@ -10,7 +10,7 @@ import { receiveNotifications, deleteNotification } from "./config/sqsClient.js"
 // idempotent: re-processing a message just re-sends and re-writes the same
 // terminal status, which is safe because the API never enqueues the same
 // communication twice.
-const MONGODB_URL = process.env.MONGODB_URL || "mongodb://localhost:27017/hirepro_communication"
+const MONGODB_URL = process.env.MONGODB_URL || "mongodb://127.0.0.1:27017/workmateiq_communication"
 
 const processMessage = async (message) => {
     const payload = JSON.parse(message.Body)
@@ -25,12 +25,33 @@ const processMessage = async (message) => {
     await dispatchCommunication(communication, { channel, recipient, finalSubject, finalBody, finalHtml, from, fromName })
 }
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+let isShuttingDown = false
+
+const handleShutdown = async (signal) => {
+    if (isShuttingDown) return
+    isShuttingDown = true
+    console.log(`[communication-worker] Received ${signal}, shutting down gracefully...`)
+    try {
+        await mongoose.connection.close()
+        console.log("[communication-worker] MongoDB connection closed.")
+    } catch (e) {
+        console.error("[communication-worker] Error closing MongoDB:", e.message)
+    }
+    process.exit(0)
+}
+
+process.on("SIGTERM", () => handleShutdown("SIGTERM"))
+process.on("SIGINT", () => handleShutdown("SIGINT"))
+
 const pollLoop = async () => {
-    for (;;) {
+    while (!isShuttingDown) {
         try {
             const { Messages } = await receiveNotifications()
             if (!Messages?.length) continue
             for (const message of Messages) {
+                if (isShuttingDown) break
                 try {
                     await processMessage(message)
                 } catch (err) {
@@ -46,6 +67,7 @@ const pollLoop = async () => {
             }
         } catch (err) {
             console.error("[communication-worker] poll failed:", err.message)
+            await sleep(5000)
         }
     }
 }

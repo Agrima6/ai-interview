@@ -61,17 +61,24 @@ const renderText = (text, values) => (text || "").replace(/\{\{?\s*(\w+)\s*\}?\}
     Object.prototype.hasOwnProperty.call(values, key) ? values[key] : match
 )
 
+import crypto from "crypto"
+
 export const listTemplates = async (tenantId) => {
     if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+    return await NotificationTemplate.find({ tenantId }).sort({ createdAt: 1 })
+}
 
-    let templates = await NotificationTemplate.find({ tenantId }).sort({ createdAt: 1 })
-    if (templates.length === 0) {
-        const seeded = await NotificationTemplate.insertMany(
-            DEFAULT_TEMPLATES.map((t) => ({ ...t, tenantId }))
-        )
-        return seeded
-    }
-    return templates
+export const loadDefaultTemplates = async (tenantId) => {
+    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+    const existing = await NotificationTemplate.find({ tenantId })
+    if (existing.length > 0) return existing
+    return await NotificationTemplate.insertMany(
+        DEFAULT_TEMPLATES.map((t) => ({
+            ...t,
+            templateId: `tmpl-${crypto.randomBytes(4).toString("hex")}`,
+            tenantId,
+        }))
+    )
 }
 
 export const updateTemplate = async (tenantId, templateId, { subject, body, name, type, purpose, status }) => {

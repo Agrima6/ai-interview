@@ -37,7 +37,7 @@ function CandidateRoomPage() {
 
     const handleLogout = async () => {
         await logout()
-        navigate('/candidate/login')
+        navigate('/login')
     }
 
     return (

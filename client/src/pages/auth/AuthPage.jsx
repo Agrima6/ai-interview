@@ -15,7 +15,6 @@ import RoleSelector from '../../components/auth/RoleSelector'
 import RegistrationModal from '../../components/auth/RegistrationModal'
 import logo from '../../assets/logo.png'
 
-const DEV_ADMIN = { email: 'admin@workmateiq.local', password: 'Agrima123' }
 const STATUS_LABEL = { QUEUED: 'Queued', SENT: 'Sent', MOCK_SENT: 'Sent (test mode)', FAILED: 'Failed', DELIVERED: 'Delivered' }
 const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || 'support@workmateiq.com'
 
@@ -30,8 +29,8 @@ function AuthPage() {
     const [authMode, setAuthMode] = useState(isRegisterPath ? 'register' : 'login')
 
     // Local states
-    const [email, setEmail] = useState(import.meta.env.DEV ? DEV_ADMIN.email : '')
-    const [password, setPassword] = useState(import.meta.env.DEV ? DEV_ADMIN.password : '')
+    const [email, setEmail] = useState('')
+    const [password, setPassword] = useState('')
     const [remember, setRemember] = useState(true)
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
@@ -208,13 +207,6 @@ function AuthPage() {
                                 Need help? Contact <a href={`mailto:${SUPPORT_EMAIL}`} className="text-accent font-semibold hover:underline">{SUPPORT_EMAIL}</a>.
                             </p>
 
-                            {registrationSuccessData.debugOnboardingUrl && (
-                                <a href={registrationSuccessData.debugOnboardingUrl} className="block mb-4">
-                                    <AuthButton variant="primary">
-                                        Open onboarding link (dev)
-                                    </AuthButton>
-                                </a>
-                            )}
                             <AuthButton variant="secondary" onClick={() => handleSwitchMode('register')}>
                                 Back to registration
                             </AuthButton>

@@ -63,6 +63,15 @@ export const listTemplates = async (req, res, next) => {
     }
 }
 
+export const loadDefaultTemplates = async (req, res, next) => {
+    try {
+        const templates = await templateService.loadDefaultTemplates(req.user?.tenantId)
+        ok(res, templates)
+    } catch (error) {
+        next(error)
+    }
+}
+
 export const updateTemplate = async (req, res, next) => {
     try {
         const updated = await templateService.updateTemplate(req.user?.tenantId, req.params.id, req.body)

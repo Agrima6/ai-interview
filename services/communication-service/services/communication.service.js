@@ -77,6 +77,10 @@ export const sendAndRecord = async ({ entityType, entityId, channel, eventType, 
     const communication = await communicationRepo.create({
         entityType, entityId, channel, eventType,
         templateId, templateVersion,
+        recipient,
+        subject: finalSubject,
+        body: finalBody,
+        html: finalHtml,
         destinationMasked, provider: providerLabel, status: "QUEUED",
         metadata: metadata || null,
     })
@@ -105,10 +109,17 @@ export const sendAndRecord = async ({ entityType, entityId, channel, eventType, 
         })
         return view(communication)
     } catch (error) {
-        // The queue itself is unreachable - fall back to sending inline so a
-        // LocalStack/SQS outage doesn't silently swallow every notification
-        // in the meantime (idempotency keys/backend aren't needed for the
-        // synchronous fallback path since it never repeats a queued send).
+        // In production, an enqueue failure must never block the HTTP request thread
+        // with synchronous external calls unless explicit dev flag ALLOW_SYNC_NOTIFY=true
+        if (process.env.NODE_ENV === "production" && process.env.ALLOW_SYNC_NOTIFY !== "true") {
+            console.error(`[${process.env.SERVICE_NAME}] Queue unreachable in production; marked FAILED without blocking:`, error.message)
+            const updated = await communicationRepo.updateStatus(communication._id, {
+                status: "FAILED",
+                lastErrorCode: "QUEUE_UNAVAILABLE",
+                failedAt: new Date(),
+            })
+            return view(updated)
+        }
         console.error(`[${process.env.SERVICE_NAME}] enqueue failed, sending inline:`, error.message)
         const updated = await dispatchCommunication(communication, { channel, recipient, finalSubject, finalBody, finalHtml, from: resolveSender(eventType), fromName })
         return view(updated)
@@ -185,9 +196,28 @@ export const retry = async (id) => {
     if (!["FAILED"].includes(communication.status)) {
         throw new ApiError(400, "NOT_RETRYABLE", "Only failed communications can be retried.")
     }
-    // A real retry would re-resolve the recipient from the owning entity;
-    // for this slice we just flip it back to queued for visibility.
-    const updated = await communicationRepo.updateStatus(id, { status: "QUEUED", attempts: communication.attempts + 1 })
+    if (!communication.recipient) {
+        throw new ApiError(400, "RECIPIENT_UNAVAILABLE", "Original recipient is not recorded for this message; cannot re-enqueue.")
+    }
+
+    const updated = await communicationRepo.updateStatus(id, {
+        status: "QUEUED",
+        attempts: communication.attempts + 1,
+        lastErrorCode: null,
+    })
+
+    const fromName = communication.metadata?.company_name || communication.metadata?.organizationName || undefined
+    await enqueueNotification({
+        communicationId: String(communication._id),
+        channel: communication.channel,
+        recipient: communication.recipient,
+        finalSubject: communication.subject || "",
+        finalBody: communication.body || "",
+        finalHtml: communication.html || null,
+        from: communication.channel === "EMAIL" ? resolveSender(communication.eventType) : undefined,
+        fromName,
+    })
+
     return view(updated)
 }
 

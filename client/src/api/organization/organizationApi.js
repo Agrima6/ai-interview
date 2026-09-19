@@ -15,7 +15,7 @@ export const getPublicDrive = (link) => apiGet(`/api/v1/drives/public/${link}`)
 // Public/unauthenticated self-service application - multipart because it carries the resume file.
 export const applyToDrive = (link, formData) => apiPost(`/api/v1/drives/public/${link}/apply`, formData)
 // Public/unauthenticated - whatever HR already filled in for this email (bulk import, etc), so the apply form can lock those fields instead of asking the candidate to retype them.
-export const getApplicationPrefill = (link, email) => apiGet(`/api/v1/drives/public/${link}/prefill`, { email })
+export const getApplicationPrefill = (link, email, token) => apiGet(`/api/v1/drives/public/${link}/prefill`, { email, token })
 // Authenticated (CANDIDATE role) - the signed-in candidate's own scheduled interviews, across every drive/round they applied to.
 export const getMyInterviews = () => apiGet("/api/v1/candidate/me/interviews")
 // Authenticated (CANDIDATE role) - proctoring event reporting + end-of-attempt marker for the candidate's own interview room.

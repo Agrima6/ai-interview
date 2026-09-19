@@ -48,19 +48,9 @@ const INTERVIEW_TYPES = [
   { value: 'System Design', label: 'System Design Round' },
 ]
 
-const defaultInvitationBody = `Hello {{candidate_name}},
-
-You have been invited to an interview for {{role}} at {{organization_name}}.
-
-Interview: {{interview_link}}
-Date: {{interview_date}}
-Time: {{interview_time}}`
-
-const defaultReminderBody = `Hello {{candidate_name}},
-
-This is a reminder that your interview for {{role}} is scheduled soon.`
-
-const defaultWhatsappBody = `Hello {{candidate_name}}, your interview for {{role}} is scheduled for {{interview_date}} at {{interview_time}}.`
+const defaultInvitationBody = ''
+const defaultReminderBody = ''
+const defaultWhatsappBody = ''
 
 const VARIABLE_TAGS = [
   'candidate_name',
@@ -541,7 +531,9 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
       expiryDate: formData.expiryDate,
       status: saveAsDraft ? 'DRAFT' : 'ACTIVE',
       questionMode: formData.questionMode,
+      questionBankId: formData.questionMode === 'PREBUILT' ? formData.questionBankId : null,
       questionBankTitle: formData.questionMode === 'PREBUILT' ? (selectedBank ? selectedBank.title : 'Pre-built Question Set') : `Custom Question Set (${customQuestions.length} Qs)`,
+      questions: formData.questionMode === 'PREBUILT' ? (selectedBank?.questions || []) : customQuestions,
       customQuestionsList: formData.questionMode === 'CUSTOM' ? customQuestions : [],
       skillRubrics: skillWeightages,
       passingThreshold: Number(formData.passingThreshold) || 70,
@@ -557,6 +549,8 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
             ...payload,
           candidates: importedCandidates,
           customQuestions: payload.customQuestionsList,
+          questions: payload.questions,
+          questionBankId: payload.questionBankId,
             driveDetails: {
               title: payload.title,
               roleCategory: payload.roleCategory,

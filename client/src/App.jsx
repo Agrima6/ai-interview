@@ -1,6 +1,6 @@
 import React from 'react'
 import { Route, Routes, Navigate } from 'react-router-dom'
-import Login from './pages/Login'
+import AuthPage from './pages/auth/AuthPage'
 import Home from './pages/Home'
 import { useEffect, useState } from 'react'
 import axios from 'axios'
@@ -50,9 +50,7 @@ import TemplatesPage from './pages/organization/TemplatesPage'
 import ReportsPage from './pages/organization/ReportsPage'
 import SettingsPage from './pages/organization/SettingsPage'
 import ApplyPage from './pages/ApplyPage'
-import AuthPage from './pages/auth/AuthPage'
 import ResetPasswordPage from './pages/auth/ResetPasswordPage'
-import CandidateLoginPage from './pages/candidate/CandidateLoginPage'
 import CandidateChangePassword from './pages/candidate/CandidateChangePassword'
 import CandidateRoomPage from './pages/candidate/CandidateRoomPage'
 import InterviewRoomPage from './pages/candidate/InterviewRoomPage'
@@ -102,17 +100,13 @@ function App() {
       <Route path='/hero-ecosystem' element={<WorkmateLayout showCursorSpotlight={false}><HeroEcosystem/></WorkmateLayout>}/>
       <Route path='/hero-flow' element={<WorkmateLayout showCursorSpotlight={false}><HeroFlow/></WorkmateLayout>}/>
       <Route path='/hero-depth' element={<WorkmateLayout showCursorSpotlight={false}><HeroDepth/></WorkmateLayout>}/>
-      <Route path='/login' element={<Login/>}/>
+      <Route path='/login' element={<AuthPage/>}/>
       <Route path='/apply/:link' element={<ApplyPage/>}/>
 
-      {/* New microservices-backed registration/onboarding platform (auth,
-          registration, onboarding services behind the API gateway). Namespaced
-          under /platform to avoid colliding with the existing Firebase-based
-          candidate login at /login. */}
-      <Route path='/platform/login' element={<AuthPage/>}/>
-      <Route path='/platform/register' element={<AuthPage/>}/>
-      <Route path='/platform/register/:type' element={<AuthPage/>}/>
-      <Route path='/platform/reset-password' element={<ResetPasswordPage/>}/>
+      {/* Registration */}
+      <Route path='/register' element={<AuthPage/>}/>
+      <Route path='/register/:type' element={<AuthPage/>}/>
+      <Route path='/reset-password' element={<ResetPasswordPage/>}/>
       <Route path='/platform/onboarding/:type/:token' element={<OnboardingFlow/>}/>
       <Route path='/platform/dashboard' element={<RequirePlatformAuth permission={featurePermissions.dashboard}><PlatformDashboard/></RequirePlatformAuth>}/>
       <Route path='/platform/admin/forms' element={<RequirePlatformAuth permission={featurePermissions.formBuilder}><FormBuilderPage/></RequirePlatformAuth>}/>
@@ -122,7 +116,6 @@ function App() {
       <Route path='/platform/admin/enquiries' element={<RequirePlatformAuth permission={featurePermissions.enquiries}><EnquiryList/></RequirePlatformAuth>}/>
 
       {/* Client portal: for approved organizations/colleges/candidates */}
-      <Route path='/platform/client/login' element={<Navigate to='/platform/login' replace/>}/>
       <Route path='/platform/client/change-password' element={<RequireClientAuth><ClientChangePassword/></RequireClientAuth>}/>
       <Route path='/platform/client/dashboard' element={<RequireClientAuth><OrganizationDashboard/></RequireClientAuth>}/>
       <Route path='/platform/client/drives' element={<RequireClientAuth><DrivesListPage/></RequireClientAuth>}/>
@@ -159,7 +152,7 @@ function App() {
       {/* Candidate Portal Routes - self-service applicants (CANDIDATE role),
           a separate session/identity from the org/HR RequireClientAuth above
           even though both go through the same auth-service. */}
-      <Route path='/candidate/login' element={<CandidateLoginPage/>}/>
+      <Route path='/candidate/login' element={<Navigate to='/login' replace />} />
       <Route path='/candidate/change-password' element={<CandidateChangePassword/>}/>
       <Route path='/candidate/room' element={<RequireCandidateAuth><CandidateRoomPage/></RequireCandidateAuth>}/>
       <Route path='/candidate/interview/:driveId/:roundNumber' element={<RequireCandidateAuth><InterviewRoomPage/></RequireCandidateAuth>}/>

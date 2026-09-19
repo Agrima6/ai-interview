@@ -79,6 +79,8 @@ const RoundSchema = new mongoose.Schema({
     skillRubrics: [SkillRubricSchema],
     questionMode: { type: String, enum: ["PREBUILT", "CUSTOM"], default: "PREBUILT" },
     questionBankTitle: { type: String },
+    questionBankId: { type: String, default: null },
+    questions: [CustomQuestionSchema],
     customQuestions: [CustomQuestionSchema],
     candidates: [CandidateRosterSchema],
     createdAt: { type: Date, default: Date.now },
@@ -99,6 +101,8 @@ const InterviewDriveSchema = new mongoose.Schema(
         status: { type: String, enum: ["ACTIVE", "COMPLETED", "DRAFT", "ARCHIVED"], default: "ACTIVE" },
         questionMode: { type: String, enum: ["PREBUILT", "CUSTOM"], default: "PREBUILT" },
         questionBankTitle: { type: String },
+        questionBankId: { type: String, default: null },
+        questions: [CustomQuestionSchema],
         customQuestionsList: [CustomQuestionSchema],
         skillRubrics: [SkillRubricSchema],
         passingThreshold: { type: Number, default: 70 },
@@ -116,5 +120,8 @@ const InterviewDriveSchema = new mongoose.Schema(
 )
 
 InterviewDriveSchema.index({ tenantId: 1, createdAt: -1 })
+InterviewDriveSchema.index({ publicLink: 1 }, { unique: true, sparse: true })
+InterviewDriveSchema.index({ tenantId: 1, status: 1 })
+InterviewDriveSchema.index({ "rounds.candidates.email": 1 })
 
 export const InterviewDrive = mongoose.model("InterviewDrive", InterviewDriveSchema)
