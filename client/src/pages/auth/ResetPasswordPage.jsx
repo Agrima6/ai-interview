@@ -56,7 +56,7 @@ function ResetPasswordPage() {
                             </div>
                             <h2 className="font-display text-[22px] font-bold text-ink">Invalid reset link</h2>
                             <p className="text-[14px] text-text-secondary leading-relaxed">This password reset link is missing its token. Request a new one from the login screen.</p>
-                            <AuthButton type="button" onClick={() => navigate('/platform/login')} className="mt-2">
+                            <AuthButton type="button" onClick={() => navigate('/login')} className="mt-2">
                                 Back to login
                             </AuthButton>
                         </div>
@@ -67,10 +67,10 @@ function ResetPasswordPage() {
                             </div>
                             <h2 className="font-display text-[22px] font-bold text-ink">Password reset</h2>
                             <p className="text-[14px] text-text-secondary leading-relaxed">Your password has been changed. All existing sessions have been signed out for your security.</p>
-                            <AuthButton type="button" onClick={() => navigate('/platform/login')} className="mt-2">
+                            <AuthButton type="button" onClick={() => navigate('/login')} className="mt-2">
                                 Sign in
                             </AuthButton>
-                            <button type="button" onClick={() => navigate('/candidate/login')} className="block mx-auto text-[12.5px] text-text-secondary hover:text-ink transition-colors">
+                            <button type="button" onClick={() => navigate('/login')} className="block mx-auto text-[12.5px] text-text-secondary hover:text-ink transition-colors">
                                 Signing in as a candidate instead?
                             </button>
                         </div>

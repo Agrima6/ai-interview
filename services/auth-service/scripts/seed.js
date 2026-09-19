@@ -23,8 +23,17 @@ const run = async () => {
     ])
     await roleRepo.upsertSystemRole("CLIENT_ADMIN", ["CLIENT_SELF_READ", "CLIENT_SELF_UPDATE"])
 
-    const email = process.argv[2] || "admin@workmateiq.local"
-    const password = process.argv[3] || "Agrima123"
+    const email = process.argv[2] || process.env.SEED_ADMIN_EMAIL
+    const password = process.argv[3] || process.env.SEED_ADMIN_PASSWORD
+
+    if (!email || !password) {
+        console.error("FATAL: SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD (or CLI args: node seed.js <email> <password>) must be provided. Hardcoded credentials are not permitted.")
+        process.exit(1)
+    }
+    if (password.length < 8) {
+        console.error("FATAL: Seed admin password must be at least 8 characters long.")
+        process.exit(1)
+    }
 
     const existing = await userRepo.findByEmail(email)
     if (existing) {
@@ -37,7 +46,7 @@ const run = async () => {
             passwordHash,
             roles: ["SUPER_ADMIN"],
         })
-        console.log(`Seeded roles + admin user.\n  email: ${email}\n  password: ${password}`)
+        console.log(`Seeded roles + admin user.\n  email: ${email}\n  password: ${isProd ? "[REDACTED]" : password}`)
     }
 
     process.exit(0)

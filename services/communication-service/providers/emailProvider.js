@@ -99,5 +99,8 @@ class GmailSmtpProvider {
 export const getEmailProvider = () => {
     if (process.env.EMAIL_MODE === "direct") return new ResendEmailProvider()
     if (process.env.EMAIL_MODE === "gmail") return new GmailSmtpProvider()
+    if (process.env.NODE_ENV === "production") {
+        throw new Error("[communication-service] FATAL: EMAIL_MODE must be configured ('direct' or 'gmail') in production. Mock email is prohibited in production.")
+    }
     return new MockEmailProvider()
 }

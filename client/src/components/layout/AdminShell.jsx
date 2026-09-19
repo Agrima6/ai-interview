@@ -20,7 +20,7 @@ function AdminShell({ children }) {
 
     const handleLogout = async () => {
         await logout()
-        navigate('/platform/login')
+        navigate('/login')
     }
 
     return (

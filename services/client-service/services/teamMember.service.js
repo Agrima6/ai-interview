@@ -54,7 +54,7 @@ export const inviteTeamMember = async (tenantId, { name, email, role }, ctx) => 
             recipientGreeting: memberName,
             organizationName: org?.name || "your organization",
             roleLabel,
-            loginUrl: `${process.env.FRONTEND_BASE_URL}/platform/login`,
+            loginUrl: `${process.env.FRONTEND_BASE_URL}/login`,
             supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
         },
     }, ctx).catch((err) => console.error("[client-service] team-invite email failed:", err.message))

@@ -9,11 +9,16 @@ import FormData from "form-data"
 // raw response body, and translate a failure into a plain Error the
 // caller can catch the same way as any other outbound call.
 const baseURL = () => process.env.AGENT_SERVICE_URL || "http://localhost:8000"
-const client = () => axios.create({
-    baseURL: baseURL(),
-    timeout: 15000,
-    headers: process.env.AGENT_SERVICE_KEY ? { "X-Agent-Key": process.env.AGENT_SERVICE_KEY } : {},
-})
+const client = () => {
+    if (process.env.NODE_ENV === "production" && !process.env.AGENT_SERVICE_KEY) {
+        throw new Error("[client-service] FATAL: AGENT_SERVICE_KEY is required in production.")
+    }
+    return axios.create({
+        baseURL: baseURL(),
+        timeout: 15000,
+        headers: process.env.AGENT_SERVICE_KEY ? { "X-Agent-Key": process.env.AGENT_SERVICE_KEY } : {},
+    })
+}
 
 // The agent's dev server (uvicorn, single-threaded) blocks its event loop
 // during synchronous OpenAI calls (role/interview creation) - long enough
@@ -57,8 +62,13 @@ export const agentServiceClient = {
         return call(() => client().post(`/v1/candidates/${candidateId}/resume`, data, { headers: data.getHeaders() }))
     },
 
-    createInterview: (candidateId, roleId, durationMinutes = 30) =>
-        call(() => client().post("/v1/interviews", form({ candidate_id: candidateId, role_id: roleId, duration_minutes: durationMinutes }))),
+    createInterview: (candidateId, roleId, durationMinutes = 30, questions = []) => {
+        const fields = { candidate_id: candidateId, role_id: roleId, duration_minutes: durationMinutes }
+        if (Array.isArray(questions) && questions.length > 0) {
+            fields.questions_json = JSON.stringify(questions)
+        }
+        return call(() => client().post("/v1/interviews", form(fields)))
+    },
 
     getInterview: (interviewId) =>
         call(() => client().get(`/v1/interviews/${interviewId}`)),

@@ -64,7 +64,7 @@ function WorkmateNav() {
         document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
 
-    const goToPlatformLogin = () => navigate('/platform/login')
+    const goToPlatformLogin = () => navigate('/login')
 
     return (
         <>

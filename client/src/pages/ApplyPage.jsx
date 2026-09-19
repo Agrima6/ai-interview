@@ -37,6 +37,7 @@ function ApplyPage() {
   const { link } = useParams()
   const [searchParams] = useSearchParams()
   const emailFromInvite = searchParams.get('email') || ''
+  const tokenFromInvite = searchParams.get('token') || searchParams.get('prefillToken') || ''
 
   const [drive, setDrive] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -63,14 +64,14 @@ function ApplyPage() {
 
   useEffect(() => {
     if (!emailFromInvite) return
-    getApplicationPrefill(link, emailFromInvite)
+    getApplicationPrefill(link, emailFromInvite, tokenFromInvite)
       .then((result) => {
         if (!result.prefilled) return
         setLockedFields({ name: result.name, phone: result.phone, exp: result.exp })
         setForm((prev) => ({ ...prev, name: result.name, email: emailFromInvite, phone: result.phone, exp: result.exp }))
       })
       .catch(() => {}) // best-effort - a failed lookup just means the form starts blank, same as opening the link without ?email
-  }, [link, emailFromInvite])
+  }, [link, emailFromInvite, tokenFromInvite])
 
   const isBlueCollar = drive?.roleCategory === 'BLUE_COLLAR'
 

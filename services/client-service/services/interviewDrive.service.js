@@ -1,4 +1,5 @@
 import crypto from "crypto"
+import path from "path"
 import { InterviewDrive } from "../models/interviewDrive.model.js"
 import { NotificationTemplate } from "../models/notificationTemplate.model.js"
 import { ApiError } from "../utils/response.js"
@@ -6,8 +7,22 @@ import { requireValidObjectId } from "../utils/validateId.js"
 import { communicationServiceClient, authServiceClient } from "../config/internalClients.js"
 import * as clientRepo from "../repositories/client.repository.js"
 import { agentServiceClient } from "../config/agentServiceClient.js"
-import { uploadBuffer, getObjectBuffer, getObjectStream, RESUMES_BUCKET, RECORDINGS_BUCKET } from "../config/s3Client.js"
+import { uploadBuffer, getObjectBuffer, getObjectStream, RESUMES_BUCKET, RECORDINGS_BUCKET, PROCTOR_BUCKET } from "../config/s3Client.js"
 import { enqueueRecordingProcessing } from "../config/sqsClient.js"
+
+const signPrefillToken = (driveId, email) => {
+    const secret = process.env.ACCESS_TOKEN_SECRET || "prefill-protection-token"
+    return crypto.createHmac("sha256", secret).update(`${driveId}:${String(email).toLowerCase().trim()}`).digest("hex")
+}
+
+const sanitizePathSegment = (str) => {
+    if (!str || typeof str !== "string") return "default"
+    return str
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9_-]+/g, "-")
+        .replace(/^-+|-+$/g, "") || "default"
+}
 
 // Same {var}/{{var}} interpolation the frontend's renderWithSamples()
 // preview uses (client/src/constants/templateVariables.js) - kept in sync
@@ -104,14 +119,27 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
     if (!candidates?.length || !drive.publicLink) return
     const org = await clientRepo.findById(tenantId).catch(() => null)
     const expiryDate = new Date(drive.expiryDate).toLocaleDateString()
+    const loginUrl = buildFrontendUrl("/login")
 
     for (const candidate of candidates) {
         if (!candidate.email) continue
-        // Carries the candidate's email through to the apply page so it can
-        // look up and lock the fields HR already filled in for them,
-        // instead of asking them to retype (and possibly contradict) data
-        // that's already on file.
-        const interviewLink = buildFrontendUrl(`/apply/${drive.publicLink}?email=${encodeURIComponent(candidate.email)}`)
+
+        // Pre-provision the candidate account in auth-service right away (plan 09 auth-first onboarding)
+        let credentials = null
+        try {
+            credentials = await authServiceClient.createCandidateUser(
+                { email: candidate.email, name: candidate.name, tenantId },
+                ctx
+            )
+        } catch (err) {
+            console.error(`[client-service] candidate account pre-provisioning failed for ${candidate.email}:`, err.message)
+        }
+
+        const isExisting = credentials?.existingAccount === true
+        const tempPassword = credentials?.password || "(Use your existing WorkmateIQ password)"
+        const token = signPrefillToken(String(drive._id), candidate.email)
+        const interviewLink = buildFrontendUrl(`/apply/${drive.publicLink}?email=${encodeURIComponent(candidate.email)}&token=${token}`)
+
         communicationServiceClient.send({
             entityType: "CLIENT", entityId: tenantId, channel: "EMAIL",
             eventType: "CANDIDATE_INVITE", recipient: candidate.email,
@@ -120,11 +148,46 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
                 drive_title: drive.title,
                 company_name: org?.name || "the hiring team",
                 interview_link: interviewLink,
+                login_url: loginUrl,
+                login_email: candidate.email,
+                temp_password: tempPassword,
+                existing_account: isExisting ? "true" : "false",
                 expiry_date: expiryDate,
                 supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
             },
             metadata: { driveId: String(drive._id), candidateId: candidate.id },
         }, ctx).catch((err) => console.error(`[client-service] candidate-invite email failed for ${candidate.email}:`, err.message))
+
+        if (drive.communicationSettings?.whatsappEnabled && candidate.phone) {
+            const rawBody = drive.communicationSettings.whatsappText ||
+                "Hi {{candidate_name}}! You've been invited to the AI interview for *{{drive_title}}* at {{company_name}}. Sign in with your email ({{login_email}}) at {{login_url}} to upload your resume and confirm your interview slot before {{expiry_date}}."
+            const body = renderTemplateText(rawBody, {
+                candidate_name: candidate.name || "there",
+                drive_title: drive.title,
+                company_name: org?.name || "the hiring team",
+                interview_link: interviewLink,
+                login_url: loginUrl,
+                login_email: candidate.email,
+                temp_password: tempPassword,
+                expiry_date: expiryDate,
+            })
+            communicationServiceClient.send({
+                entityType: "CLIENT", entityId: tenantId, channel: "WHATSAPP",
+                eventType: "CANDIDATE_INVITE", recipient: candidate.phone,
+                body,
+                variables: {
+                    candidate_name: candidate.name || "there",
+                    drive_title: drive.title,
+                    company_name: org?.name || "the hiring team",
+                    interview_link: interviewLink,
+                    login_url: loginUrl,
+                    login_email: candidate.email,
+                    temp_password: tempPassword,
+                    expiry_date: expiryDate,
+                },
+                metadata: { driveId: String(drive._id), candidateId: candidate.id },
+            }, ctx).catch((err) => console.error(`[client-service] candidate-invite whatsapp failed for ${candidate.phone}:`, err.message))
+        }
     }
 }
 
@@ -156,7 +219,9 @@ export const createDrive = async (tenantId, driveData, ctx) => {
         skillRubrics: driveData.skillRubrics || [],
         questionMode: driveData.questionMode || "PREBUILT",
         questionBankTitle: driveData.questionBankTitle,
-        customQuestions: driveData.customQuestionsList || [],
+        questionBankId: driveData.questionBankId || null,
+        questions: driveData.questions || driveData.customQuestionsList || [],
+        customQuestions: driveData.customQuestionsList || driveData.questions || [],
         candidates: index === 0 ? initialCandidates : [],
     }))
     const newDrive = new InterviewDrive({
@@ -172,6 +237,9 @@ export const createDrive = async (tenantId, driveData, ctx) => {
         expiryDate,
         status,
         currentRound: 1,
+        questionBankId: driveData.questionBankId || null,
+        questions: driveData.questions || driveData.customQuestionsList || [],
+        customQuestionsList: driveData.customQuestionsList || driveData.questions || [],
         rounds,
         publicLink: status === "ACTIVE" && driveData.enablePublicLink !== false ? generatePublicLink() : null,
     })
@@ -253,10 +321,13 @@ export const getPublicDriveBySlug = async (link) => {
 // to retype (and possibly contradict) data HR already has on file. Only
 // ever matched by email, and only returns name/phone/exp - never anything
 // else on the roster (score, status, other candidates).
-export const getPublicApplicationPrefill = async (link, email) => {
-    if (!email) return { prefilled: false }
+export const getPublicApplicationPrefill = async (link, email, token) => {
+    if (!email || !token) return { prefilled: false }
     const drive = await InterviewDrive.findOne({ publicLink: link, status: "ACTIVE" })
     if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "This interview link is invalid or no longer active.")
+    const expectedToken = signPrefillToken(String(drive._id), email)
+    if (token !== expectedToken) return { prefilled: false }
+
     const round = drive.rounds?.find((r) => r.roundNumber === 1)
     const candidate = round?.candidates.find((c) => c.email.toLowerCase() === email.toLowerCase())
     if (!candidate) return { prefilled: false }
@@ -306,7 +377,13 @@ export const applyToPublicDrive = async (link, applicationData, resumeFile, ctx)
     // key, not a local path (plan.md #11: object storage, not local disk).
     let resumeKey = existing?.resumeFilename || null
     if (resumeFile) {
-        resumeKey = `${drive.tenantId}/${candidate.id}/${Date.now()}-${resumeFile.originalname}`
+        const rawExt = path.extname(resumeFile.originalname || "").toLowerCase()
+        const safeExt = /^\.[a-z0-9]{1,8}$/.test(rawExt) ? rawExt : ".pdf"
+        const uniqueKey = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(8).toString("hex")
+        const companyFolder = sanitizePathSegment(drive.tenantId)
+        const roleFolder = sanitizePathSegment(drive.title || drive.roleCategory || "role")
+        const interviewFolder = sanitizePathSegment(candidate.id)
+        resumeKey = `${companyFolder}/${roleFolder}/${interviewFolder}/resume/${Date.now()}-${uniqueKey}${safeExt}`
         await uploadBuffer(RESUMES_BUCKET, resumeKey, resumeFile.buffer, resumeFile.mimetype)
     }
 
@@ -346,7 +423,7 @@ export const applyToPublicDrive = async (link, applicationData, resumeFile, ctx)
             interview_slot: slot.toLocaleString(),
             login_email: credentials?.email || candidate.email,
             temp_password: credentials?.password || "(check your existing WorkmateIQ password)",
-            login_url: buildFrontendUrl("/candidate/login"),
+            login_url: buildFrontendUrl("/login"),
             supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
         },
     }, ctx).catch((err) => console.error(`[client-service] application-confirmation email failed for ${candidate.email}:`, err.message))
@@ -354,30 +431,133 @@ export const applyToPublicDrive = async (link, applicationData, resumeFile, ctx)
     return { title: drive.title, slot, candidateName: candidate.name }
 }
 
+// Candidate-scoped (authenticated CANDIDATE role) - completes their application
+// (upload resume, select slot, language preference) directly from the Candidate Portal.
+export const completeCandidateApplication = async (tenantId, email, driveId, roundNumber, applicationData, resumeFile, ctx) => {
+    const { drive, round, candidate } = await findOwnRosterEntry(tenantId, email, driveId, roundNumber)
+
+    if (new Date(drive.expiryDate) < new Date()) {
+        throw new ApiError(410, "DRIVE_EXPIRED", "This interview drive has expired.")
+    }
+    if (round.status !== "ACTIVE" && drive.status !== "ACTIVE") {
+        throw new ApiError(409, "ROUND_NOT_OPEN", "This drive is not currently accepting applications.")
+    }
+
+    if (!applicationData.interviewSlot) {
+        throw new ApiError(400, "SLOT_REQUIRED", "Please choose an interview slot.")
+    }
+    const slot = new Date(applicationData.interviewSlot)
+    if (Number.isNaN(slot.getTime()) || slot < new Date() || slot > new Date(drive.expiryDate)) {
+        throw new ApiError(400, "INVALID_SLOT", "Please choose a valid upcoming slot before the application deadline.")
+    }
+
+    let resumeKey = candidate.resumeFilename || null
+    if (resumeFile) {
+        const rawExt = path.extname(resumeFile.originalname || "").toLowerCase()
+        const safeExt = /^\.[a-z0-9]{1,8}$/.test(rawExt) ? rawExt : ".pdf"
+        const uniqueKey = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(8).toString("hex")
+        const companyFolder = sanitizePathSegment(drive.tenantId)
+        const roleFolder = sanitizePathSegment(drive.title || drive.roleCategory || "role")
+        const interviewFolder = sanitizePathSegment(candidate.id)
+        resumeKey = `${companyFolder}/${roleFolder}/${interviewFolder}/resume/${Date.now()}-${uniqueKey}${safeExt}`
+        await uploadBuffer(RESUMES_BUCKET, resumeKey, resumeFile.buffer, resumeFile.mimetype)
+    } else if (!candidate.resumeFilename && drive.roleCategory !== "BLUE_COLLAR") {
+        throw new ApiError(400, "RESUME_REQUIRED", "Please upload your resume to complete your application.")
+    }
+
+    if (applicationData.phone) candidate.phone = String(applicationData.phone).trim()
+    if (applicationData.exp) candidate.exp = String(applicationData.exp).trim()
+    if (applicationData.preferredLanguage) {
+        candidate.preferredLanguage = ["en", "hi", "hinglish"].includes(applicationData.preferredLanguage)
+            ? applicationData.preferredLanguage
+            : "en"
+    }
+
+    candidate.interviewSlot = slot
+    if (resumeKey) {
+        candidate.resumeFilename = resumeKey
+        candidate.resumeOriginalName = resumeFile?.originalname || candidate.resumeOriginalName || "resume.pdf"
+    }
+    if (candidate.status === "INVITED") {
+        candidate.status = "SCHEDULED"
+    }
+    await drive.save()
+
+    const org = await clientRepo.findById(drive.tenantId).catch(() => null)
+
+    // Dispatch Email 2 (CANDIDATE_APPLICATION_CONFIRMED) confirming the slot and room link
+    communicationServiceClient.send({
+        entityType: "CLIENT", entityId: drive.tenantId, channel: "EMAIL",
+        eventType: "CANDIDATE_APPLICATION_CONFIRMED", recipient: candidate.email,
+        variables: {
+            candidate_name: candidate.name || "there",
+            drive_title: drive.title,
+            company_name: org?.name || "the hiring team",
+            interview_slot: slot.toLocaleString(),
+            login_email: candidate.email,
+            temp_password: "(Use your existing WorkmateIQ password)",
+            login_url: buildFrontendUrl("/login"),
+            supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
+        },
+        metadata: { driveId: String(drive._id), candidateId: candidate.id },
+    }, ctx).catch((err) => console.error(`[client-service] confirmation email failed for ${candidate.email}:`, err.message))
+
+    return {
+        message: "Application completed successfully!",
+        driveId: drive._id,
+        roundNumber: round.roundNumber,
+        candidateStatus: candidate.status,
+        interviewSlot: slot,
+        resumeFilename: candidate.resumeFilename,
+        resumeOriginalName: candidate.resumeOriginalName,
+    }
+}
+
 // Candidate-scoped (authenticated CANDIDATE role) - "my interviews" for the
-// candidate's own room. Scanning every drive in the tenant and filtering in
-// JS (rather than a Mongo query into the nested rounds.candidates array) is
-// fine at this data scale and keeps the shape simple; revisit with an
-// aggregation if a tenant's drive count grows large.
+// candidate's own room, enriched with complete drive details and pending status.
 export const getMyInterviews = async (tenantId, email) => {
     if (!tenantId || !email) return []
-    const normalizedEmail = email.toLowerCase()
-    const drives = await InterviewDrive.find({ tenantId, status: { $ne: "ARCHIVED" } })
+    const normalizedEmail = email.toLowerCase().trim()
+    const drives = await InterviewDrive.find({
+        tenantId,
+        status: { $ne: "ARCHIVED" },
+        "rounds.candidates.email": normalizedEmail,
+    })
     const results = []
     for (const drive of drives) {
         for (const round of drive.rounds || []) {
             const candidate = round.candidates?.find((c) => c.email?.toLowerCase() === normalizedEmail)
             if (!candidate) continue
+
+            const isBlueCollar = drive.roleCategory === "BLUE_COLLAR"
+            const hasResume = Boolean(candidate.resumeFilename)
+            const hasSlot = Boolean(candidate.interviewSlot)
+            const isPendingApplication = !hasSlot || (!hasResume && !isBlueCollar)
+
             results.push({
                 driveId: drive._id,
                 driveTitle: drive.title,
+                roleCategory: drive.roleCategory,
                 department: drive.department,
+                experienceLevel: drive.experienceLevel,
+                totalRounds: drive.totalRounds || drive.rounds.length,
                 roundNumber: round.roundNumber,
                 roundTitle: round.title,
+                roundType: round.type,
                 roundStatus: round.status,
+                startDate: round.startDate || drive.startDate,
+                expiryDate: round.expiryDate || drive.expiryDate,
                 interviewSlot: candidate.interviewSlot,
                 candidateStatus: candidate.status,
                 aiScore: candidate.aiScore,
+                resumeFilename: candidate.resumeFilename,
+                resumeOriginalName: candidate.resumeOriginalName,
+                candidateName: candidate.name,
+                candidatePhone: candidate.phone,
+                candidateExp: candidate.exp,
+                passingThreshold: round.passingThreshold || drive.passingThreshold || 70,
+                isPendingApplication,
+                resumeOptional: isBlueCollar,
             })
         }
     }
@@ -402,11 +582,45 @@ const findOwnRosterEntry = async (tenantId, email, driveId, roundNumber) => {
 
 // Candidate-scoped - called once per detected proctoring event (tab
 // switch, fullscreen exit, etc) while the candidate is in the interview
-// room. Best-effort snapshot proof is stored inline on the roster entry;
-// `malpracticeFlags` stays as the quick count HR already reads elsewhere.
+const uploadBase64ToS3 = async (base64Str, keyPrefix) => {
+    if (!base64Str || typeof base64Str !== "string") return null
+    try {
+        const matches = base64Str.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/)
+        const mimeType = matches ? matches[1] : "image/jpeg"
+        const rawData = matches ? matches[2] : base64Str
+        const buffer = Buffer.from(rawData, "base64")
+        if (buffer.length === 0) return null
+
+        const ext = mimeType.includes("png") ? "png" : "jpg"
+        const unique = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(6).toString("hex")
+        const key = `${keyPrefix}-${Date.now()}-${unique}.${ext}`
+        await uploadBuffer(PROCTOR_BUCKET, key, buffer, mimeType)
+        return key
+    } catch (err) {
+        console.error("[client-service] proctor snapshot S3 upload failed:", err.message)
+        return null
+    }
+}
+
+// Candidate-scoped - called once per detected proctoring event (tab
+// switch, fullscreen exit, etc) while the candidate is in the interview
+// room. Snapshot proof is stored in S3/MinIO, preserving Mongo storage
+// limits and avoiding multi-megabyte JSON payloads.
 export const recordCandidateViolation = async (tenantId, email, driveId, roundNumber, reason, snapshot, screenSnapshot) => {
     const { drive, candidate } = await findOwnRosterEntry(tenantId, email, driveId, roundNumber)
-    candidate.violations.push({ reason, snapshot: snapshot || null, screenSnapshot: screenSnapshot || null })
+    const companyFolder = sanitizePathSegment(tenantId)
+    const roleFolder = sanitizePathSegment(drive.title || drive.roleCategory || "role")
+    const interviewFolder = sanitizePathSegment(candidate.agentInterviewId || candidate.id)
+    const basePrefix = `${companyFolder}/${roleFolder}/${interviewFolder}/proctor`
+    const snapshotKey = await uploadBase64ToS3(snapshot, `${basePrefix}/webcam`)
+    const screenSnapshotKey = await uploadBase64ToS3(screenSnapshot, `${basePrefix}/screen`)
+
+    candidate.violations.push({
+        reason,
+        snapshot: snapshotKey || null,
+        screenSnapshot: screenSnapshotKey || null,
+        occurredAt: new Date(),
+    })
     candidate.malpracticeFlags = (candidate.malpracticeFlags || 0) + 1
     await drive.save()
     return { malpracticeFlags: candidate.malpracticeFlags, violationCount: candidate.violations.length }
@@ -455,7 +669,7 @@ const agentRoleNameFor = (drive) => {
 const isAgentIdNotFoundError = (err) => err?.status === 404
 
 export const startAgentInterview = async (tenantId, email, driveId, roundNumber) => {
-    const { drive, candidate } = await findOwnRosterEntry(tenantId, email, driveId, roundNumber)
+    const { drive, round, candidate } = await findOwnRosterEntry(tenantId, email, driveId, roundNumber)
 
     if (!drive.agentRoleId) {
         const role = await agentServiceClient.createRole(agentRoleNameFor(drive))
@@ -495,10 +709,12 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber)
         }
     }
 
+    const questionsToSend = (round?.questions?.length ? round.questions : (round?.customQuestions?.length ? round.customQuestions : (drive.questions?.length ? drive.questions : drive.customQuestionsList))) || []
+
     if (!candidate.agentInterviewId) {
         let interview
         try {
-            interview = await agentServiceClient.createInterview(candidate.agentCandidateId, drive.agentRoleId)
+            interview = await agentServiceClient.createInterview(candidate.agentCandidateId, drive.agentRoleId, 30, questionsToSend)
         } catch (err) {
             if (!isAgentIdNotFoundError(err)) throw err
             // The cached role and/or candidate id no longer exists on the agent side (its
@@ -512,7 +728,7 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber)
             const agentCandidate = await agentServiceClient.createCandidate(candidate.name, candidate.email)
             candidate.agentCandidateId = agentCandidate.id
             await drive.save()
-            interview = await agentServiceClient.createInterview(candidate.agentCandidateId, drive.agentRoleId)
+            interview = await agentServiceClient.createInterview(candidate.agentCandidateId, drive.agentRoleId, 30, questionsToSend)
         }
         candidate.agentInterviewId = interview.id
         plan = interview.plan
@@ -557,7 +773,10 @@ export const saveCandidateRecording = async (tenantId, email, driveId, roundNumb
     // Recordings go straight to S3/MinIO (plan.md #11), not local disk -
     // recordingFilename stores the S3 object key.
     const ext = recordingFile.mimetype.includes("mp4") ? "mp4" : "webm"
-    const recordingKey = `${tenantId}/${candidate.id}/${Date.now()}.${ext}`
+    const companyFolder = sanitizePathSegment(tenantId)
+    const roleFolder = sanitizePathSegment(drive.title || drive.roleCategory || "role")
+    const interviewFolder = sanitizePathSegment(candidate.agentInterviewId || candidate.id)
+    const recordingKey = `${companyFolder}/${roleFolder}/${interviewFolder}/recording/${Date.now()}.${ext}`
     await uploadBuffer(RECORDINGS_BUCKET, recordingKey, recordingFile.buffer, recordingFile.mimetype)
     candidate.recordingFilename = recordingKey
     await drive.save()
@@ -587,21 +806,54 @@ export const streamCandidateResume = async (tenantId, driveId, roundNumber, cand
     const candidate = round.candidates?.id(candidateId) || round.candidates?.find((c) => String(c._id) === candidateId || c.id === candidateId)
     if (!candidate || !candidate.resumeFilename) throw new ApiError(404, "RESUME_NOT_FOUND", "No resume on file for this candidate.")
 
-    let buffer
+    let object
     try {
-        buffer = await getObjectBuffer(RESUMES_BUCKET, candidate.resumeFilename)
+        object = await getObjectStream(RESUMES_BUCKET, candidate.resumeFilename)
     } catch {
         throw new ApiError(404, "RESUME_NOT_FOUND", "This resume file is no longer available.")
     }
-    res.setHeader("Content-Disposition", `attachment; filename="${candidate.resumeOriginalName || candidate.resumeFilename}"`)
-    res.send(buffer)
+
+    const rawName = candidate.resumeOriginalName || candidate.resumeFilename || "resume.pdf"
+    const safeAscii = rawName.replace(/["\r\n\\]/g, "_").replace(/[^\x20-\x7E]/g, "") || "resume.pdf"
+    const encoded = encodeURIComponent(rawName)
+    res.setHeader("Content-Disposition", `attachment; filename="${safeAscii}"; filename*=UTF-8''${encoded}`)
+    res.setHeader("Content-Type", object.contentType || "application/pdf")
+    if (object.contentLength) res.setHeader("Content-Length", object.contentLength)
+    object.stream.pipe(res)
+}
+
+export const streamCandidateViolationSnapshot = async (tenantId, driveId, roundNumber, candidateId, violationIndex, type, res) => {
+    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+    requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
+    if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    const round = drive.rounds?.find((r) => r.roundNumber === Number(roundNumber))
+    if (!round) throw new ApiError(404, "ROUND_NOT_FOUND", "Round not found.")
+    const candidate = round.candidates?.id(candidateId) || round.candidates?.find((c) => String(c._id) === candidateId || c.id === candidateId)
+    if (!candidate) throw new ApiError(404, "CANDIDATE_NOT_FOUND", "Candidate not found.")
+
+    const violation = candidate.violations?.[Number(violationIndex)]
+    if (!violation) throw new ApiError(404, "VIOLATION_NOT_FOUND", "Violation not found.")
+
+    const key = type === "screen" ? violation.screenSnapshot : violation.snapshot
+    if (!key) throw new ApiError(404, "SNAPSHOT_NOT_FOUND", "No snapshot available for this violation.")
+
+    try {
+        const object = await getObjectStream(PROCTOR_BUCKET, key)
+        res.setHeader("Content-Type", object.contentType || "image/jpeg")
+        if (object.contentLength) res.setHeader("Content-Length", object.contentLength)
+        res.setHeader("Cache-Control", "public, max-age=86400")
+        object.stream.pipe(res)
+    } catch {
+        throw new ApiError(404, "SNAPSHOT_NOT_FOUND", "Snapshot image file is no longer available.")
+    }
 }
 
 // Tenant-scoped (authenticated HR only) - same ownership check as the
 // resume download above. Uses res.sendFile (not res.download) so the
 // browser's <video> element can play it inline with seek/scrub support
 // rather than triggering a file download.
-export const streamCandidateRecording = async (tenantId, driveId, roundNumber, candidateId, res) => {
+export const streamCandidateRecording = async (tenantId, driveId, roundNumber, candidateId, res, req = null) => {
     if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
     requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
     const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
@@ -611,13 +863,20 @@ export const streamCandidateRecording = async (tenantId, driveId, roundNumber, c
     const candidate = round.candidates?.id(candidateId) || round.candidates?.find((c) => String(c._id) === candidateId || c.id === candidateId)
     if (!candidate || !candidate.recordingFilename) throw new ApiError(404, "RECORDING_NOT_FOUND", "No recording on file for this candidate.")
 
+    const range = req?.headers?.range
     let object
     try {
-        object = await getObjectStream(RECORDINGS_BUCKET, candidate.recordingFilename)
+        object = await getObjectStream(RECORDINGS_BUCKET, candidate.recordingFilename, range)
     } catch {
         throw new ApiError(404, "RECORDING_NOT_FOUND", "This recording file is no longer available.")
     }
+
     res.setHeader("Content-Type", object.contentType || "video/webm")
+    res.setHeader("Accept-Ranges", "bytes")
+    if (object.contentRange) {
+        res.status(206)
+        res.setHeader("Content-Range", object.contentRange)
+    }
     if (object.contentLength) res.setHeader("Content-Length", object.contentLength)
     object.stream.pipe(res)
 }
@@ -700,6 +959,17 @@ export const getDriveById = async (tenantId, driveId) => {
                     candidate.inviteSentAt = inviteStatus.sentAt
                     candidate.inviteOpenedAt = inviteStatus.openedAt
                 }
+                if (candidate.violations?.length) {
+                    candidate.violations = candidate.violations.map((v, vIdx) => ({
+                        ...v,
+                        snapshot: (v.snapshot && !v.snapshot.startsWith("/api/") && !v.snapshot.startsWith("data:"))
+                            ? `/api/v1/drives/${drive._id}/rounds/${round.roundNumber}/candidates/${candidate.id}/violations/${vIdx}/snapshot`
+                            : v.snapshot,
+                        screenSnapshot: (v.screenSnapshot && !v.screenSnapshot.startsWith("/api/") && !v.screenSnapshot.startsWith("data:"))
+                            ? `/api/v1/drives/${drive._id}/rounds/${round.roundNumber}/candidates/${candidate.id}/violations/${vIdx}/screen`
+                            : v.screenSnapshot,
+                    }))
+                }
             }
         }
     } catch (err) {
@@ -742,7 +1012,9 @@ export const addRoundToDrive = async (tenantId, driveId, roundData, ctx) => {
         skillRubrics: roundData.skillRubrics || [],
         questionMode: roundData.questionMode || "PREBUILT",
         questionBankTitle: roundData.questionBankTitle,
-        customQuestions: roundData.customQuestions || [],
+        questionBankId: roundData.questionBankId || null,
+        questions: roundData.questions || roundData.customQuestions || [],
+        customQuestions: roundData.customQuestions || roundData.questions || [],
         candidates,
     }
 
@@ -845,10 +1117,11 @@ export const updateRound = async (tenantId, driveId, roundNumber, roundData) => 
     round.startDate = roundData.startDate || round.startDate || drive.startDate
     round.expiryDate = roundData.expiryDate || round.expiryDate
     round.passingThreshold = Number(roundData.passingThreshold) || round.passingThreshold
-    round.questionMode = roundData.questionMode || round.questionMode
     round.questionBankTitle = roundData.questionBankTitle || round.questionBankTitle
+    if (roundData.questionBankId !== undefined) round.questionBankId = roundData.questionBankId
+    if (roundData.questions) round.questions = roundData.questions
     round.skillRubrics = roundData.skillRubrics || round.skillRubrics
-    round.customQuestions = roundData.customQuestions || roundData.customQuestionsList || round.customQuestions
+    round.customQuestions = roundData.customQuestions || roundData.customQuestionsList || roundData.questions || round.customQuestions
     round.candidates = candidates
     if (drive.status === 'DRAFT' || round.status !== 'ACTIVE') round.status = 'DRAFT'
     drive.candidatesCount = drive.rounds.reduce((total, item) => total + item.candidates.length, 0)
