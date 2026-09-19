@@ -57,6 +57,10 @@ function InterviewRoomPage() {
 
     // Refs
     const previewVideoRef = useRef(null)
+    // The live test stream lives in a ref as well as state: the check function must NOT depend on the
+    // state value it sets, or every successful start re-created the function, re-ran the mount effect,
+    // stopped the camera and started it again in a loop (the "camera keeps crashing" symptom).
+    const previewStreamRef = useRef(null)
     const audioContextRef = useRef(null)
     const analyserRef = useRef(null)
     const animFrameRef = useRef(null)
@@ -79,28 +83,45 @@ function InterviewRoomPage() {
         setHardwareChecking(true)
         setHardwareError('')
         try {
-            // Stop any previous test stream
-            if (previewStream) {
-                previewStream.getTracks().forEach((t) => t.stop())
+            // Stop any previous test stream / meter before opening a new one
+            if (previewStreamRef.current) {
+                previewStreamRef.current.getTracks().forEach((t) => t.stop())
+                previewStreamRef.current = null
+            }
+            if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
+            analyserRef.current = null
+            if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+                await audioContextRef.current.close().catch(() => {})
             }
 
+            // Modest video settings: 1280x720 fails or stutters on a busy machine or when another app
+            // (Meet/Zoom) already holds the camera.
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-                audio: true,
+                video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24, max: 30 } },
+                audio: { echoCancellation: true, noiseSuppression: true },
             })
+            previewStreamRef.current = stream
 
             setPreviewStream(stream)
             setCameraReady(true)
 
             if (previewVideoRef.current) {
                 previewVideoRef.current.srcObject = stream
+                previewVideoRef.current.play?.().catch(() => {})
             }
+
+            // A live, unmuted microphone track means the mic is connected. The level meter below only
+            // shows how loud it is - readiness must not wait for the candidate to speak.
+            const audioTrack = stream.getAudioTracks()[0]
+            if (audioTrack && audioTrack.readyState === 'live') setMicReady(true)
 
             // Audio Visualizer Meter
             try {
                 const AudioCtx = window.AudioContext || window.webkitAudioContext
                 const audioCtx = new AudioCtx()
                 audioContextRef.current = audioCtx
+                // Chrome starts an AudioContext "suspended" until resumed, which left the meter at zero.
+                if (audioCtx.state === 'suspended') await audioCtx.resume().catch(() => {})
                 const analyser = audioCtx.createAnalyser()
                 analyser.fftSize = 256
                 analyserRef.current = analyser
@@ -136,14 +157,16 @@ function InterviewRoomPage() {
             setHardwareError(
                 err.name === 'NotAllowedError'
                     ? 'Camera or Microphone permission was denied. Please allow device access in your browser settings.'
-                    : 'Unable to access camera or microphone. Please ensure your devices are connected.'
+                    : err.name === 'NotReadableError'
+                        ? 'Your camera or microphone is being used by another app (for example Google Meet or Zoom). Close it, then click Enable Camera.'
+                        : 'Unable to access camera or microphone. Please ensure your devices are connected.'
             )
             setCameraReady(false)
             setMicReady(false)
         } finally {
             setHardwareChecking(false)
         }
-    }, [previewStream])
+    }, [])
 
     // Mount hardware probe on pre-check screen
     useEffect(() => {

@@ -27,10 +27,22 @@ export default function DeviceCheckModal({ open, onClose, onReadyToStart }) {
             setChecking(true)
             setErrorMsg('')
             try {
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-                    audio: true,
-                })
+                // A lighter video request first: 1280x720 on a busy machine (or while another app such as
+                // Google Meet is using the camera) is what makes the camera fail or freeze. If the camera
+                // still can't be opened, fall back to microphone-only so the sound check keeps working.
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24, max: 30 } },
+                        audio: { echoCancellation: true, noiseSuppression: true },
+                    })
+                } catch (videoErr) {
+                    stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+                    setErrorMsg(
+                        videoErr?.name === 'NotReadableError'
+                            ? 'Your camera is being used by another app (for example Google Meet or Zoom). Close it and re-open this check.'
+                            : 'The camera could not be started. Microphone is working - check your camera permission and try again.'
+                    )
+                }
 
                 setVideoStream(stream)
                 setAudioStream(stream)
@@ -44,6 +56,9 @@ export default function DeviceCheckModal({ open, onClose, onReadyToStart }) {
                 // Audio level meter
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)()
                 audioContextRef.current = audioCtx
+                // Chrome starts an AudioContext "suspended" until resumed, which made the meter read zero
+                // ("no sound detected") even with a working microphone.
+                if (audioCtx.state === 'suspended') await audioCtx.resume().catch(() => {})
                 const analyser = audioCtx.createAnalyser()
                 analyser.fftSize = 256
                 const source = audioCtx.createMediaStreamSource(stream)
@@ -61,7 +76,11 @@ export default function DeviceCheckModal({ open, onClose, onReadyToStart }) {
                 }
                 tick()
             } catch (err) {
-                setErrorMsg('Camera or Microphone access was denied or not found. Please allow access in your browser settings.')
+                setErrorMsg(
+                    err?.name === 'NotReadableError'
+                        ? 'Your camera or microphone is being used by another app (for example Google Meet or Zoom). Close it and try again.'
+                        : 'Camera or Microphone access was denied or not found. Please allow access in your browser settings.'
+                )
             } finally {
                 setChecking(false)
             }

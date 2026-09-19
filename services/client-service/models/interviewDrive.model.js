@@ -21,7 +21,7 @@ const CandidateRosterSchema = new mongoose.Schema({
     exp: { type: String },
     aiScore: { type: Number, default: 0 },
     malpracticeFlags: { type: Number, default: 0 },
-    status: { type: String, enum: ["INVITED", "SHORTLISTED", "COMPLETED", "REJECTED"], default: "INVITED" },
+    status: { type: String, enum: ["INVITED", "SCHEDULED", "SHORTLISTED", "COMPLETED", "REJECTED"], default: "INVITED" },
     attemptedDate: { type: Date },
     // Self-service application data - filled in by the candidate on the
     // public apply page, not by the recruiter.
