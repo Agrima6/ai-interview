@@ -13,7 +13,6 @@ import AuthPasswordInput from '../../components/auth/AuthPasswordInput'
 import AuthButton from '../../components/auth/AuthButton'
 import RoleSelector from '../../components/auth/RoleSelector'
 import RegistrationModal from '../../components/auth/RegistrationModal'
-import logo from '../../assets/logo.png'
 
 const STATUS_LABEL = { QUEUED: 'Queued', SENT: 'Sent', MOCK_SENT: 'Sent (test mode)', FAILED: 'Failed', DELIVERED: 'Delivered' }
 const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || 'support@workmateiq.com'
@@ -79,9 +78,9 @@ function AuthPage() {
         setForgotPasswordStep('input')
         setSelectedRole(null)
         if (mode === 'login') {
-            navigate('/platform/login')
+            navigate('/login')
         } else if (mode === 'register') {
-            navigate('/platform/register')
+            navigate('/register')
         }
     }
 
@@ -123,20 +122,6 @@ function AuthPage() {
             }
         } catch (err) {
             setError(err.message || 'Invalid email or password.')
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    // Dev login shortcut
-    const handleDevLogin = async () => {
-        setError('')
-        setLoading(true)
-        try {
-            await login(DEV_ADMIN.email, DEV_ADMIN.password)
-            navigate('/platform/dashboard')
-        } catch (err) {
-            setError(err.message || 'Super Admin login failed.')
         } finally {
             setLoading(false)
         }

@@ -61,6 +61,25 @@ export const recordCandidateViolation = async (req, res, next) => {
     }
 }
 
+export const completeCandidateApplication = async (req, res, next) => {
+    try {
+        requireCandidate(req)
+        const { id, roundNumber } = req.params
+        const result = await driveService.completeCandidateApplication(
+            req.user.tenantId,
+            req.user.email,
+            id,
+            roundNumber,
+            req.body,
+            req.file,
+            req.context
+        )
+        ok(res, result)
+    } catch (error) {
+        next(error)
+    }
+}
+
 export const completeCandidateInterview = async (req, res, next) => {
     try {
         requireCandidate(req)

@@ -47,8 +47,8 @@ client.interceptors.response.use(
                 // Router - simplest reliable way to guarantee it fires from
                 // any page. Guarded against loops on the login/register
                 // pages themselves, which fetch public data unauthenticated.
-                if (typeof window !== "undefined" && !window.location.pathname.startsWith("/platform/login") && !window.location.pathname.startsWith("/platform/register")) {
-                    window.location.assign("/platform/login?sessionExpired=1")
+                if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login") && !window.location.pathname.startsWith("/register") && !window.location.pathname.startsWith("/platform/login") && !window.location.pathname.startsWith("/platform/register")) {
+                    window.location.assign("/login?sessionExpired=1")
                 }
                 return Promise.reject(refreshError)
             }

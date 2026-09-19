@@ -18,6 +18,9 @@ export const applyToDrive = (link, formData) => apiPost(`/api/v1/drives/public/$
 export const getApplicationPrefill = (link, email, token) => apiGet(`/api/v1/drives/public/${link}/prefill`, { email, token })
 // Authenticated (CANDIDATE role) - the signed-in candidate's own scheduled interviews, across every drive/round they applied to.
 export const getMyInterviews = () => apiGet("/api/v1/candidate/me/interviews")
+// Authenticated (CANDIDATE role) - completes application (resume + slot) directly from the portal
+export const submitCandidateApplication = (driveId, roundNumber, formData) =>
+    apiPost(`/api/v1/candidate/me/interviews/${driveId}/rounds/${roundNumber}/apply`, formData)
 // Authenticated (CANDIDATE role) - proctoring event reporting + end-of-attempt marker for the candidate's own interview room.
 export const reportInterviewViolation = (driveId, roundNumber, reason, snapshot, screenSnapshot) =>
     apiPost(`/api/v1/candidate/me/interviews/${driveId}/rounds/${roundNumber}/violations`, { reason, snapshot, screenSnapshot })

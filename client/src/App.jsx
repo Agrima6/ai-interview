@@ -101,6 +101,10 @@ function App() {
       <Route path='/hero-flow' element={<WorkmateLayout showCursorSpotlight={false}><HeroFlow/></WorkmateLayout>}/>
       <Route path='/hero-depth' element={<WorkmateLayout showCursorSpotlight={false}><HeroDepth/></WorkmateLayout>}/>
       <Route path='/login' element={<AuthPage/>}/>
+      <Route path='/platform/login' element={<Navigate to='/login' replace/>}/>
+      <Route path='/platform/client/login' element={<Navigate to='/login' replace/>}/>
+      <Route path='/platform/register' element={<Navigate to='/register' replace/>}/>
+      <Route path='/platform/register/:type' element={<Navigate to='/register' replace/>}/>
       <Route path='/apply/:link' element={<ApplyPage/>}/>
 
       {/* Registration */}

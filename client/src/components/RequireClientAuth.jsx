@@ -12,7 +12,7 @@ function RequireClientAuth({ children }) {
         return <div className='min-h-screen flex items-center justify-center text-[13px] text-text-secondary'>Loading...</div>
     }
     if (status === 'anonymous') {
-        return <Navigate to='/platform/client/login' replace />
+        return <Navigate to='/login' replace />
     }
 
     // A user with only CANDIDATE role must never access organization routes
@@ -23,7 +23,7 @@ function RequireClientAuth({ children }) {
         if (user?.roles?.includes('CANDIDATE')) {
             return <Navigate to='/candidate/room' replace />
         }
-        return <Navigate to='/platform/client/login' replace />
+        return <Navigate to='/login' replace />
     }
 
     if (user?.mustChangePassword) {

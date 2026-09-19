@@ -119,9 +119,24 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
     if (!candidates?.length || !drive.publicLink) return
     const org = await clientRepo.findById(tenantId).catch(() => null)
     const expiryDate = new Date(drive.expiryDate).toLocaleDateString()
+    const loginUrl = buildFrontendUrl("/login")
 
     for (const candidate of candidates) {
         if (!candidate.email) continue
+
+        // Pre-provision the candidate account in auth-service right away (plan 09 auth-first onboarding)
+        let credentials = null
+        try {
+            credentials = await authServiceClient.createCandidateUser(
+                { email: candidate.email, name: candidate.name, tenantId },
+                ctx
+            )
+        } catch (err) {
+            console.error(`[client-service] candidate account pre-provisioning failed for ${candidate.email}:`, err.message)
+        }
+
+        const isExisting = credentials?.existingAccount === true
+        const tempPassword = credentials?.password || "(Use your existing WorkmateIQ password)"
         const token = signPrefillToken(String(drive._id), candidate.email)
         const interviewLink = buildFrontendUrl(`/apply/${drive.publicLink}?email=${encodeURIComponent(candidate.email)}&token=${token}`)
 
@@ -133,6 +148,10 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
                 drive_title: drive.title,
                 company_name: org?.name || "the hiring team",
                 interview_link: interviewLink,
+                login_url: loginUrl,
+                login_email: candidate.email,
+                temp_password: tempPassword,
+                existing_account: isExisting ? "true" : "false",
                 expiry_date: expiryDate,
                 supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
             },
@@ -141,12 +160,15 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
 
         if (drive.communicationSettings?.whatsappEnabled && candidate.phone) {
             const rawBody = drive.communicationSettings.whatsappText ||
-                "Hi {{candidate_name}}! You've been invited to the AI interview for *{{drive_title}}* at {{company_name}}. Complete it before {{expiry_date}}: {{interview_link}}"
+                "Hi {{candidate_name}}! You've been invited to the AI interview for *{{drive_title}}* at {{company_name}}. Sign in with your email ({{login_email}}) at {{login_url}} to upload your resume and confirm your interview slot before {{expiry_date}}."
             const body = renderTemplateText(rawBody, {
                 candidate_name: candidate.name || "there",
                 drive_title: drive.title,
                 company_name: org?.name || "the hiring team",
                 interview_link: interviewLink,
+                login_url: loginUrl,
+                login_email: candidate.email,
+                temp_password: tempPassword,
                 expiry_date: expiryDate,
             })
             communicationServiceClient.send({
@@ -158,6 +180,9 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
                     drive_title: drive.title,
                     company_name: org?.name || "the hiring team",
                     interview_link: interviewLink,
+                    login_url: loginUrl,
+                    login_email: candidate.email,
+                    temp_password: tempPassword,
                     expiry_date: expiryDate,
                 },
                 metadata: { driveId: String(drive._id), candidateId: candidate.id },
@@ -406,11 +431,90 @@ export const applyToPublicDrive = async (link, applicationData, resumeFile, ctx)
     return { title: drive.title, slot, candidateName: candidate.name }
 }
 
+// Candidate-scoped (authenticated CANDIDATE role) - completes their application
+// (upload resume, select slot, language preference) directly from the Candidate Portal.
+export const completeCandidateApplication = async (tenantId, email, driveId, roundNumber, applicationData, resumeFile, ctx) => {
+    const { drive, round, candidate } = await findOwnRosterEntry(tenantId, email, driveId, roundNumber)
+
+    if (new Date(drive.expiryDate) < new Date()) {
+        throw new ApiError(410, "DRIVE_EXPIRED", "This interview drive has expired.")
+    }
+    if (round.status !== "ACTIVE" && drive.status !== "ACTIVE") {
+        throw new ApiError(409, "ROUND_NOT_OPEN", "This drive is not currently accepting applications.")
+    }
+
+    if (!applicationData.interviewSlot) {
+        throw new ApiError(400, "SLOT_REQUIRED", "Please choose an interview slot.")
+    }
+    const slot = new Date(applicationData.interviewSlot)
+    if (Number.isNaN(slot.getTime()) || slot < new Date() || slot > new Date(drive.expiryDate)) {
+        throw new ApiError(400, "INVALID_SLOT", "Please choose a valid upcoming slot before the application deadline.")
+    }
+
+    let resumeKey = candidate.resumeFilename || null
+    if (resumeFile) {
+        const rawExt = path.extname(resumeFile.originalname || "").toLowerCase()
+        const safeExt = /^\.[a-z0-9]{1,8}$/.test(rawExt) ? rawExt : ".pdf"
+        const uniqueKey = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(8).toString("hex")
+        const companyFolder = sanitizePathSegment(drive.tenantId)
+        const roleFolder = sanitizePathSegment(drive.title || drive.roleCategory || "role")
+        const interviewFolder = sanitizePathSegment(candidate.id)
+        resumeKey = `${companyFolder}/${roleFolder}/${interviewFolder}/resume/${Date.now()}-${uniqueKey}${safeExt}`
+        await uploadBuffer(RESUMES_BUCKET, resumeKey, resumeFile.buffer, resumeFile.mimetype)
+    } else if (!candidate.resumeFilename && drive.roleCategory !== "BLUE_COLLAR") {
+        throw new ApiError(400, "RESUME_REQUIRED", "Please upload your resume to complete your application.")
+    }
+
+    if (applicationData.phone) candidate.phone = String(applicationData.phone).trim()
+    if (applicationData.exp) candidate.exp = String(applicationData.exp).trim()
+    if (applicationData.preferredLanguage) {
+        candidate.preferredLanguage = ["en", "hi", "hinglish"].includes(applicationData.preferredLanguage)
+            ? applicationData.preferredLanguage
+            : "en"
+    }
+
+    candidate.interviewSlot = slot
+    if (resumeKey) {
+        candidate.resumeFilename = resumeKey
+        candidate.resumeOriginalName = resumeFile?.originalname || candidate.resumeOriginalName || "resume.pdf"
+    }
+    if (candidate.status === "INVITED") {
+        candidate.status = "SCHEDULED"
+    }
+    await drive.save()
+
+    const org = await clientRepo.findById(drive.tenantId).catch(() => null)
+
+    // Dispatch Email 2 (CANDIDATE_APPLICATION_CONFIRMED) confirming the slot and room link
+    communicationServiceClient.send({
+        entityType: "CLIENT", entityId: drive.tenantId, channel: "EMAIL",
+        eventType: "CANDIDATE_APPLICATION_CONFIRMED", recipient: candidate.email,
+        variables: {
+            candidate_name: candidate.name || "there",
+            drive_title: drive.title,
+            company_name: org?.name || "the hiring team",
+            interview_slot: slot.toLocaleString(),
+            login_email: candidate.email,
+            temp_password: "(Use your existing WorkmateIQ password)",
+            login_url: buildFrontendUrl("/login"),
+            supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
+        },
+        metadata: { driveId: String(drive._id), candidateId: candidate.id },
+    }, ctx).catch((err) => console.error(`[client-service] confirmation email failed for ${candidate.email}:`, err.message))
+
+    return {
+        message: "Application completed successfully!",
+        driveId: drive._id,
+        roundNumber: round.roundNumber,
+        candidateStatus: candidate.status,
+        interviewSlot: slot,
+        resumeFilename: candidate.resumeFilename,
+        resumeOriginalName: candidate.resumeOriginalName,
+    }
+}
+
 // Candidate-scoped (authenticated CANDIDATE role) - "my interviews" for the
-// candidate's own room. Scanning every drive in the tenant and filtering in
-// JS (rather than a Mongo query into the nested rounds.candidates array) is
-// fine at this data scale and keeps the shape simple; revisit with an
-// aggregation if a tenant's drive count grows large.
+// candidate's own room, enriched with complete drive details and pending status.
 export const getMyInterviews = async (tenantId, email) => {
     if (!tenantId || !email) return []
     const normalizedEmail = email.toLowerCase().trim()
@@ -424,16 +528,36 @@ export const getMyInterviews = async (tenantId, email) => {
         for (const round of drive.rounds || []) {
             const candidate = round.candidates?.find((c) => c.email?.toLowerCase() === normalizedEmail)
             if (!candidate) continue
+
+            const isBlueCollar = drive.roleCategory === "BLUE_COLLAR"
+            const hasResume = Boolean(candidate.resumeFilename)
+            const hasSlot = Boolean(candidate.interviewSlot)
+            const isPendingApplication = !hasSlot || (!hasResume && !isBlueCollar)
+
             results.push({
                 driveId: drive._id,
                 driveTitle: drive.title,
+                roleCategory: drive.roleCategory,
                 department: drive.department,
+                experienceLevel: drive.experienceLevel,
+                totalRounds: drive.totalRounds || drive.rounds.length,
                 roundNumber: round.roundNumber,
                 roundTitle: round.title,
+                roundType: round.type,
                 roundStatus: round.status,
+                startDate: round.startDate || drive.startDate,
+                expiryDate: round.expiryDate || drive.expiryDate,
                 interviewSlot: candidate.interviewSlot,
                 candidateStatus: candidate.status,
                 aiScore: candidate.aiScore,
+                resumeFilename: candidate.resumeFilename,
+                resumeOriginalName: candidate.resumeOriginalName,
+                candidateName: candidate.name,
+                candidatePhone: candidate.phone,
+                candidateExp: candidate.exp,
+                passingThreshold: round.passingThreshold || drive.passingThreshold || 70,
+                isPendingApplication,
+                resumeOptional: isBlueCollar,
             })
         }
     }
