@@ -197,6 +197,40 @@ export const createClientUser = async ({ email, name, clientId }) => {
     return { email: user.email, password: tempPassword }
 }
 
+// Called internally by client-service right after a candidate submits
+// their public application. Unlike createClientUser's re-approval flow,
+// this must NEVER reset the password of an account that already has a
+// real login for another purpose (an org's own CLIENT_ADMIN applying to
+// their own drive while testing, an existing candidate on a different
+// drive, etc) - resetting a stranger's working password just because they
+// happen to share an email with a new candidate application is a serious
+// account-takeover-shaped bug, not a convenience. Only a brand-new email
+// gets a freshly generated login; anyone who already has an account keeps
+// using their existing one to sign in and see this application too (their
+// existing session already has CANDIDATE access added below, without a
+// credential reset).
+export const createCandidateUser = async ({ email, name, tenantId }) => {
+    const existing = await userRepo.findByEmail(email)
+    if (existing) {
+        if (!existing.roles.includes("CANDIDATE")) {
+            existing.roles = [...new Set([...existing.roles, "CANDIDATE"])]
+            await existing.save()
+        }
+        return { email: existing.email, password: null, existingAccount: true }
+    }
+    const tempPassword = generateTempPassword()
+    const passwordHash = await bcrypt.hash(tempPassword, 10)
+    const user = await userRepo.create({
+        email,
+        displayName: name,
+        passwordHash,
+        roles: ["CANDIDATE"],
+        tenantId,
+        mustChangePassword: true,
+    })
+    return { email: user.email, password: tempPassword, existingAccount: false }
+}
+
 // Firebase already verified the user owns this Google account - we just
 // check whether that email has a WorkmateIQ account and, if so, log them
 // in exactly as if they'd used a password.

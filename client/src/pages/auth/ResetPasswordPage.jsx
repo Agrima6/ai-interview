@@ -70,6 +70,9 @@ function ResetPasswordPage() {
                             <AuthButton type="button" onClick={() => navigate('/platform/login')} className="mt-2">
                                 Sign in
                             </AuthButton>
+                            <button type="button" onClick={() => navigate('/candidate/login')} className="block mx-auto text-[12.5px] text-text-secondary hover:text-ink transition-colors">
+                                Signing in as a candidate instead?
+                            </button>
                         </div>
                     ) : (
                         <div className="space-y-6">

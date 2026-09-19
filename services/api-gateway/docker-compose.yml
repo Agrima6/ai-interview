@@ -1,0 +1,277 @@
+# Local/integration stack for HirePro. Production replaces LocalStack -> AWS SQS+DLQ,
+# MinIO -> managed S3, local Mongo/Redis/pgvector -> managed equivalents (see
+# Workmate_production_scalable_fix_plan_v2.md's "Production distinction" section).
+#
+# Assumes workmate-iq-agent is checked out as a SIBLING directory to interviewIQ:
+#   parent/
+#     interviewIQ/services/api-gateway/docker-compose.yml   <- this file
+#     workmate-iq-agent/
+#
+# Run from this directory: docker compose up -d --build
+name: hirepro
+
+services:
+  # ---- infrastructure ----
+
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports: ["27017:27017"]
+    volumes: [mongo-data:/data/db]
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports: ["6379:6379"]
+    volumes: [redis-data:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  localstack:
+    image: localstack/localstack:3
+    restart: unless-stopped
+    ports: ["4566:4566"]
+    environment:
+      SERVICES: sqs
+      DEFAULT_REGION: us-east-1
+    volumes: [localstack-data:/var/lib/localstack]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Bootstraps the SQS queues this stack expects (plan §7/§20) once LocalStack is up. A
+  # one-shot init container rather than baking queue creation into any service's startup path.
+  localstack-init:
+    image: amazon/aws-cli:2.17.62
+    depends_on:
+      localstack: { condition: service_healthy }
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+    entrypoint: >
+      sh -c "
+      for q in interview-finalization interview-scoring report-generation embedding-generation notification-delivery recording-processing; do
+        aws --endpoint-url=http://localstack:4566 sqs create-queue --queue-name \"$$q\" || true;
+        aws --endpoint-url=http://localstack:4566 sqs create-queue --queue-name \"$$q-dlq\" || true;
+      done
+      "
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    ports: ["5433:5432"]
+    environment:
+      POSTGRES_USER: hirepro
+      POSTGRES_PASSWORD: hirepro
+      POSTGRES_DB: hirepro_vectors
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./pgvector-init.sql:/docker-entrypoint-initdb.d/pgvector-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hirepro"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: quay.io/minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    ports: ["9000:9000", "9001:9001"]
+    environment:
+      MINIO_ROOT_USER: hirepro
+      MINIO_ROOT_PASSWORD: hirepro123
+    volumes: [minio-data:/data]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Bootstraps the S3 buckets the app services expect, same one-shot pattern as
+  # localstack-init - buckets aren't created automatically by MinIO on first boot.
+  minio-init:
+    image: quay.io/minio/mc:latest
+    depends_on:
+      minio: { condition: service_healthy }
+    entrypoint: >
+      sh -c "
+      mc alias set local http://minio:9000 hirepro hirepro123 &&
+      for b in hirepro-resumes hirepro-recordings hirepro-onboarding; do
+        mc mb --ignore-existing local/$$b;
+      done
+      "
+
+  # ---- application services ----
+
+  api-gateway:
+    build: ../api-gateway
+    restart: unless-stopped
+    ports: ["4000:4000"]
+    environment:
+      SERVICE_NAME: api-gateway
+      PORT: 4000
+      AUTH_SERVICE_URL: http://auth-service:4001
+      REGISTRATION_SERVICE_URL: http://registration-service:4003
+      FORM_SERVICE_URL: http://form-service:4002
+      ONBOARDING_SERVICE_URL: http://onboarding-service:4004
+      CLIENT_SERVICE_URL: http://client-service:4006
+      DASHBOARD_SERVICE_URL: http://dashboard-service:4007
+      ENQUIRY_SERVICE_URL: http://enquiry-service:4008
+      COMMUNICATION_SERVICE_URL: http://communication-service:4005
+      ALLOWED_ORIGINS: http://localhost:5173
+    depends_on: [auth-service, client-service]
+
+  auth-service:
+    build: ../auth-service
+    restart: unless-stopped
+    environment:
+      SERVICE_NAME: auth-service
+      PORT: 4001
+      MONGODB_URL: mongodb://mongo:27017/hirepro_auth
+    depends_on:
+      mongo: { condition: service_healthy }
+
+  form-service:
+    build: ../form-service
+    restart: unless-stopped
+    environment:
+      SERVICE_NAME: form-service
+      PORT: 4002
+      MONGODB_URL: mongodb://mongo:27017/hirepro_forms
+    depends_on:
+      mongo: { condition: service_healthy }
+
+  registration-service:
+    build: ../registration-service
+    restart: unless-stopped
+    environment:
+      SERVICE_NAME: registration-service
+      PORT: 4003
+      MONGODB_URL: mongodb://mongo:27017/hirepro_registration
+    depends_on:
+      mongo: { condition: service_healthy }
+
+  onboarding-service:
+    build: ../onboarding-service
+    restart: unless-stopped
+    environment:
+      SERVICE_NAME: onboarding-service
+      PORT: 4004
+      MONGODB_URL: mongodb://mongo:27017/hirepro_onboarding
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: hirepro
+      S3_SECRET_KEY: hirepro123
+      S3_BUCKET_ONBOARDING: hirepro-onboarding
+    depends_on:
+      mongo: { condition: service_healthy }
+      minio-init: { condition: service_completed_successfully }
+
+  communication-service:
+    build: ../communication-service
+    restart: unless-stopped
+    environment:
+      SERVICE_NAME: communication-service
+      PORT: 4005
+      MONGODB_URL: mongodb://mongo:27017/hirepro_communication
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      SQS_QUEUE_URL_NOTIFICATION_DELIVERY: http://localstack:4566/000000000000/notification-delivery
+    depends_on:
+      mongo: { condition: service_healthy }
+      localstack-init: { condition: service_completed_successfully }
+
+  # Same image/env as communication-service - a separate process so a slow
+  # SMTP/WhatsApp provider call never blocks the HTTP API's request threads
+  # (plan.md #7: "all workers must be stateless and idempotent").
+  communication-worker:
+    build: ../communication-service
+    restart: unless-stopped
+    command: npm run worker
+    environment:
+      SERVICE_NAME: communication-worker
+      MONGODB_URL: mongodb://mongo:27017/hirepro_communication
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      SQS_QUEUE_URL_NOTIFICATION_DELIVERY: http://localstack:4566/000000000000/notification-delivery
+    depends_on:
+      mongo: { condition: service_healthy }
+      localstack-init: { condition: service_completed_successfully }
+
+  client-service:
+    build: ../client-service
+    restart: unless-stopped
+    environment:
+      SERVICE_NAME: client-service
+      PORT: 4006
+      MONGODB_URL: mongodb://mongo:27017/hirepro_clients
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: hirepro
+      S3_SECRET_KEY: hirepro123
+      S3_BUCKET_RESUMES: hirepro-resumes
+      S3_BUCKET_RECORDINGS: hirepro-recordings
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      SQS_QUEUE_URL_RECORDING_PROCESSING: http://localstack:4566/000000000000/recording-processing
+    depends_on:
+      mongo: { condition: service_healthy }
+      minio-init: { condition: service_completed_successfully }
+      localstack-init: { condition: service_completed_successfully }
+
+  dashboard-service:
+    build: ../dashboard-service
+    restart: unless-stopped
+    environment:
+      SERVICE_NAME: dashboard-service
+      PORT: 4007
+      MONGODB_URL: mongodb://mongo:27017/hirepro_dashboard
+    depends_on:
+      mongo: { condition: service_healthy }
+
+  enquiry-service:
+    build: ../enquiry-service
+    restart: unless-stopped
+    environment:
+      SERVICE_NAME: enquiry-service
+      PORT: 4008
+      MONGODB_URL: mongodb://mongo:27017/hirepro_enquiries
+    depends_on:
+      mongo: { condition: service_healthy }
+
+  # workmate-iq-agent must be checked out as a sibling of interviewIQ (see header comment).
+  ai-agent:
+    build: ../../../workmate-iq-agent
+    restart: unless-stopped
+    ports: ["8000:8000"]
+    environment:
+      DATABASE_URL: postgresql://hirepro:hirepro@postgres:5432/hirepro_vectors
+      API_BASE_URL: http://localhost:8000
+      # LIVEKIT_URL / LIVEKIT_API_KEY / LIVEKIT_API_SECRET / GROQ_API_KEY / OPENAI_API_KEY /
+      # AGENT_SERVICE_KEY etc: real secrets, not baked into this file — pass via a local .env
+      # (docker compose --env-file) or `docker compose run -e` at start time.
+    depends_on:
+      postgres: { condition: service_healthy }
+
+volumes:
+  mongo-data:
+  redis-data:
+  postgres-data:
+  minio-data:
+  localstack-data:

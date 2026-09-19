@@ -16,6 +16,7 @@ const ROLE_CATEGORIES = [
   { value: 'FINANCE_OPERATIONS', label: 'Finance & Accounts' },
   { value: 'HR_OPERATIONS', label: 'Human Resources & Talent Acquisition' },
   { value: 'CAMPUS_PLACEMENT', label: 'Campus Placement / Graduate Trainee' },
+  { value: 'BLUE_COLLAR', label: 'Blue Collar / Field & Skilled Trades' },
 ]
 
 const DEPARTMENTS = [

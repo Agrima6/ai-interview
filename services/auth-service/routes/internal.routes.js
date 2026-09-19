@@ -11,4 +11,11 @@ router.post(
     internalController.createClientUser
 )
 
+router.post(
+    "/candidate-users",
+    authenticateService,
+    requireServicePermission("CANDIDATE_USER_CREATE"),
+    internalController.createCandidateUser
+)
+
 export default router

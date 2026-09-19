@@ -93,11 +93,20 @@ function AuthPage() {
         setLoading(true)
         try {
             const user = await login(email, password)
+            // An org admin who also has a candidate application (e.g. they
+            // tested their own drive) is still primarily an org admin here -
+            // this is the ORG login page, so that identity always wins over
+            // CANDIDATE when an account happens to carry both roles.
+            const isOrgAdmin = user?.tenantId || user?.roles?.includes('CLIENT_ADMIN')
+            if (!isOrgAdmin && user?.roles?.includes('CANDIDATE')) {
+                navigate(user?.mustChangePassword ? '/candidate/change-password' : '/candidate/room')
+                return
+            }
             if (user?.mustChangePassword) {
                 navigate('/platform/client/change-password')
                 return
             }
-            if (user?.tenantId || user?.roles?.includes('CLIENT_ADMIN')) {
+            if (isOrgAdmin) {
                 try {
                     const profile = await getOrganizationProfile()
                     if (profile?.type === 'COLLEGE') {

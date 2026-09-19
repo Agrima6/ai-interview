@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { Link2, Copy, ExternalLink, Check } from 'lucide-react'
+import { buildPublicApplyUrl } from '../../utils/publicAppUrl'
 
 /**
  * Public candidate-link control for a drive card. Opens a small, absolutely
@@ -16,7 +17,7 @@ function PublicLinkPopover({ publicLink }) {
   const [coords, setCoords] = useState(null)
   const anchorRef = useRef(null)
 
-  const url = publicLink ? `${window.location.origin}/apply/${publicLink}` : ''
+  const url = buildPublicApplyUrl(publicLink)
 
   useEffect(() => {
     if (!open) return

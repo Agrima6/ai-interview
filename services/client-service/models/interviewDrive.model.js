@@ -23,6 +23,39 @@ const CandidateRosterSchema = new mongoose.Schema({
     malpracticeFlags: { type: Number, default: 0 },
     status: { type: String, enum: ["INVITED", "SHORTLISTED", "COMPLETED", "REJECTED"], default: "INVITED" },
     attemptedDate: { type: Date },
+    // Self-service application data - filled in by the candidate on the
+    // public apply page, not by the recruiter.
+    resumeFilename: { type: String, default: null },
+    resumeOriginalName: { type: String, default: null },
+    interviewSlot: { type: Date, default: null },
+    // Candidate's chosen interview language - matters most for blue-collar
+    // roles where corporate English/formal Hindi isn't a safe default (see
+    // workmate-iq-agent's PLAIN_LANGUAGE_ROLE_TYPES). Passed to the agent
+    // once when the interview is created.
+    preferredLanguage: { type: String, enum: ["en", "hi", "hinglish"], default: "en" },
+    // Proctoring evidence captured client-side during the interview (tab
+    // switch, fullscreen exit, etc). `malpracticeFlags` stays the quick
+    // count HR already sees in the table; this is the detail behind it -
+    // reason + timestamp + a webcam snapshot, and for tab/window-switch
+    // violations a screen-share snapshot too (shows what they switched to,
+    // which a webcam frame of their face can't).
+    violations: [{
+        reason: { type: String, required: true },
+        occurredAt: { type: Date, default: Date.now },
+        snapshot: { type: String, default: null },
+        screenSnapshot: { type: String, default: null },
+    }],
+    // Identifiers in the standalone AI-interview agent (workmate-iq-agent,
+    // a separate Python/LiveKit service with its own DB) - cached here so
+    // a candidate resuming their room doesn't create a duplicate
+    // agent-side candidate/interview on every visit.
+    agentCandidateId: { type: String, default: null },
+    agentInterviewId: { type: String, default: null },
+    agentReport: { type: mongoose.Schema.Types.Mixed, default: null },
+    // Candidate's own camera/mic feed for the session, captured client-side
+    // by MediaRecorder and uploaded on completion - what HR reviews on the
+    // org dashboard, distinct from the point-in-time proctoring snapshots above.
+    recordingFilename: { type: String, default: null },
     // Audit trail + duplicate-send visibility (integration.md section 32/52)
     // for congratulations/rejection communications sent from the drive
     // detail page - not every invite/reminder, just the round-outcome ones.
@@ -73,6 +106,10 @@ const InterviewDriveSchema = new mongoose.Schema(
         communicationSettings: { type: mongoose.Schema.Types.Mixed, default: null },
         publicLink: { type: String },
         candidatesCount: { type: Number, default: 0 },
+        // Cached agent-service "role" id (see CandidateRosterSchema above) -
+        // one per drive, shared by every candidate/round on it so they all
+        // face the same standardized question set for the same job.
+        agentRoleId: { type: String, default: null },
         rounds: [RoundSchema],
     },
     { timestamps: true }

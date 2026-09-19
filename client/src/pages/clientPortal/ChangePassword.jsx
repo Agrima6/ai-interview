@@ -26,12 +26,14 @@ function ChangePassword() {
         setLoading(true)
         try {
             await authApi.changePassword(currentPassword, newPassword)
-            await refresh()
+            const updatedUser = await refresh()
+            if (updatedUser?.roles?.includes('CANDIDATE')) {
+                navigate('/candidate/room')
+                return
+            }
             const profile = await getOrganizationProfile().catch(() => null)
             if (profile?.type === 'COLLEGE') {
                 navigate('/college/dashboard')
-            } else if (profile?.type === 'CANDIDATE') {
-                navigate('/candidate/dashboard')
             } else {
                 navigate('/organization/dashboard')
             }

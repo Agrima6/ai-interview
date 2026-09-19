@@ -26,7 +26,9 @@ app.use(cors({
     },
     credentials: true,
 }))
-app.use(express.json())
+// Default 100kb is too small for the violation-reporting endpoint, which
+// carries a webcam snapshot + a screen-share snapshot as base64 JSON.
+app.use(express.json({ limit: "2mb" }))
 app.use(requestContext)
 
 app.get("/healthz", (req, res) => res.json({ status: "ok", service: process.env.SERVICE_NAME }))

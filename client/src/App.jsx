@@ -52,6 +52,11 @@ import SettingsPage from './pages/organization/SettingsPage'
 import ApplyPage from './pages/ApplyPage'
 import AuthPage from './pages/auth/AuthPage'
 import ResetPasswordPage from './pages/auth/ResetPasswordPage'
+import CandidateLoginPage from './pages/candidate/CandidateLoginPage'
+import CandidateChangePassword from './pages/candidate/CandidateChangePassword'
+import CandidateRoomPage from './pages/candidate/CandidateRoomPage'
+import InterviewRoomPage from './pages/candidate/InterviewRoomPage'
+import RequireCandidateAuth from './components/RequireCandidateAuth'
 import { featurePermissions } from './permissions/featurePermissions'
 import { ServerUrl } from './constants'
 
@@ -151,16 +156,13 @@ function App() {
       <Route path='/college/reports' element={<RequireClientAuth><ReportsPage/></RequireClientAuth>}/>
       <Route path='/college/settings' element={<RequireClientAuth><SettingsPage/></RequireClientAuth>}/>
 
-      {/* Candidate Portal Routes */}
-      <Route path='/candidate/dashboard' element={<RequireClientAuth><OrganizationDashboard/></RequireClientAuth>}/>
-      <Route path='/candidate/drives' element={<RequireClientAuth><DrivesListPage/></RequireClientAuth>}/>
-      <Route path='/candidate/drives/:id' element={<RequireClientAuth><DriveDetailPage/></RequireClientAuth>}/>
-      <Route path='/candidate/question-sets' element={<RequireClientAuth><QuestionSetsPage/></RequireClientAuth>}/>
-      <Route path='/candidate/candidates' element={<RequireClientAuth><CandidatesListPage/></RequireClientAuth>}/>
-      <Route path='/candidate/team' element={<RequireClientAuth><TeamPage/></RequireClientAuth>}/>
-      <Route path='/candidate/templates' element={<RequireClientAuth><TemplatesPage/></RequireClientAuth>}/>
-      <Route path='/candidate/reports' element={<RequireClientAuth><ReportsPage/></RequireClientAuth>}/>
-      <Route path='/candidate/settings' element={<RequireClientAuth><SettingsPage/></RequireClientAuth>}/>
+      {/* Candidate Portal Routes - self-service applicants (CANDIDATE role),
+          a separate session/identity from the org/HR RequireClientAuth above
+          even though both go through the same auth-service. */}
+      <Route path='/candidate/login' element={<CandidateLoginPage/>}/>
+      <Route path='/candidate/change-password' element={<CandidateChangePassword/>}/>
+      <Route path='/candidate/room' element={<RequireCandidateAuth><CandidateRoomPage/></RequireCandidateAuth>}/>
+      <Route path='/candidate/interview/:driveId/:roundNumber' element={<RequireCandidateAuth><InterviewRoomPage/></RequireCandidateAuth>}/>
       <Route path='/dashboard' element={<RequireAuth><Home/></RequireAuth>}/>
       <Route path='/interview' element={<RequireAuth><InterviewPage/></RequireAuth>}/>
       <Route path='/history' element={<RequireAuth><InterviewHistory/></RequireAuth>}/>

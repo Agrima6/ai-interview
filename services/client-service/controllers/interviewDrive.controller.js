@@ -15,6 +15,111 @@ export const getPublicDriveBySlug = async (req, res, next) => {
     try { ok(res, await driveService.getPublicDriveBySlug(req.params.link)) } catch (error) { next(error) }
 }
 
+export const getPublicApplicationPrefill = async (req, res, next) => {
+    try { ok(res, await driveService.getPublicApplicationPrefill(req.params.link, req.query.email)) } catch (error) { next(error) }
+}
+
+export const applyToPublicDrive = async (req, res, next) => {
+    try {
+        const ctx = { requestId: req.requestId, correlationId: req.correlationId }
+        const result = await driveService.applyToPublicDrive(req.params.link, req.body, req.file, ctx)
+        ok(res, result)
+    } catch (error) {
+        next(error)
+    }
+}
+
+export const getMyInterviews = async (req, res, next) => {
+    try {
+        if (!req.user?.roles?.includes("CANDIDATE")) throw new ApiError(403, "FORBIDDEN", "This endpoint is only for candidate accounts.")
+        const interviews = await driveService.getMyInterviews(req.user.tenantId, req.user.email)
+        ok(res, interviews)
+    } catch (error) {
+        next(error)
+    }
+}
+
+const requireCandidate = (req) => {
+    if (!req.user?.roles?.includes("CANDIDATE")) throw new ApiError(403, "FORBIDDEN", "This endpoint is only for candidate accounts.")
+}
+
+export const recordCandidateViolation = async (req, res, next) => {
+    try {
+        requireCandidate(req)
+        const { id, roundNumber } = req.params
+        const { reason, snapshot, screenSnapshot } = req.body
+        if (!reason) throw new ApiError(400, "REASON_REQUIRED", "A violation reason is required.")
+        const result = await driveService.recordCandidateViolation(req.user.tenantId, req.user.email, id, roundNumber, reason, snapshot, screenSnapshot)
+        ok(res, result)
+    } catch (error) {
+        next(error)
+    }
+}
+
+export const completeCandidateInterview = async (req, res, next) => {
+    try {
+        requireCandidate(req)
+        const { id, roundNumber } = req.params
+        const result = await driveService.completeCandidateInterview(req.user.tenantId, req.user.email, id, roundNumber)
+        ok(res, result)
+    } catch (error) {
+        next(error)
+    }
+}
+
+export const startAgentInterview = async (req, res, next) => {
+    try {
+        requireCandidate(req)
+        const { id, roundNumber } = req.params
+        const session = await driveService.startAgentInterview(req.user.tenantId, req.user.email, id, roundNumber)
+        ok(res, session)
+    } catch (error) {
+        next(error)
+    }
+}
+
+export const completeAgentInterview = async (req, res, next) => {
+    try {
+        requireCandidate(req)
+        const { id, roundNumber } = req.params
+        const report = await driveService.completeAgentInterview(req.user.tenantId, req.user.email, id, roundNumber)
+        ok(res, report)
+    } catch (error) {
+        next(error)
+    }
+}
+
+export const saveCandidateRecording = async (req, res, next) => {
+    try {
+        requireCandidate(req)
+        const { id, roundNumber } = req.params
+        const result = await driveService.saveCandidateRecording(req.user.tenantId, req.user.email, id, roundNumber, req.file)
+        ok(res, result)
+    } catch (error) {
+        next(error)
+    }
+}
+
+export const streamCandidateRecording = async (req, res, next) => {
+    try {
+        const tenantId = req.user?.tenantId
+        const { id, roundNumber, candidateId } = req.params
+        await driveService.streamCandidateRecording(tenantId, id, roundNumber, candidateId, res)
+    } catch (error) {
+        next(error)
+    }
+}
+
+export const downloadCandidateResume = async (req, res, next) => {
+    try {
+        const tenantId = req.user?.tenantId
+        const { id, roundNumber, candidateId } = req.params
+        await driveService.streamCandidateResume(tenantId, id, roundNumber, candidateId, res)
+    } catch (error) {
+        next(error)
+    }
+}
+
 export const listDrives = async (req, res, next) => {
     try {
         const tenantId = req.user?.tenantId

@@ -2,6 +2,7 @@ import express from "express"
 import cors from "cors"
 import { requestContext, errorHandler, notFoundHandler } from "./middlewares/requestContext.js"
 import communicationInternalRoutes from "./routes/communication.internal.routes.js"
+import * as trackingController from "./controllers/tracking.controller.js"
 
 const app = express()
 
@@ -27,6 +28,12 @@ app.use(express.json())
 app.use(requestContext)
 
 app.get("/healthz", (req, res) => res.json({ status: "ok", service: process.env.SERVICE_NAME }))
+
+// Public (unauthenticated) - loaded as an <img> by the recipient's mail
+// client for open-tracking, registered before the internal routes'
+// authenticateService gate since a mail client can never present a
+// service API key.
+app.get("/track/open/:id", trackingController.trackOpen)
 
 app.use("/", communicationInternalRoutes)
 

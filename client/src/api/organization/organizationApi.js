@@ -12,6 +12,47 @@ export const getInterviewDriveById = (id) => apiGet(`/api/v1/drives/${id}`)
 export const addCandidatesToDrive = (driveId, candidates, roundNumber = 1) => apiPost(`/api/v1/drives/${driveId}/candidates`, { candidates, roundNumber })
 // Public/unauthenticated - what a candidate sees when they open their invite link.
 export const getPublicDrive = (link) => apiGet(`/api/v1/drives/public/${link}`)
+// Public/unauthenticated self-service application - multipart because it carries the resume file.
+export const applyToDrive = (link, formData) => apiPost(`/api/v1/drives/public/${link}/apply`, formData)
+// Public/unauthenticated - whatever HR already filled in for this email (bulk import, etc), so the apply form can lock those fields instead of asking the candidate to retype them.
+export const getApplicationPrefill = (link, email) => apiGet(`/api/v1/drives/public/${link}/prefill`, { email })
+// Authenticated (CANDIDATE role) - the signed-in candidate's own scheduled interviews, across every drive/round they applied to.
+export const getMyInterviews = () => apiGet("/api/v1/candidate/me/interviews")
+// Authenticated (CANDIDATE role) - proctoring event reporting + end-of-attempt marker for the candidate's own interview room.
+export const reportInterviewViolation = (driveId, roundNumber, reason, snapshot, screenSnapshot) =>
+    apiPost(`/api/v1/candidate/me/interviews/${driveId}/rounds/${roundNumber}/violations`, { reason, snapshot, screenSnapshot })
+export const completeInterview = (driveId, roundNumber) =>
+    apiPost(`/api/v1/candidate/me/interviews/${driveId}/rounds/${roundNumber}/complete`)
+// Authenticated (CANDIDATE role) - bridges into the AI-interview agent: starts/resumes the agent-side interview and returns a LiveKit room + token to join directly.
+export const startAgentInterview = (driveId, roundNumber) =>
+    apiPost(`/api/v1/candidate/me/interviews/${driveId}/rounds/${roundNumber}/agent-session`)
+export const completeAgentInterview = (driveId, roundNumber) =>
+    apiPost(`/api/v1/candidate/me/interviews/${driveId}/rounds/${roundNumber}/agent-complete`)
+// Authenticated (CANDIDATE role) - uploads the candidate's own camera/mic recording of the session, captured client-side by MediaRecorder.
+export const uploadInterviewRecording = (driveId, roundNumber, blob) => {
+    const formData = new FormData()
+    formData.append('recording', blob, 'interview.webm')
+    return apiPost(`/api/v1/candidate/me/interviews/${driveId}/rounds/${roundNumber}/recording`, formData)
+}
+// Authenticated (HR) - the candidate's full interview recording, played inline (not downloaded) via a blob URL, same auth pattern as downloadCandidateResume.
+export const getCandidateRecordingUrl = async (driveId, roundNumber, candidateId) => {
+    const response = await client.get(`/api/v1/drives/${driveId}/rounds/${roundNumber}/candidates/${candidateId}/recording`, { responseType: 'blob' })
+    return window.URL.createObjectURL(response.data)
+}
+// Authenticated (HR) - downloads the candidate's uploaded resume file. Uses
+// the shared axios client (not a bare <a href>) because auth is a bearer
+// token in memory, not a cookie a plain link request would carry.
+export const downloadCandidateResume = async (driveId, roundNumber, candidateId, filename) => {
+    const response = await client.get(`/api/v1/drives/${driveId}/rounds/${roundNumber}/candidates/${candidateId}/resume`, { responseType: "blob" })
+    const url = window.URL.createObjectURL(response.data)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = filename || "resume"
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+}
 export const addRoundToInterviewDrive = (driveId, payload) => apiPost(`/api/v1/drives/${driveId}/rounds`, payload)
 export const updateDriveStatus = (driveId, status) => apiPatch(`/api/v1/drives/${driveId}/status`, { status })
 export const updateRoundStatus = (driveId, roundNumber, status) => apiPatch(`/api/v1/drives/${driveId}/rounds/${roundNumber}/status`, { status })

@@ -3,8 +3,11 @@ import { InterviewDrive } from "../models/interviewDrive.model.js"
 import { NotificationTemplate } from "../models/notificationTemplate.model.js"
 import { ApiError } from "../utils/response.js"
 import { requireValidObjectId } from "../utils/validateId.js"
-import { communicationServiceClient } from "../config/internalClients.js"
+import { communicationServiceClient, authServiceClient } from "../config/internalClients.js"
 import * as clientRepo from "../repositories/client.repository.js"
+import { agentServiceClient } from "../config/agentServiceClient.js"
+import { uploadBuffer, getObjectBuffer, getObjectStream, RESUMES_BUCKET, RECORDINGS_BUCKET } from "../config/s3Client.js"
+import { enqueueRecordingProcessing } from "../config/sqsClient.js"
 
 // Same {var}/{{var}} interpolation the frontend's renderWithSamples()
 // preview uses (client/src/constants/templateVariables.js) - kept in sync
@@ -100,11 +103,15 @@ const repairRoundStatuses = async (drive) => {
 const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
     if (!candidates?.length || !drive.publicLink) return
     const org = await clientRepo.findById(tenantId).catch(() => null)
-    const interviewLink = buildFrontendUrl(`/apply/${drive.publicLink}`)
     const expiryDate = new Date(drive.expiryDate).toLocaleDateString()
 
     for (const candidate of candidates) {
         if (!candidate.email) continue
+        // Carries the candidate's email through to the apply page so it can
+        // look up and lock the fields HR already filled in for them,
+        // instead of asking them to retype (and possibly contradict) data
+        // that's already on file.
+        const interviewLink = buildFrontendUrl(`/apply/${drive.publicLink}?email=${encodeURIComponent(candidate.email)}`)
         communicationServiceClient.send({
             entityType: "CLIENT", entityId: tenantId, channel: "EMAIL",
             eventType: "CANDIDATE_INVITE", recipient: candidate.email,
@@ -116,6 +123,7 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
                 expiry_date: expiryDate,
                 supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
             },
+            metadata: { driveId: String(drive._id), candidateId: candidate.id },
         }, ctx).catch((err) => console.error(`[client-service] candidate-invite email failed for ${candidate.email}:`, err.message))
     }
 }
@@ -216,15 +224,402 @@ export const getPublicDriveBySlug = async (link) => {
     if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "This interview link is invalid or no longer active.")
 
     const org = await clientRepo.findById(drive.tenantId).catch(() => null)
+    const round1 = drive.rounds?.find((r) => r.roundNumber === 1)
     return {
         title: drive.title,
         roleCategory: drive.roleCategory,
         department: drive.department,
         experienceLevel: drive.experienceLevel,
+        startDate: drive.startDate || null,
         expiryDate: drive.expiryDate,
         companyName: org?.name || null,
         expired: new Date(drive.expiryDate) < new Date(),
+        // A candidate who already applied (found by re-visiting the same
+        // link, e.g. from the confirmation email) sees a "you're in" state
+        // instead of the form again - matched by email would need the
+        // candidate to identify themselves first, so this is intentionally
+        // left to the frontend's own localStorage-based "already applied"
+        // flag rather than a server-side lookup with no candidate identity yet.
+        roundOpen: round1?.status === "ACTIVE",
+        // Blue-collar candidates frequently don't have a resume at all -
+        // the frontend uses this to stop requiring one.
+        resumeOptional: drive.roleCategory === "BLUE_COLLAR",
     }
+}
+
+// Public (unauthenticated) - looks up whatever HR already entered for this
+// candidate (bulk import, or added while creating the drive) so the apply
+// form can pre-fill and lock those fields instead of asking the candidate
+// to retype (and possibly contradict) data HR already has on file. Only
+// ever matched by email, and only returns name/phone/exp - never anything
+// else on the roster (score, status, other candidates).
+export const getPublicApplicationPrefill = async (link, email) => {
+    if (!email) return { prefilled: false }
+    const drive = await InterviewDrive.findOne({ publicLink: link, status: "ACTIVE" })
+    if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "This interview link is invalid or no longer active.")
+    const round = drive.rounds?.find((r) => r.roundNumber === 1)
+    const candidate = round?.candidates.find((c) => c.email.toLowerCase() === email.toLowerCase())
+    if (!candidate) return { prefilled: false }
+    // Only lock fields for a bare invite - if they already fully applied,
+    // there's nothing left to pre-fill (the form won't even be shown).
+    if (candidate.resumeFilename || candidate.interviewSlot) return { prefilled: false }
+    return { prefilled: true, name: candidate.name, phone: candidate.phone || "", exp: candidate.exp || "" }
+}
+
+// Public (unauthenticated) self-service application - a candidate filling
+// out the apply page submits their own info/resume/slot directly, unlike
+// addCandidatesToDrive (recruiter-driven CSV import). Reuses the same
+// normalizeCandidate validation and duplicate-email guard so a candidate
+// can't end up with two roster entries by re-submitting.
+export const applyToPublicDrive = async (link, applicationData, resumeFile, ctx) => {
+    const drive = await InterviewDrive.findOne({ publicLink: link, status: "ACTIVE" })
+    if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "This interview link is invalid or no longer active.")
+    if (new Date(drive.expiryDate) < new Date()) throw new ApiError(410, "DRIVE_EXPIRED", "This interview invitation has expired.")
+
+    const round = drive.rounds?.find((r) => r.roundNumber === 1)
+    if (!round || round.status !== "ACTIVE") throw new ApiError(409, "ROUND_NOT_OPEN", "This drive isn't accepting applications right now.")
+
+    if (!applicationData.interviewSlot) throw new ApiError(400, "SLOT_REQUIRED", "Please choose an interview slot.")
+    const slot = new Date(applicationData.interviewSlot)
+    if (Number.isNaN(slot.getTime()) || slot < new Date() || slot > new Date(drive.expiryDate)) {
+        throw new ApiError(400, "INVALID_SLOT", "Please choose a valid upcoming slot before the application deadline.")
+    }
+
+    const normalized = normalizeCandidate(applicationData, 0)
+    const existing = round.candidates.find((c) => c.email.toLowerCase() === normalized.email)
+    // A recruiter-added roster entry (bulk import, or the invite step of
+    // creating a drive) has no resume/slot yet - it's a placeholder waiting
+    // for the candidate, not a completed application. Only a candidate who
+    // has ALREADY filled this in for real should be blocked from doing it
+    // again; a bare invite should be completed in place by their self-apply,
+    // not treated as a conflict.
+    if (existing && (existing.resumeFilename || existing.interviewSlot)) {
+        throw new ApiError(409, "ALREADY_APPLIED", "An application with this email already exists for this drive.")
+    }
+
+    const preferredLanguage = ["en", "hi", "hinglish"].includes(applicationData.preferredLanguage) ? applicationData.preferredLanguage : "en"
+
+    const candidate = existing || { id: `candidate-${crypto.randomBytes(8).toString("hex")}` }
+
+    // Resume is buffered in memory by multer (middlewares/resumeUpload.js)
+    // and goes straight to S3/MinIO - resumeFilename stores the S3 object
+    // key, not a local path (plan.md #11: object storage, not local disk).
+    let resumeKey = existing?.resumeFilename || null
+    if (resumeFile) {
+        resumeKey = `${drive.tenantId}/${candidate.id}/${Date.now()}-${resumeFile.originalname}`
+        await uploadBuffer(RESUMES_BUCKET, resumeKey, resumeFile.buffer, resumeFile.mimetype)
+    }
+
+    Object.assign(candidate, normalized, {
+        id: candidate.id, // preserve the roster entry's original id when completing an existing invite
+        interviewSlot: slot,
+        resumeFilename: resumeKey,
+        resumeOriginalName: resumeFile?.originalname || existing?.resumeOriginalName || null,
+        preferredLanguage,
+    })
+    if (!existing) round.candidates.push(candidate)
+    drive.candidatesCount = drive.rounds.reduce((total, r) => total + r.candidates.length, 0)
+    await drive.save()
+
+    const org = await clientRepo.findById(drive.tenantId).catch(() => null)
+
+    // Best-effort: issue the candidate a login so they can come back to
+    // their "room" and take the interview later - failure here must never
+    // block the application itself (the roster entry above already saved).
+    let credentials = null
+    try {
+        credentials = await authServiceClient.createCandidateUser(
+            { email: candidate.email, name: candidate.name, tenantId: drive.tenantId },
+            ctx
+        )
+    } catch (err) {
+        console.error(`[client-service] candidate account creation failed for ${candidate.email}:`, err.message)
+    }
+
+    communicationServiceClient.send({
+        entityType: "CLIENT", entityId: drive.tenantId, channel: "EMAIL",
+        eventType: "CANDIDATE_APPLICATION_CONFIRMED", recipient: candidate.email,
+        variables: {
+            candidate_name: candidate.name || "there",
+            drive_title: drive.title,
+            company_name: org?.name || "the hiring team",
+            interview_slot: slot.toLocaleString(),
+            login_email: credentials?.email || candidate.email,
+            temp_password: credentials?.password || "(check your existing WorkmateIQ password)",
+            login_url: buildFrontendUrl("/candidate/login"),
+            supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
+        },
+    }, ctx).catch((err) => console.error(`[client-service] application-confirmation email failed for ${candidate.email}:`, err.message))
+
+    return { title: drive.title, slot, candidateName: candidate.name }
+}
+
+// Candidate-scoped (authenticated CANDIDATE role) - "my interviews" for the
+// candidate's own room. Scanning every drive in the tenant and filtering in
+// JS (rather than a Mongo query into the nested rounds.candidates array) is
+// fine at this data scale and keeps the shape simple; revisit with an
+// aggregation if a tenant's drive count grows large.
+export const getMyInterviews = async (tenantId, email) => {
+    if (!tenantId || !email) return []
+    const normalizedEmail = email.toLowerCase()
+    const drives = await InterviewDrive.find({ tenantId, status: { $ne: "ARCHIVED" } })
+    const results = []
+    for (const drive of drives) {
+        for (const round of drive.rounds || []) {
+            const candidate = round.candidates?.find((c) => c.email?.toLowerCase() === normalizedEmail)
+            if (!candidate) continue
+            results.push({
+                driveId: drive._id,
+                driveTitle: drive.title,
+                department: drive.department,
+                roundNumber: round.roundNumber,
+                roundTitle: round.title,
+                roundStatus: round.status,
+                interviewSlot: candidate.interviewSlot,
+                candidateStatus: candidate.status,
+                aiScore: candidate.aiScore,
+            })
+        }
+    }
+    return results.sort((a, b) => new Date(a.interviewSlot || 0) - new Date(b.interviewSlot || 0))
+}
+
+// Shared by the candidate-scoped violation/complete endpoints below - a
+// candidate can only ever act on their OWN roster entry, matched by the
+// email on their access token (never a client-supplied candidateId), on a
+// drive that belongs to their own token's tenant.
+const findOwnRosterEntry = async (tenantId, email, driveId, roundNumber) => {
+    if (!tenantId || !email) throw new ApiError(403, "FORBIDDEN", "Candidate context is missing.")
+    requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
+    if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    const round = drive.rounds?.find((r) => r.roundNumber === Number(roundNumber))
+    if (!round) throw new ApiError(404, "ROUND_NOT_FOUND", "Round not found.")
+    const candidate = round.candidates?.find((c) => c.email?.toLowerCase() === email.toLowerCase())
+    if (!candidate) throw new ApiError(404, "NOT_APPLIED", "You have not applied to this interview.")
+    return { drive, round, candidate }
+}
+
+// Candidate-scoped - called once per detected proctoring event (tab
+// switch, fullscreen exit, etc) while the candidate is in the interview
+// room. Best-effort snapshot proof is stored inline on the roster entry;
+// `malpracticeFlags` stays as the quick count HR already reads elsewhere.
+export const recordCandidateViolation = async (tenantId, email, driveId, roundNumber, reason, snapshot, screenSnapshot) => {
+    const { drive, candidate } = await findOwnRosterEntry(tenantId, email, driveId, roundNumber)
+    candidate.violations.push({ reason, snapshot: snapshot || null, screenSnapshot: screenSnapshot || null })
+    candidate.malpracticeFlags = (candidate.malpracticeFlags || 0) + 1
+    await drive.save()
+    return { malpracticeFlags: candidate.malpracticeFlags, violationCount: candidate.violations.length }
+}
+
+// Candidate-scoped - marks the candidate's attempt on this round as done
+// (whether they finished normally or were auto-terminated for too many
+// proctoring violations), so it stops showing as startable in their room
+// and HR sees it move out of "in progress".
+export const completeCandidateInterview = async (tenantId, email, driveId, roundNumber) => {
+    const { drive, candidate } = await findOwnRosterEntry(tenantId, email, driveId, roundNumber)
+    if (candidate.status === "INVITED") candidate.status = "COMPLETED"
+    candidate.attemptedDate = new Date()
+    await drive.save()
+    return { status: candidate.status }
+}
+
+// Candidate-scoped - bridges into the standalone AI-interview agent
+// (workmate-iq-agent) right before the candidate joins the LiveKit room.
+// Lazily creates (and caches) the agent-side role/candidate/interview so a
+// candidate revisiting their room resumes the SAME interview instead of
+// spawning a new one each time. Returns what the frontend needs to join
+// the LiveKit room directly with the livekit-client SDK.
+const agentRoleNameFor = (drive) => {
+    // The agent detects role type (backend/frontend/blue_collar/...) by
+    // keyword-matching free text (roles.py's ROLE_TYPE_KEYWORDS) - an
+    // enum code like "BLUE_COLLAR" or "SOFTWARE_ENGINEERING" won't match
+    // any of those phrases, so the drive's actual job title (e.g.
+    // "Warehouse Loader", "Backend Engineer") has to go first, with the
+    // category only as a fallback for a title that's just a company
+    // codename or similarly unhelpful.
+    // If HR explicitly picked "Blue Collar" as the category but the
+    // free-text title itself doesn't happen to contain a matching
+    // keyword (e.g. title is just "September Hiring Drive"), append a
+    // guaranteed-matching phrase so the deliberate category choice
+    // isn't silently lost to a "general" fallback.
+    return drive.roleCategory === "BLUE_COLLAR" && !/field worker|warehouse|driver|electrician|plumber|welder|mechanic|labourer|laborer/i.test(drive.title || "")
+        ? `${drive.title || "Field Worker"} (field worker)`
+        : drive.title || drive.roleCategory
+}
+
+// True for the 404 workmate-iq-agent returns when a cached role/candidate/interview id
+// references a row that no longer exists on its side (e.g. its database was reset or the
+// candidate/drive was created against a different agent environment) - as opposed to a 404
+// from some other cause, which should surface normally rather than trigger a silent recreate.
+const isAgentIdNotFoundError = (err) => err?.status === 404
+
+export const startAgentInterview = async (tenantId, email, driveId, roundNumber) => {
+    const { drive, candidate } = await findOwnRosterEntry(tenantId, email, driveId, roundNumber)
+
+    if (!drive.agentRoleId) {
+        const role = await agentServiceClient.createRole(agentRoleNameFor(drive))
+        drive.agentRoleId = role.id
+        await drive.save()
+    }
+
+    if (!candidate.agentCandidateId) {
+        const agentCandidate = await agentServiceClient.createCandidate(candidate.name, candidate.email)
+        candidate.agentCandidateId = agentCandidate.id
+        await drive.save()
+
+        if (candidate.resumeFilename) {
+            try {
+                const buffer = await getObjectBuffer(RESUMES_BUCKET, candidate.resumeFilename)
+                await agentServiceClient.uploadResume(candidate.agentCandidateId, buffer, candidate.resumeOriginalName).catch((err) =>
+                    console.error(`[client-service] agent resume upload failed for ${candidate.email}:`, err.message)
+                )
+            } catch (err) {
+                console.error(`[client-service] resume fetch from S3 failed for ${candidate.email}:`, err.message)
+            }
+        }
+    }
+
+    let plan = null
+    if (candidate.agentInterviewId) {
+        // Resuming a room the candidate already started (e.g. they reloaded the page) - the
+        // interview already exists, so fetch its plan rather than trying to create a duplicate.
+        // A 404 here means the cached interview id is stale (agent-side data was reset) -
+        // fall through to the creation path below instead of silently sending a null plan.
+        try {
+            plan = await agentServiceClient.getInterview(candidate.agentInterviewId).then((i) => i.plan)
+        } catch (err) {
+            if (!isAgentIdNotFoundError(err)) throw err
+            console.warn(`[client-service] cached agentInterviewId ${candidate.agentInterviewId} no longer exists on the agent - recreating for ${candidate.email}`)
+            candidate.agentInterviewId = null
+        }
+    }
+
+    if (!candidate.agentInterviewId) {
+        let interview
+        try {
+            interview = await agentServiceClient.createInterview(candidate.agentCandidateId, drive.agentRoleId)
+        } catch (err) {
+            if (!isAgentIdNotFoundError(err)) throw err
+            // The cached role and/or candidate id no longer exists on the agent side (its
+            // database was reset independently of this one) - recreate both fresh rather than
+            // leaving the candidate stuck on a permanently-broken cached reference, then retry
+            // once. Not caching which of the two was actually missing since the agent's error
+            // doesn't distinguish - recreating both is cheap and idempotent either way.
+            console.warn(`[client-service] cached agentRoleId/agentCandidateId stale for drive ${drive._id} / ${candidate.email} - recreating`)
+            const role = await agentServiceClient.createRole(agentRoleNameFor(drive))
+            drive.agentRoleId = role.id
+            const agentCandidate = await agentServiceClient.createCandidate(candidate.name, candidate.email)
+            candidate.agentCandidateId = agentCandidate.id
+            await drive.save()
+            interview = await agentServiceClient.createInterview(candidate.agentCandidateId, drive.agentRoleId)
+        }
+        candidate.agentInterviewId = interview.id
+        plan = interview.plan
+        await drive.save()
+        if (candidate.preferredLanguage && candidate.preferredLanguage !== "en") {
+            await agentServiceClient.setLanguage(candidate.agentInterviewId, candidate.preferredLanguage).catch((err) =>
+                console.error(`[client-service] agent language set failed for ${candidate.email}:`, err.message)
+            )
+        }
+    }
+
+    const session = await agentServiceClient.getCandidateToken(candidate.agentInterviewId)
+    const questions = (plan?.questions || []).filter((q) => q.question_text)
+    return { url: session.url, token: session.token, roomName: session.room_name, interviewId: candidate.agentInterviewId, questions }
+}
+
+// Candidate-scoped - called when the candidate ends their session (normal
+// finish or proctoring auto-termination). Best-effort: if the agent
+// service is unreachable, the interview still gets marked COMPLETED via
+// completeCandidateInterview above, it just won't have an AI score/report.
+export const completeAgentInterview = async (tenantId, email, driveId, roundNumber) => {
+    const { drive, candidate } = await findOwnRosterEntry(tenantId, email, driveId, roundNumber)
+    if (!candidate.agentInterviewId) return null
+
+    await agentServiceClient.completeInterview(candidate.agentInterviewId)
+    const report = await agentServiceClient.getReport(candidate.agentInterviewId)
+    candidate.agentReport = report
+    candidate.aiScore = Math.round(report.final_score || 0)
+    await drive.save()
+    return report
+}
+
+// Candidate-scoped - stores the candidate's own camera/mic recording of
+// the session, captured client-side and uploaded once the interview ends.
+// Best-effort by design (called from the same finish flow as
+// completeCandidateInterview): a failed/skipped upload should never block
+// the candidate from finishing their attempt.
+export const saveCandidateRecording = async (tenantId, email, driveId, roundNumber, recordingFile) => {
+    const { drive, candidate } = await findOwnRosterEntry(tenantId, email, driveId, roundNumber)
+    if (!recordingFile) throw new ApiError(400, "RECORDING_REQUIRED", "A recording file is required.")
+
+    // Recordings go straight to S3/MinIO (plan.md #11), not local disk -
+    // recordingFilename stores the S3 object key.
+    const ext = recordingFile.mimetype.includes("mp4") ? "mp4" : "webm"
+    const recordingKey = `${tenantId}/${candidate.id}/${Date.now()}.${ext}`
+    await uploadBuffer(RECORDINGS_BUCKET, recordingKey, recordingFile.buffer, recordingFile.mimetype)
+    candidate.recordingFilename = recordingKey
+    await drive.save()
+
+    // Durable async job (plan.md #7) - the recording-processing worker picks
+    // this up to transcode/derive metadata later; a failed enqueue must
+    // never fail the candidate's upload, which already succeeded above.
+    await enqueueRecordingProcessing({
+        driveId: String(drive._id), roundNumber, candidateId: candidate.id,
+        bucket: RECORDINGS_BUCKET, key: recordingKey,
+    })
+
+    return { recordingFilename: candidate.recordingFilename }
+}
+
+// Tenant-scoped (authenticated HR only) - a candidate's resume filename is
+// looked up from the drive's own roster rather than trusted from the URL,
+// so a recruiter can never fetch a resume that isn't part of their tenant's
+// drive/round/candidate triple.
+export const streamCandidateResume = async (tenantId, driveId, roundNumber, candidateId, res) => {
+    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+    requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
+    if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    const round = drive.rounds?.find((r) => r.roundNumber === Number(roundNumber))
+    if (!round) throw new ApiError(404, "ROUND_NOT_FOUND", "Round not found.")
+    const candidate = round.candidates?.id(candidateId) || round.candidates?.find((c) => String(c._id) === candidateId || c.id === candidateId)
+    if (!candidate || !candidate.resumeFilename) throw new ApiError(404, "RESUME_NOT_FOUND", "No resume on file for this candidate.")
+
+    let buffer
+    try {
+        buffer = await getObjectBuffer(RESUMES_BUCKET, candidate.resumeFilename)
+    } catch {
+        throw new ApiError(404, "RESUME_NOT_FOUND", "This resume file is no longer available.")
+    }
+    res.setHeader("Content-Disposition", `attachment; filename="${candidate.resumeOriginalName || candidate.resumeFilename}"`)
+    res.send(buffer)
+}
+
+// Tenant-scoped (authenticated HR only) - same ownership check as the
+// resume download above. Uses res.sendFile (not res.download) so the
+// browser's <video> element can play it inline with seek/scrub support
+// rather than triggering a file download.
+export const streamCandidateRecording = async (tenantId, driveId, roundNumber, candidateId, res) => {
+    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+    requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
+    if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    const round = drive.rounds?.find((r) => r.roundNumber === Number(roundNumber))
+    if (!round) throw new ApiError(404, "ROUND_NOT_FOUND", "Round not found.")
+    const candidate = round.candidates?.id(candidateId) || round.candidates?.find((c) => String(c._id) === candidateId || c.id === candidateId)
+    if (!candidate || !candidate.recordingFilename) throw new ApiError(404, "RECORDING_NOT_FOUND", "No recording on file for this candidate.")
+
+    let object
+    try {
+        object = await getObjectStream(RECORDINGS_BUCKET, candidate.recordingFilename)
+    } catch {
+        throw new ApiError(404, "RECORDING_NOT_FOUND", "This recording file is no longer available.")
+    }
+    res.setHeader("Content-Type", object.contentType || "video/webm")
+    if (object.contentLength) res.setHeader("Content-Length", object.contentLength)
+    object.stream.pipe(res)
 }
 
 // Shared by listDrives (paginated table) and exportDrivesCsv (full
@@ -288,7 +683,29 @@ export const getDriveById = async (tenantId, driveId) => {
 
     const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
     if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
-    return repairRoundStatuses(drive)
+    const repaired = await repairRoundStatuses(drive)
+
+    // Best-effort invite-status enrichment (invite sent/opened, per
+    // candidate) - communication-service being unreachable should never
+    // break the drive detail page, it just means that column stays blank.
+    const plain = repaired.toObject ? repaired.toObject() : repaired
+    try {
+        const statuses = await communicationServiceClient.getInviteStatusForDrive(String(drive._id), "CANDIDATE_INVITE")
+        const byCandidateId = new Map((statuses || []).map((s) => [s.candidateId, s]))
+        for (const round of plain.rounds || []) {
+            for (const candidate of round.candidates || []) {
+                const inviteStatus = byCandidateId.get(candidate.id)
+                if (inviteStatus) {
+                    candidate.inviteStatus = inviteStatus.status
+                    candidate.inviteSentAt = inviteStatus.sentAt
+                    candidate.inviteOpenedAt = inviteStatus.openedAt
+                }
+            }
+        }
+    } catch (err) {
+        console.error("[client-service] invite-status lookup failed:", err.message)
+    }
+    return plain
 }
 
 export const addRoundToDrive = async (tenantId, driveId, roundData, ctx) => {

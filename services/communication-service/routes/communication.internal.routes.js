@@ -16,5 +16,11 @@ router.get(
     requireServicePermission("TEMPLATE_READ"),
     communicationController.getTemplate
 )
+router.get(
+    "/internal/v1/communications/drive/:driveId/invite-status",
+    authenticateService,
+    requireServicePermission("COMMUNICATION_READ"),
+    communicationController.getInviteStatusForDrive
+)
 
 export default router

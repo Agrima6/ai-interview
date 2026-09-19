@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { ArrowLeft, Plus, CheckCircle2, ShieldAlert, Sparkles, Eye, FileSpreadsheet, AlertCircle, Link2, Copy, Check, ExternalLink, Upload, Pencil, PartyPopper, XCircle, CheckSquare, Square } from 'lucide-react'
+import { ArrowLeft, Plus, CheckCircle2, ShieldAlert, Sparkles, Eye, FileSpreadsheet, AlertCircle, Link2, Copy, Check, ExternalLink, Upload, Pencil, PartyPopper, XCircle, CheckSquare, Square, Mail, MailOpen, CalendarClock } from 'lucide-react'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
 import CandidateDetailModal from '../../components/organization/CandidateDetailModal'
 import CreateDriveModal from '../../components/organization/CreateDriveModal'
@@ -9,6 +9,7 @@ import CandidateImportModal from '../../components/organization/CandidateImportM
 import SendRoundCommunicationModal from '../../components/organization/SendRoundCommunicationModal'
 import { Card, Button, Badge, SearchInput, StatCard, Skeleton, useToast } from '../../components/ui'
 import { getInterviewDriveById, updateDriveStatus, updateRoundStatus, updateCandidateStatus, addCandidatesToDrive } from '../../api/organization/organizationApi'
+import { buildPublicApplyUrl } from '../../utils/publicAppUrl'
 
 function DriveDetailPage() {
   const { id } = useParams()
@@ -74,6 +75,11 @@ function DriveDetailPage() {
   const previousRoundReady = Boolean(drive?.status !== 'DRAFT' && previousRound && previousRound.status === 'COMPLETED')
   const roundNeedsPreviousActivation = Boolean(currentRound && previousRound && !previousRoundReady)
   const currentCandidates = currentRound?.candidates || []
+  const inviteSummary = {
+    total: currentCandidates.length,
+    opened: currentCandidates.filter((c) => c.inviteOpenedAt).length,
+    scheduled: currentCandidates.filter((c) => c.interviewSlot).length,
+  }
   const round1 = rounds.find((r) => r.roundNumber === 1)
   const shortlistedList = (round1?.candidates || []).filter((c) => c.status === 'SHORTLISTED')
   const nextRoundNumber = rounds.length + 1
@@ -303,7 +309,7 @@ function DriveDetailPage() {
             <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
-                onClick={() => window.open(`${window.location.origin}/apply/${drive.publicLink}`, '_blank', 'noopener,noreferrer')}
+                onClick={() => window.open(buildPublicApplyUrl(drive.publicLink), '_blank', 'noopener,noreferrer')}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-line text-[13px] font-semibold text-text-secondary hover:text-ink hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
               >
                 <ExternalLink size={14} /> Open
@@ -312,7 +318,7 @@ function DriveDetailPage() {
                 type="button"
                 onClick={async () => {
                   try {
-                    await navigator.clipboard.writeText(`${window.location.origin}/apply/${drive.publicLink}`)
+                    await navigator.clipboard.writeText(buildPublicApplyUrl(drive.publicLink))
                     setCopiedLink(true)
                     toast.success('Public link copied to clipboard.')
                     setTimeout(() => setCopiedLink(false), 2000)
@@ -331,7 +337,7 @@ function DriveDetailPage() {
             <Link2 size={15} className="text-accent shrink-0" />
             <input
               readOnly
-              value={`${window.location.origin}/apply/${drive.publicLink}`}
+              value={buildPublicApplyUrl(drive.publicLink)}
               className="flex-1 bg-transparent text-[12.5px] font-mono text-ink outline-none truncate"
             />
           </div>
@@ -408,6 +414,14 @@ function DriveDetailPage() {
           </div>
         </div>
 
+        {inviteSummary.total > 0 && (
+          <div className="flex items-center gap-5 mb-4 px-1 flex-wrap text-[12.5px] text-text-secondary">
+            <span className="inline-flex items-center gap-1.5"><Mail size={13} /> {inviteSummary.total} invite{inviteSummary.total === 1 ? '' : 's'} sent</span>
+            <span className="inline-flex items-center gap-1.5"><MailOpen size={13} className={inviteSummary.opened > 0 ? 'text-accent' : ''} /> {inviteSummary.opened} opened</span>
+            <span className="inline-flex items-center gap-1.5"><CalendarClock size={13} /> {inviteSummary.scheduled} scheduled a slot</span>
+          </div>
+        )}
+
         {selectedIds.length > 0 && (
           <div className="flex items-center justify-between gap-3 mb-4 p-3 rounded-xl border border-accent/30 bg-accent/5 flex-wrap">
             <span className="text-[13px] font-semibold text-ink">{selectedIds.length} candidate{selectedIds.length === 1 ? '' : 's'} selected</span>
@@ -447,9 +461,17 @@ function DriveDetailPage() {
                 <span>{cand.email}</span>
                 <span>{cand.phone}</span>
               </div>
+              <div className="flex items-center gap-3 text-[12px] text-text-secondary mb-2">
+                {cand.inviteOpenedAt ? (
+                  <span className="inline-flex items-center gap-1 text-accent font-medium"><MailOpen size={12} /> Opened</span>
+                ) : cand.inviteStatus ? (
+                  <span className="inline-flex items-center gap-1"><Mail size={12} /> Sent</span>
+                ) : null}
+                <span className="inline-flex items-center gap-1"><CalendarClock size={12} /> {cand.interviewSlot ? new Date(cand.interviewSlot).toLocaleDateString() : 'Not scheduled'}</span>
+              </div>
               <div className="flex items-center justify-between gap-2">
                 {cand.malpracticeFlags === 0 ? <Badge variant="success">0 Flags Clean</Badge> : cand.malpracticeFlags === 1 ? <Badge variant="warning">1 Minor Flag</Badge> : <Badge variant="danger">{cand.malpracticeFlags} Suspicious Flags</Badge>}
-                <Button size="xs" variant="secondary" onClick={() => setSelectedCandidate({ ...cand, driveTitle: drive.title })}><Eye size={13} /> Scorecard</Button>
+                <Button size="xs" variant="secondary" onClick={() => setSelectedCandidate({ ...cand, driveTitle: drive.title, driveId: id, roundNumber: currentRound.roundNumber })}><Eye size={13} /> Scorecard</Button>
               </div>
             </article>
           ))}
@@ -470,6 +492,7 @@ function DriveDetailPage() {
                 </th>
                 <th className="pb-3 px-3">Candidate Details</th>
                 <th className="pb-3 px-3">Contact info</th>
+                <th className="pb-3 px-3">Invite / Schedule</th>
                 <th className="pb-3 px-3">AI Score</th>
                 <th className="pb-3 px-3">Proctoring Logs</th>
                 <th className="pb-3 px-3">Status</th>
@@ -479,7 +502,7 @@ function DriveDetailPage() {
             <tbody className="divide-y divide-line text-[13.5px]">
               {filteredCandidates.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-10 text-center text-text-secondary">
+                  <td colSpan={8} className="py-10 text-center text-text-secondary">
                     {currentCandidates.length === 0 ? 'No candidates in this round yet.' : 'No candidates found matching the applied filters.'}
                   </td>
                 </tr>
@@ -498,6 +521,20 @@ function DriveDetailPage() {
                     <td className="py-4 px-3">
                       <div className="text-ink text-[12.5px] font-mono">{cand.email}</div>
                       <div className="text-[12px] text-text-secondary font-mono">{cand.phone}</div>
+                    </td>
+                    <td className="py-4 px-3">
+                      <div className="flex items-center gap-1.5 text-[12px] font-medium">
+                        {cand.inviteOpenedAt ? (
+                          <span className="inline-flex items-center gap-1 text-accent"><MailOpen size={12} /> Opened</span>
+                        ) : cand.inviteStatus ? (
+                          <span className="inline-flex items-center gap-1 text-text-secondary"><Mail size={12} /> Sent</span>
+                        ) : (
+                          <span className="text-text-secondary">—</span>
+                        )}
+                      </div>
+                      <div className="text-[11.5px] text-text-secondary mt-0.5">
+                        {cand.interviewSlot ? new Date(cand.interviewSlot).toLocaleString() : 'Not scheduled'}
+                      </div>
                     </td>
                     <td className="py-4 px-3 font-extrabold text-[15px]">
                       <span className={cand.aiScore >= 80 ? 'text-emerald-600' : cand.aiScore >= 70 ? 'text-amber-600' : 'text-red-600'}>
@@ -519,7 +556,7 @@ function DriveDetailPage() {
                       </Badge>
                     </td>
                     <td className="py-4 px-3 text-right">
-                      <Button size="xs" variant="secondary" onClick={() => setSelectedCandidate({ ...cand, driveTitle: drive.title })}>
+                      <Button size="xs" variant="secondary" onClick={() => setSelectedCandidate({ ...cand, driveTitle: drive.title, driveId: id, roundNumber: currentRound.roundNumber })}>
                         <Eye size={13} /> Scorecard Report
                       </Button>
                     </td>

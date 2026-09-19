@@ -7,7 +7,7 @@ import { formServiceClient, clientServiceClient, authServiceClient, communicatio
 import { generateRawToken, hashToken, invitationExpiry } from "../utils/token.js"
 import { validateAgainstFormVersion } from "../utils/formValidator.js"
 import { ApiError } from "../utils/response.js"
-import { filePathFor } from "../utils/localFileStore.js"
+import { keyFor } from "../utils/localFileStore.js"
 
 
 // Called internally by registration-service right after a registration is
@@ -383,7 +383,7 @@ export const getFileDetails = async (onboardingId, fileId) => {
     const fileRecord = session.files?.find((f) => String(f.fileId) === String(fileId))
     if (!fileRecord) throw new ApiError(404, "FILE_NOT_FOUND", "File not found.")
     return {
-        path: filePathFor(onboardingId, fileId, fileRecord.originalName),
+        key: keyFor(onboardingId, fileId, fileRecord.originalName),
         mimeType: fileRecord.mimeType,
         originalName: fileRecord.originalName,
     }

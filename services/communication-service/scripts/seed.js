@@ -1,7 +1,7 @@
 import "dotenv/config"
 import connectDb from "../config/connectDb.js"
 import * as templateRepo from "../repositories/template.repository.js"
-import { wrapEmailBody, wrapOrgEmailBody, supportBox, button, ACCENT, INK } from "../utils/emailHtml.js"
+import { wrapEmailBody, wrapOrgEmailBody, wrapOrgEmailBodyWithHero, infoCard, supportBox, button, stepStrip, ACCENT, INK, TEXT_SECONDARY } from "../utils/emailHtml.js"
 
 const onboardingLinkHtml = wrapEmailBody(`
     <h1 style="margin:0 0 20px;font-size:22px;font-weight:800;color:${INK};line-height:1.3;">
@@ -100,23 +100,40 @@ const changesRequestedHtml = wrapEmailBody(`
     ${supportBox()}
 `)
 
-const candidateInviteHtml = wrapOrgEmailBody(`
-    <h1 style="margin:0 0 20px;font-size:22px;font-weight:800;color:${INK};line-height:1.3;">
-        You're invited to interview for <span style="color:${ACCENT};">{{drive_title}}</span>
-    </h1>
+const candidateInviteHtml = wrapOrgEmailBodyWithHero(`
     <p style="margin:0 0 4px;font-size:14.5px;font-weight:700;color:${ACCENT};">Hi {{candidate_name}},</p>
-    <p style="margin:0 0 4px;font-size:14px;color:${INK};line-height:1.6;">
-        <strong>{{company_name}}</strong> has invited you to complete an AI-powered video interview for this role.
+    <p style="margin:0 0 22px;font-size:14px;color:${INK};line-height:1.6;">
+        Great news - <strong>{{company_name}}</strong> reviewed your profile and would like to move forward with an AI-powered video interview. It only takes a few minutes to get started.
     </p>
-    <p style="margin:0 0 4px;font-size:14px;color:${INK};line-height:1.6;">
-        The interview is self-paced - you can start whenever you're ready, before the link expires.
+    ${stepStrip(["Apply & upload resume", "Pick your slot", "Interview & hear back"])}
+    ${infoCard([["Role", "{{drive_title}}"], ["Company", "{{company_name}}"], ["Apply by", "{{expiry_date}}"]])}
+    ${button("View Invitation & Apply →", "{{interview_link}}")}
+    <p style="margin:0 0 4px;font-size:13px;color:${INK};line-height:1.6;">
+        You'll be asked to share a few details, upload your resume, and pick an interview slot that works for you - no downloads, no scheduling calls.
     </p>
-    ${button("Start Interview →", "{{interview_link}}")}
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fdf1f1;border:1px solid #f7dcdc;border-radius:12px;margin:0 0 4px;">
-        <tr><td style="padding:14px 18px;font-size:13.5px;color:${INK};">This invitation expires on <strong>{{expiry_date}}</strong>.</td></tr>
-    </table>
     ${supportBox()}
-`, "company_name")
+`, "company_name", { eyebrow: "You're invited to interview", heading: "{{drive_title}}", subheading: "A quick, flexible interview experience - on your schedule." })
+
+const applicationConfirmedHtml = wrapOrgEmailBodyWithHero(`
+    <p style="margin:0 0 4px;font-size:14.5px;font-weight:700;color:${ACCENT};">Hi {{candidate_name}},</p>
+    <p style="margin:0 0 16px;font-size:14px;color:${INK};line-height:1.6;">
+        Thanks for applying to <strong>{{company_name}}</strong>! Your application and resume have been received.
+    </p>
+    ${infoCard([["Role", "{{drive_title}}"], ["Interview slot", "{{interview_slot}}"], ["Company", "{{company_name}}"]])}
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eefaf1;border:1px solid #d3f0dc;border-radius:12px;margin:0 0 20px;">
+        <tr><td style="padding:14px 18px;font-size:13.5px;font-weight:600;color:#1a7a3d;">&#10003; Your interview slot is confirmed. Sign in to your candidate room any time before then to get ready.</td></tr>
+    </table>
+    <p style="margin:0 0 10px;font-size:13.5px;font-weight:700;color:${INK};">Your candidate room login</p>
+    ${infoCard([["Email", "{{login_email}}"], ["Temporary password", "{{temp_password}}"]])}
+    ${button("Sign In to Your Room →", "{{login_url}}")}
+    <p style="margin:0 0 16px;font-size:12px;color:${TEXT_SECONDARY};text-align:center;">
+        For security, you'll be asked to set your own password the first time you sign in.
+    </p>
+    <p style="margin:0 0 4px;font-size:13px;color:${INK};line-height:1.6;">
+        Please make sure you're in a quiet, well-lit space with a working camera and microphone at your scheduled time.
+    </p>
+    ${supportBox()}
+`, "company_name", { eyebrow: "Application received", heading: "You're all set!" })
 
 const teamInviteHtml = wrapOrgEmailBody(`
     <h1 style="margin:0 0 20px;font-size:22px;font-weight:800;color:${INK};line-height:1.3;">
@@ -134,9 +151,16 @@ const templates = [
     {
         channel: "EMAIL", eventType: "CANDIDATE_INVITE", name: "Candidate interview invitation (email)",
         subject: "You've been invited to interview for {{drive_title}} at {{company_name}}",
-        body: "Hi {{candidate_name}},\n\n{{company_name}} has invited you to complete an AI-powered video interview for {{drive_title}}.\n\nStart your interview: {{interview_link}}\n\nThis invitation expires on {{expiry_date}}.\n\nIf you have any questions, please contact our support team at {{supportEmail}}.\n\nRegards,\nThe {{company_name}} Team",
+        body: "Hi {{candidate_name}},\n\n{{company_name}} has invited you to apply and complete an AI-powered video interview for {{drive_title}}.\n\nView the invitation and apply: {{interview_link}}\n\nThis invitation expires on {{expiry_date}}.\n\nIf you have any questions, please contact our support team at {{supportEmail}}.\n\nRegards,\nThe {{company_name}} Team",
         htmlBody: candidateInviteHtml,
         variables: ["candidate_name", "drive_title", "company_name", "interview_link", "expiry_date", "supportEmail"],
+    },
+    {
+        channel: "EMAIL", eventType: "CANDIDATE_APPLICATION_CONFIRMED", name: "Candidate application confirmed (email)",
+        subject: "Your application for {{drive_title}} at {{company_name}} is confirmed",
+        body: "Hi {{candidate_name}},\n\nThanks for applying to {{company_name}}! Your application and resume have been received.\n\nRole: {{drive_title}}\nInterview slot: {{interview_slot}}\n\nYour candidate room login:\nEmail: {{login_email}}\nTemporary password: {{temp_password}}\nSign in: {{login_url}}\n\nFor security, you'll be asked to set your own password the first time you sign in.\n\nPlease make sure you're in a quiet, well-lit space with a working camera and microphone at your scheduled time.\n\nIf you have any questions, please contact our support team at {{supportEmail}}.\n\nRegards,\nThe {{company_name}} Team",
+        htmlBody: applicationConfirmedHtml,
+        variables: ["candidate_name", "drive_title", "company_name", "interview_slot", "login_email", "temp_password", "login_url", "supportEmail"],
     },
     {
         channel: "EMAIL", eventType: "TEAM_INVITE", name: "Organization team invite (email)",

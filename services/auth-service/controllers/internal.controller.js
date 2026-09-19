@@ -10,3 +10,13 @@ export const createClientUser = async (req, res, next) => {
         ok(res, result)
     } catch (error) { next(error) }
 }
+
+// POST /internal/v1/candidate-users - called by client-service right after
+// a candidate submits their public interview application.
+export const createCandidateUser = async (req, res, next) => {
+    try {
+        const { email, name, tenantId } = req.body
+        const result = await authService.createCandidateUser({ email, name, tenantId })
+        ok(res, result)
+    } catch (error) { next(error) }
+}

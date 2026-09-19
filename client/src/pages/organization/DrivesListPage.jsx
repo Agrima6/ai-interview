@@ -263,7 +263,7 @@ function DrivesListPage() {
                   <div className="space-y-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <Badge variant={STATUS_BADGE[drive.status] || 'neutral'}>{drive.status}</Badge>
+                        <Badge variant={STATUS_BADGE[drive.status] || 'neutral'}>{formatEnumLabel(drive.status)}</Badge>
                         <h3 className="text-[16px] font-bold text-ink group-hover:text-accent transition-colors mt-2.5 line-clamp-1">
                           {drive.title}
                         </h3>

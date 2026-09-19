@@ -19,9 +19,15 @@ const communicationSchema = new mongoose.Schema({
     openedAt: { type: Date, default: null },
     readAt: { type: Date, default: null },
     failedAt: { type: Date, default: null },
+    // Caller-supplied context for precise joins back to the sending
+    // service's own records (e.g. { driveId, candidateId } for a candidate
+    // invite) - this service has no idea what a "drive" is, it just carries
+    // the tag so the caller can ask "which of my candidates opened theirs".
+    metadata: { type: mongoose.Schema.Types.Mixed, default: null },
 }, { timestamps: true })
 
 communicationSchema.index({ entityType: 1, entityId: 1, createdAt: -1 })
 communicationSchema.index({ status: 1, createdAt: -1 })
+communicationSchema.index({ "metadata.driveId": 1 })
 
 export default mongoose.model("Communication", communicationSchema)
