@@ -22,6 +22,9 @@ export const getMyInterviews = () => apiGet("/api/v1/candidate/me/interviews")
 export const submitCandidateApplication = (driveId, roundNumber, formData) =>
     apiPost(`/api/v1/candidate/me/interviews/${driveId}/rounds/${roundNumber}/apply`, formData)
 // Authenticated (CANDIDATE role) - proctoring event reporting + end-of-attempt marker for the candidate's own interview room.
+// Authenticated (CANDIDATE role) - move the interview slot; the server refuses within 30 minutes of the current slot.
+export const rescheduleCandidateSlot = (driveId, roundNumber, newSlot) =>
+    apiPatch(`/api/v1/candidate/me/interviews/${driveId}/rounds/${roundNumber}/reschedule`, { newSlot })
 export const reportInterviewViolation = (driveId, roundNumber, reason, snapshot, screenSnapshot) =>
     apiPost(`/api/v1/candidate/me/interviews/${driveId}/rounds/${roundNumber}/violations`, { reason, snapshot, screenSnapshot })
 export const completeInterview = (driveId, roundNumber) =>

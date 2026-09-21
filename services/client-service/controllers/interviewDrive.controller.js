@@ -91,6 +91,17 @@ export const completeCandidateInterview = async (req, res, next) => {
     }
 }
 
+export const rescheduleCandidateSlot = async (req, res, next) => {
+    try {
+        requireCandidate(req)
+        const { id, roundNumber } = req.params
+        const result = await driveService.rescheduleCandidateSlot(req.user.tenantId, req.user.email, id, roundNumber, req.body?.newSlot)
+        ok(res, result)
+    } catch (error) {
+        next(error)
+    }
+}
+
 export const startAgentInterview = async (req, res, next) => {
     try {
         requireCandidate(req)

@@ -1,6 +1,6 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, ClipboardCheck, Building2, LogOut, MessageCircleQuestion, FileText } from 'lucide-react'
+import { LayoutDashboard, ClipboardCheck, Building2, LogOut, MessageCircleQuestion, FileText, Menu, X } from 'lucide-react'
 import { useAuth, usePermission } from '../../hooks/useAuth.jsx'
 import { featurePermissions } from '../../permissions/featurePermissions'
 import logo from '../../assets/logo.png'
@@ -17,6 +17,15 @@ function AdminShell({ children }) {
     const { user, logout } = useAuth()
     const hasPermission = usePermission()
     const navigate = useNavigate()
+    const [mobileOpen, setMobileOpen] = useState(false)
+
+    // Below lg the sidebar is a drawer: closed by a link click, the backdrop, or Escape.
+    useEffect(() => {
+        if (!mobileOpen) return undefined
+        const onKey = (event) => { if (event.key === 'Escape') setMobileOpen(false) }
+        window.addEventListener('keydown', onKey)
+        return () => window.removeEventListener('keydown', onKey)
+    }, [mobileOpen])
 
     const handleLogout = async () => {
         await logout()
@@ -25,16 +34,23 @@ function AdminShell({ children }) {
 
     return (
         <div className='min-h-screen bg-bg flex'>
-            <aside className='w-[240px] shrink-0 border-r border-line bg-card flex flex-col'>
+            {mobileOpen && <div className='fixed inset-0 z-[var(--z-drawer)] bg-black/40 lg:hidden' onClick={() => setMobileOpen(false)} aria-hidden='true' />}
+            <aside
+                className={`fixed inset-y-0 left-0 z-[var(--z-drawer)] w-[240px] shrink-0 border-r border-line bg-card flex flex-col transition-transform duration-200 lg:static lg:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
+            >
                 <div className='flex items-center gap-2.5 px-5 h-[64px] border-b border-line'>
                     <img src={logo} alt='' className='w-8 h-8 rounded-full' />
-                    <span className='font-display text-[14.5px] font-bold text-ink'>WorkmateIQ</span>
+                    <span className='font-display text-[14.5px] font-bold text-ink flex-1'>WorkmateIQ</span>
+                    <button onClick={() => setMobileOpen(false)} aria-label='Close menu' className='lg:hidden text-text-secondary hover:text-ink'>
+                        <X size={18} />
+                    </button>
                 </div>
                 <nav className='flex-1 p-3 space-y-1'>
                     {NAV.filter((item) => hasPermission(item.permission)).map((item) => (
                         <NavLink
                             key={item.to}
                             to={item.to}
+                            onClick={() => setMobileOpen(false)}
                             className={({ isActive }) =>
                                 `flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-colors ${isActive ? 'bg-accent/10 text-accent' : 'text-text-secondary hover:bg-black/[0.03] hover:text-ink'}`
                             }
@@ -54,7 +70,16 @@ function AdminShell({ children }) {
                     </button>
                 </div>
             </aside>
-            <main className='flex-1 min-w-0 p-8'>{children}</main>
+            <main className='flex-1 min-w-0 overflow-x-hidden'>
+                <div className='lg:hidden sticky top-0 z-[var(--z-sticky-header)] flex items-center gap-3 h-14 px-4 border-b border-line bg-card/95 backdrop-blur-md'>
+                    <button onClick={() => setMobileOpen(true)} aria-label='Open menu' className='-ml-1 p-1.5 text-text-secondary hover:text-ink'>
+                        <Menu size={20} />
+                    </button>
+                    <img src={logo} alt='' className='w-7 h-7 rounded-full' />
+                    <span className='font-display text-[14.5px] font-bold text-ink'>WorkmateIQ</span>
+                </div>
+                <div className='p-4 sm:p-6 lg:p-8'>{children}</div>
+            </main>
         </div>
     )
 }

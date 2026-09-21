@@ -6,7 +6,8 @@
   "main": "server.js",
   "scripts": {
     "dev": "nodemon server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "demo:interview": "node scripts/seed-demo-interview.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.700.0",

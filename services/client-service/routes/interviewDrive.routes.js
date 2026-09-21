@@ -37,6 +37,7 @@ router.get("/drives/:id/rounds/:roundNumber/candidates/:candidateId/violations/:
 
 router.get("/candidate/me/interviews", authenticate, driveController.getMyInterviews)
 router.post("/candidate/me/interviews/:id/rounds/:roundNumber/apply", authenticate, uploadResume.single("resume"), driveController.completeCandidateApplication)
+router.patch("/candidate/me/interviews/:id/rounds/:roundNumber/reschedule", authenticate, driveController.rescheduleCandidateSlot)
 router.post("/candidate/me/interviews/:id/rounds/:roundNumber/violations", authenticate, driveController.recordCandidateViolation)
 router.post("/candidate/me/interviews/:id/rounds/:roundNumber/complete", authenticate, driveController.completeCandidateInterview)
 router.post("/candidate/me/interviews/:id/rounds/:roundNumber/agent-session", authenticate, driveController.startAgentInterview)

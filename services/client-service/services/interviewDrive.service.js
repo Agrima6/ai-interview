@@ -518,6 +518,7 @@ export const completeCandidateApplication = async (tenantId, email, driveId, rou
 export const getMyInterviews = async (tenantId, email) => {
     if (!tenantId || !email) return []
     const normalizedEmail = email.toLowerCase().trim()
+    const org = await clientRepo.findById(tenantId).catch(() => null)
     const drives = await InterviewDrive.find({
         tenantId,
         status: { $ne: "ARCHIVED" },
@@ -549,6 +550,8 @@ export const getMyInterviews = async (tenantId, email) => {
                 expiryDate: round.expiryDate || drive.expiryDate,
                 interviewSlot: candidate.interviewSlot,
                 candidateStatus: candidate.status,
+                attemptedDate: candidate.attemptedDate,
+                companyName: org?.name || null,
                 aiScore: candidate.aiScore,
                 resumeFilename: candidate.resumeFilename,
                 resumeOriginalName: candidate.resumeOriginalName,
@@ -626,13 +629,70 @@ export const recordCandidateViolation = async (tenantId, email, driveId, roundNu
     return { malpracticeFlags: candidate.malpracticeFlags, violationCount: candidate.violations.length }
 }
 
+// --- Scheduling rules (docs: 10-candidate-portal-calendar-reschedule-and-ux-overhaul.md) -------------
+const MINUTE = 60 * 1000
+export const EARLY_ACCESS_MINUTES = 10        // the interview can be started this long before the slot
+export const LATE_GRACE_MINUTES = 90          // ... and this long after it
+export const RESCHEDULE_CUTOFF_MINUTES = 30   // rescheduling closes this long before the slot
+// Local development / demos: set INTERVIEW_GATE_DISABLED=true to start an interview outside its window.
+const gateDisabled = () => String(process.env.INTERVIEW_GATE_DISABLED || "").toLowerCase() === "true"
+
+// Candidate-scoped - move the candidate's own slot. Allowed until 30 minutes before the current slot,
+// and only to a future time inside the drive's window [startDate, expiryDate].
+export const rescheduleCandidateSlot = async (tenantId, email, driveId, roundNumber, newSlot) => {
+    const { drive, round, candidate } = await findOwnRosterEntry(tenantId, email, driveId, roundNumber)
+
+    if (new Date(round.expiryDate || drive.expiryDate) < new Date() || drive.status === "ARCHIVED") {
+        throw new ApiError(409, "DRIVE_EXPIRED", "This interview drive is no longer active.")
+    }
+    if (["COMPLETED", "REJECTED"].includes(candidate.status)) {
+        throw new ApiError(409, "NOT_RESCHEDULABLE", "This interview can no longer be rescheduled.")
+    }
+    if (!candidate.interviewSlot) {
+        throw new ApiError(400, "NO_SLOT", "Please complete your application and choose a slot first.")
+    }
+
+    const current = new Date(candidate.interviewSlot)
+    const now = Date.now()
+    // Locked from 30 minutes before the slot until the start window has fully closed. A slot that was
+    // missed altogether (past the grace period) can be moved again, as long as the drive is still open.
+    const missed = now > current.getTime() + LATE_GRACE_MINUTES * MINUTE
+    if (!missed && now >= current.getTime() - RESCHEDULE_CUTOFF_MINUTES * MINUTE) {
+        throw new ApiError(400, "RESCHEDULE_LOCKED", "Rescheduling is only permitted up to 30 minutes prior to the scheduled slot.")
+    }
+
+    const slot = new Date(newSlot)
+    const windowStart = new Date(round.startDate || drive.startDate || 0)
+    const windowEnd = new Date(round.expiryDate || drive.expiryDate)
+    if (Number.isNaN(slot.getTime()) || slot <= new Date() || slot > windowEnd || (drive.startDate && slot < windowStart)) {
+        throw new ApiError(400, "INVALID_SLOT", "Please select a valid slot within the drive period (before expiry date).")
+    }
+
+    const previous = candidate.interviewSlot
+    candidate.interviewSlot = slot
+    if (candidate.status === "INVITED") candidate.status = "SCHEDULED"
+    await drive.save()
+    console.log(`[client-service] audit: candidate ${candidate.email} rescheduled drive ${drive._id} round ${roundNumber} from ${previous?.toISOString?.()} to ${slot.toISOString()}`)
+
+    return {
+        driveId: String(drive._id),
+        roundNumber: Number(roundNumber),
+        candidateStatus: candidate.status,
+        interviewSlot: slot.toISOString(),
+        message: "Interview slot rescheduled successfully.",
+    }
+}
+
 // Candidate-scoped - marks the candidate's attempt on this round as done
 // (whether they finished normally or were auto-terminated for too many
 // proctoring violations), so it stops showing as startable in their room
 // and HR sees it move out of "in progress".
 export const completeCandidateInterview = async (tenantId, email, driveId, roundNumber) => {
     const { drive, candidate } = await findOwnRosterEntry(tenantId, email, driveId, roundNumber)
-    if (candidate.status === "INVITED") candidate.status = "COMPLETED"
+    // Applying moves a candidate to SCHEDULED, so an "only if INVITED" check never fired and finished
+    // interviews stayed "upcoming" forever. Any live state becomes COMPLETED; an HR decision
+    // (rejected / shortlisted) is never overwritten by the candidate finishing their attempt.
+    if (!["REJECTED", "SHORTLISTED"].includes(candidate.status)) candidate.status = "COMPLETED"
     candidate.attemptedDate = new Date()
     await drive.save()
     return { status: candidate.status }
@@ -670,6 +730,22 @@ const isAgentIdNotFoundError = (err) => err?.status === 404
 
 export const startAgentInterview = async (tenantId, email, driveId, roundNumber) => {
     const { drive, round, candidate } = await findOwnRosterEntry(tenantId, email, driveId, roundNumber)
+
+    if (candidate.status === "COMPLETED") {
+        throw new ApiError(409, "INTERVIEW_ALREADY_COMPLETED", "This interview has already been completed, so it can't be started again.")
+    }
+    // Only inside the candidate's slot window - unless the interview was already started (a reload or
+    // reconnect part-way through must never be locked out).
+    if (!gateDisabled() && !candidate.agentInterviewId && candidate.interviewSlot) {
+        const slot = new Date(candidate.interviewSlot).getTime()
+        const now = Date.now()
+        if (now < slot - EARLY_ACCESS_MINUTES * MINUTE) {
+            throw new ApiError(403, "TOO_EARLY", "Your interview hasn't opened yet. You can start it 10 minutes before your scheduled time.")
+        }
+        if (now > slot + LATE_GRACE_MINUTES * MINUTE) {
+            throw new ApiError(403, "SLOT_EXPIRED", "Your scheduled slot has passed. Please reschedule to a new time.")
+        }
+    }
 
     if (!drive.agentRoleId) {
         const role = await agentServiceClient.createRole(agentRoleNameFor(drive))

@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { Modal, Button, Badge } from '../ui'
 import { submitCandidateApplication } from '../../api/organization/organizationApi'
+import CandidateCalendarPicker from './CandidateCalendarPicker'
 
 export default function CompleteApplicationModal({ open, onClose, interview, onSuccess }) {
     if (!interview) return null
@@ -24,42 +25,6 @@ export default function CompleteApplicationModal({ open, onClose, interview, onS
     const [dragActive, setDragActive] = useState(false)
 
     const fileInputRef = useRef(null)
-
-    // Generate upcoming dates within drive validity for student slot selection
-    const generateAvailableSlots = () => {
-        const slots = []
-        const now = new Date()
-        const startDay = new Date(now.getTime() + 60 * 60 * 1000) // 1 hr from now
-        const expiry = interview.expiryDate ? new Date(interview.expiryDate) : new Date(now.getTime() + 14 * 86400000)
-
-        // Generate 3 sample days
-        for (let dayOffset = 0; dayOffset < 5; dayOffset++) {
-            const date = new Date(startDay.getTime() + dayOffset * 86400000)
-            if (date > expiry) break
-
-            const dateLabel = dayOffset === 0 ? 'Today' : dayOffset === 1 ? 'Tomorrow' : date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
-            const isoBase = date.toISOString().slice(0, 10)
-
-            const times = ['10:00 AM', '11:30 AM', '02:00 PM', '04:00 PM', '06:00 PM']
-            slots.push({
-                dateLabel,
-                isoBase,
-                times: times.map((t) => {
-                    const [timePart, modifier] = t.split(' ')
-                    let [hours, minutes] = timePart.split(':')
-                    if (modifier === 'PM' && hours !== '12') hours = String(parseInt(hours, 10) + 12)
-                    if (modifier === 'AM' && hours === '12') hours = '00'
-                    return {
-                        label: t,
-                        iso: `${isoBase}T${hours.padStart(2, '0')}:${minutes}:00`,
-                    }
-                }),
-            })
-        }
-        return slots
-    }
-
-    const availableSlots = generateAvailableSlots()
 
     const handleDrag = (e) => {
         e.preventDefault()
@@ -290,33 +255,15 @@ export default function CompleteApplicationModal({ open, onClose, interview, onS
                         <Calendar size={15} className='text-accent' /> Select Preferred Interview Slot
                     </h4>
                     <p className='text-[12px] text-text-secondary mb-3'>
-                        Choose a convenient time slot before the round deadline ({new Date(interview.expiryDate).toLocaleDateString()}).
+                        Pick a date and time before the round deadline ({new Date(interview.expiryDate).toLocaleDateString()}). You can reschedule until 30 minutes before your slot.
                     </p>
 
-                    <div className='space-y-3.5'>
-                        {availableSlots.map((day) => (
-                            <div key={day.isoBase} className='p-3 rounded-xl border border-line bg-card/40'>
-                                <p className='text-[12px] font-bold text-ink uppercase tracking-wider mb-2 flex items-center gap-1.5'>
-                                    <Clock size={11} className='text-text-secondary' /> {day.dateLabel}
-                                </p>
-                                <div className='flex flex-wrap gap-2'>
-                                    {day.times.map((timeSlot) => {
-                                        const isSelected = selectedSlot === timeSlot.iso
-                                        return (
-                                            <button
-                                                type='button'
-                                                key={timeSlot.iso}
-                                                onClick={() => setSelectedSlot(timeSlot.iso)}
-                                                className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all ${isSelected ? 'bg-accent text-white shadow-sm' : 'bg-black/[0.03] dark:bg-white/[0.05] text-ink hover:bg-black/[0.07]'}`}
-                                            >
-                                                {timeSlot.label}
-                                            </button>
-                                        )
-                                    })}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                    <CandidateCalendarPicker
+                        value={selectedSlot}
+                        onChange={setSelectedSlot}
+                        startDate={interview.startDate}
+                        expiryDate={interview.expiryDate}
+                    />
                 </div>
 
                 {/* Section 4: Preferred Spoken Language */}
@@ -324,7 +271,7 @@ export default function CompleteApplicationModal({ open, onClose, interview, onS
                     <label className='block text-[12px] font-bold text-ink mb-1.5 flex items-center gap-1.5'>
                         <Globe size={14} className='text-accent' /> Preferred Spoken Language
                     </label>
-                    <div className='grid grid-cols-3 gap-2.5'>
+                    <div className='grid grid-cols-1 sm:grid-cols-3 gap-2.5'>
                         {[
                             { id: 'en', label: 'English', desc: 'Global technical standard' },
                             { id: 'hinglish', label: 'Hinglish', desc: 'Natural Hindi + English mix' },
