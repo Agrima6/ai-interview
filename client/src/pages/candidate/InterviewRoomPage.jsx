@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import InterviewerAvatar from '../../components/candidate/InterviewerAvatar'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Room, RoomEvent, Track } from 'livekit-client'
 import {
@@ -41,6 +42,7 @@ function InterviewRoomPage() {
     const [audioBlocked, setAudioBlocked] = useState(false)   // the browser is blocking the interviewer's audio
     const [deviceWarning, setDeviceWarning] = useState('')     // microphone / camera could not be turned on
     const [agentSpeaking, setAgentSpeaking] = useState(false)
+    const [aiThinking, setAiThinking] = useState(false)   // the candidate just finished and the interviewer has not started answering yet
     const [micOn, setMicOn] = useState(true)
     const [cameraOn, setCameraOn] = useState(true)
     const [screenShareOn, setScreenShareOn] = useState(false)
@@ -881,6 +883,19 @@ function InterviewRoomPage() {
     const currentQuestion = questions[currentQuestionIndex]
     const latestTranscript = transcripts[transcripts.length - 1]
 
+    useEffect(() => {
+        if (latestTranscript?.sender !== 'candidate' || agentSpeaking) return undefined
+        setAiThinking(true)
+        const timer = setTimeout(() => setAiThinking(false), 9000)   // never "think" forever if the reply is slow
+        return () => clearTimeout(timer)
+    }, [latestTranscript, agentSpeaking])
+    useEffect(() => { if (agentSpeaking) setAiThinking(false) }, [agentSpeaking])
+
+    const avatarState = (connectState === 'connecting' || connectState === 'agent-joining') ? 'connecting'
+        : agentSpeaking ? 'speaking'
+        : (aiThinking || isAIEvaluating) ? 'thinking'
+        : 'listening'
+
     const handleSubmitAnswer = async (e) => {
         if (e) e.preventDefault()
         if (isAIEvaluating || submitting) return
@@ -1294,15 +1309,7 @@ function InterviewRoomPage() {
 
                         {/* Center Bot Graphic */}
                         <div className='flex flex-col items-center gap-3 text-white/80'>
-                            <div
-                                className={`w-28 h-28 rounded-full flex items-center justify-center transition-all duration-300 ${
-                                    agentSpeaking
-                                        ? 'bg-accent/20 border-2 border-accent text-accent scale-105 shadow-[0_0_30px_rgba(196,22,31,0.3)]'
-                                        : 'bg-white/10 text-white/70'
-                                }`}
-                            >
-                                <Bot size={50} />
-                            </div>
+                            <InterviewerAvatar state={avatarState} size={220} />
 
                             {(connectState === 'connecting' || connectState === 'agent-joining') && (
                                 <span className='inline-flex items-center gap-2 text-[13px] text-zinc-300 font-medium'>
@@ -1312,7 +1319,7 @@ function InterviewRoomPage() {
                             )}
                             {connectState === 'connected' && (
                                 <span className='text-[13px] text-zinc-400'>
-                                    {agentSpeaking ? 'AI Interviewer is speaking...' : 'Your turn to speak — listening to your response'}
+                                    {agentSpeaking ? 'AI Interviewer is speaking...' : avatarState === 'thinking' ? 'Thinking about your answer...' : 'Your turn to speak — listening to your response'}
                                 </span>
                             )}
                         </div>
