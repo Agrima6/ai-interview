@@ -5,13 +5,19 @@ import {
     Maximize, AlertTriangle, ShieldAlert, Bot, Loader2, Mic, MicOff, Video, VideoOff,
     LogOut, Clock, Sparkles, Lightbulb, CheckCircle2, Circle, ScreenShare, ScreenShareOff,
     MessageSquare, Subtitles, Volume2, ShieldCheck, Copy, RefreshCw, User, Check,
-    AlertCircle, ArrowRight
+    AlertCircle, ArrowRight, Send
 } from 'lucide-react'
 import { Card } from '../../components/ui'
-import { reportInterviewViolation, completeInterview, startAgentInterview, completeAgentInterview, uploadInterviewRecording } from '../../api/organization/organizationApi'
+import { reportInterviewViolation, completeInterview, startAgentInterview, completeAgentInterview, uploadInterviewRecording, getMyInterviews } from '../../api/organization/organizationApi'
+import {
+    STATUS, FULL_REQUIREMENTS, WRONG_SURFACE_COPY, normalizeRequirements, classifyMediaError, isTrackLive, verifyStream, readiness, describeMissing,
+} from '../../utils/mediaPermissions'
 import logo from '../../assets/logo.png'
 
 const MAX_VIOLATIONS = 3
+const IDLE_PERM = { status: STATUS.IDLE, message: '', recovery: '' }
+// The scripted local demo interview (no real interviewer) exists for offline demos only: VITE_ALLOW_DEMO_INTERVIEW=true.
+const ALLOW_DEMO_INTERVIEW = String(import.meta.env?.VITE_ALLOW_DEMO_INTERVIEW || '').toLowerCase() === 'true'
 
 const formatElapsed = (seconds) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0')
@@ -31,11 +37,17 @@ function InterviewRoomPage() {
     const [submitting, setSubmitting] = useState(false)
     const [connectState, setConnectState] = useState('connecting') // connecting | connected | agent-joining | failed
     const [connectError, setConnectError] = useState('')
+    // Non-fatal problems shown to the candidate instead of failing silently:
+    const [audioBlocked, setAudioBlocked] = useState(false)   // the browser is blocking the interviewer's audio
+    const [deviceWarning, setDeviceWarning] = useState('')     // microphone / camera could not be turned on
     const [agentSpeaking, setAgentSpeaking] = useState(false)
     const [micOn, setMicOn] = useState(true)
     const [cameraOn, setCameraOn] = useState(true)
     const [screenShareOn, setScreenShareOn] = useState(false)
     const [questions, setQuestions] = useState([])
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
+    const [candidateAnswer, setCandidateAnswer] = useState('')
+    const [isAIEvaluating, setIsAIEvaluating] = useState(false)
     const [activeTab, setActiveTab] = useState('question') // 'question' | 'transcript' | 'notes'
     const [notes, setNotes] = useState('')
     const [elapsedSeconds, setElapsedSeconds] = useState(0)
@@ -44,14 +56,20 @@ function InterviewRoomPage() {
     // Live Transcripts
     const [transcripts, setTranscripts] = useState([])
     const transcriptEndRef = useRef(null)
+    const recognitionRef = useRef(null)
 
     // Pre-Interview Readiness State
     const [previewStream, setPreviewStream] = useState(null)
-    const [cameraReady, setCameraReady] = useState(false)
-    const [micReady, setMicReady] = useState(false)
+    // What this interview needs comes from its configuration (only that is ever requested). Until it loads we
+    // ask for everything: failing closed keeps the proctoring guarantee.
+    const [required, setRequired] = useState(FULL_REQUIREMENTS)
+    const [requirementsLoaded, setRequirementsLoaded] = useState(false)
+    // "Ready" = a LIVE stream is being held. The browser's "granted" state alone is never treated as proof.
+    const [perm, setPerm] = useState({ camera: IDLE_PERM, microphone: IDLE_PERM, screen: IDLE_PERM })
+    const cameraReady = perm.camera.status === STATUS.READY
+    const micReady = perm.microphone.status === STATUS.READY
+    const [screenLost, setScreenLost] = useState(false)   // screen sharing stopped while the interview is running
     const [audioLevel, setAudioLevel] = useState(0)
-    const [screenReady, setScreenReady] = useState(false)
-    const [clipboardReady] = useState(true) // Monitored by default
     const [hardwareChecking, setHardwareChecking] = useState(false)
     const [hardwareError, setHardwareError] = useState('')
 
@@ -61,6 +79,10 @@ function InterviewRoomPage() {
     // state value it sets, or every successful start re-created the function, re-ran the mount effect,
     // stopped the camera and started it again in a loop (the "camera keeps crashing" symptom).
     const previewStreamRef = useRef(null)
+    const screenStreamRef = useRef(null)          // the approved screen share, reused by the interview (never re-prompted)
+    const requiredRef = useRef(FULL_REQUIREMENTS) // latest requirements, readable from callbacks without stale closures
+    const permAttemptedRef = useRef(false)        // one automatic permission attempt per page load
+    const screenLostHandlerRef = useRef(null)     // set while the interview is running
     const audioContextRef = useRef(null)
     const analyserRef = useRef(null)
     const animFrameRef = useRef(null)
@@ -69,6 +91,8 @@ function InterviewRoomPage() {
     const screenVideoRef = useRef(null)
     const agentAudioRef = useRef(null)
     const roomRef = useRef(null)
+    const localStreamRef = useRef(null)
+    const agentSpeakingRef = useRef(false)
     const fullscreenEnteredRef = useRef(false)
     const violationCooldownRef = useRef(false)
     const terminatedRef = useRef(false)
@@ -79,9 +103,32 @@ function InterviewRoomPage() {
     // -------------------------------------------------------------
     // PRE-INTERVIEW HARDWARE INITIALIZATION & VERIFICATION GATE
     // -------------------------------------------------------------
+    const setPermStatus = useCallback(
+        (kind, status, message = '', recovery = '') => setPerm((prev) => ({ ...prev, [kind]: { status, message, recovery } })),
+        [],
+    )
+
+    // Loads what this interview requires from its own configuration.
+    useEffect(() => {
+        let cancelled = false
+        getMyInterviews()
+            .then((list) => {
+                if (cancelled) return
+                const item = (list || []).find((i) => String(i.driveId) === String(driveId) && Number(i.roundNumber) === Number(roundNumber))
+                const next = normalizeRequirements(item?.requiredPermissions)
+                requiredRef.current = next
+                setRequired(next)
+            })
+            .catch(() => { /* unreadable configuration: stay fail-closed (everything required) */ })
+            .finally(() => { if (!cancelled) setRequirementsLoaded(true) })
+        return () => { cancelled = true }
+    }, [driveId, roundNumber])
+
+    // Camera + microphone: ONE request that asks only for what is required. Retried only by an explicit click.
     const startHardwareCheck = useCallback(async () => {
         setHardwareChecking(true)
         setHardwareError('')
+        const want = requiredRef.current
         try {
             // Stop any previous test stream / meter before opening a new one
             if (previewStreamRef.current) {
@@ -94,92 +141,125 @@ function InterviewRoomPage() {
                 await audioContextRef.current.close().catch(() => {})
             }
 
+            if (want.camera) setPermStatus('camera', STATUS.REQUESTING)
+            setPermStatus('microphone', STATUS.REQUESTING)
+
             // Modest video settings: 1280x720 fails or stutters on a busy machine or when another app
             // (Meet/Zoom) already holds the camera.
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24, max: 30 } },
-                audio: { echoCancellation: true, noiseSuppression: true },
-            })
+            const video = want.camera ? { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24, max: 30 } } : false
+            const audio = { echoCancellation: true, noiseSuppression: true }
+            let stream = null
+            const errors = {}
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video, audio })
+            } catch (err) {
+                const denied = ['NotAllowedError', 'PermissionDeniedError', 'SecurityError'].includes(err?.name)
+                if (want.camera && !denied) {
+                    // The camera failed (missing or busy) but the microphone may be fine: keep the microphone
+                    // usable and report exactly which device has the problem.
+                    errors.camera = err
+                    try { stream = await navigator.mediaDevices.getUserMedia({ audio }) } catch (audioErr) { errors.microphone = audioErr }
+                } else {
+                    if (want.camera) errors.camera = err
+                    errors.microphone = err
+                }
+            }
+
             previewStreamRef.current = stream
-
             setPreviewStream(stream)
-            setCameraReady(true)
-
-            if (previewVideoRef.current) {
+            if (stream && previewVideoRef.current) {
                 previewVideoRef.current.srcObject = stream
                 previewVideoRef.current.play?.().catch(() => {})
             }
 
-            // A live, unmuted microphone track means the mic is connected. The level meter below only
-            // shows how loud it is - readiness must not wait for the candidate to speak.
-            const audioTrack = stream.getAudioTracks()[0]
-            if (audioTrack && audioTrack.readyState === 'live') setMicReady(true)
-
-            // Audio Visualizer Meter
-            try {
-                const AudioCtx = window.AudioContext || window.webkitAudioContext
-                const audioCtx = new AudioCtx()
-                audioContextRef.current = audioCtx
-                // Chrome starts an AudioContext "suspended" until resumed, which left the meter at zero.
-                if (audioCtx.state === 'suspended') await audioCtx.resume().catch(() => {})
-                const analyser = audioCtx.createAnalyser()
-                analyser.fftSize = 256
-                analyserRef.current = analyser
-
-                const source = audioCtx.createMediaStreamSource(stream)
-                source.connect(analyser)
-
-                const bufferLength = analyser.frequencyBinCount
-                const dataArray = new Uint8Array(bufferLength)
-
-                const updateLevel = () => {
-                    if (!analyserRef.current) return
-                    analyserRef.current.getByteFrequencyData(dataArray)
-                    let sum = 0
-                    for (let i = 0; i < bufferLength; i++) {
-                        sum += dataArray[i]
-                    }
-                    const average = sum / bufferLength
-                    const normalized = Math.min(Math.round((average / 128) * 100), 100)
-                    setAudioLevel(normalized)
-                    if (normalized > 3) {
-                        setMicReady(true)
-                    }
-                    animFrameRef.current = requestAnimationFrame(updateLevel)
+            // Every required device is verified against the stream itself, and watched for the stream stopping.
+            const firstProblem = []
+            const settle = (kind, tracks) => {
+                if (errors[kind]) {
+                    const c = classifyMediaError(kind, errors[kind])
+                    setPermStatus(kind, c.status, c.message, c.recovery)
+                    firstProblem.push(`${c.message} ${c.recovery}`)
+                    return
                 }
-                updateLevel()
-            } catch (audioErr) {
-                console.warn('Audio analyser error:', audioErr)
-                setMicReady(true)
+                const check = verifyStream(kind, stream)
+                if (!check.ok) {
+                    setPermStatus(kind, STATUS.ENDED, `Your ${kind} is not active.`, 'Click Retry to start it again.')
+                    return
+                }
+                setPermStatus(kind, STATUS.READY)
+                tracks.forEach((track) => track.addEventListener('ended', () => setPermStatus(
+                    kind, STATUS.ENDED, `Your ${kind} stopped.`,
+                    'Reconnect it, or close other apps using it (for example Google Meet), then click Retry.')))
             }
-        } catch (err) {
-            console.error('Hardware access error:', err)
-            setHardwareError(
-                err.name === 'NotAllowedError'
-                    ? 'Camera or Microphone permission was denied. Please allow device access in your browser settings.'
-                    : err.name === 'NotReadableError'
-                        ? 'Your camera or microphone is being used by another app (for example Google Meet or Zoom). Close it, then click Enable Camera.'
-                        : 'Unable to access camera or microphone. Please ensure your devices are connected.'
-            )
-            setCameraReady(false)
-            setMicReady(false)
+            if (want.camera) settle('camera', stream?.getVideoTracks() || [])
+            settle('microphone', stream?.getAudioTracks() || [])
+            if (firstProblem.length) setHardwareError(firstProblem[0])
+
+            // Audio level meter (purely informational - readiness never waits for the candidate to speak)
+            if (stream?.getAudioTracks().length) {
+                try {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext
+                    const audioCtx = new AudioCtx()
+                    audioContextRef.current = audioCtx
+                    // Chrome starts an AudioContext "suspended" until resumed, which left the meter at zero.
+                    if (audioCtx.state === 'suspended') await audioCtx.resume().catch(() => {})
+                    const analyser = audioCtx.createAnalyser()
+                    analyser.fftSize = 256
+                    analyserRef.current = analyser
+                    audioCtx.createMediaStreamSource(stream).connect(analyser)
+
+                    const bufferLength = analyser.frequencyBinCount
+                    const dataArray = new Uint8Array(bufferLength)
+                    const updateLevel = () => {
+                        if (!analyserRef.current) return
+                        analyserRef.current.getByteFrequencyData(dataArray)
+                        let sum = 0
+                        for (let i = 0; i < bufferLength; i++) sum += dataArray[i]
+                        setAudioLevel(Math.min(Math.round((sum / bufferLength / 128) * 100), 100))
+                        animFrameRef.current = requestAnimationFrame(updateLevel)
+                    }
+                    updateLevel()
+                } catch (audioErr) {
+                    console.warn('Audio level meter unavailable:', audioErr)
+                }
+            }
         } finally {
             setHardwareChecking(false)
         }
-    }, [])
+    }, [setPermStatus])
 
-    // Mount hardware probe on pre-check screen
+    // ONE automatic attempt, and only once the interview's requirements are known - so a voice-only interview
+    // never prompts for a camera. Every later attempt is an explicit click (no prompt loops).
     useEffect(() => {
-        if (!started) {
-            startHardwareCheck()
+        if (started || !requirementsLoaded || permAttemptedRef.current) return
+        permAttemptedRef.current = true
+        startHardwareCheck()
+    }, [started, requirementsLoaded, startHardwareCheck])
+
+    useEffect(() => () => {
+        if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
+        if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+            audioContextRef.current.close().catch(() => {})
         }
-        return () => {
-            if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
-            if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-                audioContextRef.current.close().catch(() => {})
-            }
+    }, [started])
+
+    // If the candidate fixes a blocked permission in the browser settings, pick that up once - without prompting.
+    useEffect(() => {
+        if (started || !requirementsLoaded || !navigator.permissions?.query) return undefined
+        let cancelled = false
+        const watchers = []
+        const watch = async (name) => {
+            try {
+                const status = await navigator.permissions.query({ name })
+                if (cancelled) return
+                status.onchange = () => { if (status.state === 'granted') startHardwareCheck() }
+                watchers.push(status)
+            } catch { /* this browser doesn't expose this permission */ }
         }
-    }, [started, startHardwareCheck])
+        watch('microphone')
+        if (required.camera) watch('camera')
+        return () => { cancelled = true; watchers.forEach((w) => { w.onchange = null }) }
+    }, [started, requirementsLoaded, required.camera, startHardwareCheck])
 
     // Bind preview stream whenever video element mounts
     useEffect(() => {
@@ -188,18 +268,38 @@ function InterviewRoomPage() {
         }
     }, [started, previewStream])
 
-    // Test Screen Share in Pre-Check
-    const testScreenShare = async () => {
+    // Screen sharing needs a fresh click (getDisplayMedia can't ride on an earlier grant), so it is always explicit.
+    // The approved stream is KEPT and reused by the interview - starting the interview never asks again.
+    const onScreenTrackEnded = useCallback((stream) => {
+        if (screenStreamRef.current !== stream) return          // superseded by a newer share
+        screenStreamRef.current = null
+        setPermStatus('screen', STATUS.ENDED, 'Screen sharing stopped.', 'Click "Share again" to share your entire screen.')
+        screenLostHandlerRef.current?.()
+    }, [setPermStatus])
+
+    const requestScreenPermission = useCallback(async () => {
+        setPermStatus('screen', STATUS.REQUESTING)
         try {
-            const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true })
-            setScreenReady(true)
-            screenStream.getVideoTracks()[0].onended = () => {
-                setScreenReady(false)
+            const stream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: 'monitor' }, audio: false })
+            const check = verifyStream('screen', stream)
+            if (!check.ok) {
+                stream.getTracks().forEach((t) => t.stop())
+                if (check.status === STATUS.WRONG_SURFACE) {
+                    setPermStatus('screen', STATUS.WRONG_SURFACE, WRONG_SURFACE_COPY.message, WRONG_SURFACE_COPY.recovery)
+                } else {
+                    setPermStatus('screen', STATUS.ENDED, 'Screen sharing stopped before it could be verified.', 'Click "Share screen" and try again.')
+                }
+                return
             }
+            screenStreamRef.current?.getTracks().forEach((t) => t.stop())
+            screenStreamRef.current = stream
+            stream.getVideoTracks()[0].addEventListener('ended', () => onScreenTrackEnded(stream))
+            setPermStatus('screen', STATUS.READY)
         } catch (err) {
-            console.warn('Screen share test was declined:', err.message)
+            const c = classifyMediaError('screen', err)
+            setPermStatus('screen', c.status, c.message, c.recovery)
         }
-    }
+    }, [setPermStatus, onScreenTrackEnded])
 
     // Auto-scroll transcript feed
     useEffect(() => {
@@ -292,99 +392,203 @@ function InterviewRoomPage() {
         setConnectError('')
         try {
             const session = await startAgentInterview(driveId, roundNumber)
-            setQuestions(session.questions || [])
-            const room = new Room()
-            roomRef.current = room
+            const isRealLiveKit = Boolean(session?.url && session?.token && !session?.isMock && !session?.url?.includes('demo.livekit.cloud'))
+            let questionsList = session?.questions || []
+            // Invented placeholder questions are only for the offline DEMO mode. In a real interview they would be
+            // shown to the candidate but never actually asked by the interviewer.
+            if (!questionsList.length && !isRealLiveKit) {
+                questionsList = [
+                    { id: 'q1', question_text: 'Tell me about yourself, your technical stack, and your key recent projects.', difficulty: 'easy' },
+                    { id: 'q2', question_text: 'How do you design scalable web applications and manage component state effectively?', difficulty: 'medium' },
+                    { id: 'q3', question_text: 'Explain how you handle asynchronous operations, error handling, and performance optimization.', difficulty: 'medium' },
+                    { id: 'q4', question_text: 'Describe a challenging bug or architectural problem you encountered and how you debugged and solved it.', difficulty: 'hard' },
+                    { id: 'q5', question_text: 'What are your primary goals for personal and technical growth over the next 2-3 years?', difficulty: 'easy' },
+                ]
+            }
+            setQuestions(questionsList)
 
-            // Audio track subscription from AI interviewer
-            room.on(RoomEvent.TrackSubscribed, (track, _pub, participant) => {
-                if (participant.identity.startsWith('candidate-')) return
-                if (track.kind === Track.Kind.Audio && agentAudioRef.current) {
-                    track.attach(agentAudioRef.current)
+            // A real interview must never silently turn into the scripted local demo (fake greeting, invented
+            // questions, no interviewer) just because the room details are missing. Demo mode is opt-in.
+            if (!isRealLiveKit && !ALLOW_DEMO_INTERVIEW) {
+                throw new Error('The AI interviewer could not be set up for this interview. Please try again in a moment.')
+            }
+
+            if (!isRealLiveKit) {
+                // Local Interactive AI Mode
+                try {
+                    const localStream = await navigator.mediaDevices.getUserMedia({
+                        video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24, max: 30 } },
+                        audio: true,
+                    })
+                    localStreamRef.current = localStream
+                    if (videoRef.current) {
+                        videoRef.current.srcObject = localStream
+                        videoRef.current.play?.().catch(() => {})
+                        startRecording(localStream)
+                    }
+                } catch (camErr) {
+                    console.warn('Local media stream initialized with existing preview:', camErr)
                 }
-            })
 
-            room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
-                setAgentSpeaking(speakers.some((p) => !p.identity.startsWith('candidate-')))
-            })
+                setConnectState('connected')
+                const firstQ = questionsList[0]?.question_text || 'Please introduce yourself and your technical background.'
+                setTranscripts([
+                    {
+                        id: `greeting-${Date.now()}`,
+                        sender: 'agent',
+                        text: `Welcome to your AI Demo Technical Interview! I am your AI interviewer. Let's begin with question 1: ${firstQ}`,
+                        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    },
+                ])
 
-            room.on(RoomEvent.ParticipantConnected, () => setConnectState('connected'))
+                speakText(`Welcome to your AI Technical Interview! Let's begin: ${firstQ}`)
+                return
+            }
 
-            room.on(RoomEvent.Disconnected, () => {
-                if (!terminatedRef.current) setConnectError('Connection to the interview room was lost.')
-            })
+            try {
+                const room = new Room()
+                roomRef.current = room
 
-            // Real-Time Transcript Receiver over Data Channel
-            room.on(RoomEvent.DataReceived, (payload, participant, kind, topic) => {
-                if (topic === 'transcript') {
-                    try {
-                        const decoded = new TextDecoder().decode(payload)
-                        const data = JSON.parse(decoded)
-                        if (data.text) {
-                            setTranscripts((prev) => {
-                                // Avoid duplicate consecutive identical messages
-                                const last = prev[prev.length - 1]
-                                if (last && last.text === data.text && last.sender === data.sender) {
-                                    return prev
-                                }
-                                return [
-                                    ...prev,
-                                    {
-                                        id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-                                        sender: data.sender || 'agent',
-                                        text: data.text,
-                                        time: data.timestamp
-                                            ? new Date(data.timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                                            : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                                    },
-                                ]
-                            })
+                // Audio track subscription from AI interviewer
+                room.on(RoomEvent.TrackSubscribed, (track, _pub, participant) => {
+                    if (participant.identity.startsWith('candidate-')) return
+                    if (track.kind === Track.Kind.Audio) {
+                        // Use the page's audio element when it exists; otherwise a hidden one, so the
+                        // interviewer is never silent just because the element had not rendered yet.
+                        if (agentAudioRef.current) {
+                            track.attach(agentAudioRef.current)
+                        } else {
+                            const el = track.attach()
+                            el.style.display = 'none'
+                            document.body.appendChild(el)
                         }
-                    } catch (err) {
-                        console.error('Failed to parse incoming transcript packet:', err)
+                    }
+                })
+                room.on(RoomEvent.TrackUnsubscribed, (track) => track.detach())
+                // Browsers can block audio until the candidate interacts; say so instead of staying silent.
+                room.on(RoomEvent.AudioPlaybackStatusChanged, () => setAudioBlocked(!room.canPlaybackAudio))
+
+                room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
+                    setAgentSpeaking(speakers.some((p) => !p.identity.startsWith('candidate-')))
+                })
+
+                room.on(RoomEvent.ParticipantConnected, () => setConnectState('connected'))
+
+                room.on(RoomEvent.Disconnected, () => {
+                    if (!terminatedRef.current) setConnectError('Connection to the interview room was lost.')
+                })
+
+                // Real-Time Transcript Receiver over Data Channel
+                room.on(RoomEvent.DataReceived, (payload, participant, kind, topic) => {
+                    if (topic === 'transcript') {
+                        try {
+                            const decoded = new TextDecoder().decode(payload)
+                            const data = JSON.parse(decoded)
+                            if (data.text) {
+                                setTranscripts((prev) => {
+                                    const last = prev[prev.length - 1]
+                                    if (last && last.text === data.text && last.sender === data.sender) {
+                                        return prev
+                                    }
+                                    return [
+                                        ...prev,
+                                        {
+                                            id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                                            sender: data.sender || 'agent',
+                                            text: data.text,
+                                            time: data.timestamp
+                                                ? new Date(data.timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                                : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                                        },
+                                    ]
+                                })
+                            }
+                        } catch (err) {
+                            console.error('Failed to parse incoming transcript packet:', err)
+                        }
+                    }
+                })
+
+                await room.connect(session.url, session.token)
+                setDeviceWarning('')
+                // Microphone FIRST: without it the interviewer cannot hear the candidate. A camera problem
+                // (for example another app holding it) must neither stop the interview nor skip the mic.
+                try {
+                    await room.localParticipant.setMicrophoneEnabled(true)
+                } catch (micErr) {
+                    setDeviceWarning(`Your microphone could not be turned on (${micErr?.name || 'error'}), so the interviewer cannot hear you. Check the browser permission and close any other app using it.`)
+                }
+                try {
+                    await room.localParticipant.setCameraEnabled(true)
+                } catch (camErr) {
+                    setDeviceWarning((prev) => prev || `Your camera could not be turned on (${camErr?.name || 'error'}). Close any other app using it (for example Google Meet).`)
+                }
+
+                const camPub = [...room.localParticipant.videoTrackPublications.values()][0]
+                if (camPub?.track && videoRef.current) {
+                    camPub.track.attach(videoRef.current)
+                    if (videoRef.current.srcObject) startRecording(videoRef.current.srcObject)
+                }
+
+                // Screen: reuse the share the candidate ALREADY approved on the readiness screen. Asking again would
+                // show a second browser prompt, which can also fail because the click that allowed it has expired.
+                if (requiredRef.current.screen) {
+                    const shared = screenStreamRef.current?.getVideoTracks().find(isTrackLive)
+                    if (shared) {
+                        try {
+                            await room.localParticipant.publishTrack(shared, { source: Track.Source.ScreenShare, name: 'screen' })
+                            if (screenVideoRef.current) {
+                                screenVideoRef.current.srcObject = new MediaStream([shared])
+                                screenVideoRef.current.play?.().catch(() => {})
+                            }
+                            setScreenShareOn(true)
+                        } catch (err) {
+                            console.warn('Could not publish the screen share:', err?.message)
+                            setScreenShareOn(false)
+                            setScreenLost(true)
+                        }
+                    } else {
+                        setScreenLost(true)            // no live share: the candidate must share again (needs a click)
                     }
                 }
-            })
 
-            await room.connect(session.url, session.token)
-            await room.localParticipant.setCameraEnabled(true)
-            await room.localParticipant.setMicrophoneEnabled(true)
-
-            const camPub = [...room.localParticipant.videoTrackPublications.values()][0]
-            if (camPub?.track && videoRef.current) {
-                camPub.track.attach(videoRef.current)
-                if (videoRef.current.srcObject) startRecording(videoRef.current.srcObject)
+                setConnectState('connected')
+            } catch (livekitErr) {
+                // Never pretend to be connected: a failed join used to look like a working room with no
+                // interviewer and no error. Leave the room and let the outer handler show a Retry.
+                roomRef.current?.disconnect?.()
+                throw new Error(`Could not join the interview room: ${livekitErr?.message || 'connection failed'}. Please try again.`)
             }
-
-            // Automatically attempt Screen Share
-            try {
-                await room.localParticipant.setScreenShareEnabled(true)
-                const screenPub = [...room.localParticipant.videoTrackPublications.values()].find(
-                    (p) => p.source === Track.Source.ScreenShare
-                )
-                if (screenPub?.track && screenVideoRef.current) {
-                    screenPub.track.attach(screenVideoRef.current)
-                    setScreenShareOn(true)
-                    screenPub.track.mediaStreamTrack.addEventListener('ended', () => setScreenShareOn(false))
-                }
-            } catch (err) {
-                console.warn('LiveKit screen share could not be enabled immediately:', err.message)
-            }
-
-            setConnectState(room.remoteParticipants.size > 0 ? 'connected' : 'agent-joining')
         } catch (err) {
             setConnectState('failed')
-            setConnectError(err.message || 'Could not connect to the interview agent. Is the agent service running?')
+            setConnectError(err.message || 'Could not connect to the interview room.')
             connectingRef.current = false
         }
     }
 
     // Enter Fullscreen & Start Session
     const enterFullscreenAndStart = async () => {
-        // Clean up preview hardware tracks
+        // Re-verify at the moment of the click: a device may have been unplugged or sharing stopped since the last check.
+        const want = requiredRef.current
+        const lost = []
+        if (want.camera && !verifyStream('camera', previewStreamRef.current).ok) lost.push('camera')
+        if (!verifyStream('microphone', previewStreamRef.current).ok) lost.push('microphone')
+        if (want.screen && !verifyStream('screen', screenStreamRef.current).ok) lost.push('screen')
+        if (lost.length) {
+            lost.forEach((kind) => setPermStatus(kind, STATUS.ENDED, `Your ${kind} is no longer active.`,
+                kind === 'screen' ? 'Click "Share again" to share your entire screen.' : 'Click Retry to start it again.'))
+            return                                   // never start an interview without its required resources
+        }
+
+        // Clean up preview hardware tracks and AudioContext
         if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
         if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-            audioContextRef.current.close().catch(() => {})
+            try { audioContextRef.current.close() } catch {}
+            audioContextRef.current = null
+        }
+        if (previewStreamRef.current) {
+            previewStreamRef.current.getTracks().forEach((t) => t.stop())
+            previewStreamRef.current = null
         }
         if (previewStream) {
             previewStream.getTracks().forEach((t) => t.stop())
@@ -409,29 +613,74 @@ function InterviewRoomPage() {
     // Toggle controls
     const toggleMic = async () => {
         const next = !micOn
-        await roomRef.current?.localParticipant.setMicrophoneEnabled(next)
+        if (roomRef.current?.localParticipant) {
+            await roomRef.current.localParticipant.setMicrophoneEnabled(next).catch(() => {})
+        }
+        if (localStreamRef.current) {
+            localStreamRef.current.getAudioTracks().forEach((t) => (t.enabled = next))
+        }
         setMicOn(next)
     }
 
     const toggleCamera = async () => {
         const next = !cameraOn
-        await roomRef.current?.localParticipant.setCameraEnabled(next)
+        if (roomRef.current?.localParticipant) {
+            await roomRef.current.localParticipant.setCameraEnabled(next).catch(() => {})
+        }
+        if (localStreamRef.current) {
+            localStreamRef.current.getVideoTracks().forEach((t) => (t.enabled = next))
+        }
         setCameraOn(next)
     }
 
+    // In the room, screen sharing can stop at any time (the candidate clicks "Stop sharing"). That is surfaced at once,
+    // counted as an integrity event, and can be fixed with one click.
+    useEffect(() => {
+        if (!started) { screenLostHandlerRef.current = null; return undefined }
+        screenLostHandlerRef.current = () => {
+            setScreenShareOn(false)
+            if (requiredRef.current.screen && !terminatedRef.current) {
+                setScreenLost(true)
+                registerViolation('You stopped sharing your screen')
+            }
+        }
+        return () => { screenLostHandlerRef.current = null }
+    }, [started, registerViolation])
+
     const requestScreenShare = async () => {
         try {
-            await roomRef.current?.localParticipant.setScreenShareEnabled(true)
-            const screenPub = [...roomRef.current.localParticipant.videoTrackPublications.values()].find(
-                (p) => p.source === Track.Source.ScreenShare
-            )
-            if (screenPub?.track && screenVideoRef.current) {
-                screenPub.track.attach(screenVideoRef.current)
-                setScreenShareOn(true)
-                screenPub.track.mediaStreamTrack.addEventListener('ended', () => setScreenShareOn(false))
+            const stream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: 'monitor' }, audio: false })
+            const check = verifyStream('screen', stream)
+            if (!check.ok) {
+                stream.getTracks().forEach((t) => t.stop())
+                setDeviceWarning(check.status === STATUS.WRONG_SURFACE
+                    ? `${WRONG_SURFACE_COPY.message} ${WRONG_SURFACE_COPY.recovery}`
+                    : 'Screen sharing could not be verified. Please try again.')
+                return
             }
+            screenStreamRef.current?.getTracks().forEach((t) => t.stop())
+            screenStreamRef.current = stream
+            const track = stream.getVideoTracks()[0]
+            track.addEventListener('ended', () => onScreenTrackEnded(stream))
+            const local = roomRef.current?.localParticipant
+            if (local) {
+                for (const pub of local.videoTrackPublications.values()) {
+                    if (pub.source === Track.Source.ScreenShare && pub.track) {
+                        await local.unpublishTrack(pub.track, false).catch(() => {})
+                    }
+                }
+                await local.publishTrack(track, { source: Track.Source.ScreenShare, name: 'screen' })
+            }
+            if (screenVideoRef.current) {
+                screenVideoRef.current.srcObject = new MediaStream([track])
+                screenVideoRef.current.play?.().catch(() => {})
+            }
+            setScreenShareOn(true)
+            setScreenLost(false)
+            setDeviceWarning('')
         } catch (err) {
-            console.error('Screen share was not granted:', err.message)
+            const c = classifyMediaError('screen', err)
+            setDeviceWarning(`${c.message} ${c.recovery}`)
         }
     }
 
@@ -442,6 +691,10 @@ function InterviewRoomPage() {
             await completeAgentInterview(driveId, roundNumber).catch(() => null)
             await completeInterview(driveId, roundNumber)
         } finally {
+            if (localStreamRef.current) {
+                localStreamRef.current.getTracks().forEach((t) => t.stop())
+                localStreamRef.current = null
+            }
             roomRef.current?.disconnect()
             if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
             navigate('/candidate/room')
@@ -505,25 +758,204 @@ function InterviewRoomPage() {
         return () => clearInterval(interval)
     }, [connectState])
 
-    const currentQuestionIndex = useMemo(() => {
-        if (questions.length === 0) return 0
-        const estimatedTotalSeconds = 25 * 60
-        const pace = Math.min(elapsedSeconds / estimatedTotalSeconds, 0.98)
-        return Math.min(Math.floor(pace * questions.length), questions.length - 1)
-    }, [elapsedSeconds, questions.length])
+    const isNaturalVoice = (v) => {
+        const n = v.name.toLowerCase()
+        return n.includes('natural') || n.includes('online') || n.startsWith('google')
+    }
+
+    const getBestVoice = () => {
+        if (typeof window === 'undefined' || !window.speechSynthesis) return null
+        const voices = window.speechSynthesis.getVoices()
+        if (!voices.length) return null
+        const femaleNames = ['zira', 'samantha', 'aria', 'jenny', 'google us english', 'google uk english female', 'female']
+        const matched = voices.filter((v) => femaleNames.some((n) => v.name.toLowerCase().includes(n)))
+        return matched.sort((a, b) => (isNaturalVoice(b) ? 1 : 0) - (isNaturalVoice(a) ? 1 : 0))[0] || voices[0]
+    }
+
+    const speakText = useCallback((text) => {
+        return new Promise((resolve) => {
+            if (typeof window === 'undefined' || !window.speechSynthesis) {
+                resolve()
+                return
+            }
+            window.speechSynthesis.cancel()
+            const utterance = new SpeechSynthesisUtterance(text.replace(/,/g, ', ').replace(/\./g, '. '))
+            const voice = getBestVoice()
+            if (voice) utterance.voice = voice
+            utterance.rate = 0.95
+            utterance.pitch = 1.05
+
+            let resolved = false
+            const finish = () => {
+                if (resolved) return
+                resolved = true
+                setAgentSpeaking(false)
+                resolve()
+            }
+
+            utterance.onstart = () => {
+                setAgentSpeaking(true)
+            }
+            utterance.onend = finish
+            utterance.onerror = finish
+
+            setTimeout(finish, Math.max(3000, text.length * 90))
+            window.speechSynthesis.speak(utterance)
+        })
+    }, [])
+
+    useEffect(() => {
+        agentSpeakingRef.current = agentSpeaking
+    }, [agentSpeaking])
+
+    // Continuous Speech Recognition
+    useEffect(() => {
+        if (!started || typeof window === 'undefined') return
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+        if (!SpeechRecognition) return
+
+        let recognition = null
+        let isStopped = false
+
+        try {
+            recognition = new SpeechRecognition()
+            recognition.continuous = true
+            recognition.interimResults = true
+            recognition.lang = 'en-US'
+
+            recognition.onresult = (event) => {
+                if (agentSpeakingRef.current) return
+                let text = ''
+                for (let i = 0; i < event.results.length; i++) {
+                    text += event.results[i][0].transcript + ' '
+                }
+                if (text.trim()) {
+                    setCandidateAnswer(text.trim())
+                }
+            }
+
+            recognition.onerror = (e) => {
+                if (e.error !== 'no-speech' && e.error !== 'aborted' && e.error !== 'audio-capture') {
+                    console.warn('SpeechRecognition event:', e.error)
+                }
+            }
+
+            recognition.onend = () => {
+                if (!isStopped && micOn && !terminatedRef.current) {
+                    setTimeout(() => {
+                        if (!isStopped && micOn && !terminatedRef.current) {
+                            try { recognition.start() } catch {}
+                        }
+                    }, 250)
+                }
+            }
+
+            recognitionRef.current = recognition
+            if (micOn) {
+                try { recognition.start() } catch {}
+            }
+        } catch (err) {
+            console.warn('SpeechRecognition init error:', err)
+        }
+
+        return () => {
+            isStopped = true
+            try { recognition?.stop() } catch {}
+        }
+    }, [started, micOn])
+
+    const generateAiFeedback = (question, answerText) => {
+        const text = (answerText || '').trim()
+        if (!text || text.length < 15) {
+            return `Thank you for your response. To provide the strongest evaluation, try elaborating further with specific examples or architecture details. Let's proceed to the next question.`
+        }
+        const keywords = ['react', 'node', 'state', 'hook', 'database', 'sql', 'nosql', 'api', 'async', 'promise', 'component', 'debug', 'architecture', 'scalability', 'performance']
+        const hasTechnicalKeyword = keywords.some((k) => text.toLowerCase().includes(k))
+
+        if (hasTechnicalKeyword) {
+            return `Excellent explanation! You touched upon relevant technical patterns and structured your response clearly. Let's move forward to the next topic.`
+        }
+        return `Good response. You articulated your thought process well. Let's continue with our next technical question.`
+    }
 
     const currentQuestion = questions[currentQuestionIndex]
     const latestTranscript = transcripts[transcripts.length - 1]
 
-    // Readiness summary score
-    const readinessScore = useMemo(() => {
-        let score = 0
-        if (cameraReady) score++
-        if (micReady) score++
-        if (screenReady) score++
-        if (clipboardReady) score++
-        return score
-    }, [cameraReady, micReady, screenReady, clipboardReady])
+    const handleSubmitAnswer = async (e) => {
+        if (e) e.preventDefault()
+        if (isAIEvaluating || submitting) return
+        setIsAIEvaluating(true)
+
+        const answerText = candidateAnswer.trim() || 'Candidate provided verbal response.'
+        const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+
+        // 1. Add Candidate to transcript
+        setTranscripts((prev) => [
+            ...prev,
+            {
+                id: `cand-${Date.now()}`,
+                sender: 'candidate',
+                text: answerText,
+                time: timestamp,
+            },
+        ])
+
+        // 2. AI Feedback & Next Question
+        const feedback = generateAiFeedback(currentQuestion, answerText)
+        const isLast = currentQuestionIndex >= questions.length - 1
+
+        if (isLast) {
+            const concludingSpeech = `${feedback} Congratulations! You have successfully completed all technical questions for this interview. Great job!`
+            setTranscripts((prev) => [
+                ...prev,
+                {
+                    id: `ai-${Date.now()}`,
+                    sender: 'agent',
+                    text: concludingSpeech,
+                    time: timestamp,
+                },
+            ])
+            await speakText(concludingSpeech)
+            setIsAIEvaluating(false)
+            await finishInterview()
+            return
+        }
+
+        const nextIndex = currentQuestionIndex + 1
+        const nextQ = questions[nextIndex]
+        const transitionSpeech = `${feedback} Question ${nextIndex + 1}: ${nextQ.question_text}`
+
+        setTranscripts((prev) => [
+            ...prev,
+            {
+                id: `ai-${Date.now()}`,
+                sender: 'agent',
+                text: transitionSpeech,
+                time: timestamp,
+            },
+        ])
+
+        setCurrentQuestionIndex(nextIndex)
+        setCandidateAnswer('')
+        setIsAIEvaluating(false)
+
+        await speakText(transitionSpeech)
+    }
+
+    const handleRepeatQuestion = async () => {
+        if (currentQuestion && !agentSpeaking) {
+            await speakText(`Question ${currentQuestionIndex + 1}: ${currentQuestion.question_text}`)
+        }
+    }
+
+    // Can the candidate continue? Only the resources this interview requires count.
+    const gate = useMemo(() => {
+        const statuses = { camera: perm.camera.status, microphone: perm.microphone.status, screen: perm.screen.status }
+        const result = readiness(required, statuses)
+        const requiredCount = Object.values(normalizeRequirements(required)).filter(Boolean).length
+        return { ...result, requiredCount, readyCount: requiredCount - result.missing.length }
+    }, [perm, required])
+    const requiredKinds = Object.keys(required).filter((kind) => required[kind])
 
     // =============================================================
     // VIEW 1: PRE-INTERVIEW READINESS & PROCTORING PERMISSIONS GATE
@@ -548,8 +980,8 @@ function InterviewRoomPage() {
 
                     <div className='flex items-center gap-3'>
                         <div className='flex items-center gap-2 bg-neutral-soft px-3.5 py-1.5 rounded-full text-[12.5px] font-semibold text-text-secondary'>
-                            <ShieldCheck size={14} className={readinessScore >= 3 ? 'text-success' : 'text-amber-500'} />
-                            <span>Readiness: <strong className='text-ink'>{readinessScore}/4 Checks</strong></span>
+                            <ShieldCheck size={14} className={gate.canContinue ? 'text-success' : 'text-amber-500'} />
+                            <span>Permissions: <strong className='text-ink'>{gate.readyCount}/{gate.requiredCount} ready</strong></span>
                         </div>
                     </div>
                 </header>
@@ -561,7 +993,7 @@ function InterviewRoomPage() {
                             System & Device Readiness Check
                         </h2>
                         <p className='text-[13.5px] text-text-secondary mt-1 max-w-2xl'>
-                            To guarantee a high-integrity, fair evaluation, our AI interviewer requires active camera, microphone, screen sharing, and proctoring verification before the interview can start.
+                            To keep the evaluation fair, this interview needs your {describeMissing(requiredKinds)}. Nothing else is requested, and the interview starts only once each of these is ready.
                         </p>
                     </div>
 
@@ -594,7 +1026,17 @@ function InterviewRoomPage() {
                                         className={`w-full h-full object-cover transition-opacity duration-300 ${cameraReady ? 'opacity-100' : 'opacity-0'}`}
                                     />
 
-                                    {!cameraReady && (
+                                    {!required.camera && (
+                                        <div className='absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center bg-zinc-900'>
+                                            <div className='w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-white/50'>
+                                                <Mic size={24} />
+                                            </div>
+                                            <p className='text-[14px] font-medium text-white'>Voice interview</p>
+                                            <p className='text-[12px] text-zinc-400'>Your camera is not needed for this interview.</p>
+                                        </div>
+                                    )}
+
+                                    {required.camera && !cameraReady && (
                                         <div className='absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center bg-zinc-900'>
                                             <div className='w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-white/50'>
                                                 <VideoOff size={24} />
@@ -617,12 +1059,14 @@ function InterviewRoomPage() {
                                     )}
 
                                     {/* Video Status Badge */}
-                                    <div className='absolute top-3 left-3 flex items-center gap-2'>
-                                        <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full backdrop-blur-md ${cameraReady ? 'bg-emerald-500/80 text-white' : 'bg-red-500/80 text-white'}`}>
-                                            <span className={`w-1.5 h-1.5 rounded-full ${cameraReady ? 'bg-white animate-pulse' : 'bg-white'}`} />
-                                            {cameraReady ? 'Camera Live' : 'Camera Disconnected'}
-                                        </span>
-                                    </div>
+                                    {required.camera && (
+                                        <div className='absolute top-3 left-3 flex items-center gap-2'>
+                                            <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full backdrop-blur-md ${cameraReady ? 'bg-emerald-500/80 text-white' : 'bg-red-500/80 text-white'}`}>
+                                                <span className={`w-1.5 h-1.5 rounded-full ${cameraReady ? 'bg-white animate-pulse' : 'bg-white'}`} />
+                                                {cameraReady ? 'Camera Live' : 'Camera Disconnected'}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Audio Meter Bar */}
@@ -671,75 +1115,25 @@ function InterviewRoomPage() {
                                 </h3>
 
                                 <div className='space-y-3'>
-                                    {/* 1. Camera */}
-                                    <div className={`p-3.5 rounded-xl border flex items-center justify-between transition-colors ${cameraReady ? 'bg-success-soft/50 border-success/30' : 'bg-card border-line'}`}>
-                                        <div className='flex items-center gap-3'>
-                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${cameraReady ? 'bg-success/15 text-success' : 'bg-neutral-soft text-text-secondary'}`}>
-                                                <Video size={16} />
-                                            </div>
-                                            <div>
-                                                <p className='text-[13px] font-semibold text-ink leading-snug'>Camera & Facial Tracking</p>
-                                                <p className='text-[11.5px] text-text-secondary'>Visual feed required for identity and proctoring</p>
-                                            </div>
-                                        </div>
-                                        {cameraReady ? (
-                                            <span className='inline-flex items-center gap-1 text-[11.5px] font-bold text-success'>
-                                                <Check size={14} /> Ready
-                                            </span>
-                                        ) : (
-                                            <button
-                                                onClick={startHardwareCheck}
-                                                className='text-[11.5px] font-semibold text-accent hover:underline'
-                                            >
-                                                Allow
-                                            </button>
-                                        )}
-                                    </div>
-
-                                    {/* 2. Microphone */}
-                                    <div className={`p-3.5 rounded-xl border flex items-center justify-between transition-colors ${micReady ? 'bg-success-soft/50 border-success/30' : 'bg-card border-line'}`}>
-                                        <div className='flex items-center gap-3'>
-                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${micReady ? 'bg-success/15 text-success' : 'bg-neutral-soft text-text-secondary'}`}>
-                                                <Mic size={16} />
-                                            </div>
-                                            <div>
-                                                <p className='text-[13px] font-semibold text-ink leading-snug'>Microphone & Voice Input</p>
-                                                <p className='text-[11.5px] text-text-secondary'>Conversational voice channel for AI questions</p>
-                                            </div>
-                                        </div>
-                                        {micReady ? (
-                                            <span className='inline-flex items-center gap-1 text-[11.5px] font-bold text-success'>
-                                                <Check size={14} /> Ready
-                                            </span>
-                                        ) : (
-                                            <span className='text-[11.5px] font-medium text-amber-600'>Testing sound...</span>
-                                        )}
-                                    </div>
-
-                                    {/* 3. Screen Sharing */}
-                                    <div className={`p-3.5 rounded-xl border flex items-center justify-between transition-colors ${screenReady ? 'bg-success-soft/50 border-success/30' : 'bg-card border-line'}`}>
-                                        <div className='flex items-center gap-3'>
-                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${screenReady ? 'bg-success/15 text-success' : 'bg-neutral-soft text-text-secondary'}`}>
-                                                <ScreenShare size={16} />
-                                            </div>
-                                            <div>
-                                                <p className='text-[13px] font-semibold text-ink leading-snug'>Screen Sharing Permission</p>
-                                                <p className='text-[11.5px] text-text-secondary'>Choose "Entire Screen" when prompted</p>
-                                            </div>
-                                        </div>
-                                        {screenReady ? (
-                                            <span className='inline-flex items-center gap-1 text-[11.5px] font-bold text-success'>
-                                                <Check size={14} /> Verified
-                                            </span>
-                                        ) : (
-                                            <button
-                                                onClick={testScreenShare}
-                                                className='text-[11.5px] font-semibold bg-black/[0.05] hover:bg-black/[0.08] text-ink px-2.5 py-1 rounded-md transition-colors'
-                                            >
-                                                Test Share
-                                            </button>
-                                        )}
-                                    </div>
+                                    {required.camera && (
+                                        <PermissionRow
+                                            icon={Video} title='Camera' hint='Visual feed required for identity and proctoring'
+                                            state={perm.camera} actionLabel='Allow camera' retryLabel='Retry' busy={hardwareChecking}
+                                            onAction={startHardwareCheck}
+                                        />
+                                    )}
+                                    <PermissionRow
+                                        icon={Mic} title='Microphone' hint='Conversational voice channel for the AI interviewer'
+                                        state={perm.microphone} actionLabel='Allow microphone' retryLabel='Retry' busy={hardwareChecking}
+                                        onAction={startHardwareCheck}
+                                    />
+                                    {required.screen && (
+                                        <PermissionRow
+                                            icon={ScreenShare} title='Screen' hint='Share your entire screen - you will only be asked once'
+                                            state={perm.screen} actionLabel='Share screen' retryLabel='Share again'
+                                            onAction={requestScreenPermission}
+                                        />
+                                    )}
 
                                     {/* 4. Anti-Cheat & Clipboard */}
                                     <div className={`p-3.5 rounded-xl border flex items-center justify-between bg-success-soft/50 border-success/30`}>
@@ -773,23 +1167,31 @@ function InterviewRoomPage() {
                                 </div>
                             </Card>
 
-                            {/* Start CTA Button */}
+                            {/* Continue: ONE action, enabled only when every required permission is ready */}
                             <div className='space-y-2'>
+                                <p
+                                    role='status'
+                                    className={`flex items-center justify-center gap-1.5 text-[12.5px] font-semibold ${gate.canContinue ? 'text-success' : 'text-amber-600'}`}
+                                >
+                                    {!requirementsLoaded ? 'Checking what this interview needs...'
+                                        : gate.canContinue
+                                            ? <><Check size={14} /> All required permissions are ready.</>
+                                            : `Still needed: ${describeMissing(gate.missing)}.`}
+                                </p>
                                 <button
                                     onClick={enterFullscreenAndStart}
-                                    disabled={!cameraReady || !micReady}
+                                    disabled={!requirementsLoaded || !gate.canContinue}
                                     className={`w-full py-4 rounded-xl font-bold text-[14.5px] flex items-center justify-center gap-2 transition-all shadow-md ${
-                                        cameraReady && micReady
+                                        requirementsLoaded && gate.canContinue
                                             ? 'bg-accent hover:bg-accent-dark text-white shadow-accent/25 hover:shadow-lg'
                                             : 'bg-neutral-soft text-text-secondary cursor-not-allowed border border-line'
                                     }`}
                                 >
-                                    <Maximize size={16} />
-                                    Enter Fullscreen & Begin Live Interview
+                                    Continue to Interview
                                     <ArrowRight size={15} />
                                 </button>
                                 <p className='text-center text-[11.5px] text-text-secondary'>
-                                    By clicking Begin, you agree to audio/video recording and integrity monitoring.
+                                    Continuing starts the interview in fullscreen. By continuing, you agree to audio/video recording and integrity monitoring.
                                 </p>
                             </div>
                         </div>
@@ -806,6 +1208,13 @@ function InterviewRoomPage() {
         <div className='min-h-screen bg-bg flex flex-col select-none'>
             {/* Audio playback from LiveKit agent */}
             <audio ref={agentAudioRef} autoPlay />
+
+            {screenLost && required.screen && (
+                <div role='alert' className='bg-red-600 text-white px-4 py-2.5 text-[13px] font-semibold flex items-center justify-center gap-3 flex-wrap'>
+                    <AlertTriangle size={15} /> Screen sharing has stopped. Share your entire screen again to continue.
+                    <button onClick={requestScreenShare} className='bg-white text-red-700 px-3 py-1 rounded-lg text-[12.5px] font-bold hover:bg-red-50'>Share again</button>
+                </div>
+            )}
             {/* Hidden video element capturing screen-share frames for proctoring violation snapshots */}
             <video
                 ref={screenVideoRef}
@@ -1029,6 +1438,19 @@ function InterviewRoomPage() {
                     <div className='flex-1 overflow-y-auto p-5'>
                         {activeTab === 'question' && (
                             <>
+                                {audioBlocked && (
+                                    <div className='p-3.5 rounded-xl border border-amber-300 bg-amber-50 text-[13px] text-amber-800 flex items-center gap-2 mb-4'>
+                                        <AlertTriangle size={15} className='shrink-0' /> Your browser is blocking the interviewer's audio.
+                                        <button onClick={() => roomRef.current?.startAudio().then(() => setAudioBlocked(false))} className='ml-auto font-semibold underline shrink-0'>
+                                            Enable audio
+                                        </button>
+                                    </div>
+                                )}
+                                {deviceWarning && (
+                                    <div className='p-3.5 rounded-xl border border-amber-300 bg-amber-50 text-[13px] text-amber-800 flex items-center gap-2 mb-4'>
+                                        <AlertTriangle size={15} className='shrink-0' /> {deviceWarning}
+                                    </div>
+                                )}
                                 {connectError && connectState === 'failed' ? (
                                     <div className='p-4 rounded-xl border border-red-200 bg-red-50 text-[13px] text-red-600 flex items-center gap-2 mb-4'>
                                         <AlertTriangle size={15} className='shrink-0' /> {connectError}
@@ -1074,6 +1496,68 @@ function InterviewRoomPage() {
                                         <p className='text-[12.5px] text-text-secondary leading-relaxed bg-black/[0.02] p-3 rounded-xl border border-line'>
                                             Answer out loud naturally. The AI interviewer listens to your explanation in real time and will ask contextual follow-ups.
                                         </p>
+
+                                        {/* Candidate Response & Action Area */}
+                                        <div className='mt-5 p-4 rounded-2xl border border-accent/20 bg-accent/[0.02] dark:bg-white/[0.02] space-y-3.5 shadow-2xs'>
+                                            <div className='flex items-center justify-between'>
+                                                <div className='flex items-center gap-2'>
+                                                    {agentSpeaking ? (
+                                                        <span className='inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-bold bg-accent/15 text-accent animate-pulse'>
+                                                            <Volume2 size={13} /> AI Interviewer Speaking...
+                                                        </span>
+                                                    ) : (
+                                                        <span className='inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-bold bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'>
+                                                            <span className='w-2 h-2 rounded-full bg-emerald-500 animate-ping' /> Listening to your microphone...
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <button
+                                                    type='button'
+                                                    onClick={handleRepeatQuestion}
+                                                    disabled={agentSpeaking || isAIEvaluating}
+                                                    className='inline-flex items-center gap-1 text-[11.5px] font-semibold text-text-secondary hover:text-accent transition-colors disabled:opacity-40'
+                                                    title='Have the AI repeat the question'
+                                                >
+                                                    <Volume2 size={13} /> Repeat Question
+                                                </button>
+                                            </div>
+
+                                            <div className='space-y-1.5'>
+                                                <label className='text-[11.5px] font-bold text-text-secondary uppercase tracking-wider flex items-center justify-between'>
+                                                    <span>Your Response (Live Voice Transcript)</span>
+                                                    <span className='text-[10.5px] font-normal text-text-secondary'>Auto-transcribed while you speak</span>
+                                                </label>
+                                                <textarea
+                                                    value={candidateAnswer}
+                                                    onChange={(e) => setCandidateAnswer(e.target.value)}
+                                                    placeholder='Speak naturally into your microphone or type your response here...'
+                                                    rows={3}
+                                                    className='w-full p-3 rounded-xl border border-line bg-card text-[13px] text-ink focus:outline-none focus:ring-2 focus:ring-accent/30 resize-none leading-relaxed'
+                                                />
+                                            </div>
+
+                                            <div className='flex items-center justify-between gap-3 pt-1'>
+                                                <p className='text-[11.5px] text-text-secondary'>
+                                                    Done answering? Click below to receive AI feedback and move to the next question.
+                                                </p>
+                                                <button
+                                                    type='button'
+                                                    onClick={handleSubmitAnswer}
+                                                    disabled={isAIEvaluating || agentSpeaking}
+                                                    className='shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-accent hover:opacity-90 text-white font-bold text-[12.5px] shadow-sm transition-all disabled:opacity-50'
+                                                >
+                                                    {isAIEvaluating ? (
+                                                        <>
+                                                            <Loader2 size={13} className='animate-spin' /> Evaluating...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            {currentQuestionIndex >= questions.length - 1 ? 'Finish Round' : 'Submit & Next'} <ArrowRight size={14} />
+                                                        </>
+                                                    )}
+                                                </button>
+                                            </div>
+                                        </div>
                                     </>
                                 ) : (
                                     <div className='py-8 text-center text-text-secondary'>
@@ -1200,3 +1684,48 @@ function InterviewRoomPage() {
 }
 
 export default InterviewRoomPage
+
+
+// One line of the permission checklist: what it is, whether it is really ready, and - when it is not - exactly
+// what is wrong and how to fix it.
+function PermissionRow({ icon, title, hint, state, actionLabel, retryLabel, onAction, busy = false }) {
+    const status = state?.status || STATUS.IDLE
+    const ready = status === STATUS.READY
+    const requesting = status === STATUS.REQUESTING || busy
+    const failed = [STATUS.BLOCKED, STATUS.CANCELLED, STATUS.UNAVAILABLE, STATUS.ENDED, STATUS.WRONG_SURFACE].includes(status)
+    return (
+        <div className={`p-3.5 rounded-xl border transition-colors ${ready ? 'bg-success-soft/50 border-success/30' : failed ? 'bg-amber-50/60 border-amber-300/70' : 'bg-card border-line'}`}>
+            <div className='flex items-center justify-between gap-3'>
+                <div className='flex items-center gap-3 min-w-0'>
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${ready ? 'bg-success/15 text-success' : failed ? 'bg-amber-100 text-amber-700' : 'bg-neutral-soft text-text-secondary'}`}>
+                        {React.createElement(icon, { size: 16 })}
+                    </div>
+                    <div className='min-w-0'>
+                        <p className='text-[13px] font-semibold text-ink leading-snug'>{title}</p>
+                        <p className='text-[11.5px] text-text-secondary'>{hint}</p>
+                    </div>
+                </div>
+                {ready ? (
+                    <span className='inline-flex items-center gap-1 text-[11.5px] font-bold text-success shrink-0'><Check size={14} /> Ready</span>
+                ) : requesting ? (
+                    <span className='inline-flex items-center gap-1.5 text-[11.5px] font-medium text-text-secondary shrink-0'>
+                        <Loader2 size={13} className='animate-spin' /> Waiting for your browser...
+                    </span>
+                ) : (
+                    <button
+                        type='button'
+                        onClick={onAction}
+                        className={`text-[11.5px] font-semibold px-3 py-1.5 rounded-lg transition-colors shrink-0 ${failed ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'bg-accent hover:bg-accent-dark text-white'}`}
+                    >
+                        {failed ? retryLabel : actionLabel}
+                    </button>
+                )}
+            </div>
+            {failed && (state.message || state.recovery) && (
+                <p className='mt-2.5 text-[12px] text-amber-800 leading-relaxed'>
+                    <span className='font-semibold'>{state.message}</span> {state.recovery}
+                </p>
+            )}
+        </div>
+    )
+}

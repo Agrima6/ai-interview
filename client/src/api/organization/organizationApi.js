@@ -134,3 +134,7 @@ export const previewNotificationTemplate = (id, payload) => apiPost(`/api/v1/org
 export const getSmtpSettings = () => apiGet("/api/v1/organization/smtp")
 export const updateSmtpSettings = (payload) => apiPut("/api/v1/organization/smtp", payload)
 export const testSmtpConnection = (payload) => apiPost("/api/v1/organization/smtp/test", payload)
+
+// Recruiter: the stored AI-interview conversation for one candidate (tenant-scoped on the server).
+export const getCandidateTranscript = (driveId, roundNumber, candidateId) =>
+    apiGet(`/api/v1/drives/${driveId}/rounds/${roundNumber}/candidates/${candidateId}/transcript`)

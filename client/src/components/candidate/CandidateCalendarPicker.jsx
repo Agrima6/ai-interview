@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, Globe } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Globe, Clock } from 'lucide-react'
 import {
-    MIN_LEAD_MINUTES, formatSlotTime, isSameDay, slotsForDay, startOfDay, timezoneLabel,
+    MIN_LEAD_MINUTES, explainSlot, formatSlotTime, isSameDay, slotsForDay, startOfDay, timezoneLabel,
 } from '../../utils/slotRules'
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -11,8 +11,10 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
  *   - earliest selectable moment: max(now + 1 hour, drive start)
  *   - latest selectable moment:   drive expiry
  * `value` / `onChange` use ISO 8601 UTC strings (what the API stores); everything shown is local time.
+ * `availability` (from the API) sets the organization's hours/timezone/interval; the server re-checks every booking.
+ * Besides the slot grid, an exact-time control (hour / minute / AM-PM) lets the candidate pick any allowed minute.
  */
-export default function CandidateCalendarPicker({ value, onChange, startDate, expiryDate }) {
+export default function CandidateCalendarPicker({ value, onChange, startDate, expiryDate, availability }) {
     const now = Date.now()
     const minTime = useMemo(() => {
         const lead = now + MIN_LEAD_MINUTES * 60 * 1000
@@ -30,7 +32,7 @@ export default function CandidateCalendarPicker({ value, onChange, startDate, ex
     const firstBookable = useMemo(() => {
         // First day that still has a bookable slot - where the calendar opens.
         for (let d = startOfDay(minTime), i = 0; i < 400 && d <= maxTime; i += 1, d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
-            if (slotsForDay(d, minTime, maxTime).some((s) => s.available)) return d
+            if (slotsForDay(d, minTime, maxTime, availability).some((s) => s.available)) return d
         }
         return null
     }, [minTime, maxTime])
@@ -51,12 +53,23 @@ export default function CandidateCalendarPicker({ value, onChange, startDate, ex
         for (let i = 0; i < firstWeekday; i += 1) list.push(null)
         for (let day = 1; day <= daysInMonth; day += 1) {
             const date = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), day)
-            list.push({ date, enabled: slotsForDay(date, minTime, maxTime).some((s) => s.available) })
+            list.push({ date, enabled: slotsForDay(date, minTime, maxTime, availability).some((s) => s.available) })
         }
         return list
     }, [viewMonth, minTime, maxTime])
 
-    const daySlots = useMemo(() => (activeDay ? slotsForDay(activeDay, minTime, maxTime) : []), [activeDay, minTime, maxTime])
+    const daySlots = useMemo(() => (activeDay ? slotsForDay(activeDay, minTime, maxTime, availability) : []), [activeDay, minTime, maxTime, availability])
+
+    // Exact-time control: hour (1-12), minute, AM/PM on the active day, validated with the same rules the server uses.
+    const [exact, setExact] = useState({ hour: '10', minute: '00', meridiem: 'AM' })
+    const exactAt = useMemo(() => {
+        if (!activeDay) return null
+        let hour = Number(exact.hour) % 12
+        if (exact.meridiem === 'PM') hour += 12
+        return new Date(activeDay.getFullYear(), activeDay.getMonth(), activeDay.getDate(), hour, Number(exact.minute))
+    }, [activeDay, exact])
+    const exactProblem = exactAt ? explainSlot(exactAt, { minTime, maxTime, availability }) : 'Pick a date first.'
+    const selectClass = 'h-9 rounded-lg border border-line bg-card text-[12.5px] text-ink px-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
     if (!firstBookable) {
         return (
@@ -156,6 +169,33 @@ export default function CandidateCalendarPicker({ value, onChange, startDate, ex
                     </div>
                 </div>
             </div>
+
+            <fieldset className='mt-3 pt-3 border-t border-line'>
+                <legend className='text-[12px] font-bold text-ink uppercase tracking-wider mb-2 flex items-center gap-1.5'>
+                    <Clock size={12} /> Or pick an exact time
+                </legend>
+                <div className='flex flex-wrap items-center gap-2'>
+                    <select aria-label='Hour' className={selectClass} value={exact.hour} onChange={(e) => setExact({ ...exact, hour: e.target.value })}>
+                        {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((h) => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                    <span aria-hidden className='text-ink font-bold'>:</span>
+                    <select aria-label='Minute' className={selectClass} value={exact.minute} onChange={(e) => setExact({ ...exact, minute: e.target.value })}>
+                        {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map((m) => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                    <select aria-label='AM or PM' className={selectClass} value={exact.meridiem} onChange={(e) => setExact({ ...exact, meridiem: e.target.value })}>
+                        <option>AM</option><option>PM</option>
+                    </select>
+                    <button
+                        type='button'
+                        disabled={Boolean(exactProblem)}
+                        onClick={() => onChange(exactAt.toISOString())}
+                        className='h-9 px-3 rounded-lg bg-accent text-white text-[12.5px] font-semibold disabled:opacity-40 disabled:pointer-events-none'
+                    >
+                        Use this time
+                    </button>
+                </div>
+                {exactProblem && activeDay && <p role='status' className='mt-1.5 text-[12px] text-text-secondary'>{exactProblem}</p>}
+            </fieldset>
 
             <p className='mt-3 text-[11.5px] text-text-secondary flex items-center gap-1.5 flex-wrap'>
                 <Globe size={12} className='shrink-0' /> Times shown in your local timezone: <span className='font-semibold text-ink'>{timezoneLabel()}</span>

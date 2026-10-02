@@ -1,8 +1,13 @@
+import { permissionsForMode, resolveInterviewMode, normalizeInterviewMode } from "../utils/interviewMode.js"
 import crypto from "crypto"
 import path from "path"
 import { InterviewDrive } from "../models/interviewDrive.model.js"
 import { NotificationTemplate } from "../models/notificationTemplate.model.js"
 import { ApiError } from "../utils/response.js"
+import mongoose from "mongoose"
+import { ACTIVE_STATUSES, SKIP_MESSAGES, advanceStatus, mapServiceStatus, planDispatch } from "../utils/communicationPlan.js"
+import { bookSlot } from "./slotBooking.service.js"
+import { resolveAvailability, publicAvailability } from "../utils/slotPolicy.js"
 import { requireValidObjectId } from "../utils/validateId.js"
 import { communicationServiceClient, authServiceClient } from "../config/internalClients.js"
 import * as clientRepo from "../repositories/client.repository.js"
@@ -216,6 +221,7 @@ export const createDrive = async (tenantId, driveData, ctx) => {
         startDate,
         expiryDate,
         passingThreshold: driveData.passingThreshold || 70,
+        interviewMode: normalizeInterviewMode(driveData.interviewMode),
         skillRubrics: driveData.skillRubrics || [],
         questionMode: driveData.questionMode || "PREBUILT",
         questionBankTitle: driveData.questionBankTitle,
@@ -236,6 +242,7 @@ export const createDrive = async (tenantId, driveData, ctx) => {
         startDate,
         expiryDate,
         status,
+        interviewMode: normalizeInterviewMode(driveData.interviewMode) || undefined,   // undefined -> schema default
         currentRound: 1,
         questionBankId: driveData.questionBankId || null,
         questions: driveData.questions || driveData.customQuestionsList || [],
@@ -312,6 +319,8 @@ export const getPublicDriveBySlug = async (link) => {
         // Blue-collar candidates frequently don't have a resume at all -
         // the frontend uses this to stop requiring one.
         resumeOptional: drive.roleCategory === "BLUE_COLLAR",
+        // Lets the slot picker offer only times the server will accept (the server re-checks on booking).
+        availability: publicAvailability(resolveAvailability(drive)),
     }
 }
 
@@ -387,16 +396,24 @@ export const applyToPublicDrive = async (link, applicationData, resumeFile, ctx)
         await uploadBuffer(RESUMES_BUCKET, resumeKey, resumeFile.buffer, resumeFile.mimetype)
     }
 
+    // Policy + capacity + no double booking for this candidate. Throws with a specific code (SLOT_FULL, ...).
+    const booking = await bookSlot({ drive, round, email: normalized.email, requested: slot })
+
     Object.assign(candidate, normalized, {
         id: candidate.id, // preserve the roster entry's original id when completing an existing invite
-        interviewSlot: slot,
+        interviewSlot: booking.slot,
         resumeFilename: resumeKey,
         resumeOriginalName: resumeFile?.originalname || existing?.resumeOriginalName || null,
         preferredLanguage,
     })
     if (!existing) round.candidates.push(candidate)
     drive.candidatesCount = drive.rounds.reduce((total, r) => total + r.candidates.length, 0)
-    await drive.save()
+    try {
+        await drive.save()
+    } catch (err) {
+        await booking.release()          // never leave a place reserved for a booking that was not saved
+        throw err
+    }
 
     const org = await clientRepo.findById(drive.tenantId).catch(() => null)
 
@@ -433,6 +450,10 @@ export const applyToPublicDrive = async (link, applicationData, resumeFile, ctx)
 
 // Candidate-scoped (authenticated CANDIDATE role) - completes their application
 // (upload resume, select slot, language preference) directly from the Candidate Portal.
+// e.g. "22 Sep 2026, 3:35 pm (Asia/Kolkata)" - never the server's own locale, so every reader sees the same moment.
+const formatSlotForEmail = (slot, timeZone) =>
+    `${new Date(slot).toLocaleString("en-IN", { timeZone, day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true })} (${timeZone})`
+
 export const completeCandidateApplication = async (tenantId, email, driveId, roundNumber, applicationData, resumeFile, ctx) => {
     const { drive, round, candidate } = await findOwnRosterEntry(tenantId, email, driveId, roundNumber)
 
@@ -473,7 +494,9 @@ export const completeCandidateApplication = async (tenantId, email, driveId, rou
             : "en"
     }
 
-    candidate.interviewSlot = slot
+    // Re-submitting the same slot is a no-op; a different one frees the old place (previousSlot).
+    const booking = await bookSlot({ drive, round, email, requested: slot, previousSlot: candidate.interviewSlot })
+    candidate.interviewSlot = booking.slot
     if (resumeKey) {
         candidate.resumeFilename = resumeKey
         candidate.resumeOriginalName = resumeFile?.originalname || candidate.resumeOriginalName || "resume.pdf"
@@ -481,33 +504,46 @@ export const completeCandidateApplication = async (tenantId, email, driveId, rou
     if (candidate.status === "INVITED") {
         candidate.status = "SCHEDULED"
     }
-    await drive.save()
+    try {
+        await drive.save()
+    } catch (err) {
+        await booking.release()          // never leave a place reserved for a booking that was not saved
+        throw err
+    }
 
     const org = await clientRepo.findById(drive.tenantId).catch(() => null)
 
     // Dispatch Email 2 (CANDIDATE_APPLICATION_CONFIRMED) confirming the slot and room link
-    communicationServiceClient.send({
+    // Awaited so the response can say what really happened; a failure never fails the booking itself.
+    let confirmation = { status: "FAILED" }
+    try {
+        const sent = await communicationServiceClient.send({
         entityType: "CLIENT", entityId: drive.tenantId, channel: "EMAIL",
         eventType: "CANDIDATE_APPLICATION_CONFIRMED", recipient: candidate.email,
         variables: {
             candidate_name: candidate.name || "there",
             drive_title: drive.title,
             company_name: org?.name || "the hiring team",
-            interview_slot: slot.toLocaleString(),
+            interview_slot: formatSlotForEmail(candidate.interviewSlot, resolveAvailability(drive).timezone),
             login_email: candidate.email,
             temp_password: "(Use your existing WorkmateIQ password)",
             login_url: buildFrontendUrl("/login"),
             supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
         },
         metadata: { driveId: String(drive._id), candidateId: candidate.id },
-    }, ctx).catch((err) => console.error(`[client-service] confirmation email failed for ${candidate.email}:`, err.message))
+    }, ctx)
+        confirmation = { status: mapServiceStatus(sent?.status), communicationId: sent?.id }
+    } catch (err) {
+        console.error(`[client-service] confirmation email failed for ${candidate.email}:`, err.message)
+    }
 
     return {
         message: "Application completed successfully!",
         driveId: drive._id,
         roundNumber: round.roundNumber,
         candidateStatus: candidate.status,
-        interviewSlot: slot,
+        interviewSlot: candidate.interviewSlot,
+        confirmation,          // QUEUED = accepted for delivery; FAILED = tell the candidate to check My Interviews
         resumeFilename: candidate.resumeFilename,
         resumeOriginalName: candidate.resumeOriginalName,
     }
@@ -551,6 +587,7 @@ export const getMyInterviews = async (tenantId, email) => {
                 interviewSlot: candidate.interviewSlot,
                 candidateStatus: candidate.status,
                 attemptedDate: candidate.attemptedDate,
+                demoAlwaysLive: candidate.demoAlwaysLive || false,
                 companyName: org?.name || null,
                 aiScore: candidate.aiScore,
                 resumeFilename: candidate.resumeFilename,
@@ -559,8 +596,11 @@ export const getMyInterviews = async (tenantId, email) => {
                 candidatePhone: candidate.phone,
                 candidateExp: candidate.exp,
                 passingThreshold: round.passingThreshold || drive.passingThreshold || 70,
+                interviewMode: resolveInterviewMode(round, drive),
+                requiredPermissions: permissionsForMode(resolveInterviewMode(round, drive)),
                 isPendingApplication,
                 resumeOptional: isBlueCollar,
+                availability: publicAvailability(resolveAvailability(drive)),
             })
         }
     }
@@ -661,17 +701,23 @@ export const rescheduleCandidateSlot = async (tenantId, email, driveId, roundNum
         throw new ApiError(400, "RESCHEDULE_LOCKED", "Rescheduling is only permitted up to 30 minutes prior to the scheduled slot.")
     }
 
-    const slot = new Date(newSlot)
-    const windowStart = new Date(round.startDate || drive.startDate || 0)
-    const windowEnd = new Date(round.expiryDate || drive.expiryDate)
-    if (Number.isNaN(slot.getTime()) || slot <= new Date() || slot > windowEnd || (drive.startDate && slot < windowStart)) {
+    const requested = new Date(newSlot)
+    if (Number.isNaN(requested.getTime()) || requested <= new Date()) {
         throw new ApiError(400, "INVALID_SLOT", "Please select a valid slot within the drive period (before expiry date).")
     }
-
+    // Policy (hours in the org timezone, notice, blocked periods), capacity and no double booking. The old
+    // place is released only once the new one is secured, so a failed reschedule keeps the original slot.
     const previous = candidate.interviewSlot
+    const booking = await bookSlot({ drive, round, email, requested, previousSlot: previous })
+    const slot = booking.slot
     candidate.interviewSlot = slot
     if (candidate.status === "INVITED") candidate.status = "SCHEDULED"
-    await drive.save()
+    try {
+        await drive.save()
+    } catch (err) {
+        await booking.release()
+        throw err
+    }
     console.log(`[client-service] audit: candidate ${candidate.email} rescheduled drive ${drive._id} round ${roundNumber} from ${previous?.toISOString?.()} to ${slot.toISOString()}`)
 
     return {
@@ -731,12 +777,17 @@ const isAgentIdNotFoundError = (err) => err?.status === 404
 export const startAgentInterview = async (tenantId, email, driveId, roundNumber) => {
     const { drive, round, candidate } = await findOwnRosterEntry(tenantId, email, driveId, roundNumber)
 
-    if (candidate.status === "COMPLETED") {
+    // A demo candidate (services/client-service/scripts/seed-demo-interview.js) is always presentable:
+    // a finished run resets in place instead of locking the demo out until someone re-seeds it, and the
+    // time-window check below never applies to it.
+    if (candidate.demoAlwaysLive && candidate.status === "COMPLETED") {
+        Object.assign(candidate, { status: "SCHEDULED", agentInterviewId: null, agentReport: null, attemptedDate: null, malpracticeFlags: 0, violations: [] })
+    } else if (candidate.status === "COMPLETED") {
         throw new ApiError(409, "INTERVIEW_ALREADY_COMPLETED", "This interview has already been completed, so it can't be started again.")
     }
     // Only inside the candidate's slot window - unless the interview was already started (a reload or
     // reconnect part-way through must never be locked out).
-    if (!gateDisabled() && !candidate.agentInterviewId && candidate.interviewSlot) {
+    if (!gateDisabled() && !candidate.demoAlwaysLive && !candidate.agentInterviewId && candidate.interviewSlot) {
         const slot = new Date(candidate.interviewSlot).getTime()
         const now = Date.now()
         if (now < slot - EARLY_ACCESS_MINUTES * MINUTE) {
@@ -787,10 +838,15 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber)
 
     const questionsToSend = (round?.questions?.length ? round.questions : (round?.customQuestions?.length ? round.customQuestions : (drive.questions?.length ? drive.questions : drive.customQuestionsList))) || []
 
+    // What HR wants validated: the round's weighted skills (falls back to the drive's). Weights become priorities agent-side.
+    const focusAreas = (round?.skillRubrics?.length ? round.skillRubrics : drive.skillRubrics || [])
+        .map((s) => ({ name: s.name, weight: s.weight }))
+        .filter((s) => s.name)
+
     if (!candidate.agentInterviewId) {
         let interview
         try {
-            interview = await agentServiceClient.createInterview(candidate.agentCandidateId, drive.agentRoleId, 30, questionsToSend)
+            interview = await agentServiceClient.createInterview(candidate.agentCandidateId, drive.agentRoleId, 30, questionsToSend, focusAreas)
         } catch (err) {
             if (!isAgentIdNotFoundError(err)) throw err
             // The cached role and/or candidate id no longer exists on the agent side (its
@@ -804,7 +860,7 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber)
             const agentCandidate = await agentServiceClient.createCandidate(candidate.name, candidate.email)
             candidate.agentCandidateId = agentCandidate.id
             await drive.save()
-            interview = await agentServiceClient.createInterview(candidate.agentCandidateId, drive.agentRoleId, 30, questionsToSend)
+            interview = await agentServiceClient.createInterview(candidate.agentCandidateId, drive.agentRoleId, 30, questionsToSend, focusAreas)
         }
         candidate.agentInterviewId = interview.id
         plan = interview.plan
@@ -817,6 +873,12 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber)
     }
 
     const session = await agentServiceClient.getCandidateToken(candidate.agentInterviewId)
+    // The agent API could not dispatch the interviewer to the room (bad LiveKit credentials, network...). A
+    // token to an empty room looks like "connected" but nobody ever joins, so fail loudly and let the
+    // candidate retry.
+    if (session.agent_dispatched === false) {
+        throw new ApiError(503, "AGENT_UNAVAILABLE", "The AI interviewer could not be started right now. Please try again in a moment.")
+    }
     const questions = (plan?.questions || []).filter((q) => q.question_text)
     return { url: session.url, token: session.token, roomName: session.room_name, interviewId: candidate.agentInterviewId, questions }
 }
@@ -866,6 +928,31 @@ export const saveCandidateRecording = async (tenantId, email, driveId, roundNumb
     })
 
     return { recordingFilename: candidate.recordingFilename }
+}
+
+// Tenant-scoped (authenticated HR only) - the interview conversation for one candidate. The candidate is
+// looked up inside the caller's own drive (never by a client-supplied agent id), so a recruiter can only ever
+// read transcripts of candidates in their own organization.
+export const getCandidateTranscript = async (tenantId, driveId, roundNumber, candidateId) => {
+    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+    requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
+    if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    const round = drive.rounds?.find((r) => r.roundNumber === Number(roundNumber))
+    if (!round) throw new ApiError(404, "ROUND_NOT_FOUND", "Round not found.")
+    const candidate = round.candidates?.id(candidateId) || round.candidates?.find((c) => String(c._id) === candidateId || c.id === candidateId)
+    if (!candidate) throw new ApiError(404, "CANDIDATE_NOT_FOUND", "Candidate not found.")
+    if (!candidate.agentInterviewId) return []           // never started an AI interview
+    try {
+        const rows = await agentServiceClient.getTranscript(candidate.agentInterviewId)
+        return (rows || []).map((row) => ({
+            speaker: row.speaker, text: row.text, at: row.at || null,
+            isFollowup: Boolean(row.is_followup), intent: row.intent || null,
+        }))
+    } catch (err) {
+        if (err?.status === 404) return []                 // the agent no longer has it
+        throw new ApiError(502, "TRANSCRIPT_UNAVAILABLE", "The transcript could not be loaded right now. Please try again.")
+    }
 }
 
 // Tenant-scoped (authenticated HR only) - a candidate's resume filename is
@@ -1085,6 +1172,7 @@ export const addRoundToDrive = async (tenantId, driveId, roundData, ctx) => {
         startDate: roundData.startDate || drive.startDate,
         expiryDate: roundData.expiryDate || drive.expiryDate,
         passingThreshold: roundData.passingThreshold || 75,
+        interviewMode: normalizeInterviewMode(roundData.interviewMode),
         skillRubrics: roundData.skillRubrics || [],
         questionMode: roundData.questionMode || "PREBUILT",
         questionBankTitle: roundData.questionBankTitle,
@@ -1193,6 +1281,7 @@ export const updateRound = async (tenantId, driveId, roundNumber, roundData) => 
     round.startDate = roundData.startDate || round.startDate || drive.startDate
     round.expiryDate = roundData.expiryDate || round.expiryDate
     round.passingThreshold = Number(roundData.passingThreshold) || round.passingThreshold
+    if (roundData.interviewMode !== undefined) round.interviewMode = normalizeInterviewMode(roundData.interviewMode)
     round.questionBankTitle = roundData.questionBankTitle || round.questionBankTitle
     if (roundData.questionBankId !== undefined) round.questionBankId = roundData.questionBankId
     if (roundData.questions) round.questions = roundData.questions
@@ -1449,7 +1538,7 @@ export const getTenantReport = async (tenantId, { days = 30 } = {}) => {
 // stop the rest of the batch or the status update the recruiter asked
 // for), but every attempt is recorded on the candidate for audit/duplicate
 // visibility (integration.md section 32/52).
-export const communicateWithCandidates = async (tenantId, driveId, roundNumber, { candidateIds, purpose, templateId }, ctx) => {
+export const communicateWithCandidates = async (tenantId, driveId, roundNumber, { candidateIds, purpose, templateId, idempotencyKey }, ctx) => {
     if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
     requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
     if (!Array.isArray(candidateIds) || candidateIds.length === 0) {
@@ -1479,9 +1568,38 @@ export const communicateWithCandidates = async (tenantId, driveId, roundNumber, 
     const candidates = round.candidates.filter((c) => candidateIds.includes(c.id))
     if (candidates.length === 0) throw new ApiError(404, "CANDIDATE_NOT_FOUND", "None of the selected candidates were found in this round.")
 
-    const results = []
-    for (const candidate of candidates) {
+    const key = typeof idempotencyKey === "string" && /^[\w-]{8,80}$/.test(idempotencyKey) ? idempotencyKey : undefined
+    const { toSend, skipped } = planDispatch(candidates, { purpose, channel: template.type, idempotencyKey: key })
+    const roundFilter = { "r.roundNumber": Number(roundNumber) }
+    const path = "rounds.$[r].candidates.$[c].communications"
+    const results = skipped.map(({ candidate, reason }) => ({
+        candidateId: candidate.id, name: candidate.name, status: "SKIPPED", reason, message: SKIP_MESSAGES[reason],
+    }))
+
+    for (const candidate of toSend) {
         const recipient = template.type === "EMAIL" ? candidate.email : candidate.phone
+        const entryId = new mongoose.Types.ObjectId()
+        const entry = { _id: entryId, purpose, channel: template.type, templateId: String(template._id), sentAt: new Date(), idempotencyKey: key }
+        const candidateFilter = { "c.id": candidate.id }
+
+        if (!recipient) {
+            await InterviewDrive.updateOne({ _id: drive._id, tenantId }, { $push: { [path]: { ...entry, status: "FAILED", error: "NO_CONTACT" } } },
+                { arrayFilters: [roundFilter, candidateFilter] })
+            results.push({ candidateId: candidate.id, name: candidate.name, status: "FAILED", reason: "NO_CONTACT", message: "This candidate has no contact detail for this channel." })
+            continue
+        }
+
+        // Claim the send atomically: the push only happens if no active message of this kind exists on the
+        // candidate at this instant, so two simultaneous requests cannot both send.
+        const claim = await InterviewDrive.updateOne({ _id: drive._id, tenantId }, { $push: { [path]: { ...entry, status: "QUEUED" } } }, {
+            arrayFilters: [roundFilter, { ...candidateFilter, "c.communications": { $not: { $elemMatch: { purpose, channel: template.type, status: { $in: ACTIVE_STATUSES } } } } }],
+            timestamps: false,       // otherwise the drive's updatedAt is always "modified" and a lost claim looks like a win
+        })
+        if (claim.modifiedCount === 0) {
+            results.push({ candidateId: candidate.id, name: candidate.name, status: "SKIPPED", reason: "ALREADY_SENT", message: SKIP_MESSAGES.ALREADY_SENT })
+            continue
+        }
+
         const variables = {
             candidate_name: candidate.name || "there",
             drive_title: drive.title,
@@ -1489,28 +1607,75 @@ export const communicateWithCandidates = async (tenantId, driveId, roundNumber, 
             interview_link: interviewLink,
             expiry_date: expiryDate,
         }
-
-        let status = "FAILED"
-        if (recipient) {
-            try {
-                await communicationServiceClient.send({
-                    entityType: "CLIENT", entityId: tenantId, channel: template.type,
-                    eventType: `ROUND_${purpose}`, recipient,
-                    subject: template.type === "EMAIL" ? renderTemplateText(template.subject, variables) : undefined,
-                    body: renderTemplateText(template.body, variables),
-                }, ctx)
-                status = "SENT"
-            } catch (error) {
-                console.error(`[client-service] round communication failed for candidate ${candidate.id}:`, error.message)
-            }
+        let status = "QUEUED", communicationId, error
+        try {
+            const sent = await communicationServiceClient.send({
+                entityType: "CLIENT", entityId: tenantId, channel: template.type,
+                eventType: `ROUND_${purpose}`, recipient,
+                subject: template.type === "EMAIL" ? renderTemplateText(template.subject, variables) : undefined,
+                body: renderTemplateText(template.body, variables),
+                metadata: { driveId: String(drive._id), candidateId: candidate.id, roundNumber: Number(roundNumber), purpose },
+            }, ctx)
+            communicationId = sent?.id
+            status = mapServiceStatus(sent?.status)          // usually QUEUED: it is not "sent" until the provider says so
+        } catch (err) {
+            status = "FAILED"
+            error = String(err.message || "SEND_FAILED").slice(0, 200)
+            console.error(`[client-service] round communication failed for candidate ${candidate.id}:`, err.message)
         }
 
-        candidate.communications.push({ purpose, channel: template.type, templateId: String(template._id), status })
-        if (purpose === "REJECTION") candidate.status = "REJECTED"
+        const set = {
+            [`${path}.$[m].status`]: status, [`${path}.$[m].updatedAt`]: new Date(),
+            ...(communicationId ? { [`${path}.$[m].communicationId`]: String(communicationId) } : {}),
+            ...(error ? { [`${path}.$[m].error`]: error } : {}),
+        }
+        // The hiring decision is recorded with the message: selected candidates become SHORTLISTED, rejected ones REJECTED.
+        if (purpose === "REJECTION") set["rounds.$[r].candidates.$[c].status"] = "REJECTED"
+        else set["rounds.$[r].candidates.$[c].status"] = "SHORTLISTED"
+        await InterviewDrive.updateOne({ _id: drive._id, tenantId }, { $set: set }, { arrayFilters: [roundFilter, candidateFilter, { "m._id": entryId }] })
 
-        results.push({ candidateId: candidate.id, name: candidate.name, status })
+        results.push({ candidateId: candidate.id, name: candidate.name, status, communicationId, ...(error ? { message: "Could not queue the message." } : {}) })
     }
 
-    await drive.save()
-    return { results, sentCount: results.filter((r) => r.status === "SENT").length, failedCount: results.filter((r) => r.status === "FAILED").length }
+    const count = (s) => results.filter((r) => r.status === s).length
+    return {
+        results,
+        queuedCount: count("QUEUED") + count("SENT") + count("DELIVERED"),
+        sentCount: count("QUEUED") + count("SENT") + count("DELIVERED"),   // kept for existing callers: requests accepted
+        failedCount: count("FAILED"),
+        skippedCount: count("SKIPPED"),
+    }
+}
+
+// Reconcile QUEUED / SENT messages with what the communication service now knows (provider accepted, delivered,
+// failed). Status only moves forward (see advanceStatus). Safe to call repeatedly, e.g. when the page opens.
+export const refreshRoundCommunications = async (tenantId, driveId, roundNumber, ctx) => {
+    requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
+    if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    const round = drive.rounds.find((r) => r.roundNumber === Number(roundNumber))
+    if (!round) throw new ApiError(404, "ROUND_NOT_FOUND", "Round not found on this drive.")
+
+    const pending = round.candidates.flatMap((c) => (c.communications || [])
+        .filter((m) => ["QUEUED", "SENT"].includes(m.status) && m.communicationId)
+        .map((m) => ({ candidate: c, message: m })))
+    if (pending.length === 0) return { updated: 0 }
+
+    const known = new Map()      // "eventType:candidateId" -> latest status from the communication service
+    for (const eventType of [...new Set(pending.map((p) => `ROUND_${p.message.purpose}`))]) {
+        const rows = await communicationServiceClient.getInviteStatusForDrive(String(drive._id), eventType, ctx).catch(() => [])
+        for (const row of rows || []) known.set(`${eventType}:${row.candidateId}`, row.status)
+    }
+
+    let updated = 0
+    for (const { candidate, message } of pending) {
+        const reported = known.get(`ROUND_${message.purpose}:${candidate.id}`)
+        if (!reported) continue
+        const next = advanceStatus(message.status, mapServiceStatus(reported))
+        if (next === message.status) continue
+        await InterviewDrive.updateOne({ _id: drive._id, tenantId }, { $set: { "rounds.$[r].candidates.$[c].communications.$[m].status": next, "rounds.$[r].candidates.$[c].communications.$[m].updatedAt": new Date() } },
+            { arrayFilters: [{ "r.roundNumber": Number(roundNumber) }, { "c.id": candidate.id }, { "m._id": message._id }] })
+        updated += 1
+    }
+    return { updated }
 }

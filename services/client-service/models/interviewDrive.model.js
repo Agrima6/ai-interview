@@ -23,6 +23,10 @@ const CandidateRosterSchema = new mongoose.Schema({
     malpracticeFlags: { type: Number, default: 0 },
     status: { type: String, enum: ["INVITED", "SCHEDULED", "SHORTLISTED", "COMPLETED", "REJECTED"], default: "INVITED" },
     attemptedDate: { type: Date },
+    // Demo/showcase candidates only (set by scripts/seed-demo-interview.js): the Start-interview time
+    // window (10 min before / 90 min after the slot) never applies, so the same demo can be presented
+    // at any time without re-seeding. Never set by any candidate- or recruiter-facing flow.
+    demoAlwaysLive: { type: Boolean, default: false },
     // Self-service application data - filled in by the candidate on the
     // public apply page, not by the recruiter.
     resumeFilename: { type: String, default: null },
@@ -63,8 +67,13 @@ const CandidateRosterSchema = new mongoose.Schema({
         purpose: { type: String, enum: ["CONGRATULATIONS", "REJECTION"], required: true },
         channel: { type: String, enum: ["EMAIL", "WHATSAPP"], required: true },
         templateId: { type: String },
-        status: { type: String, enum: ["SENT", "FAILED"], required: true },
-        sentAt: { type: Date, default: Date.now },
+        // QUEUED -> SENT -> DELIVERED, or FAILED (see utils/communicationPlan.js). Legacy rows are SENT/FAILED.
+        status: { type: String, enum: ["QUEUED", "SENT", "DELIVERED", "FAILED"], required: true },
+        sentAt: { type: Date, default: Date.now },      // when the request was made
+        communicationId: { type: String },              // the communication-service record, for status refresh
+        idempotencyKey: { type: String },               // one UI action = one key: a repeat is ignored
+        error: { type: String },
+        updatedAt: { type: Date },
     }],
 })
 
@@ -77,6 +86,8 @@ const RoundSchema = new mongoose.Schema({
     expiryDate: { type: Date },
     passingThreshold: { type: Number, default: 70 },
     skillRubrics: [SkillRubricSchema],
+    // What the candidate must share (see utils/interviewMode.js). Unset = inherit the drive's mode.
+    interviewMode: { type: String, enum: ["VOICE", "VIDEO", "SCREEN"] },
     questionMode: { type: String, enum: ["PREBUILT", "CUSTOM"], default: "PREBUILT" },
     questionBankTitle: { type: String },
     questionBankId: { type: String, default: null },
@@ -106,6 +117,8 @@ const InterviewDriveSchema = new mongoose.Schema(
         customQuestionsList: [CustomQuestionSchema],
         skillRubrics: [SkillRubricSchema],
         passingThreshold: { type: Number, default: 70 },
+        // VOICE = mic only, VIDEO = mic + camera, SCREEN = mic + camera + screen (default; matches current proctoring).
+        interviewMode: { type: String, enum: ["VOICE", "VIDEO", "SCREEN"], default: "SCREEN" },
         enablePublicLink: { type: Boolean, default: true },
         communicationSettings: { type: mongoose.Schema.Types.Mixed, default: null },
         publicLink: { type: String },
@@ -114,6 +127,13 @@ const InterviewDriveSchema = new mongoose.Schema(
         // one per drive, shared by every candidate/round on it so they all
         // face the same standardized question set for the same job.
         agentRoleId: { type: String, default: null },
+        // Interview scheduling policy for this drive (see utils/slotPolicy.js). Every field optional: unset = env/defaults.
+        availability: {
+            timezone: { type: String }, dayStart: { type: String }, dayEnd: { type: String },
+            intervalMinutes: { type: Number }, durationMinutes: { type: Number }, bufferMinutes: { type: Number },
+            minNoticeMinutes: { type: Number }, maxConcurrent: { type: Number },
+            blockedPeriods: [{ start: Date, end: Date, reason: String }],
+        },
         rounds: [RoundSchema],
     },
     { timestamps: true }
@@ -122,6 +142,7 @@ const InterviewDriveSchema = new mongoose.Schema(
 InterviewDriveSchema.index({ tenantId: 1, createdAt: -1 })
 InterviewDriveSchema.index({ publicLink: 1 }, { unique: true, sparse: true })
 InterviewDriveSchema.index({ tenantId: 1, status: 1 })
+InterviewDriveSchema.index({ tenantId: 1, department: 1 })       // hiring-analytics filters
 InterviewDriveSchema.index({ "rounds.candidates.email": 1 })
 
 export const InterviewDrive = mongoose.model("InterviewDrive", InterviewDriveSchema)

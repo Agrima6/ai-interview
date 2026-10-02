@@ -21,8 +21,12 @@ const MINUTE = 60 * 1000
  *   LOCKED  - too early: countdown shown, Start disabled
  *   LIVE    - inside [slot - 10 min, slot + 90 min]: Start enabled
  *   EXPIRED - the window passed without an attempt
+ *
+ * `alwaysLive` (from `interview.demoAlwaysLive`, set only by the seed-demo-interview script) skips the
+ * window entirely - used for the one standing demo candidate so it's presentable at any time.
  */
-export function getSlotGate(slot, now = Date.now()) {
+export function getSlotGate(slot, now = Date.now(), alwaysLive = false) {
+    if (alwaysLive) return { state: 'LIVE', msToOpen: 0, msToSlot: 0, canReschedule: false, msToRescheduleClose: 0 }
     if (!slot) return { state: 'NONE', canReschedule: false }
     const at = new Date(slot).getTime()
     if (Number.isNaN(at)) return { state: 'NONE', canReschedule: false }
@@ -65,16 +69,71 @@ export function timezoneLabel() {
     return `${zone.replace(/_/g, ' ')} (UTC${sign}${Math.floor(abs / 60)}${minutes ? `:${String(minutes).padStart(2, '0')}` : ''})`
 }
 
+// ---- Availability policy (mirrors services/client-service/utils/slotPolicy.js; the server is the authority) ----
+const zoneFormatters = new Map()
+function zoneParts(date, timeZone) {
+    let fmt = zoneFormatters.get(timeZone)
+    if (!fmt) {
+        fmt = new Intl.DateTimeFormat('en-CA', { timeZone, hourCycle: 'h23', hour: '2-digit', minute: '2-digit' })
+        zoneFormatters.set(timeZone, fmt)
+    }
+    const parts = fmt.formatToParts(date)
+    const get = (type) => Number(parts.find((p) => p.type === type)?.value)
+    return get('hour') * 60 + get('minute')
+}
+
+const hhmm = (minutes) => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
+
+/**
+ * Why an instant cannot be booked, or null when it can.
+ *   availability comes from the API (drive.availability); without it the classic fixed rules apply.
+ */
+export function explainSlot(at, { minTime, maxTime, availability } = {}) {
+    if (!(at instanceof Date) || Number.isNaN(at.getTime())) return 'Choose a valid date and time.'
+    if (minTime && at < minTime) return 'That time is too soon - pick a later time.'
+    if (maxTime && at > maxTime) return "That time is after this drive's deadline."
+    if (!availability) return null
+    const local = zoneParts(at, availability.timezone)
+    if (local < availability.dayStart || local + availability.durationMinutes > availability.dayEnd) {
+        return `Interviews run ${hhmm(availability.dayStart)}-${hhmm(availability.dayEnd)} (${availability.timezone.replace(/_/g, ' ')}).`
+    }
+    if (availability.intervalMinutes > 1 && (local - availability.dayStart) % availability.intervalMinutes !== 0) {
+        return `Choose a start time on a ${availability.intervalMinutes}-minute mark.`
+    }
+    const end = at.getTime() + availability.durationMinutes * MINUTE
+    if ((availability.blockedPeriods || []).some((b) => at.getTime() < new Date(b.end).getTime() && end > new Date(b.start).getTime())) {
+        return 'That time is unavailable.'
+    }
+    return null
+}
+
 export const startOfDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate())
 export const isSameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
 
-/** Bookable slot start times for one local day, each flagged available/unavailable against [minTime, maxTime]. */
-export function slotsForDay(day, minTime, maxTime) {
-    const slots = []
+/**
+ * Slot start times to show for one local day, flagged available/unavailable against [minTime, maxTime].
+ * With an availability policy the list follows the organization's hours and timezone, shown on a grid of at
+ * least 30 minutes (finer times are chosen with the exact-time control); without one, the classic fixed grid.
+ */
+export function slotsForDay(day, minTime, maxTime, availability) {
     const base = startOfDay(day)
-    for (let minute = SLOT_START_HOUR * 60; minute < SLOT_END_HOUR * 60; minute += SLOT_STEP_MINUTES) {
-        const at = new Date(base.getTime() + minute * MINUTE)
-        slots.push({ at, iso: at.toISOString(), available: at >= minTime && at <= maxTime })
+    if (!availability) {
+        const slots = []
+        for (let minute = SLOT_START_HOUR * 60; minute < SLOT_END_HOUR * 60; minute += SLOT_STEP_MINUTES) {
+            const at = new Date(base.getTime() + minute * MINUTE)
+            slots.push({ at, iso: at.toISOString(), available: at >= minTime && at <= maxTime })
+        }
+        return slots
+    }
+    const step = Math.max(availability.intervalMinutes, 30)
+    const slots = []
+    for (let minute = 0; minute < 24 * 60; minute += 1) {
+        const at = new Date(base.getFullYear(), base.getMonth(), base.getDate(), 0, minute)
+        if (at.getDate() !== base.getDate()) break                                   // a DST day is shorter/longer than 24h
+        const orgMinute = zoneParts(at, availability.timezone) - availability.dayStart
+        if (orgMinute < 0 || orgMinute % step !== 0) continue
+        if (zoneParts(at, availability.timezone) + availability.durationMinutes > availability.dayEnd) continue
+        slots.push({ at, iso: at.toISOString(), available: explainSlot(at, { minTime, maxTime, availability }) === null })
     }
     return slots
 }

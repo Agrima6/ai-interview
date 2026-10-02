@@ -2,14 +2,18 @@ import React, { useState } from 'react'
 import { Check, X, Sparkles, ShieldAlert, Phone, Briefcase, CalendarClock, Info, FileText, Download, Video } from 'lucide-react'
 import Modal from '../ui/Modal'
 import { Button, Badge } from '../ui'
-import { downloadCandidateResume, getCandidateRecordingUrl } from '../../api/organization/organizationApi'
+import { downloadCandidateResume, getCandidateRecordingUrl, getCandidateTranscript } from '../../api/organization/organizationApi'
 import { useToast } from '../ui/Toast'
+import InterviewIntelligence from './InterviewIntelligence'
 
 function CandidateDetailModal({ open, onClose, candidate, onStatusChange }) {
   const toast = useToast()
   const [downloading, setDownloading] = useState(false)
   const [recordingUrl, setRecordingUrl] = useState(null)
   const [loadingRecording, setLoadingRecording] = useState(false)
+  const [transcript, setTranscript] = useState(null)          // null = not loaded yet
+  const [loadingTranscript, setLoadingTranscript] = useState(false)
+  const [transcriptError, setTranscriptError] = useState('')
   if (!candidate) return null
 
   const handleDownloadResume = async () => {
@@ -20,6 +24,18 @@ function CandidateDetailModal({ open, onClose, candidate, onStatusChange }) {
       toast.error(err.message || 'Failed to download resume.')
     } finally {
       setDownloading(false)
+    }
+  }
+
+  const handleLoadTranscript = async () => {
+    setLoadingTranscript(true)
+    setTranscriptError('')
+    try {
+      setTranscript((await getCandidateTranscript(candidate.driveId, candidate.roundNumber, candidate.id)) || [])
+    } catch (err) {
+      setTranscriptError(err.message || 'Failed to load the transcript.')
+    } finally {
+      setLoadingTranscript(false)
     }
   }
 
@@ -212,6 +228,8 @@ function CandidateDetailModal({ open, onClose, candidate, onStatusChange }) {
         </div>
       )}
 
+      <InterviewIntelligence content={candidate.agentReport?.content} />
+
       {candidate.agentReport?.content?.questions?.length > 0 && (
         <div className="mb-6">
           <h3 className="text-[13px] font-semibold text-ink mb-2.5">Interview Q&amp;A</h3>
@@ -226,6 +244,38 @@ function CandidateDetailModal({ open, onClose, candidate, onStatusChange }) {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {(candidate.agentReport || candidate.status === 'COMPLETED') && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-2.5">
+            <h3 className="text-[13px] font-semibold text-ink">Conversation transcript</h3>
+            {transcript === null && (
+              <Button size="sm" variant="secondary" onClick={handleLoadTranscript} disabled={loadingTranscript}>
+                {loadingTranscript ? 'Loading...' : 'View transcript'}
+              </Button>
+            )}
+          </div>
+          {transcriptError && <p className="text-[12.5px] text-[var(--color-danger)]">{transcriptError}</p>}
+          {transcript !== null && transcript.length === 0 && (
+            <p className="text-[12.5px] text-text-secondary">No conversation was recorded for this interview.</p>
+          )}
+          {transcript !== null && transcript.length > 0 && (
+            <ol className="space-y-2 max-h-80 overflow-y-auto pr-1" aria-label="Interview transcript">
+              {transcript.map((line, idx) => (
+                <li key={idx} className={`flex ${line.speaker === 'candidate' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[85%] px-3.5 py-2 rounded-xl text-[12.5px] leading-relaxed ${line.speaker === 'candidate' ? 'bg-accent/10 text-ink' : 'bg-black/[0.04] dark:bg-white/[0.06] text-ink'}`}>
+                    <p className="text-[10.5px] font-semibold uppercase tracking-wider text-text-secondary mb-0.5">
+                      {line.speaker === 'candidate' ? 'Candidate' : 'Interviewer'}
+                      {line.at ? ` · ${new Date(line.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
+                    </p>
+                    {line.text}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
         </div>
       )}
 

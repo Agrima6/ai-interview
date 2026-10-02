@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WorkmateIQ - Hiring Control Center (prototype)</title>
+<style>
+:root{
+  --primary:#D71920; --primary-hover:#B9141A; --bg:#F8FAFC; --surface:#fff; --border:#E5E7EB; --text:#111827; --text2:#4B5563;
+  --success:#16A34A; --success-soft:#ECFDF3; --danger:#DC2626; --danger-soft:#FEF2F2; --neutral:#6B7280; --neutral-soft:#F3F4F6;
+  --warning:#D97706; --warning-soft:#FFF7ED; --info:#2563EB; --info-soft:#EFF6FF;
+  --z-dropdown:100; --z-sticky:200; --z-popover:300; --z-drawer:400; --z-modal:500; --z-toast:600;
+  --radius:10px; --shadow:0 1px 2px rgba(16,24,40,.06);
+  font-family:Inter,"Segoe UI",Calibri,system-ui,sans-serif;
+}
+*{box-sizing:border-box} html,body{margin:0} body{background:var(--bg);color:var(--text);font-size:14px;line-height:1.45}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+.app{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100vh}
+/* Sidebar */
+.side{background:var(--surface);border-right:1px solid var(--border);padding:16px 12px;position:sticky;top:0;height:100vh;overflow:auto}
+.brand{display:flex;gap:8px;align-items:center;font-weight:700;padding:4px 8px 16px}
+.brand i{width:26px;height:26px;border-radius:7px;background:var(--primary);display:inline-block}
+.nav h6{margin:16px 8px 6px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--neutral);font-weight:600}
+.nav a{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;color:var(--text2);text-decoration:none;cursor:pointer}
+.nav a:hover{background:var(--neutral-soft)} .nav a.on{background:var(--danger-soft);color:var(--primary);font-weight:600}
+.nav a svg{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.scrim{display:none}
+/* Main */
+main{min-width:0;padding:0 24px 48px;max-width:1500px}
+.demo{background:var(--warning-soft);border:1px solid #FDE7C7;color:#92400E;border-radius:8px;padding:8px 12px;margin:16px 0 0;font-size:12.5px}
+.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:16px 0 8px}
+.top h1{margin:0;font-size:20px} .top small{color:var(--text2)}
+.burger{display:none}
+.btn{border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:6px 12px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.btn:hover{background:var(--neutral-soft)} .btn.primary{background:var(--primary);border-color:var(--primary);color:#fff} .btn.primary:hover{background:var(--primary-hover)}
+.btn.sm{padding:3px 9px;font-size:12.5px}
+/* Filters */
+.filters{position:sticky;top:0;z-index:var(--z-sticky);background:var(--bg);padding:8px 0 10px;border-bottom:1px solid var(--border)}
+.frow{display:flex;flex-wrap:wrap;gap:8px;align-items:end}
+.f{display:flex;flex-direction:column;gap:2px;min-width:118px} .f label{font-size:11px;color:var(--neutral);font-weight:600}
+.f select,.f input{border:1px solid var(--border);border-radius:8px;padding:6px 8px;background:var(--surface);min-width:0;width:100%}
+.presets{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface)}
+.presets button{border:0;background:none;padding:6px 10px;cursor:pointer;border-right:1px solid var(--border)} .presets button:last-child{border-right:0}
+.presets button.on{background:var(--primary);color:#fff}
+.more{display:none;margin-top:8px} .more.open{display:flex;flex-wrap:wrap;gap:8px}
+.switch{display:inline-flex;gap:6px;align-items:center;font-size:13px;cursor:pointer}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;min-height:0}
+.chip{background:var(--info-soft);color:var(--info);border-radius:999px;padding:2px 4px 2px 10px;font-size:12px;display:inline-flex;gap:4px;align-items:center}
+.chip button{border:0;background:none;cursor:pointer;color:inherit;border-radius:50%;width:18px;height:18px;line-height:1}
+.meta{display:flex;gap:10px;align-items:center;color:var(--text2);font-size:12.5px;margin-left:auto}
+/* Cards & grid */
+.grid{display:grid;gap:16px;margin-top:16px} .grid>*{min-width:0}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+.two{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;min-width:0}
+.card h2{margin:0 0 2px;font-size:15px} .card .sub{color:var(--text2);font-size:12.5px;margin-bottom:12px}
+.kpi{cursor:pointer;transition:border-color .12s} .kpi:hover{border-color:#cbd5e1}
+.kpi .l{color:var(--text2);font-size:12.5px} .kpi .v{font-size:26px;font-weight:700;margin:4px 0} .kpi .d{font-size:12.5px}
+.up{color:var(--success)} .down{color:var(--danger)} .flat{color:var(--neutral)}
+.badge{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11.5px;font-weight:600;letter-spacing:.02em}
+.b-active{background:var(--success-soft);color:var(--success)} .b-draft{background:var(--neutral-soft);color:var(--neutral)} .b-archived{background:var(--danger-soft);color:var(--danger)}
+.b-warn{background:var(--warning-soft);color:var(--warning)} .b-info{background:var(--info-soft);color:var(--info)}
+/* Funnel */
+.fn{display:grid;grid-template-columns:150px minmax(0,1fr) 120px;gap:10px;align-items:center;padding:6px 6px;border-radius:8px;cursor:pointer}
+.fn:hover{background:var(--neutral-soft)} .fn .bar{height:22px;background:var(--neutral-soft);border-radius:6px;overflow:hidden}
+.fn .bar i{display:block;height:100%;background:var(--primary);border-radius:6px;opacity:.88} .fn.bn .bar i{background:var(--warning)}
+.fn .n{text-align:right;font-variant-numeric:tabular-nums} .fn .n small{display:block;color:var(--text2)}
+/* Bars */
+.vrow{display:grid;grid-template-columns:130px minmax(0,1fr) 92px;gap:10px;align-items:center;padding:5px 0}
+.vbar{height:14px;background:var(--neutral-soft);border-radius:5px;position:relative}
+.vbar i{position:absolute;left:0;top:0;bottom:0;background:var(--info);border-radius:5px} .vbar b{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--text)}
+.vrow.bn .vbar i{background:var(--warning)}
+.dist{display:flex;gap:6px;align-items:end;height:90px;margin:8px 0}
+.dist div{flex:1;background:var(--info);border-radius:4px 4px 0 0;position:relative;min-height:2px;opacity:.85} .dist span{position:absolute;bottom:-18px;left:0;right:0;text-align:center;font-size:11px;color:var(--text2)}
+/* Tables */
+.tw{overflow-x:auto} table{border-collapse:collapse;width:100%;font-size:13px}
+th{position:sticky;top:0;text-align:left;color:var(--text2);font-weight:600;font-size:12px;border-bottom:1px solid var(--border);padding:7px 10px;white-space:nowrap;background:var(--surface);cursor:default}
+th.s{cursor:pointer} td{padding:8px 10px;border-bottom:1px solid #F1F5F9;white-space:nowrap} tr:hover td{background:#FAFAFB} td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px} .toolbar input{border:1px solid var(--border);border-radius:8px;padding:6px 10px;min-width:180px}
+/* Attention */
+.att{display:flex;gap:10px;align-items:center;width:100%;text-align:left;border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:9px 12px;margin-bottom:8px;cursor:pointer}
+.att:hover{border-color:#cbd5e1;background:#FCFCFD} .att .c{font-weight:700;min-width:32px;font-size:16px} .att.zero .c{color:var(--neutral)}
+.na{color:var(--text2);font-size:12.5px;font-style:italic}
+/* Modal / tooltip / toast */
+.modal{position:fixed;inset:0;background:rgba(17,24,39,.45);z-index:var(--z-modal);display:none;align-items:center;justify-content:center;padding:16px}
+.modal.open{display:flex} .sheet{background:var(--surface);border-radius:12px;width:min(880px,100%);max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.sheet header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border)} .sheet header h3{margin:0;font-size:16px}
+.sheet .body{padding:14px 18px;overflow:auto}
+#tip{position:fixed;z-index:var(--z-popover);background:#111827;color:#fff;font-size:12px;padding:5px 8px;border-radius:6px;pointer-events:none;display:none;max-width:260px}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:var(--z-toast);background:#111827;color:#fff;padding:8px 14px;border-radius:8px;display:none}
+.er{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px} .er div{border:1px solid var(--border);border-radius:8px;padding:10px;font-size:12.5px} .er b{display:block;margin-bottom:3px}
+@media (max-width:1100px){.two{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:900px){
+  .app{grid-template-columns:1fr} .side{position:fixed;left:0;top:0;bottom:0;width:260px;z-index:var(--z-drawer);transform:translateX(-100%);transition:transform .18s}
+  body.nav-open .side{transform:none} body.nav-open .scrim{display:block;position:fixed;inset:0;background:rgba(17,24,39,.4);z-index:calc(var(--z-drawer) - 1)}
+  .filters{position:static} .burger{display:inline-flex} main{padding:0 14px 40px} .fn{grid-template-columns:110px minmax(0,1fr) 84px} .vrow{grid-template-columns:96px minmax(0,1fr) 78px}
+}
+@media (max-width:560px){.f{min-width:calc(50% - 4px)} .kpi .v{font-size:22px} .presets button{padding:6px 8px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side" id="side" aria-label="Main navigation">
+    <div class="brand"><i></i> WorkmateIQ</div>
+    <nav class="nav" id="nav"></nav>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+  <main>
+    <div class="demo" role="note"><strong>Prototype - demo data.</strong> Every number here is generated in your browser from a fixed random seed. It is not customer data and nothing is sent anywhere. The "Data model" page lists what the backend must store for each view.</div>
+    <div class="top">
+      <div style="display:flex;gap:10px;align-items:center">
+        <button class="btn burger" id="burger" aria-label="Open navigation">&#9776;</button>
+        <div><h1>Hiring Control Center</h1><small id="subtitle"></small></div>
+      </div>
+      <div class="meta"><span id="updated"></span><button class="btn sm" id="refresh">Refresh</button><button class="btn sm" id="export">Export CSV</button></div>
+    </div>
+
+    <section class="filters" aria-label="Filters">
+      <div class="frow">
+        <div class="f"><label>Date range</label><div class="presets" id="presets"></div></div>
+        <div class="f" id="customDates" style="display:none;flex-direction:row;gap:6px;align-items:end"><div class="f"><label for="from">From</label><input type="date" id="from"></div><div class="f"><label for="to">To</label><input type="date" id="to"></div></div>
+        <label class="switch"><input type="checkbox" id="compare" checked> Compare to previous period</label>
+        <div class="f"><label for="fDepartment">Department</label><select id="fDepartment"></select></div>
+        <div class="f"><label for="fJob">Job</label><select id="fJob"></select></div>
+        <div class="f"><label for="fSource">Candidate source</label><select id="fSource"></select></div>
+        <div class="f"><label for="fRecruiter">Recruiter</label><select id="fRecruiter"></select></div>
+        <button class="btn" id="moreBtn" aria-expanded="false">More filters <span id="moreCount"></span></button>
+        <button class="btn" id="reset">Reset</button>
+      </div>
+      <div class="more" id="more"></div>
+      <div class="chips" id="chips" aria-label="Active filters"></div>
+    </section>
+
+    <div class="grid kpis" id="kpis" aria-label="Key metrics"></div>
+
+    <div class="grid two">
+      <section class="card" id="funnel"><h2>Hiring funnel</h2><div class="sub">Click a stage to see the candidates in it. The bottleneck is the biggest drop-off.</div><div id="funnelBody"></div></section>
+      <section class="card" id="velocity"><h2>Hiring velocity</h2><div class="sub">Time spent in each stage. The tick marks the median; the bar is the average.</div><div id="velocityBody"></div></section>
+    </div>
+
+    <section class="card" id="intelligence" style="margin-top:16px">
+      <h2>AI interview intelligence</h2><div class="sub">What the AI interviews found. Decision support only - flagged items need a person's review before any hiring decision.</div>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-top:0" id="intelKpis"></div>
+      <div class="grid two" style="margin-top:14px">
+        <div><strong style="font-size:13px">Score distribution</strong><div class="dist" id="dist"></div><div style="height:20px"></div><strong style="font-size:13px">Competency scores</strong><div id="comp" style="margin-top:6px"></div></div>
+        <div><strong style="font-size:13px">HR focus coverage</strong><div class="tw"><table><thead><tr><th>HR focus area</th><th>Priority</th><th class="num">Score</th><th class="num">Covered</th><th>Confidence</th></tr></thead><tbody id="focusRows"></tbody></table></div></div>
+      </div>
+    </section>
+
+    <div class="grid two">
+      <section class="card" id="attention"><h2>Needs attention</h2><div class="sub">Actionable items. Each one opens the matching candidates.</div><div id="attBody"></div></section>
+      <section class="card" id="sources"><h2>Source effectiveness</h2><div class="sub">Which sources produce candidates who actually progress, not just the most candidates.</div><div class="tw"><table><thead><tr><th>Source</th><th class="num">Candidates</th><th class="num">Interviews</th><th class="num">Completed</th><th class="num">Hires</th><th class="num">Hire rate</th><th class="num">Median days</th></tr></thead><tbody id="srcRows"></tbody></table></div></section>
+    </div>
+
+    <section class="card" id="health" style="margin-top:16px">
+      <h2>Hiring health by job</h2><div class="sub">Search, filter by status and sort. Click a row for details.</div>
+      <div class="toolbar"><input type="search" id="jobSearch" placeholder="Search jobs..." aria-label="Search jobs"><select id="jobStatus" aria-label="Job status"><option value="">All statuses</option><option>ACTIVE</option><option>DRAFT</option><option>ARCHIVED</option></select></div>
+      <div class="tw"><table><thead><tr id="healthHead"></tr></thead><tbody id="healthRows"></tbody></table></div>
+    </section>
+
+    <div class="grid two">
+      <section class="card" id="workload"><h2>Recruiter and hiring-team workload</h2><div class="sub">Where work is piling up. This is capacity visibility, not a leaderboard.</div><div class="tw"><table><thead><tr><th>Recruiter</th><th class="num">Active jobs</th><th class="num">Candidates</th><th class="num">Interviews</th><th class="num">Feedback pending</th><th class="num">Hires</th></tr></thead><tbody id="wlRows"></tbody></table></div></section>
+      <section class="card" id="geo"><h2>Geographic hiring</h2><div class="sub">A table, because location detail matters more than a map here.</div><div class="tw"><table><thead><tr><th>Location</th><th class="num">Open positions</th><th class="num">Candidates</th><th class="num">Interviews</th><th class="num">Hires</th><th class="num">Median days</th><th class="num">Joining rate</th></tr></thead><tbody id="geoRows"></tbody></table></div></section>
+    </div>
+  </main>
+</div>
+<div id="tip" role="tooltip"></div><div id="toast" role="status"></div>
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle"><div class="sheet"><header><h3 id="mTitle"></h3><button class="btn sm" id="mClose" aria-label="Close">Close</button></header><div class="body" id="mBody"></div></div></div>
+
+<script>
+"use strict";
+/* ------------------------------------------------------------------ DEMO DATA (seeded, generated in-browser) */
+const DAY = 864e5, NOW = new Date(); NOW.setHours(12,0,0,0);
+let seed = 20260925; const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+const pick = (a, w) => { if (!w) return a[Math.floor(rnd() * a.length)]; let t = rnd() * w.reduce((x, y) => x + y, 0); for (let i = 0; i < a.length; i++) { t -= w[i]; if (t <= 0) return a[i]; } return a[a.length - 1]; };
+const ORG = "Demo Organization";
+const RECRUITERS = ["Asha Verma", "Rohan Iyer", "Meera Nair", "Kabir Shah"], MANAGERS = ["Priya Menon", "Arjun Rao", "Neha Kapoor"];
+const LOCATIONS = ["Bengaluru", "Gurugram", "Mumbai", "Remote"], SOURCES = ["Referral", "LinkedIn", "Indeed", "Career page", "Agency", "College", "WhatsApp"];
+const JOBS = [
+  ["Backend Engineer","Engineering","Bengaluru","Full-time","Permanent","ACTIVE",4], ["Frontend Engineer","Engineering","Remote","Full-time","Permanent","ACTIVE",3],
+  ["Data Analyst","Analytics","Gurugram","Full-time","Permanent","ACTIVE",2], ["Sales Executive","Sales","Mumbai","Full-time","Permanent","ACTIVE",6],
+  ["Support Associate","Operations","Gurugram","Full-time","Contract","ACTIVE",8], ["Product Designer","Design","Bengaluru","Full-time","Permanent","DRAFT",1],
+  ["QA Engineer","Engineering","Remote","Full-time","Permanent","ACTIVE",3], ["Campus Trainee","Operations","Mumbai","Internship","Internship","ARCHIVED",5],
+].map((j, i) => ({ id: "J" + (i + 1), title: j[0], department: j[1], location: j[2], jobType: j[3], employment: j[4], status: j[5], target: j[6], recruiter: RECRUITERS[i % 4], manager: MANAGERS[i % 3] }));
+const STAGES = [["applied","Applied"],["screened","Screened"],["ai","AI interview"],["human","Human interview"],["shortlisted","Shortlisted"],["offer","Offer"],["hired","Hired"]];
+const STAGE_DAYS = [1.2, 0.9, 0.6, 2.4, 1.8, 1.1, 0];
+const CAND = [];
+for (let i = 0; i < 520; i++) {
+  const job = pick(JOBS, [5, 4, 3, 5, 6, 1, 3, 2]), src = pick(SOURCES, [5, 8, 4, 3, 2, 3, 4]);
+  const boost = { Referral: 1.5, College: 0.8, WhatsApp: 0.7 }[src] || 1;
+  let stage = 0; while (stage < 6 && rnd() < [.82,.7,.66,.62,.6,.85][stage] * Math.min(boost, 1.15)) stage++;
+  const rejected = stage < 6 && rnd() < 0.55, appliedAt = new Date(NOW - rnd() * 370 * DAY);
+  const ai = stage >= 2 ? (rnd() < .88 ? "COMPLETED" : "IN_PROGRESS") : "NOT_STARTED", score = ai === "COMPLETED" ? Math.round(Math.min(98, Math.max(22, 62 + (rnd() + rnd() + rnd() - 1.5) * 42 + (boost - 1) * 8))) : 0;
+  CAND.push({ id: "C" + (1000 + i), name: "Candidate " + (1000 + i), job: job.id, source: src, appliedAt, stage, rejected, ai, score,
+    exp: pick(["0-1","1-3","3-5","5+"], [2,5,4,2]), lang: pick(["en","hi","hinglish"], [7,2,2]), round: Math.min(2, Math.max(1, stage >= 3 ? 2 : 1)),
+    days: STAGE_DAYS.map((d) => Math.max(.1, d * (.4 + rnd() * 1.6))), contra: ai === "COMPLETED" && rnd() < .12 ? 1 : 0, unverified: ai === "COMPLETED" && rnd() < .2, waitingFeedback: stage === 3 && rnd() < .3,
+    scheduled: stage < 3 && !rejected && rnd() < .3, tomorrow: false, hasOffer: stage >= 5, joined: stage === 6 && rnd() < .9 });
+}
+CAND.forEach((c) => { if (c.scheduled) c.tomorrow = rnd() < .18; });
+const FOCUS = [["Production debugging","HIGH"],["System design","HIGH"],["Stakeholder communication","MEDIUM"],["Ownership","MEDIUM"],["Testing discipline","LOW"]];
+const jobById = (id) => JOBS.find((j) => j.id === id);
+
+/* ------------------------------------------------------------------ STATE & FILTER MODEL */
+const PRESETS = [["7d",7],["30d",30],["90d",90],["6m",182],["1y",365],["custom",0]];
+const FIELDS = [ // [key, label, options getter, test(candidate, value)]
+  ["department","Department",()=>[...new Set(JOBS.map(j=>j.department))],(c,v)=>jobById(c.job).department===v],
+  ["job","Job",()=>JOBS.map(j=>[j.id,j.title]),(c,v)=>c.job===v],
+  ["source","Candidate source",()=>SOURCES,(c,v)=>c.source===v],
+  ["recruiter","Recruiter",()=>RECRUITERS,(c,v)=>jobById(c.job).recruiter===v],
+  ["organization","Organization",()=>[ORG],()=>true],
+  ["location","Location",()=>LOCATIONS,(c,v)=>jobById(c.job).location===v],
+  ["jobType","Job type",()=>["Full-time","Internship"],(c,v)=>jobById(c.job).jobType===v],
+  ["employment","Employment type",()=>["Permanent","Contract","Internship"],(c,v)=>jobById(c.job).employment===v],
+  ["manager","Hiring manager",()=>MANAGERS,(c,v)=>jobById(c.job).manager===v],
+  ["round","Interview round",()=>[["1","Round 1"],["2","Round 2"]],(c,v)=>String(c.round)===v],
+  ["interviewStatus","Interview status",()=>[["NOT_STARTED","Not started"],["IN_PROGRESS","In progress"],["COMPLETED","Completed"]],(c,v)=>c.ai===v],
+  ["candidateStatus","Candidate status",()=>[["active","In process"],["rejected","Rejected"],["hired","Hired"]],(c,v)=>v==="hired"?c.stage===6:v==="rejected"?c.rejected:!c.rejected&&c.stage<6],
+  ["experience","Experience",()=>[["0-1","0-1 yrs"],["1-3","1-3 yrs"],["3-5","3-5 yrs"],["5+","5+ yrs"]],(c,v)=>c.exp===v],
+  ["language","Language",()=>[["en","English"],["hi","Hindi"],["hinglish","Hinglish"]],(c,v)=>c.lang===v],
+  ["score","Interview score",()=>[["60","60 and above"],["75","75 and above"],["90","90 and above"]],(c,v)=>c.score>=Number(v)],
+  ["aiStatus","AI interview status",()=>[["done","Completed"],["pending","Not completed"]],(c,v)=>v==="done"?c.ai==="COMPLETED":c.ai!=="COMPLETED"],
+];
+const MAIN = ["department","job","source","recruiter"];
+const state = { preset: "90d", from: null, to: null, compare: true, f: {}, sort: { key: "candidates", dir: -1 }, q: "", status: "" };
+const $ = (s, r = document) => r.querySelector(s), esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[m]));
+const fmt = (n) => n.toLocaleString("en-IN"), pct = (a, b) => b ? Math.round(a / b * 1000) / 10 : null, med = (a) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }, avg = (a) => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+const d1 = (n) => n == null ? "-" : (Math.round(n * 10) / 10).toString();
+
+function period() { const days = Object.fromEntries(PRESETS)[state.preset]; let to = state.preset === "custom" && state.to ? new Date(state.to + "T23:59:59") : new Date(NOW.getTime() + DAY / 2), from = state.preset === "custom" && state.from ? new Date(state.from) : new Date(to - (days || 90) * DAY); if (from > to) [from, to] = [to, from]; return { from, to }; }
+function select(range) { return CAND.filter((c) => c.appliedAt >= range.from && c.appliedAt <= range.to && FIELDS.every(([k,, , t]) => !state.f[k] || t(c, state.f[k]))); }
+function metrics(list, range) {
+  const reached = (s) => list.filter((c) => c.stage >= s).length, ai = list.filter((c) => c.ai === "COMPLETED"), hires = list.filter((c) => c.stage === 6), offers = list.filter((c) => c.hasOffer);
+  const jobs = new Set(list.map((c) => c.job)); const open = [...jobs].filter((j) => jobById(j).status === "ACTIVE").length;
+  return { open, active: list.filter((c) => !c.rejected && c.stage < 6).length, interviews: reached(2), aiDone: ai.length, completion: pct(ai.length, reached(2)), avgScore: avg(ai.map((c) => c.score)),
+    hires: hires.length, tth: med(hires.map((c) => c.days.reduce((a, b) => a + b, 0) + 6)), offerAcc: pct(hires.length, offers.length), rejectRate: pct(list.filter((c) => c.rejected).length, list.length),
+    stuck: list.filter((c) => !c.rejected && c.stage < 6 && c.days[c.stage] > 2.5).length, noShow: pct(list.filter((c) => c.scheduled && c.tomorrow === false && c.days[0] > 3).length, Math.max(1, reached(2))) };
+}
+
+/* ------------------------------------------------------------------ RENDER */
+function delta(cur, prev, { unit = "", invert = false, absolute = false } = {}) {
+  if (!state.compare) return ""; if (cur == null || prev == null) return '<span class="d flat">No comparison</span>';
+  const diff = absolute ? cur - prev : (prev ? (cur - prev) / prev * 100 : null); if (diff == null) return '<span class="d flat">No comparison</span>';
+  const good = invert ? diff < 0 : diff > 0, cls = Math.abs(diff) < 0.05 ? "flat" : good ? "up" : "down", arrow = diff > 0 ? "&uarr;" : diff < 0 ? "&darr;" : "&rarr;";
+  return `<span class="d ${cls}" data-tip="Previous period: ${d1(prev)}${unit}">${arrow} ${absolute ? (diff > 0 ? "+" : "") + d1(diff) + unit : Math.abs(d1(diff)) + "%"} vs previous</span>`;
+}
+function render() {
+  const range = period(), list = select(range), span = range.to - range.from, prevRange = { from: new Date(range.from - span), to: range.from }, prevList = state.compare ? select(prevRange) : [];
+  const m = metrics(list, range), p = state.compare ? metrics(prevList, prevRange) : {};
+  $("#subtitle").textContent = `${ORG} - ${range.from.toLocaleDateString()} to ${range.to.toLocaleDateString()} - ${fmt(list.length)} candidates`;
+  $("#updated").textContent = "Last updated " + new Date().toLocaleTimeString();
+  const K = [
+    ["Open positions", m.open, delta(m.open, p.open, { absolute: true }), () => openModal("Open positions", jobsTable(JOBS.filter((j) => j.status === "ACTIVE")))],
+    ["Active candidates", fmt(m.active), delta(m.active, p.active), () => candModal("Active candidates", list.filter((c) => !c.rejected && c.stage < 6))],
+    ["Interviews", fmt(m.interviews), `<span class="d flat">${d1(m.completion)}% AI completion</span>`, () => candModal("Interviews", list.filter((c) => c.stage >= 2))],
+    ["Hires", fmt(m.hires), delta(m.hires, p.hires), () => candModal("Hires", list.filter((c) => c.stage === 6))],
+    ["Median time to hire", m.tth == null ? "-" : d1(m.tth) + " days", delta(m.tth, p.tth, { unit: " d", invert: true, absolute: true }), () => toast("Time to hire = application to accepted offer, median across hires.")],
+    ["Offer acceptance", m.offerAcc == null ? "-" : d1(m.offerAcc) + "%", delta(m.offerAcc, p.offerAcc, { unit: " pts", absolute: true }), () => candModal("Offers", list.filter((c) => c.hasOffer))],
+    ["AI interview avg score", m.avgScore == null ? "-" : Math.round(m.avgScore), delta(m.avgScore, p.avgScore, { absolute: true }), () => scrollTo("intelligence")],
+    ["Candidates stuck > 48h", m.stuck, delta(m.stuck, p.stuck, { invert: true }), () => candModal("Stuck for more than 48 hours in a stage", list.filter((c) => !c.rejected && c.stage < 6 && c.days[c.stage] > 2.5))],
+    ["Rejection rate", m.rejectRate == null ? "-" : d1(m.rejectRate) + "%", delta(m.rejectRate, p.rejectRate, { unit: " pts", absolute: true, invert: true }), () => candModal("Rejected candidates", list.filter((c) => c.rejected))],
+  ];
+  $("#kpis").innerHTML = K.map((k, i) => `<button class="card kpi" data-k="${i}" style="text-align:left"><div class="l">${k[0]}</div><div class="v">${k[1]}</div>${k[2]}</button>`).join("");
+  $("#kpis").querySelectorAll(".kpi").forEach((b) => (b.onclick = K[b.dataset.k][3]));
+
+  // Funnel
+  const counts = STAGES.map((s, i) => list.filter((c) => c.stage >= i).length); let bn = -1, worst = -1;
+  counts.forEach((c, i) => { if (i && counts[i - 1] && 1 - c / counts[i - 1] > worst) { worst = 1 - c / counts[i - 1]; bn = i; } });
+  $("#funnelBody").innerHTML = counts.map((c, i) => `<div class="fn ${i === bn ? "bn" : ""}" data-s="${i}" tabindex="0" role="button" aria-label="${STAGES[i][1]}: ${c} candidates"><span>${STAGES[i][1]}</span><span class="bar"><i style="width:${counts[0] ? c / counts[0] * 100 : 0}%"></i></span><span class="n">${fmt(c)}<small>${i ? d1(pct(c, counts[i - 1])) + "% conv - " + d1(100 - pct(c, counts[i - 1])) + "% drop" : "100%"}${i === bn ? " - bottleneck" : ""}</small></span></div>`).join("");
+  $("#funnelBody").querySelectorAll(".fn").forEach((el) => { const go = () => candModal(STAGES[el.dataset.s][1] + " and beyond", list.filter((c) => c.stage >= +el.dataset.s)); el.onclick = go; el.onkeydown = (e) => e.key === "Enter" && go(); });
+
+  // Velocity
+  const vel = STAGES.slice(0, 6).map((s, i) => { const xs = list.filter((c) => c.stage > i).map((c) => c.days[i]); return { label: s[1], avg: avg(xs), med: med(xs), n: xs.length }; }), vmax = Math.max(...vel.map((v) => v.avg || 0), 1), vb = vel.reduce((a, v, i) => (v.med > (vel[a].med || 0) ? i : a), 0);
+  $("#velocityBody").innerHTML = vel.map((v, i) => `<div class="vrow ${i === vb ? "bn" : ""}" data-tip="${v.n} candidates - median ${d1(v.med)} d, average ${d1(v.avg)} d"><span>${v.label}</span><span class="vbar"><i style="width:${(v.avg || 0) / vmax * 100}%"></i><b style="left:${(v.med || 0) / vmax * 100}%"></b></span><span style="text-align:right">${d1(v.avg)} d${i === vb ? " *" : ""}</span></div>`).join("") + `<div class="sub" style="margin:8px 0 0">* slowest stage by median - the likely bottleneck.</div>`;
+
+  // Intelligence
+  const done = list.filter((c) => c.ai === "COMPLETED"), contra = done.reduce((a, c) => a + c.contra, 0);
+  $("#intelKpis").innerHTML = [["AI interviews completed", fmt(done.length)], ["Completion rate", d1(m.completion) + "%"], ["Average score", m.avgScore == null ? "-" : Math.round(m.avgScore)], ["Need human review", done.filter((c) => c.contra || c.unverified).length], ["Contradictions flagged", contra], ["Need follow-up", done.filter((c) => c.contra || c.unverified || c.score < 55).length]]
+    .map((x) => `<div class="card kpi" style="padding:12px"><div class="l">${x[0]}</div><div class="v" style="font-size:22px">${x[1]}</div></div>`).join("");
+  const B = [[0,40],[41,60],[61,75],[76,90],[91,100]].map(([a, b]) => ({ l: a + "-" + b, n: done.filter((c) => c.score >= a && c.score <= b).length })), bm = Math.max(...B.map((b) => b.n), 1);
+  $("#dist").innerHTML = B.map((b) => `<div style="height:${b.n / bm * 100}%" data-tip="${b.n} candidates scored ${b.l}"><span>${b.l}</span></div>`).join("");
+  const comps = [["Technical", 0], ["Communication", -6], ["Role knowledge", 3], ["Behavioural", -2], ["Resume relevance", 5]];
+  $("#comp").innerHTML = comps.map(([n, o]) => { const v = done.length ? Math.round(Math.min(99, Math.max(0, avg(done.map((c) => c.score)) + o))) : 0; return `<div class="vrow"><span>${n}</span><span class="vbar"><i style="width:${v}%;background:var(--success)"></i></span><span style="text-align:right">${v}</span></div>`; }).join("");
+  $("#focusRows").innerHTML = done.length ? FOCUS.map(([n, pr], i) => { const sc = Math.round(avg(done.map((c) => Math.min(99, Math.max(15, c.score + ((i * 7) % 11) - 5))))), cov = Math.round(90 - i * 9 - (pr === "LOW" ? 6 : 0)), conf = done.length > 40 ? "High" : done.length > 10 ? "Medium" : "Low";
+    return `<tr><td>${n}</td><td><span class="badge ${pr === "HIGH" ? "b-warn" : pr === "MEDIUM" ? "b-info" : "b-draft"}">${pr}</span></td><td class="num">${sc}</td><td class="num">${cov}%</td><td>${conf}</td></tr>`; }).join("") : '<tr><td colspan="5" class="na">No completed AI interviews in this selection.</td></tr>';
+
+  // Sources
+  const S = SOURCES.map((s) => { const l = list.filter((c) => c.source === s), h = l.filter((c) => c.stage === 6); return { s, n: l.length, iv: l.filter((c) => c.stage >= 2).length, done: l.filter((c) => c.ai === "COMPLETED").length, h: h.length, rate: pct(h.length, l.length), t: med(h.map((c) => c.days.reduce((a, b) => a + b, 0) + 6)) }; }).sort((a, b) => (b.rate || 0) - (a.rate || 0));
+  $("#srcRows").innerHTML = S.map((r) => `<tr><td>${r.s}</td><td class="num">${r.n}</td><td class="num">${r.iv}</td><td class="num">${r.done}</td><td class="num">${r.h}</td><td class="num">${d1(r.rate)}%</td><td class="num">${d1(r.t)}</td></tr>`).join("");
+
+  // Attention
+  const A = [["candidates waiting for an interview", list.filter((c) => c.scheduled)], ["candidates waiting for feedback > 48h", list.filter((c) => c.waitingFeedback)], ["interviews scheduled tomorrow", list.filter((c) => c.tomorrow)], ["candidates with incomplete AI interviews", list.filter((c) => c.ai === "IN_PROGRESS")], ["high-score candidates awaiting review", list.filter((c) => c.ai === "COMPLETED" && c.score >= 85 && c.stage <= 3 && !c.rejected)], ["jobs behind their hiring target", null]];
+  $("#attBody").innerHTML = A.map((a, i) => { const n = a[1] ? a[1].length : JOBS.filter((j) => j.status === "ACTIVE" && list.filter((c) => c.job === j.id && c.stage === 6).length < j.target / 2).length; return `<button class="att ${n ? "" : "zero"}" data-a="${i}"><span class="c">${n}</span><span>${a[0]}</span></button>`; }).join("");
+  $("#attBody").querySelectorAll(".att").forEach((b) => (b.onclick = () => { const a = A[b.dataset.a]; a[1] ? candModal(a[0], a[1]) : openModal(a[0], jobsTable(JOBS.filter((j) => j.status === "ACTIVE" && list.filter((c) => c.job === j.id && c.stage === 6).length < j.target / 2))); }));
+
+  // Health table
+  const heads = [["title","Job",0],["status","Status",0],["candidates","Candidates",1],["interviews","Interviews",1],["hires","Hires",1],["target","Target",1],["rate","Progress",1],["health","Health",0]];
+  const rows = JOBS.map((j) => { const l = list.filter((c) => c.job === j.id), h = l.filter((c) => c.stage === 6).length; return { j, title: j.title, status: j.status, candidates: l.length, interviews: l.filter((c) => c.stage >= 2).length, hires: h, target: j.target, rate: j.target ? h / j.target : 0, health: j.status !== "ACTIVE" ? "-" : h < j.target / 2 && l.length < 20 ? "At risk" : h < j.target / 2 ? "Behind" : "On track" }; })
+    .filter((r) => (!state.q || r.title.toLowerCase().includes(state.q.toLowerCase())) && (!state.status || r.status === state.status)).sort((a, b) => (a[state.sort.key] > b[state.sort.key] ? 1 : -1) * state.sort.dir);
+  $("#healthHead").innerHTML = heads.map(([k, l, n]) => `<th class="s ${n ? "num" : ""}" data-k="${k}" aria-sort="${state.sort.key === k ? (state.sort.dir > 0 ? "ascending" : "descending") : "none"}">${l}${state.sort.key === k ? (state.sort.dir > 0 ? " &uarr;" : " &darr;") : ""}</th>`).join("");
+  $("#healthHead").querySelectorAll("th").forEach((th) => (th.onclick = () => { state.sort = { key: th.dataset.k, dir: state.sort.key === th.dataset.k ? -state.sort.dir : 1 }; render(); }));
+  $("#healthRows").innerHTML = rows.length ? rows.map((r, i) => `<tr data-r="${i}" style="cursor:pointer"><td>${esc(r.title)}</td><td><span class="badge b-${r.status.toLowerCase()}">${r.status}</span></td><td class="num">${r.candidates}</td><td class="num">${r.interviews}</td><td class="num">${r.hires}</td><td class="num">${r.target}</td><td class="num">${Math.round(r.rate * 100)}%</td><td><span class="badge ${r.health === "On track" ? "b-active" : r.health === "-" ? "b-draft" : "b-archived"}">${r.health}</span></td></tr>`).join("") : '<tr><td colspan="8" class="na">No jobs match. Clear the search or status filter.</td></tr>';
+  $("#healthRows").querySelectorAll("tr[data-r]").forEach((tr) => (tr.onclick = () => { const r = rows[tr.dataset.r]; candModal(r.title + " - candidates", list.filter((c) => c.job === r.j.id)); }));
+
+  // Workload & geography
+  $("#wlRows").innerHTML = RECRUITERS.map((r) => { const js = JOBS.filter((j) => j.recruiter === r), l = list.filter((c) => jobById(c.job).recruiter === r); return `<tr><td>${r}</td><td class="num">${js.filter((j) => j.status === "ACTIVE").length}</td><td class="num">${l.filter((c) => !c.rejected && c.stage < 6).length}</td><td class="num">${l.filter((c) => c.stage >= 2).length}</td><td class="num">${l.filter((c) => c.waitingFeedback).length}</td><td class="num">${l.filter((c) => c.stage === 6).length}</td></tr>`; }).join("");
+  $("#geoRows").innerHTML = LOCATIONS.map((loc) => { const l = list.filter((c) => jobById(c.job).location === loc), h = l.filter((c) => c.stage === 6); return `<tr><td>${loc}</td><td class="num">${JOBS.filter((j) => j.location === loc && j.status === "ACTIVE").reduce((a, j) => a + j.target, 0)}</td><td class="num">${l.length}</td><td class="num">${l.filter((c) => c.stage >= 2).length}</td><td class="num">${h.length}</td><td class="num">${d1(med(h.map((c) => c.days.reduce((a, b) => a + b, 0) + 6)))}</td><td class="num">${d1(pct(h.filter((c) => c.joined).length, h.length))}%</td></tr>`; }).join("");
+  chips(); $("#moreCount").textContent = Object.keys(state.f).filter((k) => !MAIN.includes(k)).length ? "(" + Object.keys(state.f).filter((k) => !MAIN.includes(k)).length + ")" : "";
+}
+
+/* ------------------------------------------------------------------ MODALS, FILTER UI, NAV */
+function candModal(title, list) {
+  const rows = list.slice(0, 200);
+  openModal(`${title} (${fmt(list.length)})`, `<div class="tw"><table><thead><tr><th>Candidate</th><th>Job</th><th>Source</th><th>Stage</th><th class="num">AI score</th><th>Applied</th></tr></thead><tbody>${rows.map((c) => `<tr><td>${c.name}</td><td>${esc(jobById(c.job).title)}</td><td>${c.source}</td><td>${c.rejected ? '<span class="badge b-archived">REJECTED</span>' : c.stage === 6 ? '<span class="badge b-active">HIRED</span>' : STAGES[c.stage][1]}</td><td class="num">${c.score || "-"}</td><td>${c.appliedAt.toLocaleDateString()}</td></tr>`).join("") || '<tr><td colspan="6" class="na">Nobody matches right now.</td></tr>'}</tbody></table></div>${list.length > 200 ? `<p class="sub">Showing the first 200 of ${fmt(list.length)}. The real product pages this server-side.</p>` : ""}`);
+}
+function jobsTable(js) { return `<div class="tw"><table><thead><tr><th>Job</th><th>Department</th><th>Location</th><th>Status</th><th class="num">Target</th></tr></thead><tbody>${js.map((j) => `<tr><td>${esc(j.title)}</td><td>${j.department}</td><td>${j.location}</td><td><span class="badge b-${j.status.toLowerCase()}">${j.status}</span></td><td class="num">${j.target}</td></tr>`).join("") || '<tr><td colspan="5" class="na">None.</td></tr>'}</tbody></table></div>`; }
+let lastFocus = null;
+function openModal(title, html) { lastFocus = document.activeElement; $("#mTitle").textContent = title; $("#mBody").innerHTML = html; $("#modal").classList.add("open"); $("#mClose").focus(); }
+function closeModal() { $("#modal").classList.remove("open"); lastFocus && lastFocus.focus(); }
+function toast(t) { const el = $("#toast"); el.textContent = t; el.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => (el.style.display = "none"), 2600); }
+function scrollTo(id) { document.getElementById(id).scrollIntoView({ behavior: "smooth", block: "start" }); document.body.classList.remove("nav-open"); }
+
+function chips() {
+  const c = Object.entries(state.f).map(([k, v]) => { const f = FIELDS.find((x) => x[0] === k), o = f[2]().find((x) => (Array.isArray(x) ? x[0] : x) === v); return `<span class="chip">${f[1]}: ${esc(Array.isArray(o) ? o[1] : v)}<button data-c="${k}" aria-label="Remove ${f[1]} filter">&times;</button></span>`; });
+  $("#chips").innerHTML = c.join("") + (c.length ? '<button class="btn sm" id="clearAll">Clear all</button>' : "");
+  $("#chips").querySelectorAll("[data-c]").forEach((b) => (b.onclick = () => { delete state.f[b.dataset.c]; syncSelects(); render(); }));
+  const ca = $("#clearAll"); if (ca) ca.onclick = () => { state.f = {}; syncSelects(); render(); };
+}
+function fillSelect(el, f) { el.innerHTML = '<option value="">All</option>' + f[2]().map((o) => { const [v, l] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(v)}">${esc(l)}</option>`; }).join(""); el.onchange = () => { el.value ? (state.f[f[0]] = el.value) : delete state.f[f[0]]; render(); }; }
+function syncSelects() { FIELDS.forEach((f) => { const el = document.getElementById("f_" + f[0]); if (el) el.value = state.f[f[0]] || ""; }); }
+function buildFilters() {
+  MAIN.forEach((k) => { const f = FIELDS.find((x) => x[0] === k), el = document.getElementById("f" + k[0].toUpperCase() + k.slice(1)); el.id = "f_" + k; fillSelect(el, f); });
+  $("#more").innerHTML = FIELDS.filter((f) => !MAIN.includes(f[0])).map((f) => `<div class="f"><label for="f_${f[0]}">${f[1]}</label><select id="f_${f[0]}"></select></div>`).join("");
+  FIELDS.filter((f) => !MAIN.includes(f[0])).forEach((f) => fillSelect(document.getElementById("f_" + f[0]), f));
+  $("#presets").innerHTML = PRESETS.map(([k]) => `<button data-p="${k}" class="${k === state.preset ? "on" : ""}">${k === "custom" ? "Custom" : k}</button>`).join("");
+  $("#presets").querySelectorAll("button").forEach((b) => (b.onclick = () => { state.preset = b.dataset.p; $("#presets").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); $("#customDates").style.display = state.preset === "custom" ? "flex" : "none"; render(); }));
+  $("#from").onchange = (e) => { state.from = e.target.value; render(); }; $("#to").onchange = (e) => { state.to = e.target.value; render(); };
+  $("#compare").onchange = (e) => { state.compare = e.target.checked; render(); };
+  $("#moreBtn").onclick = () => { const o = $("#more").classList.toggle("open"); $("#moreBtn").setAttribute("aria-expanded", o); };
+  $("#reset").onclick = () => { state.f = {}; state.preset = "90d"; state.compare = true; $("#compare").checked = true; $("#customDates").style.display = "none"; $("#presets").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x.dataset.p === "90d")); syncSelects(); render(); };
+  $("#refresh").onclick = () => { render(); toast("Refreshed"); };
+  $("#export").onclick = () => { const l = select(period()), csv = ["id,job,source,stage,ai_score,applied"].concat(l.map((c) => [c.id, jobById(c.job).title, c.source, STAGES[c.stage][0], c.score, c.appliedAt.toISOString().slice(0, 10)].join(","))).join("\n"); const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = "demo-candidates-filtered.csv"; a.click(); toast("Exported " + l.length + " filtered demo rows"); };
+  $("#jobSearch").oninput = (e) => { state.q = e.target.value; render(); }; $("#jobStatus").onchange = (e) => { state.status = e.target.value; render(); };
+}
+const ICON = { grid: '<path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/>', brief: '<path d="M3 7h18v13H3zM8 7V4h8v3"/>', users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8"/>', mic: '<path d="M12 2a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3zM19 11a7 7 0 0 1-14 0M12 18v4"/>', tag: '<path d="M4 4h8l8 8-8 8-8-8z"/>', chart: '<path d="M4 20V8M10 20V4M16 20v-9M22 20H2"/>', cog: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>' };
+const NAVS = [["Overview", [["Hiring Overview", "grid", "top"]]], ["Hiring", [["Jobs", "brief", "health"], ["Candidates", "users", "kpis"], ["Interviews", "mic", "intelligence"], ["Offers", "tag", "funnel"]]], ["Analytics", [["Funnel", "chart", "funnel"], ["Sources", "chart", "sources"], ["Interview Intelligence", "chart", "intelligence"]]], ["AI", [["AI Interviews", "mic", "intelligence"], ["Interview Insights", "mic", "attention"]]], ["Organization", [["Team", "users", "workload"], ["Data model", "cog", "model"], ["Settings", "cog", "settings"]]]];
+function buildNav() {
+  $("#nav").innerHTML = NAVS.map(([g, items]) => `<h6>${g}</h6>` + items.map(([l, i, t]) => `<a role="link" tabindex="0" data-t="${t}" class="${l === "Hiring Overview" ? "on" : ""}"><svg viewBox="0 0 24 24">${ICON[i]}</svg>${l}</a>`).join("")).join("");
+  $("#nav").querySelectorAll("a").forEach((a) => { const go = () => { $("#nav").querySelectorAll("a").forEach((x) => x.classList.toggle("on", x === a)); const t = a.dataset.t; if (t === "top") { window.scrollTo({ top: 0, behavior: "smooth" }); document.body.classList.remove("nav-open"); } else if (t === "model") { document.body.classList.remove("nav-open"); modelModal(); } else if (t === "settings") { document.body.classList.remove("nav-open"); toast("Settings is outside this prototype."); } else scrollTo(t); }; a.onclick = go; a.onkeydown = (e) => e.key === "Enter" && go(); });
+}
+function modelModal() {
+  const E = [["Organization","tenant that owns everything"],["Department","belongs to an organization"],["Location","city / remote; used by jobs"],["Job","title, department, location, job type, employment type, target hires, recruiter, hiring manager, status"],["Candidate","belongs to a job; source; experience; language; current stage; status"],["Candidate Source","referral, LinkedIn, career page, agency... captured at application time"],["Interview","schedule (UTC + timezone), round, status, no-show / cancellation"],["Interview Session","the live AI session: start, end, recording, proctoring flags"],["Interview Question / Answer","what was asked and said, with the focus area it served"],["Interview Evaluation","scores, evidence quotes, confidence, contradictions for human review"],["HR Focus Area","what hiring wants validated, priority, and how it was covered"],["Offer","made, accepted, declined, joined dates"],["Hire","hired date; used for time-to-hire"],["Recruiter","owner of jobs and candidates"],["Communication","invitation / rejection: queued, sent, delivered, failed"],["Stage history","when a candidate entered and left each stage (velocity needs this)"]];
+  openModal("What the backend must store", `<p class="sub">Each dashboard view is computed on the server from these records. Views without their data show "not recorded yet" instead of guessing.</p><div class="er">${E.map((e) => `<div><b>${e[0]}</b>${e[1]}</div>`).join("")}</div><p class="sub" style="margin-top:12px">Aggregate APIs: summary, funnel, velocity, interview-intelligence, sources, attention, hiring-health. All accept one filter model (from, to, department, job, recruiter, source, status, round...) and aggregate in the database with indexes and a short cache - the browser never downloads candidate rows.</p>`);
+}
+
+document.addEventListener("mouseover", (e) => { const t = e.target.closest("[data-tip]"); const tip = $("#tip"); if (!t) return (tip.style.display = "none"); tip.textContent = t.dataset.tip; tip.style.display = "block"; });
+document.addEventListener("mousemove", (e) => { const tip = $("#tip"); tip.style.left = Math.min(e.clientX + 12, innerWidth - 270) + "px"; tip.style.top = e.clientY + 14 + "px"; });
+$("#mClose").onclick = closeModal; $("#modal").onclick = (e) => e.target === $("#modal") && closeModal();
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeModal(); document.body.classList.remove("nav-open"); } });
+$("#burger").onclick = () => document.body.classList.add("nav-open"); $("#scrim").onclick = () => document.body.classList.remove("nav-open");
+buildNav(); buildFilters(); render();
+</script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { Mail, MessageCircle, Send, AlertCircle } from 'lucide-react'
 import Modal from '../ui/Modal'
 import { Button, Select, useToast } from '../ui'
@@ -8,7 +8,7 @@ import { renderWithSamples } from '../../constants/templateVariables'
 const COPY = {
   CONGRATULATIONS: {
     title: 'Send Congratulations',
-    consequence: (n) => `This will send your selected Congratulations template to ${n} candidate${n === 1 ? '' : 's'}. Their status is not changed.`,
+    consequence: (n) => `This will send your selected Congratulations template to ${n} candidate${n === 1 ? '' : 's'}. They are marked Shortlisted for the next stage.`,
     confirmLabel: 'Send Congratulations',
   },
   REJECTION: {
@@ -28,9 +28,13 @@ function SendRoundCommunicationModal({ open, onClose, purpose, candidates, drive
   const [loadingTemplates, setLoadingTemplates] = useState(true)
   const [templateId, setTemplateId] = useState('')
   const [sending, setSending] = useState(false)
+  // One key per opening of this dialog: a double click or a retried request is recognised and sends nothing twice.
+  const idempotencyKey = useRef('')
+  const inFlight = useRef(false)
 
   useEffect(() => {
     if (!open) return
+    idempotencyKey.current = crypto.randomUUID()
     setLoadingTemplates(true)
     getNotificationTemplates()
       .then((data) => {
@@ -54,24 +58,28 @@ function SendRoundCommunicationModal({ open, onClose, purpose, candidates, drive
   }), [candidates])
 
   const handleSend = async () => {
-    if (!activeTemplate) return
+    if (!activeTemplate || inFlight.current) return
+    inFlight.current = true
     setSending(true)
     try {
       const result = await communicateWithCandidates(driveId, roundNumber, {
         candidateIds: candidates.map((c) => c.id),
         purpose,
         templateId: activeTemplate.templateId || activeTemplate._id,
+        idempotencyKey: idempotencyKey.current,
       })
-      if (result.failedCount > 0) {
-        toast.error(`Sent to ${result.sentCount}, failed for ${result.failedCount} (missing contact info or delivery error).`)
-      } else {
-        toast.success(`Sent to ${result.sentCount} candidate${result.sentCount === 1 ? '' : 's'}.`)
-      }
+      // "Queued" is honest: the message is accepted for delivery, and its status moves to Sent / Delivered later.
+      const parts = [`${result.queuedCount ?? result.sentCount} queued`]
+      if (result.skippedCount > 0) parts.push(`${result.skippedCount} skipped (already handled)`)
+      if (result.failedCount > 0) parts.push(`${result.failedCount} failed (missing contact info or delivery error)`)
+      if (result.failedCount > 0) toast.error(parts.join(', ') + '.')
+      else toast.success(parts.join(', ') + '.')
       onSent?.()
       onClose()
     } catch (err) {
       toast.error(err.message)
     } finally {
+      inFlight.current = false
       setSending(false)
     }
   }

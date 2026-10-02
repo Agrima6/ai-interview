@@ -129,7 +129,7 @@ export default function CandidateRoomPage() {
     const driveStillOpen = (i) => i.roundStatus === 'ACTIVE' && (!i.expiryDate || new Date(i.expiryDate).getTime() > now)
 
     const renderActions = (interview) => {
-        const gate = getSlotGate(interview.interviewSlot, now)
+        const gate = getSlotGate(interview.interviewSlot, now, interview.demoAlwaysLive)
         const testButton = (
             <button
                 type='button'
@@ -396,7 +396,7 @@ export default function CandidateRoomPage() {
                             {pageItems.map((interview) => {
                                 const status = STATUS_CONFIG[interview.candidateStatus] || STATUS_CONFIG.INVITED
                                 const pending = isPending(interview)
-                                const gate = getSlotGate(interview.interviewSlot, now)
+                                const gate = getSlotGate(interview.interviewSlot, now, interview.demoAlwaysLive)
                                 const inProgressWindow = isUpcoming(interview) && interview.roundStatus === 'ACTIVE'
                                 return (
                                     <li key={`${interview.driveId}-${interview.roundNumber}`}>
@@ -517,7 +517,7 @@ export default function CandidateRoomPage() {
                         const target = testingDeviceInterview
                         setTestingDeviceInterview(null)
                         // The device check can be run any time, but the room only opens inside the slot window.
-                        if (getSlotGate(target.interviewSlot).state === 'LIVE') startInterview(target)
+                        if (getSlotGate(target.interviewSlot, Date.now(), target.demoAlwaysLive).state === 'LIVE') startInterview(target)
                     }}
                 />
             )}

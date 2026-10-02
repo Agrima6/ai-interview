@@ -35,8 +35,11 @@ const run = async () => {
         resumeFilename: sample?.resumeFilename || null, resumeOriginalName: sample?.resumeOriginalName || "resume.pdf",
         preferredLanguage: sample?.preferredLanguage || "en", violations: [],
         agentInterviewId: null, agentReport: null, recordingFilename: null,
+        // Always presentable: the 10-min-before/90-min-after slot window never applies, and a finished
+        // run resets itself on the next Start instead of needing this script re-run before every demo.
+        demoAlwaysLive: true,
     }
-    const period = { startDate: new Date(now - DAY), expiryDate: new Date(now + 30 * DAY) }
+    const period = { startDate: new Date(now - DAY), expiryDate: new Date("2099-12-31T23:59:59.000Z") }
 
     let drive = await InterviewDrive.findOne({ tenantId, title: DEMO_TITLE })
     if (!drive) {
@@ -60,7 +63,7 @@ const run = async () => {
     await drive.save()
     console.log(`Demo interview ready for ${email}
   drive:  "${DEMO_TITLE}" (${drive._id}) in organization ${tenantId}
-  slot:   ${fresh.interviewSlot.toLocaleString()} (live now - Start AI Interview is enabled)
+  slot:   ${fresh.interviewSlot.toLocaleString()} (always live - Start AI Interview never expires, even after a completed run)
   resume: ${fresh.resumeFilename ? "reused from an earlier application" : "none on file (upload one in the portal)"}
 Sign in to the candidate portal as ${email} and open the "${DEMO_TITLE}" card.`)
     await mongoose.disconnect()

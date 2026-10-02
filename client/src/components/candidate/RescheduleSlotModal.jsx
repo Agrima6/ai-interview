@@ -77,6 +77,7 @@ export default function RescheduleSlotModal({ open, onClose, interview, onResche
                     onChange={setNewSlot}
                     startDate={interview.startDate}
                     expiryDate={interview.expiryDate}
+                    availability={interview.availability}
                 />
             </div>
         </Modal>

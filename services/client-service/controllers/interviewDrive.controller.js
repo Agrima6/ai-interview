@@ -145,6 +145,15 @@ export const streamCandidateRecording = async (req, res, next) => {
     }
 }
 
+export const getCandidateTranscript = async (req, res, next) => {
+    try {
+        const { id, roundNumber, candidateId } = req.params
+        ok(res, await driveService.getCandidateTranscript(req.user?.tenantId, id, roundNumber, candidateId))
+    } catch (error) {
+        next(error)
+    }
+}
+
 export const downloadCandidateResume = async (req, res, next) => {
     try {
         const tenantId = req.user?.tenantId
@@ -279,6 +288,18 @@ export const communicateWithCandidates = async (req, res, next) => {
     }
 }
 
+export const refreshRoundCommunications = async (req, res, next) => {
+    try {
+        const result = await driveService.refreshRoundCommunications(
+            req.user?.tenantId, req.params.id, req.params.roundNumber,
+            { requestId: req.requestId, correlationId: req.correlationId }
+        )
+        ok(res, result)
+    } catch (error) {
+        next(error)
+    }
+}
+
 // Internal (service-to-service) - dashboard-service's per-organization
 // dashboard and Reports page both need this same aggregate; tenantId comes
 // from the query string here since there's no end-user JWT on this call.
@@ -318,6 +339,19 @@ export const streamCandidateViolationSnapshot = async (req, res, next) => {
         const tenantId = req.user?.tenantId
         const { id, roundNumber, candidateId, violationIndex, type } = req.params
         await driveService.streamCandidateViolationSnapshot(tenantId, id, roundNumber, candidateId, violationIndex, type, res)
+    } catch (error) {
+        next(error)
+    }
+}
+
+// GET /api/v1/dashboard/:metric - aggregate-only, tenant-scoped (see services/dashboard.service.js)
+import * as dashboardService from "../services/dashboard.service.js"
+const DASHBOARD_METRICS = { summary: "getSummary", funnel: "getFunnel", velocity: "getVelocity", "interview-intelligence": "getInterviewIntelligence", sources: "getSources", attention: "getAttention", "hiring-health": "getHiringHealth" }
+export const getDashboardMetric = async (req, res, next) => {
+    try {
+        const fn = DASHBOARD_METRICS[req.params.metric]
+        if (!fn) return next(new ApiError(404, "UNKNOWN_METRIC", "Unknown dashboard metric."))
+        ok(res, await dashboardService[fn](req.user?.tenantId, req.query))
     } catch (error) {
         next(error)
     }

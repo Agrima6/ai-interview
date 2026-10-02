@@ -263,6 +263,7 @@ export default function CompleteApplicationModal({ open, onClose, interview, onS
                         onChange={setSelectedSlot}
                         startDate={interview.startDate}
                         expiryDate={interview.expiryDate}
+                        availability={interview.availability}
                     />
                 </div>
 
