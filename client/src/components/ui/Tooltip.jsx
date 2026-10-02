@@ -29,7 +29,7 @@ function Tooltip({ content, side = 'top', children, className = '' }) {
             exit={{ opacity: 0, scale: 0.94 }}
             transition={{ duration: 0.12 }}
             role='tooltip'
-            className={`absolute z-50 whitespace-nowrap px-2.5 py-1.5 rounded-lg text-[12px] font-medium bg-[#15151f] text-white dark:bg-white dark:text-[#0a0a0f] shadow-[var(--shadow-lift)] pointer-events-none ${SIDES[side]}`}
+            className={`absolute z-[var(--z-toast)] whitespace-nowrap px-2.5 py-1.5 rounded-lg text-[12px] font-medium bg-[#15151f] text-white dark:bg-white dark:text-[#0a0a0f] shadow-[var(--shadow-lift)] pointer-events-none ${SIDES[side]}`}
           >
             {content}
           </motion.span>

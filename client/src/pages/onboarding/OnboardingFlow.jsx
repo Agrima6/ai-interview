@@ -332,7 +332,7 @@ function OnboardingFlow() {
                     </div>
                     <h1 className='font-display text-[22px] font-bold text-ink mb-2'>This onboarding link is invalid</h1>
                     <p className='text-text-secondary text-[14px] mb-8 leading-relaxed'>{error}</p>
-                    <a href="/platform/login" className="w-full block">
+                    <a href="/login" className="w-full block">
                         <Button variant='secondary' className='w-full'>Return to Home Page</Button>
                     </a>
                 </Card>
@@ -358,7 +358,7 @@ function OnboardingFlow() {
                         Need help? Contact <a href={`mailto:${SUPPORT_EMAIL}`} className='text-accent font-semibold hover:underline'>{SUPPORT_EMAIL}</a>.
                     </p>
                     {type?.toLowerCase() === 'candidate' ? (
-                        <a href='/platform/login' className='w-full block'>
+                        <a href='/login' className='w-full block'>
                             <Button className='w-full bg-accent hover:bg-accent-dark'>Sign in to Candidate Dashboard</Button>
                         </a>
                     ) : (

@@ -6,6 +6,18 @@ import { routeTable } from "./config/routeTable.js"
 
 const app = express()
 
+// Security headers (HSTS, X-Content-Type-Options, X-Frame-Options, Referrer-Policy)
+app.use((req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff")
+    res.setHeader("X-Frame-Options", "DENY")
+    res.setHeader("X-XSS-Protection", "1; mode=block")
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin")
+    if (process.env.NODE_ENV === "production") {
+        res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    }
+    next()
+})
+
 // Origin allowlist instead of reflecting any Origin (origin: true) - that
 // combined with credentials:true was the maximally permissive CORS config,
 // letting any site make credentialed requests. ALLOWED_ORIGINS overrides

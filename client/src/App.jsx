@@ -1,6 +1,6 @@
 import React from 'react'
 import { Route, Routes, Navigate } from 'react-router-dom'
-import Login from './pages/Login'
+import AuthPage from './pages/auth/AuthPage'
 import Home from './pages/Home'
 import { useEffect, useState } from 'react'
 import axios from 'axios'
@@ -39,9 +39,22 @@ import ClientList from './pages/clients/ClientList'
 import EnquiryList from './pages/enquiries/EnquiryList'
 import FormBuilderPage from './pages/admin/FormBuilderPage'
 import ClientChangePassword from './pages/clientPortal/ChangePassword'
-import ClientDashboard from './pages/clientPortal/ClientDashboard'
-import AuthPage from './pages/auth/AuthPage'
+import OrganizationDashboard from './pages/organization/OrganizationDashboard'
+import OrganizationComingSoon from './pages/organization/OrganizationComingSoon'
+import DrivesListPage from './pages/organization/DrivesListPage'
+import DriveDetailPage from './pages/organization/DriveDetailPage'
+import CandidatesListPage from './pages/organization/CandidatesListPage'
+import QuestionSetsPage from './pages/organization/QuestionSetsPage'
+import TeamPage from './pages/organization/TeamPage'
+import TemplatesPage from './pages/organization/TemplatesPage'
+import ReportsPage from './pages/organization/ReportsPage'
+import SettingsPage from './pages/organization/SettingsPage'
+import ApplyPage from './pages/ApplyPage'
 import ResetPasswordPage from './pages/auth/ResetPasswordPage'
+import CandidateChangePassword from './pages/candidate/CandidateChangePassword'
+import CandidateRoomPage from './pages/candidate/CandidateRoomPage'
+import InterviewRoomPage from './pages/candidate/InterviewRoomPage'
+import RequireCandidateAuth from './components/RequireCandidateAuth'
 import { featurePermissions } from './permissions/featurePermissions'
 import { ServerUrl } from './constants'
 
@@ -87,16 +100,17 @@ function App() {
       <Route path='/hero-ecosystem' element={<WorkmateLayout showCursorSpotlight={false}><HeroEcosystem/></WorkmateLayout>}/>
       <Route path='/hero-flow' element={<WorkmateLayout showCursorSpotlight={false}><HeroFlow/></WorkmateLayout>}/>
       <Route path='/hero-depth' element={<WorkmateLayout showCursorSpotlight={false}><HeroDepth/></WorkmateLayout>}/>
-      <Route path='/login' element={<Login/>}/>
+      <Route path='/login' element={<AuthPage/>}/>
+      <Route path='/platform/login' element={<Navigate to='/login' replace/>}/>
+      <Route path='/platform/client/login' element={<Navigate to='/login' replace/>}/>
+      <Route path='/platform/register' element={<Navigate to='/register' replace/>}/>
+      <Route path='/platform/register/:type' element={<Navigate to='/register' replace/>}/>
+      <Route path='/apply/:link' element={<ApplyPage/>}/>
 
-      {/* New microservices-backed registration/onboarding platform (auth,
-          registration, onboarding services behind the API gateway). Namespaced
-          under /platform to avoid colliding with the existing Firebase-based
-          candidate login at /login. */}
-      <Route path='/platform/login' element={<AuthPage/>}/>
-      <Route path='/platform/register' element={<AuthPage/>}/>
-      <Route path='/platform/register/:type' element={<AuthPage/>}/>
-      <Route path='/platform/reset-password' element={<ResetPasswordPage/>}/>
+      {/* Registration */}
+      <Route path='/register' element={<AuthPage/>}/>
+      <Route path='/register/:type' element={<AuthPage/>}/>
+      <Route path='/reset-password' element={<ResetPasswordPage/>}/>
       <Route path='/platform/onboarding/:type/:token' element={<OnboardingFlow/>}/>
       <Route path='/platform/dashboard' element={<RequirePlatformAuth permission={featurePermissions.dashboard}><PlatformDashboard/></RequirePlatformAuth>}/>
       <Route path='/platform/admin/forms' element={<RequirePlatformAuth permission={featurePermissions.formBuilder}><FormBuilderPage/></RequirePlatformAuth>}/>
@@ -105,11 +119,47 @@ function App() {
       <Route path='/platform/admin/clients' element={<RequirePlatformAuth permission={featurePermissions.clients}><ClientList/></RequirePlatformAuth>}/>
       <Route path='/platform/admin/enquiries' element={<RequirePlatformAuth permission={featurePermissions.enquiries}><EnquiryList/></RequirePlatformAuth>}/>
 
-      {/* Client portal: for approved organizations/colleges, separate from
-          both the staff admin login above and the candidate login at /login. */}
-      <Route path='/platform/client/login' element={<Navigate to='/platform/login' replace/>}/>
+      {/* Client portal: for approved organizations/colleges/candidates */}
       <Route path='/platform/client/change-password' element={<RequireClientAuth><ClientChangePassword/></RequireClientAuth>}/>
-      <Route path='/platform/client/dashboard' element={<RequireClientAuth><ClientDashboard/></RequireClientAuth>}/>
+      <Route path='/platform/client/dashboard' element={<RequireClientAuth><OrganizationDashboard/></RequireClientAuth>}/>
+      <Route path='/platform/client/drives' element={<RequireClientAuth><DrivesListPage/></RequireClientAuth>}/>
+      <Route path='/platform/client/drives/:id' element={<RequireClientAuth><DriveDetailPage/></RequireClientAuth>}/>
+      <Route path='/platform/client/question-sets' element={<RequireClientAuth><QuestionSetsPage/></RequireClientAuth>}/>
+      <Route path='/platform/client/candidates' element={<RequireClientAuth><CandidatesListPage/></RequireClientAuth>}/>
+      <Route path='/platform/client/team' element={<RequireClientAuth><TeamPage/></RequireClientAuth>}/>
+      <Route path='/platform/client/templates' element={<RequireClientAuth><TemplatesPage/></RequireClientAuth>}/>
+      <Route path='/platform/client/reports' element={<RequireClientAuth><ReportsPage/></RequireClientAuth>}/>
+      <Route path='/platform/client/settings' element={<RequireClientAuth><SettingsPage/></RequireClientAuth>}/>
+
+      {/* Organization Portal Routes */}
+      <Route path='/organization/dashboard' element={<RequireClientAuth><OrganizationDashboard/></RequireClientAuth>}/>
+      <Route path='/organization/drives' element={<RequireClientAuth><DrivesListPage/></RequireClientAuth>}/>
+      <Route path='/organization/drives/:id' element={<RequireClientAuth><DriveDetailPage/></RequireClientAuth>}/>
+      <Route path='/organization/question-sets' element={<RequireClientAuth><QuestionSetsPage/></RequireClientAuth>}/>
+      <Route path='/organization/candidates' element={<RequireClientAuth><CandidatesListPage/></RequireClientAuth>}/>
+      <Route path='/organization/team' element={<RequireClientAuth><TeamPage/></RequireClientAuth>}/>
+      <Route path='/organization/templates' element={<RequireClientAuth><TemplatesPage/></RequireClientAuth>}/>
+      <Route path='/organization/reports' element={<RequireClientAuth><ReportsPage/></RequireClientAuth>}/>
+      <Route path='/organization/settings' element={<RequireClientAuth><SettingsPage/></RequireClientAuth>}/>
+
+      {/* College Portal Routes */}
+      <Route path='/college/dashboard' element={<RequireClientAuth><OrganizationDashboard/></RequireClientAuth>}/>
+      <Route path='/college/drives' element={<RequireClientAuth><DrivesListPage/></RequireClientAuth>}/>
+      <Route path='/college/drives/:id' element={<RequireClientAuth><DriveDetailPage/></RequireClientAuth>}/>
+      <Route path='/college/question-sets' element={<RequireClientAuth><QuestionSetsPage/></RequireClientAuth>}/>
+      <Route path='/college/candidates' element={<RequireClientAuth><CandidatesListPage/></RequireClientAuth>}/>
+      <Route path='/college/team' element={<RequireClientAuth><TeamPage/></RequireClientAuth>}/>
+      <Route path='/college/templates' element={<RequireClientAuth><TemplatesPage/></RequireClientAuth>}/>
+      <Route path='/college/reports' element={<RequireClientAuth><ReportsPage/></RequireClientAuth>}/>
+      <Route path='/college/settings' element={<RequireClientAuth><SettingsPage/></RequireClientAuth>}/>
+
+      {/* Candidate Portal Routes - self-service applicants (CANDIDATE role),
+          a separate session/identity from the org/HR RequireClientAuth above
+          even though both go through the same auth-service. */}
+      <Route path='/candidate/login' element={<Navigate to='/login' replace />} />
+      <Route path='/candidate/change-password' element={<CandidateChangePassword/>}/>
+      <Route path='/candidate/room' element={<RequireCandidateAuth><CandidateRoomPage/></RequireCandidateAuth>}/>
+      <Route path='/candidate/interview/:driveId/:roundNumber' element={<RequireCandidateAuth><InterviewRoomPage/></RequireCandidateAuth>}/>
       <Route path='/dashboard' element={<RequireAuth><Home/></RequireAuth>}/>
       <Route path='/interview' element={<RequireAuth><InterviewPage/></RequireAuth>}/>
       <Route path='/history' element={<RequireAuth><InterviewHistory/></RequireAuth>}/>

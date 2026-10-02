@@ -1,6 +1,7 @@
 import multer from "multer"
 import * as onboardingService from "../services/onboarding.service.js"
 import { writeFile } from "../utils/localFileStore.js"
+import { getObjectStream } from "../config/s3Client.js"
 import { ok } from "../utils/response.js"
 import { ApiError } from "../utils/response.js"
 import { verifyCaptcha } from "../utils/captcha.js"
@@ -80,7 +81,7 @@ export const uploadFile = async (req, res, next) => {
             fieldKey,
             fileMeta: { originalName: req.file.originalname, mimeType: req.file.mimetype, size: req.file.size },
         })
-        writeFile(req.params.id, fileRecord.fileId, req.file.originalname, req.file.buffer)
+        await writeFile(req.params.id, fileRecord.fileId, req.file.originalname, req.file.buffer, req.file.mimetype)
         ok(res, fileRecord)
     } catch (error) { next(error) }
 }
@@ -110,8 +111,9 @@ export const viewFile = async (req, res, next) => {
     try {
         const { id, fileId } = req.params
         const file = await onboardingService.getFileDetails(id, fileId)
-        res.setHeader("Content-Type", file.mimeType)
-        res.sendFile(file.path)
+        const object = await getObjectStream(file.key)
+        res.setHeader("Content-Type", object.contentType || file.mimeType)
+        object.stream.pipe(res)
     } catch (error) { next(error) }
 }
 

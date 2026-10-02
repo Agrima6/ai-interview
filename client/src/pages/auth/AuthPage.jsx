@@ -3,6 +3,7 @@ import { useNavigate, useLocation, useParams } from 'react-router-dom'
 import { Mail, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { forgotPassword } from '../../api/authApi'
+import { getOrganizationProfile } from '../../api/organization/organizationApi'
 import AuthLayout from '../../components/auth/AuthLayout'
 import AuthHeader from '../../components/auth/AuthHeader'
 import AuthBrandPanel from '../../components/auth/AuthBrandPanel'
@@ -12,9 +13,7 @@ import AuthPasswordInput from '../../components/auth/AuthPasswordInput'
 import AuthButton from '../../components/auth/AuthButton'
 import RoleSelector from '../../components/auth/RoleSelector'
 import RegistrationModal from '../../components/auth/RegistrationModal'
-import logo from '../../assets/logo.png'
 
-const DEV_ADMIN = { email: 'admin@workmateiq.local', password: 'Agrima123' }
 const STATUS_LABEL = { QUEUED: 'Queued', SENT: 'Sent', MOCK_SENT: 'Sent (test mode)', FAILED: 'Failed', DELIVERED: 'Delivered' }
 const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || 'support@workmateiq.com'
 
@@ -29,8 +28,8 @@ function AuthPage() {
     const [authMode, setAuthMode] = useState(isRegisterPath ? 'register' : 'login')
 
     // Local states
-    const [email, setEmail] = useState(import.meta.env.DEV ? DEV_ADMIN.email : '')
-    const [password, setPassword] = useState(import.meta.env.DEV ? DEV_ADMIN.password : '')
+    const [email, setEmail] = useState('')
+    const [password, setPassword] = useState('')
     const [remember, setRemember] = useState(true)
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
@@ -79,9 +78,9 @@ function AuthPage() {
         setForgotPasswordStep('input')
         setSelectedRole(null)
         if (mode === 'login') {
-            navigate('/platform/login')
+            navigate('/login')
         } else if (mode === 'register') {
-            navigate('/platform/register')
+            navigate('/register')
         }
     }
 
@@ -91,24 +90,38 @@ function AuthPage() {
         setError('')
         setLoading(true)
         try {
-            await login(email, password)
-            navigate('/platform/dashboard')
+            const user = await login(email, password)
+            // An org admin who also has a candidate application (e.g. they
+            // tested their own drive) is still primarily an org admin here -
+            // this is the ORG login page, so that identity always wins over
+            // CANDIDATE when an account happens to carry both roles.
+            const isOrgAdmin = user?.tenantId || user?.roles?.includes('CLIENT_ADMIN')
+            if (!isOrgAdmin && user?.roles?.includes('CANDIDATE')) {
+                navigate(user?.mustChangePassword ? '/candidate/change-password' : '/candidate/room')
+                return
+            }
+            if (user?.mustChangePassword) {
+                navigate('/platform/client/change-password')
+                return
+            }
+            if (isOrgAdmin) {
+                try {
+                    const profile = await getOrganizationProfile()
+                    if (profile?.type === 'COLLEGE') {
+                        navigate('/college/dashboard')
+                    } else if (profile?.type === 'CANDIDATE') {
+                        navigate('/candidate/dashboard')
+                    } else {
+                        navigate('/organization/dashboard')
+                    }
+                } catch {
+                    navigate('/organization/dashboard')
+                }
+            } else {
+                navigate('/platform/dashboard')
+            }
         } catch (err) {
             setError(err.message || 'Invalid email or password.')
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    // Dev login shortcut
-    const handleDevLogin = async () => {
-        setError('')
-        setLoading(true)
-        try {
-            await login(DEV_ADMIN.email, DEV_ADMIN.password)
-            navigate('/platform/dashboard')
-        } catch (err) {
-            setError(err.message || 'Super Admin login failed.')
         } finally {
             setLoading(false)
         }
@@ -179,13 +192,6 @@ function AuthPage() {
                                 Need help? Contact <a href={`mailto:${SUPPORT_EMAIL}`} className="text-accent font-semibold hover:underline">{SUPPORT_EMAIL}</a>.
                             </p>
 
-                            {registrationSuccessData.debugOnboardingUrl && (
-                                <a href={registrationSuccessData.debugOnboardingUrl} className="block mb-4">
-                                    <AuthButton variant="primary">
-                                        Open onboarding link (dev)
-                                    </AuthButton>
-                                </a>
-                            )}
                             <AuthButton variant="secondary" onClick={() => handleSwitchMode('register')}>
                                 Back to registration
                             </AuthButton>

@@ -21,7 +21,7 @@ function RequirePlatformAuth({ children, permission }) {
         return <div className='min-h-screen flex items-center justify-center text-[13px] text-text-secondary'>Loading...</div>
     }
     if (status === 'anonymous') {
-        return <Navigate to='/platform/login' replace />
+        return <Navigate to='/login' replace />
     }
     if (permission && !hasPermission(permission)) {
         return <AdminShell><p className='text-text-secondary text-[14px]'>You don't have permission to access this section.</p></AdminShell>

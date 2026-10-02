@@ -7,7 +7,7 @@ import { formServiceClient, clientServiceClient, authServiceClient, communicatio
 import { generateRawToken, hashToken, invitationExpiry } from "../utils/token.js"
 import { validateAgainstFormVersion } from "../utils/formValidator.js"
 import { ApiError } from "../utils/response.js"
-import { filePathFor } from "../utils/localFileStore.js"
+import { keyFor } from "../utils/localFileStore.js"
 
 
 // Called internally by registration-service right after a registration is
@@ -354,8 +354,8 @@ export const requestChanges = async (id, reviewerId, items, ctx) => {
     return listView(updated)
 }
 
-export const statistics = async () => {
-    const byStatus = await sessionRepo.countByStatus()
+export const statistics = async (filters = {}) => {
+    const byStatus = await sessionRepo.countByStatus(filters)
     const recent = await sessionRepo.recentlyUpdated(10)
     return {
         byStatus,
@@ -375,7 +375,7 @@ export const activityPage = async ({ cursor, limit = 10 }) => {
     }
 }
 
-export const trend = (since) => sessionRepo.dailyCountsSince(since)
+export const trend = (since, filters = {}) => sessionRepo.dailyCountsSince(since, filters)
 
 export const getFileDetails = async (onboardingId, fileId) => {
     const session = await sessionRepo.findById(onboardingId)
@@ -383,7 +383,7 @@ export const getFileDetails = async (onboardingId, fileId) => {
     const fileRecord = session.files?.find((f) => String(f.fileId) === String(fileId))
     if (!fileRecord) throw new ApiError(404, "FILE_NOT_FOUND", "File not found.")
     return {
-        path: filePathFor(onboardingId, fileId, fileRecord.originalName),
+        key: keyFor(onboardingId, fileId, fileRecord.originalName),
         mimeType: fileRecord.mimeType,
         originalName: fileRecord.originalName,
     }

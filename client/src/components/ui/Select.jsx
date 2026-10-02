@@ -6,7 +6,7 @@ import { fieldBase, Field } from './Input'
 // accessibility/keyboard support for free. For a custom combobox see
 // RoleCombobox.jsx which already exists in components/.
 const Select = forwardRef(function Select(
-  { label, error, hint, id, className = '', wrapperClassName = '', children, ...props },
+  { label, error, hint, id, className = '', wrapperClassName = '', options, children, placeholder, ...props },
   ref
 ) {
   return (
@@ -18,7 +18,14 @@ const Select = forwardRef(function Select(
           className={`${fieldBase} appearance-none pr-10 ${error ? '!border-red-500/60 focus:!ring-red-500/15' : ''} ${className}`}
           {...props}
         >
-          {children}
+          {placeholder && <option value=''>{placeholder}</option>}
+          {options
+            ? options.map((opt) => (
+                <option key={opt.value ?? opt} value={opt.value ?? opt} className='bg-card text-ink'>
+                  {opt.label ?? opt}
+                </option>
+              ))
+            : children}
         </select>
         <ChevronDown size={15} className='absolute right-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none' />
       </div>

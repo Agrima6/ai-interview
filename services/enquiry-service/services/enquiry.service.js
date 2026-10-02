@@ -72,6 +72,6 @@ export const logCall = async (id, { status, notes, durationSec, nextFollowUpAt }
     return view(enquiry)
 }
 
-export const statistics = () => enquiryRepo.countByStatus()
+export const statistics = (filters) => enquiryRepo.countByStatus(filters)
 
-export const trend = (since) => enquiryRepo.dailyCountsSince(since)
+export const trend = (since, filters) => enquiryRepo.dailyCountsSince(since, filters)

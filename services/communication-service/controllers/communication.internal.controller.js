@@ -17,3 +17,12 @@ export const getTemplate = async (req, res, next) => {
         ok(res, template)
     } catch (error) { next(error) }
 }
+
+// GET /internal/v1/communications/drive/:driveId/invite-status?eventType=CANDIDATE_INVITE
+export const getInviteStatusForDrive = async (req, res, next) => {
+    try {
+        const eventType = req.query.eventType || "CANDIDATE_INVITE"
+        const statuses = await communicationService.getInviteStatusForDrive(req.params.driveId, eventType)
+        ok(res, statuses)
+    } catch (error) { next(error) }
+}

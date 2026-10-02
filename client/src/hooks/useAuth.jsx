@@ -19,10 +19,12 @@ export function AuthProvider({ children }) {
             const me = await meApi.getMe()
             setUser(me)
             setStatus('authenticated')
+            return me
         } catch {
             setAccessToken(null)
             setUser(null)
             setStatus('anonymous')
+            return null
         }
     }, [])
 

@@ -7,3 +7,6 @@ dist-ssr
 server/public/*
 !server/public/.gitkeep
 playground-*.mongodb.js
+
+# Candidate PII (uploaded resumes + interview recordings) - never commit
+services/*/uploads/

@@ -8,6 +8,7 @@ export const signAccessToken = (user) => {
     const token = jwt.sign(
         {
             sub: String(user._id),
+            email: user.email,
             tenantId: user.tenantId ? String(user.tenantId) : null,
             roles: user.roles,
             permissions: user.permissions || [],

@@ -31,8 +31,24 @@ export const list = async ({ type, status, search, cursor, limit = 25 }) => {
     return { items, hasNext, nextCursor: hasNext ? String(items[items.length - 1]._id) : null }
 }
 
-export const countByStatus = async () => {
-    const rows = await OnboardingSession.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }])
+// `type`/`from`/`to` narrow the same registration-type + date-range window
+// the dashboard's KPI cards and onboarding funnel are computed from - both
+// must query through this one function so they can never disagree.
+const buildTypeDateMatch = ({ type, from, to } = {}) => {
+    const match = {}
+    if (type) match.type = type
+    if (from || to) {
+        match.createdAt = {}
+        if (from) match.createdAt.$gte = from
+        if (to) match.createdAt.$lte = to
+    }
+    return match
+}
+
+export const countByStatus = async (filters = {}) => {
+    const match = buildTypeDateMatch(filters)
+    const pipeline = [...(Object.keys(match).length ? [{ $match: match }] : []), { $group: { _id: "$status", count: { $sum: 1 } } }]
+    const rows = await OnboardingSession.aggregate(pipeline)
     return Object.fromEntries(rows.map((r) => [r._id, r.count]))
 }
 
@@ -65,15 +81,18 @@ export const recentActivityPage = async ({ cursor, limit = 10 } = {}) => {
 // see createInvitationForRegistration) since `since`, plus a total-by-type
 // breakdown over the same window - backs the dashboard trend chart and the
 // registrations-by-type donut.
-export const dailyCountsSince = async (since) => {
+export const dailyCountsSince = async (since, { type, until } = {}) => {
+    const match = { createdAt: { $gte: since, ...(until ? { $lte: until } : {}) } }
+    if (type) match.type = type
+
     const [byDay, byType] = await Promise.all([
         OnboardingSession.aggregate([
-            { $match: { createdAt: { $gte: since } } },
+            { $match: match },
             { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, count: { $sum: 1 } } },
             { $sort: { _id: 1 } },
         ]),
         OnboardingSession.aggregate([
-            { $match: { createdAt: { $gte: since } } },
+            { $match: match },
             { $group: { _id: "$type", count: { $sum: 1 } } },
         ]),
     ])

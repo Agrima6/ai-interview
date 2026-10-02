@@ -47,8 +47,8 @@ client.interceptors.response.use(
                 // Router - simplest reliable way to guarantee it fires from
                 // any page. Guarded against loops on the login/register
                 // pages themselves, which fetch public data unauthenticated.
-                if (typeof window !== "undefined" && !window.location.pathname.startsWith("/platform/login") && !window.location.pathname.startsWith("/platform/register")) {
-                    window.location.assign("/platform/login?sessionExpired=1")
+                if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login") && !window.location.pathname.startsWith("/register") && !window.location.pathname.startsWith("/platform/login") && !window.location.pathname.startsWith("/platform/register")) {
+                    window.location.assign("/login?sessionExpired=1")
                 }
                 return Promise.reject(refreshError)
             }
@@ -77,13 +77,16 @@ const unwrap = async (promise) => {
 export const apiGet = (url, params) => unwrap(client.get(url, { params }))
 export const apiPost = (url, data, config) => unwrap(client.post(url, data, config))
 export const apiPatch = (url, data, config) => unwrap(client.patch(url, data, config))
+export const apiPut = (url, data, config) => unwrap(client.put(url, data, config))
+export const apiDelete = (url, config) => unwrap(client.delete(url, config))
 
-// For cursor-paginated list endpoints - keeps meta.cursor/hasNext alongside
-// the items instead of discarding them like the plain unwrap() does.
+// For paginated list endpoints - keeps meta.cursor/hasNext (cursor mode) or
+// meta.total/page/pageSize (page mode, when the caller passes `page`)
+// alongside the items instead of discarding them like the plain unwrap() does.
 export const apiGetList = async (url, params) => {
     try {
         const { data } = await client.get(url, { params })
-        return { items: data.data, cursor: data.meta.cursor, hasNext: data.meta.hasNext }
+        return { items: data.data, cursor: data.meta.cursor, hasNext: data.meta.hasNext, total: data.meta.total, page: data.meta.page, pageSize: data.meta.pageSize }
     } catch (error) {
         const envelope = error.response?.data
         const status = error.response?.status || 0
