@@ -828,7 +828,17 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber)
         // A 404 here means the cached interview id is stale (agent-side data was reset) -
         // fall through to the creation path below instead of silently sending a null plan.
         try {
-            plan = await agentServiceClient.getInterview(candidate.agentInterviewId).then((i) => i.plan)
+            const existing = await agentServiceClient.getInterview(candidate.agentInterviewId)
+            // Demo candidate only: once the previous run has ended on the agent, the demo starts a brand-new
+            // interview instead of failing with "interview already COMPLETED" (or reusing a dead room).
+            if (candidate.demoAlwaysLive && ["FINALIZING", "COMPLETED", "TERMINATED", "FAILED", "EXPIRED"].includes(existing?.status)) {
+                candidate.agentInterviewId = null
+                candidate.agentReport = null
+                candidate.attemptedDate = null
+                candidate.status = "SCHEDULED"
+            } else {
+                plan = existing.plan
+            }
         } catch (err) {
             if (!isAgentIdNotFoundError(err)) throw err
             console.warn(`[client-service] cached agentInterviewId ${candidate.agentInterviewId} no longer exists on the agent - recreating for ${candidate.email}`)
