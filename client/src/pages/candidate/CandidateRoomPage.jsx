@@ -30,6 +30,7 @@ const DEFAULT_PAGE_SIZE = 20
 // aiScore defaults to 0 on every candidate record, so only a real (non-zero) score counts as "scored".
 const hasScore = (i) => Number(i.aiScore) > 0
 const isCompleted = (i) =>
+    !i.demoAlwaysLive &&   // the standing demo always counts as upcoming & live, never completed
     i.candidateStatus !== 'REJECTED' &&
     (i.candidateStatus === 'COMPLETED' || i.candidateStatus === 'SHORTLISTED' || Boolean(i.attemptedDate) || hasScore(i))
 const isNotSelected = (i) => i.candidateStatus === 'REJECTED'
@@ -112,6 +113,8 @@ export default function CandidateRoomPage() {
             [i.driveTitle, i.department, i.companyName, i.roundTitle].some((field) => (field || '').toLowerCase().includes(needle))))
         const time = (value, fallback) => (value ? new Date(value).getTime() : fallback)
         return list.sort((a, b) => {
+            // The standing demo interview is always pinned to the top, whatever the sort.
+            if (Boolean(a.demoAlwaysLive) !== Boolean(b.demoAlwaysLive)) return a.demoAlwaysLive ? -1 : 1
             if (sortBy === 'SLOT_DESC') return time(b.interviewSlot, 0) - time(a.interviewSlot, 0)
             if (sortBy === 'DEADLINE') return time(a.expiryDate, Infinity) - time(b.expiryDate, Infinity)
             return time(a.interviewSlot, Infinity) - time(b.interviewSlot, Infinity)

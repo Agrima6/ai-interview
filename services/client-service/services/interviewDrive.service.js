@@ -604,7 +604,8 @@ export const getMyInterviews = async (tenantId, email) => {
             })
         }
     }
-    return results.sort((a, b) => new Date(a.interviewSlot || 0) - new Date(b.interviewSlot || 0))
+    // The standing demo interview (demoAlwaysLive) is pinned first; everything else by slot time.
+    return results.sort((a, b) => (Number(Boolean(b.demoAlwaysLive)) - Number(Boolean(a.demoAlwaysLive))) || (new Date(a.interviewSlot || 0) - new Date(b.interviewSlot || 0)))
 }
 
 // Shared by the candidate-scoped violation/complete endpoints below - a
@@ -738,6 +739,9 @@ export const completeCandidateInterview = async (tenantId, email, driveId, round
     // Applying moves a candidate to SCHEDULED, so an "only if INVITED" check never fired and finished
     // interviews stayed "upcoming" forever. Any live state becomes COMPLETED; an HR decision
     // (rejected / shortlisted) is never overwritten by the candidate finishing their attempt.
+    // The standing demo candidate never leaves "live": finishing a run keeps it SCHEDULED with no attempt
+    // date, so it stays startable and pinned (the report is still kept for the recruiter).
+    if (candidate.demoAlwaysLive) return { status: candidate.status }
     if (!["REJECTED", "SHORTLISTED"].includes(candidate.status)) candidate.status = "COMPLETED"
     candidate.attemptedDate = new Date()
     await drive.save()
