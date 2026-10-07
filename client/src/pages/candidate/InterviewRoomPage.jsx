@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
-import InterviewerAvatar from '../../components/candidate/InterviewerAvatar'
+import AravTile from '../../components/candidate/AravTile'
+import ConfirmModal from '../../components/ui/ConfirmModal'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Room, RoomEvent, Track } from 'livekit-client'
 import {
     Maximize, AlertTriangle, ShieldAlert, Bot, Loader2, Mic, MicOff, Video, VideoOff,
     LogOut, Clock, Sparkles, Lightbulb, CheckCircle2, Circle, ScreenShare, ScreenShareOff,
     MessageSquare, Subtitles, Volume2, ShieldCheck, Copy, RefreshCw, User, Check,
-    AlertCircle, ArrowRight, Send
+    AlertCircle, ArrowRight, Send, MoreHorizontal, Wifi
 } from 'lucide-react'
 import { Card } from '../../components/ui'
 import { reportInterviewViolation, completeInterview, startAgentInterview, completeAgentInterview, uploadInterviewRecording, getMyInterviews } from '../../api/organization/organizationApi'
@@ -54,6 +55,16 @@ function InterviewRoomPage() {
     const [notes, setNotes] = useState('')
     const [elapsedSeconds, setElapsedSeconds] = useState(0)
     const [showCaptions, setShowCaptions] = useState(true)
+    const [recordingState, setRecordingState] = useState('idle')   // idle | recording | error
+    const [networkIssue, setNetworkIssue] = useState(false)         // the live connection dropped and is being restored
+    const [endConfirmOpen, setEndConfirmOpen] = useState(false)
+    const [controlsOpen, setControlsOpen] = useState(false)         // compact mic / camera / CC controls (hover or tap)
+    const [moreOpen, setMoreOpen] = useState(false)
+    const [timelineOpen, setTimelineOpen] = useState(false)         // small screens: the full question list is collapsed
+    const [longThink, setLongThink] = useState(false)
+    const [agentProgress, setAgentProgress] = useState(null)        // {question_id, question_index, total, phase} from the interviewer
+    const qStartRef = useRef(0)                                     // elapsed-seconds value when the current question began
+    const qLogRef = useRef([])                                      // [{questionId, startedAt, endedAt, duration}] per finished question
 
     // Live Transcripts
     const [transcripts, setTranscripts] = useState([])
@@ -323,10 +334,13 @@ function InterviewRoomPage() {
             recorder.ondataavailable = (e) => {
                 if (e.data.size > 0) recordedChunksRef.current.push(e.data)
             }
+            recorder.onerror = () => setRecordingState('error')
             recorder.start(1000)
             mediaRecorderRef.current = recorder
+            setRecordingState('recording')
         } catch (err) {
             console.error('Recording could not start:', err.message)
+            setRecordingState('error')
         }
     }
 
@@ -475,6 +489,8 @@ function InterviewRoomPage() {
                 })
 
                 room.on(RoomEvent.ParticipantConnected, () => setConnectState('connected'))
+                room.on(RoomEvent.Reconnecting, () => setNetworkIssue(true))
+                room.on(RoomEvent.Reconnected, () => setNetworkIssue(false))
 
                 room.on(RoomEvent.Disconnected, () => {
                     if (!terminatedRef.current) setConnectError('Connection to the interview room was lost.')
@@ -482,6 +498,10 @@ function InterviewRoomPage() {
 
                 // Real-Time Transcript Receiver over Data Channel
                 room.on(RoomEvent.DataReceived, (payload, participant, kind, topic) => {
+                    if (topic === 'progress') {
+                        try { setAgentProgress(JSON.parse(new TextDecoder().decode(payload))) } catch { /* ignore a malformed packet */ }
+                        return
+                    }
                     if (topic === 'transcript') {
                         try {
                             const decoded = new TextDecoder().decode(payload)
@@ -740,7 +760,7 @@ function InterviewRoomPage() {
 
     useEffect(() => {
         if (!violationMessage || terminated) return
-        const t = setTimeout(() => setViolationMessage(''), 4000)
+        const t = setTimeout(() => setViolationMessage(''), 2800)
         return () => clearTimeout(t)
     }, [violationMessage, terminated])
 
@@ -891,10 +911,50 @@ function InterviewRoomPage() {
     }, [latestTranscript, agentSpeaking])
     useEffect(() => { if (agentSpeaking) setAiThinking(false) }, [agentSpeaking])
 
-    const avatarState = (connectState === 'connecting' || connectState === 'agent-joining') ? 'connecting'
+    const thinkingNow = !agentSpeaking && (aiThinking || isAIEvaluating)
+    useEffect(() => {
+        if (!thinkingNow) { setLongThink(false); return undefined }
+        const timer = setTimeout(() => setLongThink(true), 3500)   // a long pause becomes "Preparing follow-up..."
+        return () => clearTimeout(timer)
+    }, [thinkingNow])
+    const aravState = (connectState === 'connecting' || connectState === 'agent-joining') ? 'connecting'
         : agentSpeaking ? 'speaking'
-        : (aiThinking || isAIEvaluating) ? 'thinking'
+        : thinkingNow ? (longThink ? 'followup' : 'thinking')
         : 'listening'
+
+    // The interviewer says which question is active: follow it (match by id; intro lines without text are skipped).
+    useEffect(() => {
+        if (!agentProgress?.question_id || questions.length === 0) return
+        const index = questions.findIndex((q) => q.id === agentProgress.question_id)
+        if (index >= 0) setCurrentQuestionIndex(index)
+    }, [agentProgress, questions])
+
+    // Each question has its own timer: closing one records start / end / duration, then a new one starts at 00:00.
+    const lastQuestionRef = useRef(null)
+    useEffect(() => {
+        const q = questions[currentQuestionIndex]
+        if (!q) return
+        const previous = lastQuestionRef.current
+        if (previous && previous.id !== q.id) {
+            const endedAt = Date.now()
+            qLogRef.current.push({ questionId: previous.id, startedAt: previous.startedAt, endedAt, duration: Math.max(0, Math.round((endedAt - previous.startedAt) / 1000)) })
+        }
+        if (!previous || previous.id !== q.id) {
+            lastQuestionRef.current = { id: q.id, startedAt: Date.now() }
+            qStartRef.current = elapsedSeconds
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentQuestionIndex, questions])
+    const questionSeconds = Math.max(0, elapsedSeconds - qStartRef.current)
+    const questionLimit = Number(currentQuestion?.time_limit) > 0 ? Number(currentQuestion.time_limit) : 150
+    const questionLeft = questionLimit - questionSeconds
+    const timerTone = questionLeft <= 0 ? 'over' : questionLeft <= 10 ? 'critical' : questionLeft <= 30 ? 'near' : 'normal'
+    const lo = Math.max(1, Math.floor(questionLimit / 60)), hi = Math.max(lo + 1, Math.ceil(questionLimit / 60))
+
+    // Scratchpad: private, autosaved on this device for the interview.
+    const notesKey = `wm-scratchpad-${driveId}-${roundNumber}`
+    useEffect(() => { try { const saved = localStorage.getItem(notesKey); if (saved) setNotes(saved) } catch { /* storage blocked */ } }, [notesKey])
+    useEffect(() => { const t = setTimeout(() => { try { localStorage.setItem(notesKey, notes) } catch { /* storage blocked */ } }, 600); return () => clearTimeout(t) }, [notes, notesKey])
 
     const handleSubmitAnswer = async (e) => {
         if (e) e.preventDefault()
@@ -1239,376 +1299,310 @@ function InterviewRoomPage() {
                 className='fixed w-px h-px opacity-0 pointer-events-none -z-10'
             />
 
-            {/* Violation Alert Banner */}
+            {/* Temporary integrity warning: slides in, stays about 2-3 seconds, slides out. Every event is also logged server-side. */}
             {violationMessage && (
-                <div className='fixed top-6 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[13.5px] font-semibold px-6 py-3 rounded-2xl flex items-center gap-2.5 max-w-lg text-center shadow-lift z-50 animate-bounce'>
-                    <AlertTriangle size={18} className='shrink-0' />
-                    <span>{violationMessage}</span>
-                </div>
-            )}
-
-            {/* Top Bar */}
-            <header className='flex items-center justify-between border-b border-line bg-card px-6 py-3 shrink-0'>
-                <div className='flex items-center gap-3'>
-                    <img src={logo} alt='Workmate.IQ' className='w-8 h-8 rounded-lg' />
-                    <div>
-                        <p className='font-display text-[15px] font-bold text-ink leading-tight'>AI Interview Session</p>
-                        <p className='text-[11.5px] text-text-secondary'>Live Proctoring & Speech AI</p>
+                <div role='alert' aria-live='assertive' className='wm-toast fixed top-4 left-1/2 z-50 w-[min(92vw,30rem)] bg-red-600 text-white rounded-2xl shadow-lift px-4 py-3 flex items-start gap-3'>
+                    <AlertTriangle size={18} className='shrink-0 mt-0.5' aria-hidden='true' />
+                    <div className='text-[13.5px] leading-snug'>
+                        <p className='font-bold'>Integrity Warning</p>
+                        <p className='opacity-95'>{violationMessage}</p>
                     </div>
                 </div>
+            )}
+            <style>{`
+                .wm-toast { animation: wmToastIn .28s ease-out both, wmToastOut .3s ease-in 2.5s forwards; transform: translateX(-50%); }
+                @keyframes wmToastIn { from { opacity:0; transform: translate(-50%, -14px); } to { opacity:1; transform: translate(-50%, 0); } }
+                @keyframes wmToastOut { to { opacity:0; transform: translate(-50%, -14px); } }
+                @keyframes wmRecPulse { 0%,100% { opacity:1; } 50% { opacity:.35; } }
+                @keyframes wmQuestionIn { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform:none; } }
+                @media (prefers-reduced-motion: reduce) { .wm-toast, .wm-rec-dot, .wm-question { animation:none !important; } }
+            `}</style>
 
-                <div className='flex items-center gap-3'>
-                    <span className='inline-flex items-center gap-1.5 text-[12px] font-semibold text-success bg-success-soft px-3 py-1.5 rounded-full'>
-                        <span className='w-2 h-2 rounded-full bg-success animate-pulse' /> Live
-                    </span>
-                    <span className='inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink bg-neutral-soft px-3 py-1.5 rounded-full'>
-                        <Clock size={13} /> {formatElapsed(elapsedSeconds)}
+            {/* Header: kept minimal on purpose - brand, timer, End Interview */}
+            <header className='flex items-center justify-between gap-3 border-b border-line bg-card px-4 sm:px-6 py-3 shrink-0'>
+                <div className='flex items-center gap-3 min-w-0'>
+                    <img src={logo} alt='WorkmateIQ' className='w-9 h-9 rounded-lg shrink-0' />
+                    <div className='min-w-0'>
+                        <p className='font-display text-[15px] font-bold text-ink leading-tight truncate'>
+                            <span className='text-accent'>WorkmateIQ</span> <span className='hidden sm:inline'>· AI Interview Session</span>
+                        </p>
+                        <p className='text-[11.5px] text-text-secondary truncate'>Live Proctoring &amp; Speech AI</p>
+                    </div>
+                </div>
+                <div className='flex items-center gap-2 sm:gap-3 shrink-0'>
+                    <span className='inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-ink bg-neutral-soft px-3 py-2 rounded-lg tabular-nums' aria-label={`Interview time ${formatElapsed(elapsedSeconds)}`}>
+                        <Clock size={14} aria-hidden='true' /> {formatElapsed(elapsedSeconds)}
                     </span>
                     <button
-                        onClick={finishInterview}
+                        type='button'
+                        onClick={() => setEndConfirmOpen(true)}
                         disabled={submitting}
-                        className='inline-flex items-center gap-1.5 border border-red-200 text-red-600 font-semibold text-[12px] rounded-lg px-3.5 py-1.5 hover:bg-red-50 transition-colors disabled:opacity-50'
+                        className='inline-flex items-center gap-1.5 border border-accent/40 text-accent font-semibold text-[12.5px] rounded-lg px-3.5 min-h-[40px] hover:bg-accent/5 focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50'
                     >
-                        <LogOut size={13} /> {submitting ? 'Submitting...' : 'Finish Interview'}
+                        <LogOut size={14} aria-hidden='true' /> <span className='hidden sm:inline'>{submitting ? 'Submitting...' : 'End Interview'}</span><span className='sm:hidden'>End</span>
                     </button>
                 </div>
             </header>
 
-            {/* Main Stage */}
-            <div className='flex-1 grid lg:grid-cols-[1.6fr_1fr] gap-4 p-4 min-h-0'>
-                {/* Left: AI Interviewer Video Box & Candidate Video */}
-                <div className='flex flex-col gap-4 min-h-0'>
-                    {/* AI Interviewer Avatar Box */}
-                    <div className='relative flex-1 min-h-[300px] bg-ink rounded-2xl overflow-hidden flex flex-col items-center justify-center p-6 shadow-soft'>
-                        {/* Top Badges */}
-                        <div className='absolute top-3.5 left-4 inline-flex items-center gap-1.5 bg-black/60 backdrop-blur-md text-white text-[11.5px] font-medium px-3 py-1 rounded-full'>
-                            <Sparkles size={12} className='text-amber-400' /> AI Senior Interviewer
-                        </div>
+            <main className='flex-1 min-h-0 p-3 sm:p-4 min-[1200px]:p-5 grid gap-4 min-[1200px]:grid-cols-[minmax(0,1.75fr)_minmax(380px,1fr)] min-[1200px]:items-start'>
+                {/* ------------ Left: candidate video with Arav floating over it ------------ */}
+                <section aria-label='Interview video' className='flex flex-col gap-3 min-w-0'>
+                    <div
+                        className='group relative w-full aspect-[4/3] sm:aspect-video min-[1200px]:max-h-[calc(100vh-260px)] min-[1200px]:min-h-[360px] bg-black rounded-2xl overflow-hidden shadow-soft'
+                        onClick={() => { setControlsOpen((v) => !v); setMoreOpen(false) }}
+                    >
+                        <video ref={videoRef} autoPlay muted playsInline className='w-full h-full object-cover' aria-label='Your camera' />
 
-                        {/* Speaking / Listening Pill */}
-                        <div className='absolute top-3.5 right-4 flex items-center gap-2'>
-                            <button
-                                onClick={() => setShowCaptions((c) => !c)}
-                                className={`inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full backdrop-blur-md transition-colors ${
-                                    showCaptions ? 'bg-white/20 text-white' : 'bg-black/40 text-white/50'
-                                }`}
-                                title='Toggle Live Subtitles'
-                            >
-                                <Subtitles size={12} /> CC {showCaptions ? 'On' : 'Off'}
-                            </button>
-                            {agentSpeaking ? (
-                                <div className='inline-flex items-center gap-1.5 bg-emerald-500 text-white text-[11.5px] font-medium px-2.5 py-1 rounded-full shadow-sm'>
-                                    <span className='w-1.5 h-1.5 rounded-full bg-white animate-pulse' /> Speaking
-                                </div>
-                            ) : (
-                                <div className='inline-flex items-center gap-1.5 bg-white/10 text-white/80 text-[11.5px] font-medium px-2.5 py-1 rounded-full'>
-                                    <span className='w-1.5 h-1.5 rounded-full bg-emerald-400' /> Listening
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Center Bot Graphic */}
-                        <div className='flex flex-col items-center gap-3 text-white/80'>
-                            <InterviewerAvatar state={avatarState} size={220} />
-
-                            {(connectState === 'connecting' || connectState === 'agent-joining') && (
-                                <span className='inline-flex items-center gap-2 text-[13px] text-zinc-300 font-medium'>
-                                    <Loader2 size={15} className='animate-spin text-accent' />
-                                    {connectState === 'connecting' ? 'Establishing secure voice line...' : 'Waiting for AI interviewer to connect...'}
-                                </span>
-                            )}
-                            {connectState === 'connected' && (
-                                <span className='text-[13px] text-zinc-400'>
-                                    {agentSpeaking ? 'AI Interviewer is speaking...' : avatarState === 'thinking' ? 'Thinking about your answer...' : 'Your turn to speak — listening to your response'}
-                                </span>
-                            )}
-                        </div>
-
-                        {/* Floating Closed Caption Subtitles Banner */}
-                        {showCaptions && latestTranscript && (
-                            <div className='absolute bottom-4 left-4 right-4 bg-black/85 backdrop-blur-md text-white text-[13px] px-4 py-2.5 rounded-xl border border-white/10 shadow-lg flex items-start gap-2.5 transition-all'>
-                                <span
-                                    className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded shrink-0 mt-0.5 ${
-                                        latestTranscript.sender === 'agent' ? 'bg-accent text-white' : 'bg-emerald-600 text-white'
-                                    }`}
-                                >
-                                    {latestTranscript.sender === 'agent' ? 'AI' : 'You'}
-                                </span>
-                                <p className='flex-1 leading-snug line-clamp-2 text-white/95 font-medium'>
-                                    {latestTranscript.text}
-                                </p>
+                        {!cameraOn && (
+                            <div className='absolute inset-0 flex flex-col items-center justify-center gap-2 bg-zinc-900 text-white/80'>
+                                <VideoOff size={34} aria-hidden='true' />
+                                <p className='text-[13px] font-medium'>Camera off</p>
                             </div>
+                        )}
+
+                        {/* Recording status, always visible on the video */}
+                        <div className='absolute top-3 left-3 flex flex-col items-start gap-2'>
+                            {recordingState === 'error' ? (
+                                <span role='status' className='inline-flex items-center gap-2 bg-amber-500 text-black text-[12px] font-bold px-3 py-1.5 rounded-full'>
+                                    <AlertTriangle size={13} aria-hidden='true' /> Recording issue
+                                </span>
+                            ) : recordingState === 'recording' ? (
+                                <span role='status' className='inline-flex items-center gap-2 bg-black/70 backdrop-blur-sm text-white text-[12px] font-semibold px-3 py-1.5 rounded-full'>
+                                    <span className='wm-rec-dot w-2.5 h-2.5 rounded-full bg-red-500' style={{ animation: 'wmRecPulse 1.6s ease-in-out infinite' }} aria-hidden='true' />
+                                    Recording <span className='opacity-60'>|</span> <span className='tabular-nums'>{formatElapsed(elapsedSeconds)}</span>
+                                </span>
+                            ) : null}
+                        </div>
+
+                        {/* Arav: a floating participant tile. It sits top-right on small screens so it never covers the candidate. */}
+                        <div className='absolute right-2 top-2 w-[104px] sm:w-[148px] min-[1200px]:top-auto min-[1200px]:bottom-3 min-[1200px]:right-3 min-[1200px]:w-[186px]' onClick={(e) => e.stopPropagation()}>
+                            <AravTile state={aravState} />
+                        </div>
+
+                        {/* Live captions for what Arav says */}
+                        {showCaptions && latestTranscript && (
+                            <div aria-live='polite' className='absolute left-3 right-3 bottom-16 min-[1200px]:right-[210px] bg-black/80 backdrop-blur-sm text-white text-[13.5px] px-4 py-2.5 rounded-xl border border-white/10 flex items-start gap-2.5'>
+                                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded shrink-0 mt-0.5 ${latestTranscript.sender === 'agent' ? 'bg-accent text-white' : 'bg-emerald-600 text-white'}`}>
+                                    {latestTranscript.sender === 'agent' ? 'Arav' : 'You'}
+                                </span>
+                                <p className='flex-1 leading-snug line-clamp-2 font-medium'>{latestTranscript.text}</p>
+                            </div>
+                        )}
+
+                        <div className='absolute bottom-3 left-3 inline-flex items-center gap-1.5 bg-black/70 text-white text-[11.5px] font-medium px-2.5 py-1 rounded-full pointer-events-none'>
+                            <User size={12} aria-hidden='true' /> You (Candidate)
+                        </div>
+
+                        {/* Compact controls: shown on hover / keyboard focus / tap, or whenever something needs attention */}
+                        <div
+                            className={`absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 transition-opacity ${
+                                controlsOpen || !micOn || !cameraOn || deviceWarning ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-within:opacity-100'
+                            }`}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <button type='button' onClick={toggleMic} aria-label={micOn ? 'Mute microphone' : 'Unmute microphone'} aria-pressed={!micOn} title={micOn ? 'Mic on' : 'Mic off'}
+                                className={`w-11 h-11 rounded-full flex items-center justify-center backdrop-blur-sm focus-visible:outline-2 focus-visible:outline-white ${micOn ? 'bg-black/70 text-white hover:bg-black/85' : 'bg-red-600 text-white'}`}>
+                                {micOn ? <Mic size={18} aria-hidden='true' /> : <MicOff size={18} aria-hidden='true' />}
+                            </button>
+                            <button type='button' onClick={toggleCamera} aria-label={cameraOn ? 'Turn camera off' : 'Turn camera on'} aria-pressed={!cameraOn} title={cameraOn ? 'Camera on' : 'Camera off'}
+                                className={`w-11 h-11 rounded-full flex items-center justify-center backdrop-blur-sm focus-visible:outline-2 focus-visible:outline-white ${cameraOn ? 'bg-black/70 text-white hover:bg-black/85' : 'bg-red-600 text-white'}`}>
+                                {cameraOn ? <Video size={18} aria-hidden='true' /> : <VideoOff size={18} aria-hidden='true' />}
+                            </button>
+                            <button type='button' onClick={() => setShowCaptions((c) => !c)} aria-label={showCaptions ? 'Turn captions off' : 'Turn captions on'} aria-pressed={showCaptions}
+                                className={`h-11 px-3.5 rounded-full flex items-center gap-1.5 text-[12px] font-bold backdrop-blur-sm focus-visible:outline-2 focus-visible:outline-white ${showCaptions ? 'bg-white text-ink' : 'bg-black/70 text-white'}`}>
+                                <Subtitles size={16} aria-hidden='true' /> CC {showCaptions ? 'On' : 'Off'}
+                            </button>
+                            <div className='relative'>
+                                <button type='button' onClick={() => setMoreOpen((v) => !v)} aria-label='More options' aria-expanded={moreOpen}
+                                    className='w-11 h-11 rounded-full flex items-center justify-center bg-black/70 text-white hover:bg-black/85 backdrop-blur-sm focus-visible:outline-2 focus-visible:outline-white'>
+                                    <MoreHorizontal size={18} aria-hidden='true' />
+                                </button>
+                                {moreOpen && (
+                                    <div role='menu' className='absolute bottom-14 right-0 w-56 bg-card border border-line rounded-xl shadow-lift p-1.5 z-20'>
+                                        <button type='button' role='menuitem' onClick={() => { setMoreOpen(false); requestScreenShare() }}
+                                            className='w-full flex items-center gap-2 px-3 min-h-[44px] rounded-lg text-[13px] text-ink hover:bg-neutral-soft text-left'>
+                                            {screenShareOn ? <ScreenShare size={15} aria-hidden='true' /> : <ScreenShareOff size={15} aria-hidden='true' />}
+                                            {screenShareOn ? 'Screen sharing active' : 'Share screen'}
+                                        </button>
+                                        <button type='button' role='menuitem' onClick={() => { setMoreOpen(false); handleRepeatQuestion() }} disabled={agentSpeaking || isAIEvaluating}
+                                            className='w-full flex items-center gap-2 px-3 min-h-[44px] rounded-lg text-[13px] text-ink hover:bg-neutral-soft text-left disabled:opacity-40'>
+                                            <Volume2 size={15} aria-hidden='true' /> Repeat the question
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Problems the candidate can act on, with plain-language guidance */}
+                    {networkIssue && (
+                        <div role='alert' className='p-3.5 rounded-xl border border-amber-300 bg-amber-50 text-[13px] text-amber-900 flex items-start gap-2'>
+                            <Wifi size={16} className='shrink-0 mt-0.5' aria-hidden='true' />
+                            <span><b>Connection interrupted.</b> We&apos;re trying to reconnect. Please stay on this page.</span>
+                        </div>
+                    )}
+                    {recordingState === 'error' && (
+                        <div role='alert' className='p-3.5 rounded-xl border border-amber-300 bg-amber-50 text-[13px] text-amber-900 flex items-start gap-2'>
+                            <AlertTriangle size={16} className='shrink-0 mt-0.5' aria-hidden='true' />
+                            <span><b>Recording interrupted.</b> We&apos;re attempting to restore recording. Please remain on this page.</span>
+                        </div>
+                    )}
+                    {audioBlocked && (
+                        <div role='alert' className='p-3.5 rounded-xl border border-amber-300 bg-amber-50 text-[13px] text-amber-900 flex items-center gap-2'>
+                            <AlertTriangle size={16} className='shrink-0' aria-hidden='true' /> Your browser is blocking Arav&apos;s audio.
+                            <button type='button' onClick={() => roomRef.current?.startAudio().then(() => setAudioBlocked(false))} className='ml-auto font-semibold underline shrink-0 min-h-[44px]'>Enable audio</button>
+                        </div>
+                    )}
+                    {deviceWarning && (
+                        <div role='alert' className='p-3.5 rounded-xl border border-amber-300 bg-amber-50 text-[13px] text-amber-900 flex items-start gap-2'>
+                            <AlertTriangle size={16} className='shrink-0 mt-0.5' aria-hidden='true' /> <span>{deviceWarning}</span>
+                        </div>
+                    )}
+                    {connectError && connectState === 'failed' && (
+                        <div role='alert' className='p-3.5 rounded-xl border border-red-200 bg-red-50 text-[13px] text-red-700 flex items-center gap-2'>
+                            <AlertTriangle size={16} className='shrink-0' aria-hidden='true' /> {connectError}
+                            <button type='button' onClick={connectToAgent} className='ml-auto font-semibold underline shrink-0 min-h-[44px]'>Retry</button>
+                        </div>
+                    )}
+
+                    {/* Persistent, lightweight integrity status (detailed warnings are temporary toasts) */}
+                    <div className='flex items-center gap-3 flex-wrap rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3'>
+                        <ShieldAlert size={18} className='text-amber-600 shrink-0' aria-hidden='true' />
+                        <div className='min-w-0'>
+                            <p className='text-[13px] font-bold text-ink leading-tight'>Integrity Monitoring Active</p>
+                            <p className='text-[12px] text-text-secondary'>Please stay in this tab and don&apos;t close the browser.</p>
+                        </div>
+                        <span className={`ml-auto text-[12px] font-bold px-2.5 py-1 rounded-full ${violationCount === 0 ? 'bg-success-soft text-success' : violationCount >= 2 ? 'bg-danger-soft text-danger' : 'bg-warning-soft text-warning'}`}>
+                            Warnings {violationCount}/{MAX_VIOLATIONS}
+                        </span>
+                        {required.screen && (
+                            screenShareOn ? (
+                                <span className='inline-flex items-center gap-1.5 text-[12px] font-medium text-success'><ScreenShare size={14} aria-hidden='true' /> Screen sharing active</span>
+                            ) : (
+                                <button type='button' onClick={requestScreenShare} className='inline-flex items-center gap-1.5 text-[12px] font-semibold text-danger underline min-h-[44px]'>
+                                    <ScreenShareOff size={14} aria-hidden='true' /> Screen sharing stopped - share again
+                                </button>
+                            )
                         )}
                     </div>
 
-                    {/* Candidate Preview & Controls Bar */}
-                    <div className='grid grid-cols-[1.5fr_1fr] gap-4 h-[210px] shrink-0'>
-                        {/* Candidate Video */}
-                        <div className='relative bg-black rounded-2xl overflow-hidden shadow-soft'>
-                            <video ref={videoRef} autoPlay muted playsInline className='w-full h-full object-cover' />
-                            <div className='absolute bottom-2.5 left-2.5 inline-flex items-center gap-1.5 bg-black/70 backdrop-blur-xs text-white text-[10.5px] font-medium px-2.5 py-1 rounded-full'>
-                                <User size={11} /> You (Candidate)
-                            </div>
+                    {/* Desktop: a large End Interview below the main content */}
+                    <div className='hidden min-[1200px]:flex justify-center pt-1'>
+                        <button type='button' onClick={() => setEndConfirmOpen(true)} disabled={submitting}
+                            className='inline-flex items-center justify-center gap-2.5 w-full max-w-sm min-h-[52px] rounded-2xl bg-accent hover:bg-accent-dark text-white text-[16px] font-bold shadow-lift transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50'>
+                            <LogOut size={18} aria-hidden='true' /> {submitting ? 'Submitting...' : 'End Interview'}
+                        </button>
+                    </div>
+                </section>
+
+                {/* ------------ Right: question, transcript, scratchpad ------------ */}
+                <aside aria-label='Interview details' className='min-w-0 min-[1200px]:sticky min-[1200px]:top-4'>
+                    <Card className='flex flex-col p-0 overflow-hidden shadow-soft min-[1200px]:max-h-[calc(100vh-120px)]'>
+                        <div role='tablist' aria-label='Interview panel' className='flex border-b border-line shrink-0'>
+                            {[
+                                { id: 'question', label: 'Question', icon: <Lightbulb size={15} aria-hidden='true' /> },
+                                { id: 'transcript', label: 'Live Transcript', icon: <MessageSquare size={15} aria-hidden='true' />, badge: transcripts.length },
+                                { id: 'notes', label: 'Scratchpad', icon: <Copy size={15} aria-hidden='true' /> },
+                            ].map((tab) => (
+                                <button key={tab.id} type='button' role='tab' id={`tab-${tab.id}`} aria-selected={activeTab === tab.id} aria-controls={`panel-${tab.id}`}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={`flex-1 min-h-[48px] text-[13px] font-semibold flex items-center justify-center gap-1.5 border-b-2 transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent ${
+                                        activeTab === tab.id ? 'text-accent border-accent' : 'text-text-secondary border-transparent hover:text-ink'
+                                    }`}>
+                                    {tab.icon}<span>{tab.label}</span>
+                                    {tab.badge > 0 && <span className='text-[10px] bg-accent/10 text-accent font-bold px-1.5 rounded-full'>{tab.badge}</span>}
+                                </button>
+                            ))}
                         </div>
 
-                        {/* Integrity Card & Device Toggles */}
-                        <Card className='p-4 flex flex-col justify-between shadow-soft'>
-                            <div>
-                                <div className='flex items-center gap-2 mb-2'>
-                                    <ShieldAlert size={15} className='text-accent' />
-                                    <span className='text-[12.5px] font-semibold text-ink'>Integrity Warnings</span>
-                                    <span
-                                        className={`ml-auto text-[12px] font-bold px-2 py-0.5 rounded-full ${
-                                            violationCount === 0
-                                                ? 'bg-success-soft text-success'
-                                                : violationCount >= 2
-                                                ? 'bg-danger-soft text-danger'
-                                                : 'bg-warning-soft text-warning'
-                                        }`}
-                                    >
-                                        {violationCount}/{MAX_VIOLATIONS}
-                                    </span>
-                                </div>
-
-                                {screenShareOn ? (
-                                    <span className='inline-flex items-center gap-1.5 text-[11.5px] font-medium text-success mb-2'>
-                                        <ScreenShare size={13} /> Screen sharing active
-                                    </span>
-                                ) : (
-                                    <button
-                                        onClick={requestScreenShare}
-                                        className='inline-flex items-center gap-1.5 text-[11.5px] font-medium text-danger hover:underline mb-2'
-                                    >
-                                        <ScreenShareOff size={13} /> Screen share required - click to share
-                                    </button>
-                                )}
-                            </div>
-
-                            <div className='flex items-center gap-2 pt-2 border-t border-line'>
-                                <button
-                                    onClick={toggleMic}
-                                    className={`flex-1 inline-flex items-center justify-center gap-1.5 text-[12px] font-semibold rounded-xl py-2.5 transition-colors ${
-                                        micOn ? 'bg-neutral-soft text-ink hover:bg-neutral-soft/80' : 'bg-red-50 text-red-600'
-                                    }`}
-                                >
-                                    {micOn ? <Mic size={14} /> : <MicOff size={14} />} {micOn ? 'Mute' : 'Muted'}
-                                </button>
-                                <button
-                                    onClick={toggleCamera}
-                                    className={`flex-1 inline-flex items-center justify-center gap-1.5 text-[12px] font-semibold rounded-xl py-2.5 transition-colors ${
-                                        cameraOn ? 'bg-neutral-soft text-ink hover:bg-neutral-soft/80' : 'bg-red-50 text-red-600'
-                                    }`}
-                                >
-                                    {cameraOn ? <Video size={14} /> : <VideoOff size={14} />} {cameraOn ? 'Camera' : 'Off'}
-                                </button>
-                            </div>
-                        </Card>
-                    </div>
-                </div>
-
-                {/* Right: Tabbed Panel (Question | Live Transcript | Notes) */}
-                <Card className='flex flex-col min-h-0 p-0 overflow-hidden shadow-soft'>
-                    {/* Tab Navigation */}
-                    <div className='flex border-b border-line shrink-0 bg-neutral-soft/40'>
-                        <button
-                            onClick={() => setActiveTab('question')}
-                            className={`flex-1 text-[13px] font-bold py-3 transition-colors flex items-center justify-center gap-1.5 ${
-                                activeTab === 'question' ? 'text-accent border-b-2 border-accent bg-card' : 'text-text-secondary hover:text-ink'
-                            }`}
-                        >
-                            <Lightbulb size={14} /> Question
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('transcript')}
-                            className={`flex-1 text-[13px] font-bold py-3 transition-colors flex items-center justify-center gap-1.5 ${
-                                activeTab === 'transcript' ? 'text-accent border-b-2 border-accent bg-card' : 'text-text-secondary hover:text-ink'
-                            }`}
-                        >
-                            <MessageSquare size={14} /> Live Transcript
-                            {transcripts.length > 0 && (
-                                <span className='text-[10px] bg-accent/10 text-accent font-bold px-1.5 py-0.2 rounded-full'>
-                                    {transcripts.length}
-                                </span>
-                            )}
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('notes')}
-                            className={`flex-1 text-[13px] font-bold py-3 transition-colors flex items-center justify-center gap-1.5 ${
-                                activeTab === 'notes' ? 'text-accent border-b-2 border-accent bg-card' : 'text-text-secondary hover:text-ink'
-                            }`}
-                        >
-                            <Copy size={14} /> Scratchpad
-                        </button>
-                    </div>
-
-                    {/* Tab 1: Question Context */}
-                    <div className='flex-1 overflow-y-auto p-5'>
-                        {activeTab === 'question' && (
-                            <>
-                                {audioBlocked && (
-                                    <div className='p-3.5 rounded-xl border border-amber-300 bg-amber-50 text-[13px] text-amber-800 flex items-center gap-2 mb-4'>
-                                        <AlertTriangle size={15} className='shrink-0' /> Your browser is blocking the interviewer's audio.
-                                        <button onClick={() => roomRef.current?.startAudio().then(() => setAudioBlocked(false))} className='ml-auto font-semibold underline shrink-0'>
-                                            Enable audio
-                                        </button>
-                                    </div>
-                                )}
-                                {deviceWarning && (
-                                    <div className='p-3.5 rounded-xl border border-amber-300 bg-amber-50 text-[13px] text-amber-800 flex items-center gap-2 mb-4'>
-                                        <AlertTriangle size={15} className='shrink-0' /> {deviceWarning}
-                                    </div>
-                                )}
-                                {connectError && connectState === 'failed' ? (
-                                    <div className='p-4 rounded-xl border border-red-200 bg-red-50 text-[13px] text-red-600 flex items-center gap-2 mb-4'>
-                                        <AlertTriangle size={15} className='shrink-0' /> {connectError}
-                                        <button onClick={connectToAgent} className='ml-auto font-semibold underline shrink-0'>
-                                            Retry
-                                        </button>
-                                    </div>
-                                ) : null}
-
-                                {currentQuestion ? (
-                                    <>
-                                        <div className='flex items-center justify-between mb-2'>
-                                            <span className='text-[11px] font-bold text-accent uppercase tracking-wider bg-accent/10 px-2.5 py-0.5 rounded-full'>
-                                                Question {currentQuestionIndex + 1} of {questions.length}
-                                            </span>
-                                            {currentQuestion.difficulty && (
-                                                <span className='text-[11px] font-medium text-text-secondary capitalize'>
-                                                    {currentQuestion.difficulty} Level
+                        <div className='flex-1 overflow-y-auto p-4 sm:p-5' role='tabpanel' id={`panel-${activeTab}`} aria-labelledby={`tab-${activeTab}`}>
+                            {activeTab === 'question' && (
+                                <>
+                                    {currentQuestion ? (
+                                        <div key={currentQuestion.id || currentQuestionIndex} className='wm-question' style={{ animation: 'wmQuestionIn .3s ease-out both' }}>
+                                            <div className='flex items-center justify-between gap-3 flex-wrap mb-3'>
+                                                <span className='text-[12px] font-bold text-accent bg-accent/10 px-3 py-1 rounded-full'>
+                                                    Question {currentQuestionIndex + 1} of {questions.length}
                                                 </span>
-                                            )}
-                                        </div>
-
-                                        <h2 className='text-[16.5px] font-bold text-ink leading-snug mb-4'>
-                                            {currentQuestion.question_text}
-                                        </h2>
-
-                                        {currentQuestion.expected_topics?.length > 0 && (
-                                            <div className='p-3.5 rounded-xl bg-neutral-soft mb-4'>
-                                                <p className='flex items-center gap-1.5 text-[12px] font-semibold text-ink mb-2'>
-                                                    <Lightbulb size={13} className='text-amber-500' /> Competencies & Key Points to Cover:
-                                                </p>
-                                                <ul className='space-y-1.5'>
-                                                    {currentQuestion.expected_topics.map((topic) => (
-                                                        <li key={topic} className='text-[12.5px] text-text-secondary flex items-start gap-1.5'>
-                                                            <span className='text-accent font-bold'>&bull;</span>
-                                                            <span>{topic}</span>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        )}
-
-                                        <p className='text-[12.5px] text-text-secondary leading-relaxed bg-black/[0.02] p-3 rounded-xl border border-line'>
-                                            Answer out loud naturally. The AI interviewer listens to your explanation in real time and will ask contextual follow-ups.
-                                        </p>
-
-                                        {/* Candidate Response & Action Area */}
-                                        <div className='mt-5 p-4 rounded-2xl border border-accent/20 bg-accent/[0.02] dark:bg-white/[0.02] space-y-3.5 shadow-2xs'>
-                                            <div className='flex items-center justify-between'>
-                                                <div className='flex items-center gap-2'>
-                                                    {agentSpeaking ? (
-                                                        <span className='inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-bold bg-accent/15 text-accent animate-pulse'>
-                                                            <Volume2 size={13} /> AI Interviewer Speaking...
-                                                        </span>
-                                                    ) : (
-                                                        <span className='inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-bold bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'>
-                                                            <span className='w-2 h-2 rounded-full bg-emerald-500 animate-ping' /> Listening to your microphone...
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <button
-                                                    type='button'
-                                                    onClick={handleRepeatQuestion}
-                                                    disabled={agentSpeaking || isAIEvaluating}
-                                                    className='inline-flex items-center gap-1 text-[11.5px] font-semibold text-text-secondary hover:text-accent transition-colors disabled:opacity-40'
-                                                    title='Have the AI repeat the question'
-                                                >
-                                                    <Volume2 size={13} /> Repeat Question
-                                                </button>
+                                                <span className='inline-flex items-center gap-1.5 text-[12px] text-text-secondary'>
+                                                    <Clock size={13} aria-hidden='true' /> Estimated time: {lo}–{hi} min
+                                                </span>
                                             </div>
 
-                                            <div className='space-y-1.5'>
-                                                <label className='text-[11.5px] font-bold text-text-secondary uppercase tracking-wider flex items-center justify-between'>
-                                                    <span>Your Response (Live Voice Transcript)</span>
-                                                    <span className='text-[10.5px] font-normal text-text-secondary'>Auto-transcribed while you speak</span>
-                                                </label>
-                                                <textarea
-                                                    value={candidateAnswer}
-                                                    onChange={(e) => setCandidateAnswer(e.target.value)}
-                                                    placeholder='Speak naturally into your microphone or type your response here...'
-                                                    rows={3}
-                                                    className='w-full p-3 rounded-xl border border-line bg-card text-[13px] text-ink focus:outline-none focus:ring-2 focus:ring-accent/30 resize-none leading-relaxed'
-                                                />
-                                            </div>
+                                            <h2 className='text-[18px] sm:text-[19px] font-bold text-ink leading-snug mb-3'>{currentQuestion.question_text}</h2>
 
-                                            <div className='flex items-center justify-between gap-3 pt-1'>
-                                                <p className='text-[11.5px] text-text-secondary'>
-                                                    Done answering? Click below to receive AI feedback and move to the next question.
-                                                </p>
-                                                <button
-                                                    type='button'
-                                                    onClick={handleSubmitAnswer}
-                                                    disabled={isAIEvaluating || agentSpeaking}
-                                                    className='shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-accent hover:opacity-90 text-white font-bold text-[12.5px] shadow-sm transition-all disabled:opacity-50'
-                                                >
-                                                    {isAIEvaluating ? (
-                                                        <>
-                                                            <Loader2 size={13} className='animate-spin' /> Evaluating...
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            {currentQuestionIndex >= questions.length - 1 ? 'Finish Round' : 'Submit & Next'} <ArrowRight size={14} />
-                                                        </>
-                                                    )}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <div className='py-8 text-center text-text-secondary'>
-                                        <Sparkles size={24} className='mx-auto mb-2 text-accent opacity-60' />
-                                        <p className='text-[13.5px] font-medium'>Preparing next question...</p>
-                                        <p className='text-[12px] mt-1'>The AI interviewer is introducing the topic now.</p>
-                                    </div>
-                                )}
-
-                                {/* Progress Checklist */}
-                                {questions.length > 0 && (
-                                    <div className='mt-6 pt-5 border-t border-line'>
-                                        <p className='text-[11.5px] font-bold text-text-secondary uppercase tracking-wider mb-3'>
-                                            Interview Progress
-                                        </p>
-                                        <div className='space-y-2'>
-                                            {questions.map((q, idx) => (
-                                                <div
-                                                    key={q.id || idx}
-                                                    className={`flex items-start gap-2.5 p-3 rounded-xl text-[12.5px] transition-colors ${
-                                                        idx === currentQuestionIndex
-                                                            ? 'bg-accent/8 border border-accent/20 text-ink font-semibold'
-                                                            : 'text-text-secondary bg-black/[0.01]'
+                                            <div className='flex items-center justify-between gap-3 flex-wrap mb-4'>
+                                                <span
+                                                    role='timer'
+                                                    aria-label={`Time on this question ${formatElapsed(questionSeconds)}`}
+                                                    className={`inline-flex items-center gap-2 text-[13px] font-bold tabular-nums px-3 py-1.5 rounded-lg ${
+                                                        timerTone === 'over' || timerTone === 'critical' ? 'bg-danger-soft text-danger' : timerTone === 'near' ? 'bg-warning-soft text-warning' : 'bg-neutral-soft text-ink'
                                                     }`}
                                                 >
-                                                    {idx < currentQuestionIndex ? (
-                                                        <CheckCircle2 size={15} className='text-success shrink-0 mt-0.5' />
-                                                    ) : idx === currentQuestionIndex ? (
-                                                        <Circle size={15} className='text-accent fill-accent/20 shrink-0 mt-0.5' />
-                                                    ) : (
-                                                        <Circle size={15} className='text-neutral/40 shrink-0 mt-0.5' />
-                                                    )}
-                                                    <span className='leading-snug'>
-                                                        {idx <= currentQuestionIndex
-                                                            ? q.question_text
-                                                            : `Question ${idx + 1} (Revealed when reached)`}
+                                                    <Clock size={14} aria-hidden='true' /> {formatElapsed(questionSeconds)}
+                                                    <span className='text-[11px] font-semibold opacity-80'>
+                                                        {timerTone === 'over' ? 'Time limit reached' : timerTone === 'critical' ? `${Math.max(questionLeft, 0)}s left` : timerTone === 'near' ? 'Almost out of time' : 'on this question'}
                                                     </span>
-                                                </div>
-                                            ))}
+                                                </span>
+                                                <button type='button' onClick={handleRepeatQuestion} disabled={agentSpeaking || isAIEvaluating}
+                                                    className='inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-text-secondary hover:text-accent min-h-[44px] disabled:opacity-40'>
+                                                    <Volume2 size={14} aria-hidden='true' /> Repeat question
+                                                </button>
+                                            </div>
+
+                                            <p className='text-[13px] text-text-secondary leading-relaxed rounded-xl bg-neutral-soft/70 px-4 py-3'>
+                                                Answer naturally. Arav will listen to your explanation in real time and may ask follow-up questions based on your response.
+                                            </p>
                                         </div>
-                                    </div>
-                                )}
-                            </>
-                        )}
+                                    ) : (
+                                        <div className='py-8 text-center text-text-secondary'>
+                                            <Loader2 size={24} className='mx-auto mb-2 text-accent animate-spin' aria-hidden='true' />
+                                            <p className='text-[13.5px] font-medium text-ink'>Arav is getting started...</p>
+                                            <p className='text-[12px] mt-1'>Your first question will appear here in a moment.</p>
+                                        </div>
+                                    )}
+
+                                    {/* Interview progress */}
+                                    {questions.length > 0 && (
+                                        <div className='mt-6 pt-5 border-t border-line'>
+                                            <div className='flex items-center justify-between mb-2'>
+                                                <p className='text-[14px] font-bold text-ink'>Interview Progress</p>
+                                                <p className='text-[12.5px] text-text-secondary'>{currentQuestionIndex} of {questions.length} completed</p>
+                                            </div>
+                                            <div className='h-2 rounded-full bg-neutral-soft overflow-hidden mb-3' role='progressbar' aria-valuemin={0} aria-valuemax={questions.length} aria-valuenow={currentQuestionIndex}>
+                                                <div className='h-full rounded-full bg-accent transition-all duration-500' style={{ width: `${(currentQuestionIndex / questions.length) * 100}%` }} />
+                                            </div>
+
+                                            <button type='button' onClick={() => setTimelineOpen((v) => !v)} aria-expanded={timelineOpen}
+                                                className='md:hidden w-full text-left text-[12.5px] font-semibold text-accent min-h-[44px]'>
+                                                {timelineOpen ? 'Hide all questions' : 'Show all questions'}
+                                            </button>
+                                            <ol className={`${timelineOpen ? 'block' : 'hidden'} md:block space-y-1.5`}>
+                                                {questions.map((q, idx) => {
+                                                    const done = idx < currentQuestionIndex
+                                                    const current = idx === currentQuestionIndex
+                                                    return (
+                                                        <li key={q.id || idx} aria-current={current ? 'step' : undefined}
+                                                            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ${current ? 'bg-accent/8 border border-accent/20' : ''}`}>
+                                                            <span className={`w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-[12px] font-bold ${
+                                                                done ? 'bg-success text-white' : current ? 'bg-accent text-white' : 'bg-neutral-soft text-text-secondary'
+                                                            }`}>
+                                                                {done ? <Check size={14} aria-hidden='true' /> : idx + 1}
+                                                            </span>
+                                                            <span className={`flex-1 min-w-0 text-[13px] leading-snug truncate ${current ? 'font-semibold text-ink' : done ? 'text-text-secondary' : 'text-text-secondary'}`}>
+                                                                {idx <= currentQuestionIndex ? q.question_text : `Question ${idx + 1}`}
+                                                            </span>
+                                                            <span className={`text-[11.5px] font-semibold shrink-0 ${current ? 'text-accent bg-accent/10 px-2 py-0.5 rounded-full' : done ? 'text-success' : 'text-text-secondary/70'}`}>
+                                                                {done ? 'Completed' : current ? 'Current' : 'Upcoming'}
+                                                            </span>
+                                                        </li>
+                                                    )
+                                                })}
+                                            </ol>
+                                        </div>
+                                    )}
+                                </>
+                            )}
 
                         {/* Tab 2: Live Transcripts */}
                         {activeTab === 'transcript' && (
@@ -1641,7 +1635,7 @@ function InterviewRoomPage() {
                                                     {t.sender === 'agent' ? (
                                                         <>
                                                             <Bot size={12} className='text-accent' />
-                                                            <span className='font-bold text-accent'>AI Interviewer</span>
+                                                            <span className='font-bold text-accent'>Arav</span>
                                                         </>
                                                     ) : (
                                                         <>
@@ -1668,12 +1662,11 @@ function InterviewRoomPage() {
                                 )}
                             </div>
                         )}
-
                         {/* Tab 3: Notes / Scratchpad */}
                         {activeTab === 'notes' && (
                             <div className='flex flex-col h-full'>
                                 <p className='text-[12px] text-text-secondary mb-3'>
-                                    Private scratchpad for jotting down calculations, structure, or key points before speaking. This is not submitted or scored.
+                                    Private scratchpad for jotting down calculations, structure, or key points before speaking. This is private: it is not submitted, shown to the hiring team, or scored.
                                 </p>
                                 <textarea
                                     value={notes}
@@ -1683,9 +1676,32 @@ function InterviewRoomPage() {
                                 />
                             </div>
                         )}
-                    </div>
-                </Card>
-            </div>
+                        </div>
+                    </Card>
+                </aside>
+
+                {/* Mobile / tablet: End Interview at the bottom, reachable but behind a confirmation */}
+                <div className='min-[1200px]:hidden flex justify-center pb-2'>
+                    <button type='button' onClick={() => setEndConfirmOpen(true)} disabled={submitting}
+                        className='inline-flex items-center justify-center gap-2.5 w-full max-w-md min-h-[52px] rounded-2xl bg-accent hover:bg-accent-dark text-white text-[16px] font-bold shadow-lift focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50'>
+                        <LogOut size={18} aria-hidden='true' /> {submitting ? 'Submitting...' : 'End Interview'}
+                    </button>
+                </div>
+            </main>
+
+            <ConfirmModal
+                open={endConfirmOpen}
+                onClose={() => setEndConfirmOpen(false)}
+                title='End interview?'
+                confirmLabel='End Interview'
+                cancelLabel='Continue Interview'
+                danger
+                onConfirm={async () => { await finishInterview(); setEndConfirmOpen(false) }}
+            >
+                <p className='text-[13.5px] text-text-secondary leading-relaxed'>
+                    Are you sure you want to end this interview? Your current progress will be submitted.
+                </p>
+            </ConfirmModal>
         </div>
     )
 }
