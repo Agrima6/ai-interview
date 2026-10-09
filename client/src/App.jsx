@@ -37,6 +37,7 @@ import OnboardingReviewList from './pages/onboarding-admin/OnboardingReviewList'
 import OnboardingReviewDetail from './pages/onboarding-admin/OnboardingReviewDetail'
 import ClientList from './pages/clients/ClientList'
 import EnquiryList from './pages/enquiries/EnquiryList'
+import VoiceProviderSettings from './pages/admin/VoiceProviderSettings'
 import FormBuilderPage from './pages/admin/FormBuilderPage'
 import ClientChangePassword from './pages/clientPortal/ChangePassword'
 import OrganizationDashboard from './pages/organization/OrganizationDashboard'
@@ -117,6 +118,7 @@ function App() {
       <Route path='/platform/admin/onboarding' element={<RequirePlatformAuth permission={featurePermissions.onboarding}><OnboardingReviewList/></RequirePlatformAuth>}/>
       <Route path='/platform/admin/onboarding/:id' element={<RequirePlatformAuth permission={featurePermissions.onboarding}><OnboardingReviewDetail/></RequirePlatformAuth>}/>
       <Route path='/platform/admin/clients' element={<RequirePlatformAuth permission={featurePermissions.clients}><ClientList/></RequirePlatformAuth>}/>
+      <Route path='/platform/admin/settings' element={<RequirePlatformAuth permission={featurePermissions.settings}><VoiceProviderSettings/></RequirePlatformAuth>}/>
       <Route path='/platform/admin/enquiries' element={<RequirePlatformAuth permission={featurePermissions.enquiries}><EnquiryList/></RequirePlatformAuth>}/>
 
       {/* Client portal: for approved organizations/colleges/candidates */}

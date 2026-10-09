@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, ClipboardCheck, Building2, LogOut, MessageCircleQuestion, FileText, Menu, X } from 'lucide-react'
+import { LayoutDashboard, ClipboardCheck, Building2, LogOut, MessageCircleQuestion, FileText, Menu, X, Settings } from 'lucide-react'
 import { useAuth, usePermission } from '../../hooks/useAuth.jsx'
 import { featurePermissions } from '../../permissions/featurePermissions'
 import logo from '../../assets/logo.png'
@@ -11,6 +11,7 @@ const NAV = [
     { to: '/platform/admin/onboarding', label: 'Onboarding Review', icon: ClipboardCheck, permission: featurePermissions.onboarding },
     { to: '/platform/admin/clients', label: 'Clients', icon: Building2, permission: featurePermissions.clients },
     { to: '/platform/admin/enquiries', label: 'Enquiries', icon: MessageCircleQuestion, permission: featurePermissions.enquiries },
+    { to: '/platform/admin/settings', label: 'Settings', icon: Settings, permission: featurePermissions.settings },
 ]
 
 function AdminShell({ children }) {

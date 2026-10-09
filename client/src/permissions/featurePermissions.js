@@ -7,4 +7,5 @@ export const featurePermissions = {
     enquiries: "ENQUIRY_READ",
     communications: "COMMUNICATION_READ",
     formBuilder: "FORM_READ",
+    settings: "SETTINGS_WRITE",
 }
