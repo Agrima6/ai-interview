@@ -139,6 +139,15 @@ export const agentServiceClient = {
         ),
 
     // The stored conversation, in order. No demo fallback: a transcript must be real or absent.
+    // Platform-wide voice provider (Sarvam / ElevenLabs). No demo fallback: a setting must never be faked.
+    getVoiceProvider: () => call(() => client().get("/v1/settings/voice-provider")),
+    setVoiceProvider: (provider, actor, expectedVersion) =>
+        call(() => client().put(
+            "/v1/settings/voice-provider",
+            { provider, ...(Number.isInteger(expectedVersion) ? { expectedVersion } : {}) },
+            { headers: { "X-Actor": String(actor || "").slice(0, 120) } },
+        )),
+
     getTranscript: (interviewId) =>
         call(() => client().get(`/v1/interviews/${interviewId}/transcript`)),
 

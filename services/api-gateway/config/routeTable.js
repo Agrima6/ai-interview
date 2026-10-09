@@ -12,6 +12,7 @@ export const routeTable = [
     { prefix: "/api/v1/clients", target: process.env.CLIENT_SERVICE_URL },
     { prefix: "/api/v1/dashboard", target: process.env.DASHBOARD_SERVICE_URL },
     { prefix: "/api/v1/enquiries", target: process.env.ENQUIRY_SERVICE_URL },
+    { prefix: "/api/v1/admin", target: process.env.CLIENT_SERVICE_URL },
     { prefix: "/api/v1/drives", target: process.env.CLIENT_SERVICE_URL },
     { prefix: "/api/v1/candidates", target: process.env.CLIENT_SERVICE_URL },
     { prefix: "/api/v1/candidate", target: process.env.CLIENT_SERVICE_URL },
