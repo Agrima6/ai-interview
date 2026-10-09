@@ -85,7 +85,6 @@ function WorkmateNav() {
                     </div>
 
                     <div className='workmate-nav__auth hidden lg:flex items-center gap-3 ml-auto lg:ml-0 shrink-0 mr-3 lg:mr-0'>
-                        <Button variant='ghost' size='sm' className='workmate-nav__auth-button workmate-nav__auth-button--demo lg:!px-5 lg:!py-2.5 hidden sm:inline-flex' onClick={() => navigate('/login')}>Demo Login</Button>
                         <Button variant='primary' size='sm' className='workmate-nav__auth-button workmate-nav__auth-button--login lg:!px-5 lg:!py-2.5' onClick={goToPlatformLogin}>Login</Button>
                     </div>
 
@@ -126,17 +125,6 @@ function WorkmateNav() {
                         </nav>
                         <div className='mt-auto pt-6 border-t border-line flex flex-col gap-3'>
                             <Button
-                                variant='ghost'
-                                size='lg'
-                                className='w-full !justify-center py-3'
-                                onClick={() => {
-                                    setMenuOpen(false)
-                                    navigate('/login')
-                                }}
-                            >
-                                Demo Login
-                            </Button>
-                            <Button
                                 variant='primary'
                                 size='lg'
                                 className='w-full !justify-center py-3'
@@ -163,7 +151,7 @@ function WorkmateFooter() {
     const columns = [
         { key: 'solutions', h: 'Solutions', items: [['For Organizations', 'organizations'], ['For Colleges', 'colleges'], ['For Candidates', 'candidates']] },
         { key: 'company', h: 'Company', items: [['About', 'about'], ['Solution', 'how-it-works'], ['Contact', 'contact']] },
-        { key: 'get-started', h: 'Get Started', items: [['Pricing', 'pricing'], ['Register', '/platform/register'], ['Enquiry', 'contact']] },
+        { key: 'get-started', h: 'Get Started', items: [['Register', '/platform/register'], ['Enquiry', 'contact']] },
     ]
     return (
         <footer className='workmate-footer bg-accent-dark border-t border-white/20 text-bg pt-12 pb-10'>

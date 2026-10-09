@@ -32,6 +32,8 @@ const REDUCE_MOTION = typeof window !== 'undefined' && window.matchMedia?.('(pre
 
 const H2 = 'type-h2 text-ink'
 const EYEBROW = 'type-eyebrow text-accent mb-4'
+// The landing-page pricing section is switched off for now. Flip this to true to show it again - nothing was deleted.
+const SHOW_PRICING = false
 
 function CTAButton({ children, ...props }) {
     return (
@@ -903,7 +905,8 @@ function WHome() {
             <PowerfulFeatures />
             <EnterpriseAI />
 
-            {/* ============ PRICING ============ */}
+            {/* ============ PRICING (hidden for now: set SHOW_PRICING to true to bring it back; source kept intact) ============ */}
+            {SHOW_PRICING && (
             <section ref={planRef} id='pricing' className='workmate-shell scroll-mt-20 pb-12 pt-16 sm:pb-14 sm:pt-20 lg:pb-16 lg:pt-24'>
                 <p className={`${EYEBROW} justify-center flex`}>Pricing</p>
                 <h2 className={`${H2} mb-4 text-center`}>Simple, transparent pricing.</h2>
@@ -949,6 +952,7 @@ function WHome() {
                     {faqs.map(([q, a]) => <FaqItem key={q} q={q} a={a} />)}
                 </div>
             </section>
+            )}
 
             {/* ============ CONTACT ============ */}
             <section id='contact' aria-labelledby='contact-heading' tabIndex={-1} className='relative scroll-mt-20 overflow-hidden pt-10 pb-12 outline-none md:pt-20 md:pb-24'>
