@@ -77,6 +77,48 @@ const normalizeCandidate = (candidate, index = 0) => {
 
 const normalizeCandidates = (candidates = []) => candidates.map((candidate, index) => normalizeCandidate(candidate, index))
 
+const plainEntry = (entry) => (entry && typeof entry.toObject === "function" ? entry.toObject() : entry)
+
+// Identity data that belongs to the person, not to one round. Advancing a
+// candidate must reuse it (resume on file => slot-only flow) instead of
+// asking them to start over.
+const CARRY_OVER_FIELDS = ["phone", "exp", "resumeFilename", "resumeOriginalName", "preferredLanguage", "agentCandidateId"]
+
+// Builds the roster entry for `normalized` inside `round`:
+//  - already on this round's roster: keep everything the candidate/agent has
+//    produced (resume, slot, language, scores, reports) - re-saving a round
+//    must never wipe it. Only the recruiter-editable fields are refreshed.
+//  - new to this round but present in an earlier one: identity data is carried
+//    over from the most recent earlier round; round-specific state (status,
+//    score, slot, attempt, agent interview/report, violations) starts clean.
+//  - otherwise: a plain new entry.
+export const buildRosterEntry = (normalized, round, drive) => {
+    const email = normalized.email
+    const existing = (round.candidates || []).find((item) => String(item.email || "").toLowerCase() === email)
+    if (existing) {
+        const base = plainEntry(existing)
+        return { ...base, name: normalized.name, email, phone: normalized.phone || base.phone || "", exp: normalized.exp || base.exp || "" }
+    }
+    const earlier = (drive.rounds || [])
+        .filter((item) => item.roundNumber < round.roundNumber)
+        .sort((a, b) => b.roundNumber - a.roundNumber)
+        .map((item) => (item.candidates || []).find((c) => String(c.email || "").toLowerCase() === email))
+        .find(Boolean)
+    const entry = { ...normalized, status: "INVITED", aiScore: 0, malpracticeFlags: 0 }
+    if (round.roundNumber > 1 && earlier) {
+        const prior = plainEntry(earlier)
+        entry.id = prior.id || entry.id
+        for (const field of CARRY_OVER_FIELDS) {
+            if (prior[field] && !entry[field]) entry[field] = prior[field]
+        }
+        entry.demoAlwaysLive = Boolean(prior.demoAlwaysLive)
+    } else if (round.roundNumber === 1) {
+        // Round 1 keeps the previous behaviour (status/score supplied by the caller).
+        return normalized
+    }
+    return entry
+}
+
 const repairRoundStatuses = async (drive) => {
     if (!Array.isArray(drive.rounds) || drive.rounds.length === 0) return drive
     let changed = false
@@ -1167,15 +1209,19 @@ export const addRoundToDrive = async (tenantId, driveId, roundData, ctx) => {
     if (nextRoundNum > 4) throw new ApiError(400, "ROUND_LIMIT", "An interview drive can have a maximum of 4 rounds.")
     if (nextRoundNum > drive.totalRounds) throw new ApiError(400, "ROUND_LIMIT", `This drive is configured for ${drive.totalRounds} rounds.`)
 
-    const existingEmails = new Set(drive.rounds.flatMap((round) => round.candidates || []).map((candidate) => candidate.email.toLowerCase()))
-    const existingPhones = new Set(drive.rounds.flatMap((round) => round.candidates || []).map((candidate) => candidate.phone).filter(Boolean))
+    // A candidate already in an earlier round is being ADVANCED, not duplicated:
+    // only repeats inside this batch are dropped, and advancing candidates keep
+    // their identity data (see buildRosterEntry).
+    const seenEmails = new Set()
+    const seenPhones = new Set()
     const candidates = []
+    const stubRound = { roundNumber: nextRoundNum, candidates: [] }
     for (const [index, candidate] of (roundData.candidates || []).entries()) {
         const normalized = normalizeCandidate(candidate, index)
-        if (existingEmails.has(normalized.email) || (normalized.phone && existingPhones.has(normalized.phone))) continue
-        existingEmails.add(normalized.email)
-        if (normalized.phone) existingPhones.add(normalized.phone)
-        candidates.push(normalized)
+        if (seenEmails.has(normalized.email) || (normalized.phone && seenPhones.has(normalized.phone))) continue
+        seenEmails.add(normalized.email)
+        if (normalized.phone) seenPhones.add(normalized.phone)
+        candidates.push(buildRosterEntry(normalized, stubRound, drive))
     }
 
     const newRound = {
@@ -1289,7 +1335,8 @@ export const updateRound = async (tenantId, driveId, roundNumber, roundData) => 
     if (roundData.communicationSettings !== undefined) drive.communicationSettings = roundData.communicationSettings
     if (roundData.enablePublicLink !== undefined) drive.enablePublicLink = Boolean(roundData.enablePublicLink)
 
-    const candidates = (roundData.candidates || round.candidates || []).map((candidate, index) => normalizeCandidate(candidate, index))
+    const candidates = (roundData.candidates || round.candidates || []).map((candidate, index) =>
+        buildRosterEntry(normalizeCandidate(candidate, index), round, drive))
     round.title = String(roundData.title || round.title).trim()
     round.type = String(roundData.type || round.type).trim()
     round.startDate = roundData.startDate || round.startDate || drive.startDate
