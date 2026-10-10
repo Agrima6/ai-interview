@@ -5,6 +5,7 @@ import { InterviewDrive } from "../models/interviewDrive.model.js"
 import { NotificationTemplate } from "../models/notificationTemplate.model.js"
 import { ApiError } from "../utils/response.js"
 import mongoose from "mongoose"
+import { resolveInterviewQuestions } from "../utils/interviewQuestions.js"
 import { ACTIVE_STATUSES, SKIP_MESSAGES, advanceStatus, mapServiceStatus, planDispatch } from "../utils/communicationPlan.js"
 import { bookSlot } from "./slotBooking.service.js"
 import { resolveAvailability, publicAvailability } from "../utils/slotPolicy.js"
@@ -850,7 +851,8 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber)
         }
     }
 
-    const questionsToSend = (round?.questions?.length ? round.questions : (round?.customQuestions?.length ? round.customQuestions : (drive.questions?.length ? drive.questions : drive.customQuestionsList))) || []
+    // HR's questions for this round (see utils/interviewQuestions.js for the rule).
+    const questionsToSend = resolveInterviewQuestions(round, drive)
 
     // What HR wants validated: the round's weighted skills (falls back to the drive's). Weights become priorities agent-side.
     const focusAreas = (round?.skillRubrics?.length ? round.skillRubrics : drive.skillRubrics || [])
@@ -1298,9 +1300,15 @@ export const updateRound = async (tenantId, driveId, roundNumber, roundData) => 
     if (roundData.interviewMode !== undefined) round.interviewMode = normalizeInterviewMode(roundData.interviewMode)
     round.questionBankTitle = roundData.questionBankTitle || round.questionBankTitle
     if (roundData.questionBankId !== undefined) round.questionBankId = roundData.questionBankId
-    if (roundData.questions) round.questions = roundData.questions
+    if (Array.isArray(roundData.questions)) round.questions = roundData.questions
     round.skillRubrics = roundData.skillRubrics || round.skillRubrics
     round.customQuestions = roundData.customQuestions || roundData.customQuestionsList || roundData.questions || round.customQuestions
+    // Round 1 is mirrored on the drive: keep the mirror equal to what HR just saved (including "none"), so removing
+    // every question does not make the old drive-level list reappear.
+    if (Number(roundNumber) === 1 && Array.isArray(roundData.questions)) {
+        drive.questions = round.questions
+        drive.customQuestionsList = round.customQuestions
+    }
     round.candidates = candidates
     if (drive.status === 'DRAFT' || round.status !== 'ACTIVE') round.status = 'DRAFT'
     drive.candidatesCount = drive.rounds.reduce((total, item) => total + item.candidates.length, 0)
