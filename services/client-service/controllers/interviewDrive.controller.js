@@ -1,5 +1,6 @@
 import * as driveService from "../services/interviewDrive.service.js"
 import { ok, ApiError } from "../utils/response.js"
+import { candidateCompletionReceipt } from "../utils/candidateQuestions.js"
 
 export const createDrive = async (req, res, next) => {
     try {
@@ -117,8 +118,9 @@ export const completeAgentInterview = async (req, res, next) => {
     try {
         requireCandidate(req)
         const { id, roundNumber } = req.params
-        const report = await driveService.completeAgentInterview(req.user.tenantId, req.user.email, id, roundNumber)
-        ok(res, report)
+        // The full evaluation is saved on the roster entry for HR (see the service); the candidate only gets a receipt.
+        await driveService.completeAgentInterview(req.user.tenantId, req.user.email, id, roundNumber)
+        ok(res, candidateCompletionReceipt())
     } catch (error) {
         next(error)
     }
