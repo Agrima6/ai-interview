@@ -19,13 +19,34 @@ const PRIORITY_LABEL = { HIGH: 'High priority', MEDIUM: 'Medium priority', LOW: 
  * Decision support only: it never rejects a candidate.
  */
 function InterviewIntelligence({ content }) {
+  const hrQuestions = content?.hr_question_coverage || []
   const focus = content?.hr_focus_coverage || []
   const claims = content?.resume_validation || []
   const flags = content?.contradictions || []
-  if (!focus.length && !claims.length && !flags.length) return null
+  if (!hrQuestions.length && !focus.length && !claims.length && !flags.length) return null
 
   return (
     <div className="mb-6 space-y-4">
+      {hrQuestions.length > 0 && (
+        <section aria-label="HR questions">
+          <h3 className="text-[13px] font-semibold text-ink mb-2.5 flex items-center gap-1.5">
+            <Target size={14} className="text-accent" /> HR questions: {hrQuestions.filter((q) => q.status === 'ANSWERED').length} of {hrQuestions.length} reached
+          </h3>
+          <ul className="divide-y divide-line rounded-xl border border-line bg-card">
+            {hrQuestions.map((q) => (
+              <li key={q.question_id} className="p-3.5 flex flex-wrap items-center gap-2">
+                <span className="text-[13px] text-ink flex-1 min-w-[12rem]">{q.question}</span>
+                {q.score != null && <span className="text-[12px] text-text-secondary">Score {Math.round(q.score)}%</span>}
+                <Badge variant={q.status === 'ANSWERED' ? 'success' : 'danger'}>{q.status === 'ANSWERED' ? 'Answered' : 'Not reached'}</Badge>
+              </li>
+            ))}
+          </ul>
+          {content?.hr_questions_not_reached?.length > 0 && (
+            <p className="mt-1.5 text-[12px] text-text-secondary">Questions marked &ldquo;Not reached&rdquo; were not asked in this interview (for example because time ran out or it ended early).</p>
+          )}
+        </section>
+      )}
+
       {focus.length > 0 && (
         <section aria-label="HR focus coverage">
           <h3 className="text-[13px] font-semibold text-ink mb-2.5 flex items-center gap-1.5">
