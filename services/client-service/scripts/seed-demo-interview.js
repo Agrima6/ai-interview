@@ -4,6 +4,7 @@
  *
  *   npm run demo:interview                          # for the default demo candidate
  *   npm run demo:interview -- someone@example.com   # for another candidate who already has a drive
+ *   npm run demo:interview -- someone@example.com "Latest Test Demo"   # a second, separately named one
  *
  * Safe to run repeatedly: it updates the same drive (matched by tenant + title) and resets the candidate
  * to a fresh, live-now interview - slot in 5 minutes (inside the 10-min-early / 90-min-late window), no
@@ -14,7 +15,9 @@ import "dotenv/config"
 import mongoose from "mongoose"
 import { InterviewDrive } from "../models/interviewDrive.model.js"
 
-const DEMO_TITLE = "Demo AI Interview"
+// A second, separately named always-live interview can be kept next to the default one:
+//   npm run demo:interview -- someone@example.com "Latest Test Demo"      (or DEMO_INTERVIEW_TITLE=...)
+const DEMO_TITLE = (process.argv[3] || process.env.DEMO_INTERVIEW_TITLE || "Demo AI Interview").trim().slice(0, 120)
 const email = (process.argv[2] || process.env.DEMO_CANDIDATE_EMAIL || "agrima.agarwal.23cse@bmu.edu.in").toLowerCase().trim()
 const DAY = 24 * 3600 * 1000
 

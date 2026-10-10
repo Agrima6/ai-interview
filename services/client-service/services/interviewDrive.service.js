@@ -13,6 +13,7 @@ import { requireValidObjectId } from "../utils/validateId.js"
 import { communicationServiceClient, authServiceClient } from "../config/internalClients.js"
 import * as clientRepo from "../repositories/client.repository.js"
 import { agentServiceClient } from "../config/agentServiceClient.js"
+import { candidateSafeQuestions } from "../utils/candidateQuestions.js"
 import { uploadBuffer, getObjectBuffer, getObjectStream, RESUMES_BUCKET, RECORDINGS_BUCKET, PROCTOR_BUCKET } from "../config/s3Client.js"
 import { enqueueRecordingProcessing } from "../config/sqsClient.js"
 
@@ -937,7 +938,8 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber)
     if (session.agent_dispatched === false) {
         throw new ApiError(503, "AGENT_UNAVAILABLE", "The AI interviewer could not be started right now. Please try again in a moment.")
     }
-    const questions = (plan?.questions || []).filter((q) => q.question_text)
+    // Only what the browser needs - never the agent plan's rubric fields (expected topics, competencies...).
+    const questions = candidateSafeQuestions(plan)
     return { url: session.url, token: session.token, roomName: session.room_name, interviewId: candidate.agentInterviewId, questions }
 }
 
@@ -973,7 +975,14 @@ export const saveCandidateRecording = async (tenantId, email, driveId, roundNumb
     const roleFolder = sanitizePathSegment(drive.title || drive.roleCategory || "role")
     const interviewFolder = sanitizePathSegment(candidate.agentInterviewId || candidate.id)
     const recordingKey = `${companyFolder}/${roleFolder}/${interviewFolder}/recording/${Date.now()}.${ext}`
-    await uploadBuffer(RECORDINGS_BUCKET, recordingKey, recordingFile.buffer, recordingFile.mimetype)
+    try {
+        await uploadBuffer(RECORDINGS_BUCKET, recordingKey, recordingFile.buffer, recordingFile.mimetype)
+    } catch (err) {
+        // Best-effort by design (see above): object storage being down must not surface as a server error to a
+        // candidate who has just finished their interview. Report that nothing was stored and carry on.
+        console.error(`[client-service] recording upload failed for ${email} (storage unreachable?):`, err.code || err.message)
+        return { recordingFilename: candidate.recordingFilename || null, stored: false }
+    }
     candidate.recordingFilename = recordingKey
     await drive.save()
 
