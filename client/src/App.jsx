@@ -20,6 +20,8 @@ import RequireAuth from './components/RequireAuth'
 import RequireRole from './components/RequireRole'
 import InviteLanding from './pages/InviteLanding'
 import WHome from './pages/workmate/WHome'
+import LandingPage from './pages/landing/LandingPage'
+import PricingPage from './pages/landing/PricingPage'
 import HeroGsapExperiment from './pages/workmate/HeroGsapExperiment'
 import HeroDotsExperiment from './pages/workmate/HeroDotsExperiment'
 import HeroEcosystem from './pages/workmate/HeroEcosystem'
@@ -87,11 +89,13 @@ function App() {
 
   return (
     <Routes>
-      {/* WorkmateIQ marketing page is now the real landing page. The old
-          Home.jsx design still exists in the codebase but is no longer
-          routed anywhere. */}
-      <Route path='/' element={<WHome/>}/>
-      <Route path='/welcome' element={<WHome/>}/>
+      {/* The redesigned front page (pages/landing) is the real landing page. The previous design
+          (WHome) is kept and reachable at /welcome-classic so the two can be compared. */}
+      <Route path='/' element={<LandingPage/>}/>
+      <Route path='/welcome' element={<LandingPage/>}/>
+      <Route path='/welcome-classic' element={<WHome/>}/>
+      {/* Public pricing page. /pricing (signed-in purchase flow) is unchanged. */}
+      <Route path='/plans' element={<PricingPage/>}/>
       <Route path='/hero-minimal' element={<WorkmateLayout showCursorSpotlight={false}><HeroMinimalExperiment/></WorkmateLayout>}/>
       <Route path='/hero-hover' element={<WorkmateLayout showCursorSpotlight={false}><HeroHoverExperiment/></WorkmateLayout>}/>
       <Route path='/hero-experiment' element={<WorkmateLayout showCursorSpotlight={false}><HeroExperiment/></WorkmateLayout>}/>

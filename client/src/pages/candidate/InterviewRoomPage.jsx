@@ -51,7 +51,6 @@ function InterviewRoomPage() {
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
     const [candidateAnswer, setCandidateAnswer] = useState('')
     const [isAIEvaluating, setIsAIEvaluating] = useState(false)
-    const [activeTab, setActiveTab] = useState('question') // 'question' | 'transcript' | 'notes'
     const [notes, setNotes] = useState('')
     const [elapsedSeconds, setElapsedSeconds] = useState(0)
     const [showCaptions, setShowCaptions] = useState(true)
@@ -60,7 +59,6 @@ function InterviewRoomPage() {
     const [endConfirmOpen, setEndConfirmOpen] = useState(false)
     const [controlsOpen, setControlsOpen] = useState(false)         // compact mic / camera / CC controls (hover or tap)
     const [moreOpen, setMoreOpen] = useState(false)
-    const [timelineOpen, setTimelineOpen] = useState(false)         // small screens: the full question list is collapsed
     const [longThink, setLongThink] = useState(false)
     const [agentProgress, setAgentProgress] = useState(null)        // {question_id, question_index, total, phase} from the interviewer
     const qStartRef = useRef(0)                                     // elapsed-seconds value when the current question began
@@ -316,10 +314,8 @@ function InterviewRoomPage() {
 
     // Auto-scroll transcript feed
     useEffect(() => {
-        if (activeTab === 'transcript') {
-            transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-        }
-    }, [transcripts, activeTab])
+        transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }, [transcripts])
 
     // -------------------------------------------------------------
     // PROCTORING & RECORDING CAPABILITIES
@@ -1318,37 +1314,55 @@ function InterviewRoomPage() {
                 @media (prefers-reduced-motion: reduce) { .wm-toast, .wm-rec-dot, .wm-question { animation:none !important; } }
             `}</style>
 
-            {/* Header: kept minimal on purpose - brand, timer, End Interview */}
-            <header className='flex items-center justify-between gap-3 border-b border-line bg-card px-4 sm:px-6 py-3 shrink-0'>
-                <div className='flex items-center gap-3 min-w-0'>
-                    <img src={logo} alt='WorkmateIQ' className='w-9 h-9 rounded-lg shrink-0' />
-                    <div className='min-w-0'>
-                        <p className='font-display text-[15px] font-bold text-ink leading-tight truncate'>
-                            <span className='text-accent'>WorkmateIQ</span> <span className='hidden sm:inline'>· AI Interview Session</span>
-                        </p>
-                        <p className='text-[11.5px] text-text-secondary truncate'>Live Proctoring &amp; Speech AI</p>
+            {/* Header: brand, session label, integrity + recording status */}
+            <header className='border-b border-line bg-card shrink-0'>
+                <div className='flex items-center justify-between gap-3 px-4 sm:px-6 py-3'>
+                    <div className='flex items-center gap-3 min-w-0'>
+                        <img src={logo} alt='WorkmateIQ' className='w-9 h-9 rounded-full shrink-0' />
+                        <span className='font-display text-[16px] font-bold text-ink hidden sm:inline'>WorkmateIQ</span>
+                        <span className='hidden sm:block w-px h-8 bg-line' aria-hidden='true' />
+                        <div className='min-w-0'>
+                            <p className='font-display text-[14.5px] font-bold text-ink leading-tight truncate'>Live AI Interview{roundNumber ? ` · Round ${roundNumber}` : ''}</p>
+                            <p className='text-[11.5px] text-text-secondary truncate'>Live proctoring &amp; speech AI</p>
+                        </div>
+                    </div>
+                    <div className='flex items-center gap-2 sm:gap-3 shrink-0'>
+                        <span className={`hidden md:inline-flex items-center gap-2 text-[12.5px] font-semibold px-3.5 py-2 rounded-full ${
+                            violationCount === 0 ? 'bg-success-soft text-success' : violationCount >= 2 ? 'bg-danger-soft text-danger' : 'bg-warning-soft text-warning'
+                        }`}>
+                            <span className='w-2 h-2 rounded-full bg-current' aria-hidden='true' />
+                            Integrity monitoring active{violationCount > 0 ? ` · ${violationCount}/${MAX_VIOLATIONS}` : ''}
+                        </span>
+                        {recordingState === 'error' ? (
+                            <span role='status' className='inline-flex items-center gap-2 bg-amber-500 text-black text-[12.5px] font-bold px-3.5 py-2 rounded-full'>
+                                <AlertTriangle size={13} aria-hidden='true' /> Recording issue
+                            </span>
+                        ) : (
+                            <span role='timer' aria-label={`Interview time ${formatElapsed(elapsedSeconds)}`}
+                                className='inline-flex items-center gap-2 bg-[#5E0A22] text-white text-[12.5px] font-bold px-3.5 py-2 rounded-full tabular-nums'>
+                                {recordingState === 'recording' && <span className='wm-rec-dot w-2 h-2 rounded-full bg-red-400' style={{ animation: 'wmRecPulse 1.6s ease-in-out infinite' }} aria-hidden='true' />}
+                                {recordingState === 'recording' ? 'REC' : <Clock size={13} aria-hidden='true' />} {formatElapsed(elapsedSeconds)}
+                            </span>
+                        )}
                     </div>
                 </div>
-                <div className='flex items-center gap-2 sm:gap-3 shrink-0'>
-                    <span className='inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-ink bg-neutral-soft px-3 py-2 rounded-lg tabular-nums' aria-label={`Interview time ${formatElapsed(elapsedSeconds)}`}>
-                        <Clock size={14} aria-hidden='true' /> {formatElapsed(elapsedSeconds)}
-                    </span>
-                    <button
-                        type='button'
-                        onClick={() => setEndConfirmOpen(true)}
-                        disabled={submitting}
-                        className='inline-flex items-center gap-1.5 border border-accent/40 text-accent font-semibold text-[12.5px] rounded-lg px-3.5 min-h-[40px] hover:bg-accent/5 focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50'
-                    >
-                        <LogOut size={14} aria-hidden='true' /> <span className='hidden sm:inline'>{submitting ? 'Submitting...' : 'End Interview'}</span><span className='sm:hidden'>End</span>
-                    </button>
-                </div>
+                {/* One segment per question: done / current / upcoming */}
+                {questions.length > 0 && (
+                    <div className='flex gap-1.5 px-4 sm:px-6 pb-3' role='progressbar' aria-label='Interview progress' aria-valuemin={0} aria-valuemax={questions.length} aria-valuenow={currentQuestionIndex}>
+                        {questions.map((q, idx) => (
+                            <span key={q.id || idx} className={`h-1.5 flex-1 rounded-full transition-colors duration-500 ${
+                                idx < currentQuestionIndex ? 'bg-accent/60' : idx === currentQuestionIndex ? 'bg-[#5E0A22]' : 'bg-neutral-soft'
+                            }`} />
+                        ))}
+                    </div>
+                )}
             </header>
 
-            <main className='flex-1 min-h-0 p-3 sm:p-4 min-[1200px]:p-5 grid gap-4 min-[1200px]:grid-cols-[minmax(0,1.75fr)_minmax(380px,1fr)] min-[1200px]:items-start'>
-                {/* ------------ Left: candidate video with Arav floating over it ------------ */}
-                <section aria-label='Interview video' className='flex flex-col gap-3 min-w-0'>
+            <main className='flex-1 min-h-0 p-3 sm:p-4 min-[1200px]:p-6 grid gap-5 min-[1200px]:grid-cols-[minmax(0,1.7fr)_minmax(360px,1fr)] min-[1200px]:items-start max-w-[1600px] w-full mx-auto'>
+                {/* ------------ Left: video, current question, controls ------------ */}
+                <section aria-label='Interview video' className='flex flex-col gap-4 min-w-0'>
                     <div
-                        className='group relative w-full aspect-[4/3] sm:aspect-video min-[1200px]:max-h-[calc(100vh-260px)] min-[1200px]:min-h-[360px] bg-black rounded-2xl overflow-hidden shadow-soft'
+                        className='group relative w-full aspect-[4/3] sm:aspect-video min-[1200px]:max-h-[calc(100vh-330px)] min-[1200px]:min-h-[340px] bg-black rounded-3xl overflow-hidden shadow-soft'
                         onClick={() => { setControlsOpen((v) => !v); setMoreOpen(false) }}
                     >
                         <video ref={videoRef} autoPlay muted playsInline className='w-full h-full object-cover' aria-label='Your camera' />
@@ -1360,22 +1374,16 @@ function InterviewRoomPage() {
                             </div>
                         )}
 
-                        {/* Recording status, always visible on the video */}
-                        <div className='absolute top-3 left-3 flex flex-col items-start gap-2'>
-                            {recordingState === 'error' ? (
-                                <span role='status' className='inline-flex items-center gap-2 bg-amber-500 text-black text-[12px] font-bold px-3 py-1.5 rounded-full'>
-                                    <AlertTriangle size={13} aria-hidden='true' /> Recording issue
-                                </span>
-                            ) : recordingState === 'recording' ? (
-                                <span role='status' className='inline-flex items-center gap-2 bg-black/70 backdrop-blur-sm text-white text-[12px] font-semibold px-3 py-1.5 rounded-full'>
-                                    <span className='wm-rec-dot w-2.5 h-2.5 rounded-full bg-red-500' style={{ animation: 'wmRecPulse 1.6s ease-in-out infinite' }} aria-hidden='true' />
-                                    Recording <span className='opacity-60'>|</span> <span className='tabular-nums'>{formatElapsed(elapsedSeconds)}</span>
-                                </span>
-                            ) : null}
-                        </div>
+                        {/* Whose turn it is */}
+                        <span role='status' className='absolute top-3 left-3 inline-flex items-center gap-2 bg-[#5E0A22]/85 backdrop-blur-sm text-white text-[12.5px] font-semibold pl-2 pr-3.5 py-1.5 rounded-full pointer-events-none'>
+                            <span className='w-7 h-7 rounded-full bg-accent flex items-center justify-center'>
+                                {aravState === 'speaking' ? <Volume2 size={14} aria-hidden='true' /> : aravState === 'listening' ? <Mic size={14} aria-hidden='true' /> : <Loader2 size={14} className='animate-spin' aria-hidden='true' />}
+                            </span>
+                            {aravState === 'speaking' ? 'Arav is speaking' : aravState === 'listening' ? 'Your turn to speak' : aravState === 'connecting' ? 'Connecting to Arav' : 'Arav is thinking'}
+                        </span>
 
                         {/* Arav: a floating participant tile. It sits top-right on small screens so it never covers the candidate. */}
-                        <div className='absolute right-2 top-2 w-[104px] sm:w-[148px] min-[1200px]:top-auto min-[1200px]:bottom-3 min-[1200px]:right-3 min-[1200px]:w-[186px]' onClick={(e) => e.stopPropagation()}>
+                        <div className='absolute right-2 top-12 w-[104px] sm:w-[148px] min-[1200px]:top-auto min-[1200px]:bottom-3 min-[1200px]:right-3 min-[1200px]:w-[186px]' onClick={(e) => e.stopPropagation()}>
                             <AravTile state={aravState} />
                         </div>
 
@@ -1434,6 +1442,42 @@ function InterviewRoomPage() {
                         </div>
                     </div>
 
+                    {/* Current question with its countdown */}
+                    <div className='rounded-2xl border border-[#F6D9E0] bg-gradient-to-r from-[#FFF3F5] to-white px-4 sm:px-5 py-4'>
+                        {currentQuestion ? (
+                            <div key={currentQuestion.id || currentQuestionIndex} className='wm-question flex items-center gap-4 sm:gap-5' style={{ animation: 'wmQuestionIn .3s ease-out both' }}>
+                                <div role='timer' aria-label={`Time left on this question ${formatElapsed(Math.max(questionLeft, 0))}`} className='relative w-[72px] h-[72px] shrink-0'>
+                                    <svg viewBox='0 0 72 72' className='w-full h-full -rotate-90' aria-hidden='true'>
+                                        <circle cx='36' cy='36' r='30' fill='none' strokeWidth='6' className='stroke-neutral-soft' />
+                                        <circle cx='36' cy='36' r='30' fill='none' strokeWidth='6' strokeLinecap='round'
+                                            strokeDasharray={2 * Math.PI * 30}
+                                            strokeDashoffset={2 * Math.PI * 30 * (1 - Math.min(1, Math.max(0, questionLeft / questionLimit)))}
+                                            className={`transition-all duration-1000 ${timerTone === 'over' || timerTone === 'critical' ? 'stroke-red-600' : timerTone === 'near' ? 'stroke-amber-500' : 'stroke-[#5E0A22]'}`} />
+                                    </svg>
+                                    <div className='absolute inset-0 flex flex-col items-center justify-center leading-none'>
+                                        <span className='text-[15px] font-bold text-ink tabular-nums'>{formatElapsed(Math.max(questionLeft, 0))}</span>
+                                        <span className='text-[9px] font-semibold text-text-secondary mt-0.5'>{timerTone === 'over' ? 'TIME UP' : 'LEFT'}</span>
+                                    </div>
+                                </div>
+                                <div className='min-w-0 flex-1'>
+                                    <p className='text-[12px] font-semibold text-accent'>
+                                        Question {currentQuestionIndex + 1} of {questions.length}
+                                        <span className='text-text-secondary font-medium'> · about {lo}–{hi} min</span>
+                                    </p>
+                                    <h2 className='text-[17px] sm:text-[20px] font-bold text-ink leading-snug mt-0.5'>{currentQuestion.question_text}</h2>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className='flex items-center gap-3 text-text-secondary py-1'>
+                                <Loader2 size={22} className='text-accent animate-spin shrink-0' aria-hidden='true' />
+                                <div>
+                                    <p className='text-[14px] font-semibold text-ink'>Arav is getting started...</p>
+                                    <p className='text-[12px]'>Your first question will appear here in a moment.</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     {/* Problems the candidate can act on, with plain-language guidance */}
                     {networkIssue && (
                         <div role='alert' className='p-3.5 rounded-xl border border-amber-300 bg-amber-50 text-[13px] text-amber-900 flex items-start gap-2'>
@@ -1465,228 +1509,101 @@ function InterviewRoomPage() {
                         </div>
                     )}
 
-                    {/* Persistent, lightweight integrity status (detailed warnings are temporary toasts) */}
-                    <div className='flex items-center gap-3 flex-wrap rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3'>
-                        <ShieldAlert size={18} className='text-amber-600 shrink-0' aria-hidden='true' />
-                        <div className='min-w-0'>
-                            <p className='text-[13px] font-bold text-ink leading-tight'>Integrity Monitoring Active</p>
-                            <p className='text-[12px] text-text-secondary'>Please stay in this tab and don&apos;t close the browser.</p>
-                        </div>
-                        <span className={`ml-auto text-[12px] font-bold px-2.5 py-1 rounded-full ${violationCount === 0 ? 'bg-success-soft text-success' : violationCount >= 2 ? 'bg-danger-soft text-danger' : 'bg-warning-soft text-warning'}`}>
-                            Warnings {violationCount}/{MAX_VIOLATIONS}
-                        </span>
-                        {required.screen && (
-                            screenShareOn ? (
-                                <span className='inline-flex items-center gap-1.5 text-[12px] font-medium text-success'><ScreenShare size={14} aria-hidden='true' /> Screen sharing active</span>
-                            ) : (
-                                <button type='button' onClick={requestScreenShare} className='inline-flex items-center gap-1.5 text-[12px] font-semibold text-danger underline min-h-[44px]'>
-                                    <ScreenShareOff size={14} aria-hidden='true' /> Screen sharing stopped - share again
-                                </button>
-                            )
-                        )}
-                    </div>
-
-                    {/* Desktop: a large End Interview below the main content */}
-                    <div className='hidden min-[1200px]:flex justify-center pt-1'>
+                    {/* Action row */}
+                    <div className='flex items-center justify-center gap-2.5 flex-wrap'>
+                        <button type='button' onClick={toggleMic} aria-pressed={!micOn}
+                            className={`inline-flex items-center gap-2 min-h-[46px] px-5 rounded-full border text-[14px] font-semibold focus-visible:outline-2 focus-visible:outline-accent ${micOn ? 'border-line bg-card text-ink hover:bg-neutral-soft' : 'border-red-300 bg-red-50 text-red-700'}`}>
+                            {micOn ? <Mic size={16} aria-hidden='true' /> : <MicOff size={16} aria-hidden='true' />} {micOn ? 'Mic on' : 'Mic off'}
+                        </button>
+                        <button type='button' onClick={handleRepeatQuestion} disabled={agentSpeaking || isAIEvaluating || !currentQuestion}
+                            className='inline-flex items-center gap-2 min-h-[46px] px-5 rounded-full border border-line bg-card text-ink text-[14px] font-semibold hover:bg-neutral-soft disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent'>
+                            <Volume2 size={16} aria-hidden='true' /> Repeat question
+                        </button>
                         <button type='button' onClick={() => setEndConfirmOpen(true)} disabled={submitting}
-                            className='inline-flex items-center justify-center gap-2.5 w-full max-w-sm min-h-[52px] rounded-2xl bg-accent hover:bg-accent-dark text-white text-[16px] font-bold shadow-lift transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50'>
-                            <LogOut size={18} aria-hidden='true' /> {submitting ? 'Submitting...' : 'End Interview'}
+                            className='inline-flex items-center gap-2 min-h-[46px] px-6 rounded-full bg-accent hover:bg-accent-dark text-white text-[14px] font-bold shadow-lift transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50'>
+                            <LogOut size={16} aria-hidden='true' /> {submitting ? 'Submitting...' : 'End interview'}
                         </button>
                     </div>
                 </section>
 
-                {/* ------------ Right: question, transcript, scratchpad ------------ */}
-                <aside aria-label='Interview details' className='min-w-0 min-[1200px]:sticky min-[1200px]:top-4'>
-                    <Card className='flex flex-col p-0 overflow-hidden shadow-soft min-[1200px]:max-h-[calc(100vh-120px)]'>
-                        <div role='tablist' aria-label='Interview panel' className='flex border-b border-line shrink-0'>
-                            {[
-                                { id: 'question', label: 'Question', icon: <Lightbulb size={15} aria-hidden='true' /> },
-                                { id: 'transcript', label: 'Live Transcript', icon: <MessageSquare size={15} aria-hidden='true' />, badge: transcripts.length },
-                                { id: 'notes', label: 'Scratchpad', icon: <Copy size={15} aria-hidden='true' /> },
-                            ].map((tab) => (
-                                <button key={tab.id} type='button' role='tab' id={`tab-${tab.id}`} aria-selected={activeTab === tab.id} aria-controls={`panel-${tab.id}`}
-                                    onClick={() => setActiveTab(tab.id)}
-                                    className={`flex-1 min-h-[48px] text-[13px] font-semibold flex items-center justify-center gap-1.5 border-b-2 transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent ${
-                                        activeTab === tab.id ? 'text-accent border-accent' : 'text-text-secondary border-transparent hover:text-ink'
-                                    }`}>
-                                    {tab.icon}<span>{tab.label}</span>
-                                    {tab.badge > 0 && <span className='text-[10px] bg-accent/10 text-accent font-bold px-1.5 rounded-full'>{tab.badge}</span>}
-                                </button>
-                            ))}
+                {/* ------------ Right: dialogue feed, security monitor, scratchpad ------------ */}
+                <aside aria-label='Interview details' className='min-w-0 flex flex-col gap-4'>
+                    <section className='rounded-3xl border border-line bg-card shadow-soft flex flex-col h-[360px] min-[1200px]:h-[calc(100vh-470px)] min-[1200px]:min-h-[280px]' aria-label='Real-time dialogue feed'>
+                        <div className='flex items-center justify-between px-5 pt-4 pb-3 shrink-0'>
+                            <h2 className='font-display text-[15px] font-bold text-ink'>Real-time dialogue feed</h2>
+                            {transcripts.length > 0 && <span className='text-[11px] text-text-secondary bg-neutral-soft px-2 py-0.5 rounded-full'>{transcripts.length}</span>}
                         </div>
-
-                        <div className='flex-1 overflow-y-auto p-4 sm:p-5' role='tabpanel' id={`panel-${activeTab}`} aria-labelledby={`tab-${activeTab}`}>
-                            {activeTab === 'question' && (
-                                <>
-                                    {currentQuestion ? (
-                                        <div key={currentQuestion.id || currentQuestionIndex} className='wm-question' style={{ animation: 'wmQuestionIn .3s ease-out both' }}>
-                                            <div className='flex items-center justify-between gap-3 flex-wrap mb-3'>
-                                                <span className='text-[12px] font-bold text-accent bg-accent/10 px-3 py-1 rounded-full'>
-                                                    Question {currentQuestionIndex + 1} of {questions.length}
-                                                </span>
-                                                <span className='inline-flex items-center gap-1.5 text-[12px] text-text-secondary'>
-                                                    <Clock size={13} aria-hidden='true' /> Estimated time: {lo}–{hi} min
-                                                </span>
-                                            </div>
-
-                                            <h2 className='text-[18px] sm:text-[19px] font-bold text-ink leading-snug mb-3'>{currentQuestion.question_text}</h2>
-
-                                            <div className='flex items-center justify-between gap-3 flex-wrap mb-4'>
-                                                <span
-                                                    role='timer'
-                                                    aria-label={`Time on this question ${formatElapsed(questionSeconds)}`}
-                                                    className={`inline-flex items-center gap-2 text-[13px] font-bold tabular-nums px-3 py-1.5 rounded-lg ${
-                                                        timerTone === 'over' || timerTone === 'critical' ? 'bg-danger-soft text-danger' : timerTone === 'near' ? 'bg-warning-soft text-warning' : 'bg-neutral-soft text-ink'
-                                                    }`}
-                                                >
-                                                    <Clock size={14} aria-hidden='true' /> {formatElapsed(questionSeconds)}
-                                                    <span className='text-[11px] font-semibold opacity-80'>
-                                                        {timerTone === 'over' ? 'Time limit reached' : timerTone === 'critical' ? `${Math.max(questionLeft, 0)}s left` : timerTone === 'near' ? 'Almost out of time' : 'on this question'}
-                                                    </span>
-                                                </span>
-                                                <button type='button' onClick={handleRepeatQuestion} disabled={agentSpeaking || isAIEvaluating}
-                                                    className='inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-text-secondary hover:text-accent min-h-[44px] disabled:opacity-40'>
-                                                    <Volume2 size={14} aria-hidden='true' /> Repeat question
-                                                </button>
-                                            </div>
-
-                                            <p className='text-[13px] text-text-secondary leading-relaxed rounded-xl bg-neutral-soft/70 px-4 py-3'>
-                                                Answer naturally. Arav will listen to your explanation in real time and may ask follow-up questions based on your response.
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        <div className='py-8 text-center text-text-secondary'>
-                                            <Loader2 size={24} className='mx-auto mb-2 text-accent animate-spin' aria-hidden='true' />
-                                            <p className='text-[13.5px] font-medium text-ink'>Arav is getting started...</p>
-                                            <p className='text-[12px] mt-1'>Your first question will appear here in a moment.</p>
-                                        </div>
-                                    )}
-
-                                    {/* Interview progress */}
-                                    {questions.length > 0 && (
-                                        <div className='mt-6 pt-5 border-t border-line'>
-                                            <div className='flex items-center justify-between mb-2'>
-                                                <p className='text-[14px] font-bold text-ink'>Interview Progress</p>
-                                                <p className='text-[12.5px] text-text-secondary'>{currentQuestionIndex} of {questions.length} completed</p>
-                                            </div>
-                                            <div className='h-2 rounded-full bg-neutral-soft overflow-hidden mb-3' role='progressbar' aria-valuemin={0} aria-valuemax={questions.length} aria-valuenow={currentQuestionIndex}>
-                                                <div className='h-full rounded-full bg-accent transition-all duration-500' style={{ width: `${(currentQuestionIndex / questions.length) * 100}%` }} />
-                                            </div>
-
-                                            <button type='button' onClick={() => setTimelineOpen((v) => !v)} aria-expanded={timelineOpen}
-                                                className='md:hidden w-full text-left text-[12.5px] font-semibold text-accent min-h-[44px]'>
-                                                {timelineOpen ? 'Hide all questions' : 'Show all questions'}
-                                            </button>
-                                            <ol className={`${timelineOpen ? 'block' : 'hidden'} md:block space-y-1.5`}>
-                                                {questions.map((q, idx) => {
-                                                    const done = idx < currentQuestionIndex
-                                                    const current = idx === currentQuestionIndex
-                                                    return (
-                                                        <li key={q.id || idx} aria-current={current ? 'step' : undefined}
-                                                            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ${current ? 'bg-accent/8 border border-accent/20' : ''}`}>
-                                                            <span className={`w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-[12px] font-bold ${
-                                                                done ? 'bg-success text-white' : current ? 'bg-accent text-white' : 'bg-neutral-soft text-text-secondary'
-                                                            }`}>
-                                                                {done ? <Check size={14} aria-hidden='true' /> : idx + 1}
-                                                            </span>
-                                                            <span className={`flex-1 min-w-0 text-[13px] leading-snug truncate ${current ? 'font-semibold text-ink' : done ? 'text-text-secondary' : 'text-text-secondary'}`}>
-                                                                {idx <= currentQuestionIndex ? q.question_text : `Question ${idx + 1}`}
-                                                            </span>
-                                                            <span className={`text-[11.5px] font-semibold shrink-0 ${current ? 'text-accent bg-accent/10 px-2 py-0.5 rounded-full' : done ? 'text-success' : 'text-text-secondary/70'}`}>
-                                                                {done ? 'Completed' : current ? 'Current' : 'Upcoming'}
-                                                            </span>
-                                                        </li>
-                                                    )
-                                                })}
-                                            </ol>
-                                        </div>
-                                    )}
-                                </>
-                            )}
-
-                        {/* Tab 2: Live Transcripts */}
-                        {activeTab === 'transcript' && (
-                            <div className='flex flex-col h-full'>
-                                <div className='flex items-center justify-between pb-3 mb-3 border-b border-line'>
-                                    <p className='text-[12px] font-bold text-text-secondary uppercase tracking-wider'>
-                                        Real-Time Dialogue Feed
-                                    </p>
-                                    <span className='text-[11px] text-text-secondary bg-neutral-soft px-2 py-0.5 rounded-full'>
-                                        Auto-synchronized
-                                    </span>
+                        <div className='flex-1 overflow-y-auto px-5 pb-4' aria-live='polite'>
+                            {transcripts.length === 0 ? (
+                                <div className='h-full flex flex-col items-center justify-center text-center text-text-secondary'>
+                                    <MessageSquare size={26} className='mb-2 text-text-secondary/40' aria-hidden='true' />
+                                    <p className='text-[13.5px] font-medium text-ink'>No speech recorded yet</p>
+                                    <p className='text-[12px] mt-1 max-w-xs'>As you and the AI interviewer speak, the conversation will appear here.</p>
                                 </div>
-
-                                {transcripts.length === 0 ? (
-                                    <div className='py-12 text-center text-text-secondary my-auto'>
-                                        <MessageSquare size={28} className='mx-auto mb-2 text-text-secondary/40' />
-                                        <p className='text-[13.5px] font-medium text-ink'>No speech recorded yet</p>
-                                        <p className='text-[12px] mt-1 max-w-xs mx-auto'>
-                                            As you and the AI interviewer speak, live transcribed dialogue will stream into this feed.
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className='space-y-3.5'>
-                                        {transcripts.map((t) => (
-                                            <div
-                                                key={t.id}
-                                                className={`flex flex-col gap-1 ${t.sender === 'agent' ? 'items-start' : 'items-end'}`}
-                                            >
-                                                <div className='flex items-center gap-1.5 text-[11px] text-text-secondary px-1'>
-                                                    {t.sender === 'agent' ? (
-                                                        <>
-                                                            <Bot size={12} className='text-accent' />
-                                                            <span className='font-bold text-accent'>Arav</span>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <User size={12} className='text-emerald-600' />
-                                                            <span className='font-bold text-emerald-600'>You</span>
-                                                        </>
-                                                    )}
-                                                    <span>&bull;</span>
-                                                    <span>{t.time}</span>
-                                                </div>
-                                                <div
-                                                    className={`max-w-[90%] p-3 rounded-2xl text-[13px] leading-relaxed shadow-2xs ${
-                                                        t.sender === 'agent'
-                                                            ? 'bg-neutral-soft text-ink rounded-tl-sm border border-line'
-                                                            : 'bg-accent text-white rounded-tr-sm'
-                                                    }`}
-                                                >
-                                                    {t.text}
-                                                </div>
+                            ) : (
+                                <div className='space-y-3'>
+                                    {transcripts.map((t) => (
+                                        <div key={t.id} className={`flex items-end gap-2 ${t.sender === 'agent' ? 'justify-start' : 'justify-end'}`}>
+                                            {t.sender === 'agent' && (
+                                                <span className='w-7 h-7 rounded-full bg-accent text-white flex items-center justify-center shrink-0' aria-hidden='true'><Bot size={14} /></span>
+                                            )}
+                                            <div className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-[13px] leading-relaxed ${
+                                                t.sender === 'agent' ? 'bg-gradient-to-br from-[#E94B6A] to-accent text-white rounded-bl-sm' : 'bg-neutral-soft text-ink rounded-br-sm'
+                                            }`}>
+                                                <p className={`text-[10.5px] font-semibold mb-0.5 ${t.sender === 'agent' ? 'text-white/80' : 'text-text-secondary'}`}>
+                                                    {t.sender === 'agent' ? 'AI interviewer' : 'You'} · {t.time}
+                                                </p>
+                                                {t.text}
                                             </div>
-                                        ))}
-                                        <div ref={transcriptEndRef} />
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                        {/* Tab 3: Notes / Scratchpad */}
-                        {activeTab === 'notes' && (
-                            <div className='flex flex-col h-full'>
-                                <p className='text-[12px] text-text-secondary mb-3'>
-                                    Private scratchpad for jotting down calculations, structure, or key points before speaking. This is private: it is not submitted, shown to the hiring team, or scored.
-                                </p>
-                                <textarea
-                                    value={notes}
-                                    onChange={(e) => setNotes(e.target.value)}
-                                    placeholder='Type your personal thoughts, code outlines, or notes here...'
-                                    className='w-full flex-1 min-h-[300px] resize-none bg-card border border-line rounded-xl p-3.5 text-[13px] text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/15 leading-relaxed font-mono'
-                                />
-                            </div>
-                        )}
+                                        </div>
+                                    ))}
+                                    {(aravState === 'thinking' || aravState === 'followup') && (
+                                        <div className='flex items-center gap-1 pl-9 text-text-secondary' aria-label='Arav is preparing a reply'>
+                                            <span className='w-1.5 h-1.5 rounded-full bg-current animate-pulse' /><span className='w-1.5 h-1.5 rounded-full bg-current animate-pulse [animation-delay:.2s]' /><span className='w-1.5 h-1.5 rounded-full bg-current animate-pulse [animation-delay:.4s]' />
+                                        </div>
+                                    )}
+                                    <div ref={transcriptEndRef} />
+                                </div>
+                            )}
                         </div>
-                    </Card>
-                </aside>
+                    </section>
 
-                {/* Mobile / tablet: End Interview at the bottom, reachable but behind a confirmation */}
-                <div className='min-[1200px]:hidden flex justify-center pb-2'>
-                    <button type='button' onClick={() => setEndConfirmOpen(true)} disabled={submitting}
-                        className='inline-flex items-center justify-center gap-2.5 w-full max-w-md min-h-[52px] rounded-2xl bg-accent hover:bg-accent-dark text-white text-[16px] font-bold shadow-lift focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50'>
-                        <LogOut size={18} aria-hidden='true' /> {submitting ? 'Submitting...' : 'End Interview'}
-                    </button>
-                </div>
+                    <section className='rounded-3xl border border-line bg-card shadow-soft px-5 py-4' aria-label='Live security monitor'>
+                        <h2 className='font-display text-[15px] font-bold text-ink mb-3'>Live security monitor</h2>
+                        <ul className='grid grid-cols-2 gap-2.5 text-[13px]'>
+                            {[
+                                { ok: cameraOn, on: 'Camera active', off: 'Camera off' },
+                                { ok: micOn, on: 'Mic active', off: 'Mic muted' },
+                                { ok: !required.screen || screenShareOn, on: required.screen ? 'Screen shared' : 'One tab only', off: 'Screen sharing stopped' },
+                                { ok: violationCount === 0, on: 'No window switch', off: `Warnings ${violationCount}/${MAX_VIOLATIONS}` },
+                            ].map((r) => (
+                                <li key={r.on} className={`flex items-center gap-2 rounded-xl px-3 py-2.5 font-medium ${r.ok ? 'bg-neutral-soft/70 text-ink' : 'bg-danger-soft text-danger'}`}>
+                                    {r.ok ? <CheckCircle2 size={16} className='text-success shrink-0' aria-hidden='true' /> : <AlertTriangle size={16} className='shrink-0' aria-hidden='true' />}
+                                    <span className='leading-tight'>{r.ok ? r.on : r.off}</span>
+                                </li>
+                            ))}
+                        </ul>
+                        {required.screen && !screenShareOn && (
+                            <button type='button' onClick={requestScreenShare} className='mt-3 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-danger underline min-h-[44px]'>
+                                <ScreenShareOff size={14} aria-hidden='true' /> Screen sharing stopped - share again
+                            </button>
+                        )}
+                        <p className='mt-3 text-[12px] text-text-secondary'>Please stay in this tab and don&apos;t close the browser.</p>
+                    </section>
+
+                    <details className='rounded-3xl border border-line bg-card shadow-soft px-5 py-3 group/notes'>
+                        <summary className='flex items-center gap-2 cursor-pointer min-h-[44px] font-display text-[15px] font-bold text-ink list-none'>
+                            <Copy size={15} aria-hidden='true' /> Scratchpad <span className='text-[11.5px] font-medium text-text-secondary'>private, not submitted</span>
+                        </summary>
+                        <textarea
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            placeholder='Jot down key points before speaking...'
+                            aria-label='Private scratchpad'
+                            className='w-full h-36 mt-2 mb-1 resize-none bg-card border border-line rounded-xl p-3 text-[13px] text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/15 leading-relaxed font-mono'
+                        />
+                    </details>
+                </aside>
             </main>
 
             <ConfirmModal

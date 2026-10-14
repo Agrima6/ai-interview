@@ -1,115 +1,62 @@
 import React, { useState } from 'react'
-import { Menu, X } from 'lucide-react'
-import logo from '../../assets/logo.png'
-import Button from '../Button'
+import { Link } from 'react-router-dom'
+import logo from '../../assets/landing/logo.webp'
+// Same header as the redesigned front page (pages/landing/LandingPage.jsx), reusing its scoped styles so the two never drift.
+import '../../pages/landing/landing-fonts.css'
+import '../../pages/landing/landing.css'
 
-function AuthHeader({ currentMode, onSwitchMode }) {
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+const NAV_LINKS = [
+    { label: 'About', href: '/#about' },
+    { label: 'Product', href: '/#product' },
+    { label: 'How it works', href: '/#how' },
+    { label: 'Solutions', href: '/#who' },
+]
 
-    const navLinks = [
-        { label: 'Home', href: '/#home' },
-        { label: 'About', href: '/#about' },
-        { label: 'How It Works', href: '/#how-it-works' },
-        { label: 'Solutions', href: '/#solutions' },
-        { label: 'Pricing', href: '/#pricing' },
-        { label: 'Contact', href: '/#contact' }
-    ]
+function AuthHeader({ onSwitchMode }) {
+    const [menuOpen, setMenuOpen] = useState(false)
+    const close = () => setMenuOpen(false)
 
     return (
-        <header className="sticky top-0 z-50 w-full bg-white border-b border-gray-100 shadow-sm px-6 py-4">
-            <div className="max-w-[1280px] mx-auto flex items-center justify-between">
-                {/* Logo & Brand */}
-                <div onClick={() => window.location.href = '/'} className="flex items-center gap-2.5 cursor-pointer shrink-0">
-                    <img src={logo} alt="WorkmateIQ Logo" className="w-10 h-10 rounded-full shadow-[0_4px_12px_-4px_rgba(196,22,31,0.6)]" />
-                    <span className="font-semibold text-[17px] tracking-tight text-[#1a1215]">WorkmateIQ</span>
-                </div>
+        <div className="wiq-landing" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", color: '#1F1417', position: 'sticky', top: 0, zIndex: 60 }}>
+            <header style={{ background: 'rgba(255,255,255,0.82)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', borderBottom: '1px solid #F3E8EB' }}>
+                <div className="pad" style={{ maxWidth: 1320, margin: '0 auto', padding: '12px 40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}>
+                    <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: '#1F1417', minHeight: 44 }}>
+                        <img src={logo} alt="" style={{ width: 38, height: 38, borderRadius: '50%' }} />
+                        <span style={{ fontWeight: 700, fontSize: 20, letterSpacing: '-0.02em' }}>WorkmateIQ</span>
+                    </Link>
 
-                {/* Navigation links (Desktop) */}
-                <nav className="hidden md:flex items-center gap-1.5">
-                    {navLinks.map((link) => (
-                        <a
-                            key={link.label}
-                            href={link.href}
-                            className="px-4 py-2 text-[14.5px] font-medium text-gray-600 hover:text-gray-900 rounded-full hover:bg-gray-50 transition-colors"
-                        >
-                            {link.label}
-                        </a>
-                    ))}
-                </nav>
-
-                {/* Actions (Desktop) */}
-                <div className="hidden md:flex items-center gap-3.5">
-                    <button
-                        onClick={() => onSwitchMode('login')}
-                        className={`text-[14.5px] font-semibold transition-colors ${
-                            currentMode === 'login'
-                                ? 'text-accent hover:text-accent-dark'
-                                : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                    >
-                        Login
-                    </button>
-                    <Button
-                        onClick={() => onSwitchMode('register')}
-                        variant={currentMode === 'register' ? 'primary' : 'primary'}
-                        size="md"
-                        className="!px-5 !py-2.5 !text-[13.5px]"
-                    >
-                        Join Now
-                    </Button>
-                </div>
-
-                {/* Mobile Menu Toggle */}
-                <div className="md:hidden flex items-center gap-3">
-                    <button
-                        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                        className="p-1.5 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
-                        aria-label="Toggle menu"
-                    >
-                        {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
-                    </button>
-                </div>
-            </div>
-
-            {/* Mobile Drawer */}
-            {mobileMenuOpen && (
-                <div className="md:hidden absolute top-[73px] left-0 w-full bg-white border-b border-gray-100 shadow-md flex flex-col px-6 py-5 gap-4 animate-in slide-in-from-top duration-200">
-                    <nav className="flex flex-col gap-2.5">
-                        {navLinks.map((link) => (
-                            <a
-                                key={link.label}
-                                href={link.href}
-                                onClick={() => setMobileMenuOpen(false)}
-                                className="px-3 py-2 text-[15px] font-medium text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-50 transition-colors"
-                            >
-                                {link.label}
-                            </a>
-                        ))}
+                    <nav className="navmid" aria-label="Main" style={{ display: 'flex', gap: 32, fontSize: 15 }}>
+                        {NAV_LINKS.map((l) => <a key={l.label} className="navlink" href={l.href}>{l.label}</a>)}
+                        <Link className="navlink" to="/plans">Pricing</Link>
                     </nav>
-                    <div className="h-px bg-gray-100 w-full my-1" />
-                    <div className="flex flex-col gap-3">
-                        <button
-                            onClick={() => {
-                                onSwitchMode('login')
-                                setMobileMenuOpen(false)
-                            }}
-                            className="w-full text-center py-2.5 text-[15px] font-semibold text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                        >
-                            Login
+
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                        <button type="button" className="hidesm" onClick={() => onSwitchMode('login')}
+                            style={{ background: 'none', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 15, fontWeight: 500, color: '#1F1417', padding: '11px 14px', minHeight: 44, display: 'inline-flex', alignItems: 'center' }}>
+                            Log in
                         </button>
-                        <Button
-                            onClick={() => {
-                                onSwitchMode('register')
-                                setMobileMenuOpen(false)
-                            }}
-                            className="w-full text-[14.5px] py-2.5"
-                        >
-                            Join Now
-                        </Button>
+                        <button type="button" className="btn gb" onClick={() => onSwitchMode('register')}
+                            style={{ border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 15, fontWeight: 600, padding: '11px 20px', minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 8, color: '#FFFFFF', borderRadius: 999 }}>
+                            Join now <span className="arr">→</span>
+                        </button>
+                        <button type="button" className="mbtn" aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen}
+                            aria-controls="wl-auth-mobile-menu" onClick={() => setMenuOpen((o) => !o)}>
+                            <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1F1417" strokeWidth="2" strokeLinecap="round">
+                                {menuOpen ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
+                            </svg>
+                        </button>
                     </div>
                 </div>
-            )}
-        </header>
+                {menuOpen && (
+                    <nav id="wl-auth-mobile-menu" className="mpanel" aria-label="Mobile">
+                        {NAV_LINKS.map((l) => <a key={l.label} href={l.href} onClick={close}>{l.label}</a>)}
+                        <Link to="/plans" onClick={close}>Pricing</Link>
+                        <a href="/login" onClick={(e) => { e.preventDefault(); close(); onSwitchMode('login') }}>Log in</a>
+                        <a href="/register" onClick={(e) => { e.preventDefault(); close(); onSwitchMode('register') }}>Join now</a>
+                    </nav>
+                )}
+            </header>
+        </div>
     )
 }
 
