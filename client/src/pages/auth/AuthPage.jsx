@@ -156,7 +156,7 @@ function AuthPage() {
             <AuthHeader currentMode={authMode} onSwitchMode={handleSwitchMode} />
 
             {/* Split layout container */}
-            <div className="flex-1 flex flex-col lg:flex-row min-h-[calc(100vh-73px)]">
+            <div className="flex-1 flex flex-col lg:flex-row min-h-[calc(100vh-69px)]">
                 {/* Left side brand panel (hidden on mobile) */}
                 <AuthBrandPanel mode={authMode} />
 

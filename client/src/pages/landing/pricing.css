@@ -1,0 +1,27 @@
+/* Redesigned pricing page. Scoped to .wiq-pricing; keyframes prefixed wp-. */
+
+.wiq-pricing{margin:0;background:#FBF6F4}
+.wiq-pricing a{color:#1C1114}.wiq-pricing a:hover{color:#A3123A}
+.wiq-pricing, .wiq-pricing *{box-sizing:border-box}
+.wiq-pricing .navlinks{display:flex;gap:30px}
+.wiq-pricing .navlinks a{text-decoration:none;padding:12px 0}
+.wiq-pricing .btn{transition:transform .25s ease, box-shadow .25s ease}
+.wiq-pricing .btn:hover{transform:translateY(-2px);box-shadow:0 10px 24px -10px rgba(176,18,63,.55)}
+.wiq-pricing .plan{transition:transform .45s cubic-bezier(.2,.8,.2,1), box-shadow .45s ease}
+.wiq-pricing .plan:hover{transform:translateY(-10px);box-shadow:0 40px 70px -40px rgba(35,9,15,.5)}
+.wiq-pricing .in{opacity:0;animation:wp-in .7s cubic-bezier(.2,.8,.2,1) forwards}
+.wiq-pricing .i1{animation-delay:.1s}.wiq-pricing .i2{animation-delay:.25s}.wiq-pricing .i3{animation-delay:.4s}
+@keyframes wp-in{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:none}}
+.wiq-pricing .shine{position:relative;overflow:hidden}
+.wiq-pricing .shine::after{content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.25),transparent);animation:wp-sh 3.5s ease-in-out infinite}
+@keyframes wp-sh{0%{left:-60%}60%,100%{left:130%}}
+.wiq-pricing .kb{animation:wp-kb 20s ease-in-out infinite alternate}
+@keyframes wp-kb{from{transform:scale(1.02)}to{transform:scale(1.12)}}
+@supports (animation-timeline: view()){
+.wiq-pricing .rv{animation:wp-rv linear both;animation-timeline:view();animation-range:entry 0% cover 28%}
+@keyframes wp-rv{from{opacity:0;transform:translateY(48px)}to{opacity:1;transform:none}}
+}
+@media (prefers-reduced-motion: reduce){.wiq-pricing *{animation:none !important;transition:none !important}.in{opacity:1}}
+@media (max-width:860px){.wiq-pricing .navlinks{display:none}.wiq-pricing .h1{font-size:46px !important}.wiq-pricing .pad{padding-left:20px !important;padding-right:20px !important}}
+
+.wiq-pricing a:focus-visible, .wiq-pricing button:focus-visible{outline:3px solid #E94B6A;outline-offset:3px}
