@@ -1,8 +1,9 @@
 import React from 'react'
 import { Mic, Volume2, Loader2 } from 'lucide-react'
+import interviewerVideo from '../../assets/videos/arav-interviewer.mp4'
 
 /**
- * Arav, the AI interviewer, drawn as a friendly cartoon face and shown like a participant in a video call.
+ * Arav, the AI interviewer, shown as a looping video of the interviewer like a participant in a video call.
  *
  *   state: connecting | listening | thinking | followup | speaking
  *
@@ -24,60 +25,6 @@ const SR = {
     speaking: 'Arav is speaking',
 }
 
-function Face({ state }) {
-    return (
-        <svg viewBox='0 0 120 120' className='w-full h-full' aria-hidden='true'>
-            <defs>
-                <linearGradient id='aravBg' x1='0' y1='0' x2='0' y2='1'>
-                    <stop offset='0' stopColor='#f6dfe1' />
-                    <stop offset='1' stopColor='#e9b9bd' />
-                </linearGradient>
-            </defs>
-            <rect width='120' height='120' fill='url(#aravBg)' />
-            {/* shoulders + shirt */}
-            <path d='M14 124 Q16 92 60 88 Q104 92 106 124 Z' fill='#2f3b52' />
-            <path d='M48 90 L60 104 L72 90 Z' fill='#f4f6fa' />
-            <rect x='52' y='78' width='16' height='14' rx='5' fill='#e4b48f' />
-            <g className='wm-arav__head'>
-                {/* ears */}
-                <ellipse cx='30' cy='58' rx='5' ry='7' fill='#e4b48f' />
-                <ellipse cx='90' cy='58' rx='5' ry='7' fill='#e4b48f' />
-                {/* face */}
-                <ellipse cx='60' cy='56' rx='30' ry='33' fill='#f1c7a1' />
-                {/* hair */}
-                <path d='M28 52 Q24 22 58 20 Q94 18 92 52 Q86 36 70 34 Q50 40 38 36 Q30 42 28 52 Z' fill='#3a2417' />
-                <path d='M40 30 Q56 22 74 28 Q60 26 40 30 Z' fill='#5a3a26' />
-                {/* brows */}
-                <g className='wm-arav__brows' stroke='#3a2417' strokeWidth='3' strokeLinecap='round' fill='none'>
-                    <path d='M40 46 Q47 42 54 46' />
-                    <path d='M66 46 Q73 42 80 46' />
-                </g>
-                {/* glasses */}
-                <g fill='none' stroke='#27303f' strokeWidth='2.6'>
-                    <rect x='36' y='49' width='23' height='17' rx='7' />
-                    <rect x='61' y='49' width='23' height='17' rx='7' />
-                    <path d='M59 57 H61' />
-                </g>
-                {/* eyes */}
-                <g className='wm-arav__eyes'>
-                    <g className='wm-arav__eye'><ellipse cx='47.5' cy='57.5' rx='3.4' ry='4' fill='#1d2230' /><circle cx='48.8' cy='56' r='1.2' fill='#fff' /></g>
-                    <g className='wm-arav__eye'><ellipse cx='72.5' cy='57.5' rx='3.4' ry='4' fill='#1d2230' /><circle cx='73.8' cy='56' r='1.2' fill='#fff' /></g>
-                </g>
-                {/* cheeks */}
-                <ellipse cx='40' cy='73' rx='5' ry='3' fill='#e58f8f' opacity='0.45' />
-                <ellipse cx='80' cy='73' rx='5' ry='3' fill='#e58f8f' opacity='0.45' />
-                {/* mouth: smile that opens while speaking */}
-                <path className='wm-arav__smile' d='M50 75 Q60 83 70 75' fill='none' stroke='#8a3b3b' strokeWidth='3' strokeLinecap='round' />
-                <ellipse className='wm-arav__talk' cx='60' cy='77' rx='8' ry='5.5' fill='#7a2630' />
-                {/* thinking dots */}
-                <g className='wm-arav__dots' fill='#8a3b3b'>
-                    <circle cx='52' cy='77' r='2' /><circle cx='60' cy='77' r='2' /><circle cx='68' cy='77' r='2' />
-                </g>
-            </g>
-        </svg>
-    )
-}
-
 function Wave({ active, calm }) {
     return (
         <span className={`wm-arav__wave ${active ? 'wm-arav__wave--on' : ''} ${calm ? 'wm-arav__wave--calm' : ''}`} aria-hidden='true'>
@@ -91,7 +38,7 @@ export default function AravTile({ state = 'listening', className = '' }) {
     return (
         <div className={`wm-arav wm-arav--${s} ${className}`} role='group' aria-label={SR[s]}>
             <div className='wm-arav__ring'>
-                <div className='wm-arav__face'><Face state={s} /></div>
+                <video className='wm-arav__video' src={interviewerVideo} autoPlay muted loop playsInline aria-hidden='true' />
             </div>
             <p className='wm-arav__name'>Arav</p>
             <p className='wm-arav__status' aria-live='polite'>
@@ -107,8 +54,8 @@ export default function AravTile({ state = 'listening', className = '' }) {
                 .wm-arav { display:flex; flex-direction:column; align-items:center; gap:4px; padding:10px 10px 9px; width:100%;
                     background:rgba(24,26,33,.78); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,.12); border-radius:18px;
                     color:#fff; box-shadow:0 8px 24px rgba(0,0,0,.35); }
-                .wm-arav__ring { width:min(84px, 46%); aspect-ratio:1; border-radius:9999px; padding:3px; background:rgba(255,255,255,.18); transition:box-shadow .3s, background .3s; }
-                .wm-arav__face { width:100%; height:100%; border-radius:9999px; overflow:hidden; background:#e9b9bd; }
+                .wm-arav__ring { width:100%; aspect-ratio:16/10; border-radius:12px; padding:2px; overflow:hidden; background:rgba(255,255,255,.18); transition:box-shadow .3s, background .3s; }
+                .wm-arav__video { display:block; width:100%; height:100%; object-fit:cover; border-radius:10px; background:#1f2a37; }
                 .wm-arav__name { font-size:14px; font-weight:700; line-height:1.1; margin-top:2px; }
                 .wm-arav__status { display:flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; color:rgba(255,255,255,.9); min-height:18px; white-space:nowrap; }
                 .wm-arav__spin { animation: wmAravSpin 1s linear infinite; }
@@ -135,7 +82,7 @@ export default function AravTile({ state = 'listening', className = '' }) {
                 .wm-arav--speaking .wm-arav__head { animation: wmAravBob .85s ease-in-out infinite; }
 
                 .wm-arav--connecting .wm-arav__ring { background:rgba(255,255,255,.12); }
-                .wm-arav--connecting .wm-arav__face { filter:grayscale(.6) brightness(.8); }
+                .wm-arav--connecting .wm-arav__video { filter:grayscale(.6) brightness(.8); }
 
                 .wm-arav__wave { display:inline-flex; align-items:center; gap:2px; height:14px; margin-left:2px; }
                 .wm-arav__wave i { display:block; width:3px; height:4px; border-radius:2px; background:#fff; opacity:.9; }
