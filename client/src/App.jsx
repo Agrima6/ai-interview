@@ -1,6 +1,7 @@
 import React from 'react'
 import { Route, Routes, Navigate, useLocation } from 'react-router-dom'
 import ErrorBoundary from './components/ErrorBoundary'
+import NotFoundPage from './pages/NotFoundPage'
 import AuthPage from './pages/auth/AuthPage'
 import Home from './pages/Home'
 import { useEffect, useState } from 'react'
@@ -119,6 +120,9 @@ function App() {
       <Route path='/register' element={<AuthPage/>}/>
       <Route path='/register/:type' element={<AuthPage/>}/>
       <Route path='/reset-password' element={<ResetPasswordPage/>}/>
+      {/* The emailed link points here (PASSWORD_RESET_URL on the server) - same page, either prefix works */}
+      <Route path='/platform/reset-password' element={<ResetPasswordPage/>}/>
+      <Route path='/platform/forgot-password' element={<Navigate to='/login' replace/>}/>
       <Route path='/platform/onboarding/:type/:token' element={<OnboardingFlow/>}/>
       <Route path='/platform/dashboard' element={<RequirePlatformAuth permission={featurePermissions.dashboard}><PlatformDashboard/></RequirePlatformAuth>}/>
       <Route path='/platform/admin/forms' element={<RequirePlatformAuth permission={featurePermissions.formBuilder}><FormBuilderPage/></RequirePlatformAuth>}/>
@@ -185,6 +189,7 @@ function App() {
       <Route path='/admin/employees' element={<RequireAuth><RequireRole roles={["admin","superadmin"]}><AdminPanel/></RequireRole></RequireAuth>}/>
       <Route path='/superadmin' element={<RequireAuth><RequireRole roles={["superadmin"]}><SuperAdminPanel/></RequireRole></RequireAuth>}/>
 
+      <Route path='*' element={<NotFoundPage/>}/>
     </Routes>
     </ErrorBoundary>
   )

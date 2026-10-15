@@ -156,12 +156,13 @@ function AuthPage() {
             <AuthHeader currentMode={authMode} onSwitchMode={handleSwitchMode} />
 
             {/* Split layout container */}
-            <div className="flex-1 flex flex-col lg:flex-row min-h-[calc(100vh-69px)]">
+            <div className="flex-1 flex flex-col lg:flex-row min-h-[calc(100vh-69px)] lg:flex-none lg:h-[calc(100vh-74px)] lg:overflow-hidden">
                 {/* Left side brand panel (hidden on mobile) */}
                 {authMode !== 'forgot-password' && <AuthBrandPanel mode={authMode} />}
 
                 {/* Right side form container */}
-                <div className={`flex-1 flex items-center justify-center p-6 md:p-12 ${authMode === 'forgot-password' ? 'bg-[#FBF6F4]' : 'bg-white'}`}>
+                <div className={`flex-1 min-h-0 flex justify-center p-6 md:p-12 lg:overflow-y-auto ${authMode === 'forgot-password' ? 'bg-[#FBF6F4]' : 'bg-white'}`}>
+                  <div className="w-full flex items-center justify-center my-auto">
                     {/* Render registration success page if set */}
                     {registrationSuccessData ? (
                         <AuthCard className="text-center animate-in fade-in duration-300 !max-w-[520px]">
@@ -369,6 +370,7 @@ function AuthPage() {
                             )}
                         </AuthCard>
                     )}
+                  </div>
                 </div>
             </div>
 
