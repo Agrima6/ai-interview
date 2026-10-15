@@ -82,7 +82,13 @@ export const uploadFile = async (req, res, next) => {
             fieldKey,
             fileMeta: { originalName: req.file.originalname, mimeType: req.file.mimetype, size: req.file.size },
         })
-        await writeFile(req.params.id, fileRecord.fileId, req.file.originalname, req.file.buffer, req.file.mimetype)
+        try {
+            await writeFile(req.params.id, fileRecord.fileId, req.file.originalname, req.file.buffer, req.file.mimetype)
+        } catch (storageErr) {
+            console.error("[onboarding-service] file storage write failed:", storageErr?.name || storageErr?.message)
+            await onboardingService.discardFileRecord({ onboardingId: req.params.id, fileId: fileRecord.fileId }).catch(() => {})
+            throw new ApiError(502, "FILE_STORAGE_UNAVAILABLE", "We couldn't store the file right now. Please try again in a moment.")
+        }
         ok(res, fileRecord)
     } catch (error) { next(error) }
 }

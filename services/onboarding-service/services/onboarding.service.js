@@ -149,6 +149,15 @@ export const registerFileUpload = async ({ onboardingId, rawToken, type, fieldKe
     return { fileId: String(fileId), fieldKey, ...fileMeta, status: "AVAILABLE" }
 }
 
+// Undo registerFileUpload when the bytes could not be stored, so a record never claims a file that does not exist
+// (which would let the form pass validation without the document).
+export const discardFileRecord = async ({ onboardingId, fileId }) => {
+    const session = await sessionRepo.findById(onboardingId)
+    if (!session) return
+    const files = (session.files || []).filter((f) => String(f.fileId) !== String(fileId))
+    await sessionRepo.update(onboardingId, { files })
+}
+
 export const submit = async ({ onboardingId, rawToken, type, consent }, ctx) => {
     const { session, invitation } = await resolveOwnedSession(onboardingId, rawToken, type)
     if (["SUBMITTED", "APPROVED"].includes(session.status)) {

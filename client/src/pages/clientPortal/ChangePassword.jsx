@@ -27,7 +27,10 @@ function ChangePassword() {
         try {
             await authApi.changePassword(currentPassword, newPassword)
             const updatedUser = await refresh()
-            if (updatedUser?.roles?.includes('CANDIDATE')) {
+            // An account that is an organization admin AND has a candidate application is an organization user first
+            // (same rule as the sign-in screen): only a pure candidate account lands in the candidate room.
+            const isOrgAdmin = updatedUser?.tenantId || updatedUser?.roles?.includes('CLIENT_ADMIN')
+            if (!isOrgAdmin && updatedUser?.roles?.includes('CANDIDATE')) {
                 navigate('/candidate/room')
                 return
             }
