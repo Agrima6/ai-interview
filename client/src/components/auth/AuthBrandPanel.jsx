@@ -13,8 +13,8 @@ function AuthBrandPanel({ mode }) {
     const illustrationSrc = isLogin ? '/login.png' : '/img1.png'
 
     return (
-        <div className="w-full lg:w-[48%] bg-gradient-to-br from-[#FFF5F2] to-white p-8 md:p-12 lg:p-16 flex flex-col justify-center border-r border-[#F3E8EB] gap-10">
-            <div className="max-w-[520px] w-full mx-auto space-y-8">
+        <div className="w-full lg:w-[48%] lg:h-full lg:overflow-hidden bg-gradient-to-br from-[#FFF5F2] to-white p-8 md:p-12 lg:px-16 lg:py-8 flex flex-col justify-center border-r border-[#F3E8EB]">
+            <div className="max-w-[520px] w-full mx-auto space-y-6 lg:space-y-5">
                 <div className="space-y-4">
                     {!isLogin && (
                         <span className="inline-flex px-3.5 py-1.5 rounded-full bg-white border border-[#F3DDE3] text-[13px] font-medium text-accent">
@@ -52,7 +52,7 @@ function AuthBrandPanel({ mode }) {
                 <img
                     src={illustrationSrc}
                     alt=""
-                    className="w-full max-w-[460px] h-auto object-contain rounded-[26px] border border-white bg-white/60 p-2.5 shadow-[0_40px_70px_-44px_rgba(90,20,40,0.5)]"
+                    className="w-full max-w-[460px] max-h-[22vh] h-auto object-contain rounded-[26px] border border-white bg-white/60 p-2.5 shadow-[0_40px_70px_-44px_rgba(90,20,40,0.5)]"
                 />
             </div>
         </div>
