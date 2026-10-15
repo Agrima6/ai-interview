@@ -17,6 +17,9 @@ import {
 import logo from '../../assets/logo.png'
 
 const MAX_VIOLATIONS = 3
+// Only a short utterance that is *just* the command counts, so "...before the end interview..." in an answer never ends it.
+const END_COMMAND = /^(please\s+)?(end|finish|stop|terminate)\s+(the\s+|this\s+|my\s+)?interview(\s+now|\s+please)?[.!]?$/i
+const isEndCommand = (text) => END_COMMAND.test(String(text || '').trim())
 const IDLE_PERM = { status: STATUS.IDLE, message: '', recovery: '' }
 // The scripted local demo interview (no real interviewer) exists for offline demos only: VITE_ALLOW_DEMO_INTERVIEW=true.
 const ALLOW_DEMO_INTERVIEW = String(import.meta.env?.VITE_ALLOW_DEMO_INTERVIEW || '').toLowerCase() === 'true'
@@ -107,6 +110,13 @@ function InterviewRoomPage() {
     const fullscreenEnteredRef = useRef(false)
     const violationCooldownRef = useRef(false)
     const terminatedRef = useRef(false)
+    const endingRef = useRef(false)                     // the one-way switch behind endInterview(): set once, never cleared
+    const endReasonRef = useRef('')
+    const endStepsRef = useRef({ recording: false, agent: false, submit: false })   // completed steps, so a retry never repeats them
+    const agentGoneTimerRef = useRef(null)
+    const [endState, setEndState] = useState('idle')   // idle | ending | submitted | failed
+    const [endError, setEndError] = useState('')
+    const [timeLimitSeconds, setTimeLimitSeconds] = useState(0)   // whole-interview limit, when the backend provides one
     const mediaRecorderRef = useRef(null)
     const recordedChunksRef = useRef([])
     const connectingRef = useRef(false)
@@ -418,6 +428,7 @@ function InterviewRoomPage() {
                 ]
             }
             setQuestions(questionsList)
+            setTimeLimitSeconds(Number(session?.time_limit_seconds ?? session?.duration_seconds) || 0)
 
             // A real interview must never silently turn into the scripted local demo (fake greeting, invented
             // questions, no interviewer) just because the room details are missing. Demo mode is opt-in.
@@ -484,7 +495,19 @@ function InterviewRoomPage() {
                     setAgentSpeaking(speakers.some((p) => !p.identity.startsWith('candidate-')))
                 })
 
-                room.on(RoomEvent.ParticipantConnected, () => setConnectState('connected'))
+                room.on(RoomEvent.ParticipantConnected, (p) => {
+                    setConnectState('connected')
+                    if (!String(p?.identity || '').startsWith('candidate-')) clearTimeout(agentGoneTimerRef.current)
+                })
+                // The interviewer leaving for good ends the interview. A short grace period lets a brief reconnect
+                // (the agent rejoining) pass without ending anything.
+                room.on(RoomEvent.ParticipantDisconnected, (p) => {
+                    if (endingRef.current || String(p?.identity || '').startsWith('candidate-')) return
+                    clearTimeout(agentGoneTimerRef.current)
+                    agentGoneTimerRef.current = setTimeout(() => {
+                        if (room.state === 'connected' && room.remoteParticipants.size === 0) endInterview('agent_disconnected')
+                    }, 8000)
+                })
                 room.on(RoomEvent.Reconnecting, () => setNetworkIssue(true))
                 room.on(RoomEvent.Reconnected, () => setNetworkIssue(false))
 
@@ -494,6 +517,8 @@ function InterviewRoomPage() {
 
                 // Real-Time Transcript Receiver over Data Channel
                 room.on(RoomEvent.DataReceived, (payload, participant, kind, topic) => {
+                    if (topic === 'interview_end') { endInterview('agent_ended'); return }
+                    if (endingRef.current) return      // nothing the room says matters once the interview is ending
                     if (topic === 'progress') {
                         try { setAgentProgress(JSON.parse(new TextDecoder().decode(payload))) } catch { /* ignore a malformed packet */ }
                         return
@@ -502,6 +527,10 @@ function InterviewRoomPage() {
                         try {
                             const decoded = new TextDecoder().decode(payload)
                             const data = JSON.parse(decoded)
+                            if (data.text && data.sender !== 'agent' && isEndCommand(data.text)) {
+                                endInterview('user_voice_command')
+                                return
+                            }
                             if (data.text) {
                                 setTranscripts((prev) => {
                                     const last = prev[prev.length - 1]
@@ -702,22 +731,94 @@ function InterviewRoomPage() {
         }
     }
 
-    const finishInterview = async () => {
+    // -------------------------------------------------------------
+    // ENDING THE INTERVIEW
+    // Every way an interview can finish (timer, interviewer, candidate's voice, the button, an integrity stop)
+    // goes through endInterview(reason). It is idempotent: the first caller wins and later ones are ignored.
+    // -------------------------------------------------------------
+    const withTimeout = (promise, ms) => Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timed out')), ms)),
+    ])
+
+    // Stop everything that listens or speaks, without touching the room or the saved recording.
+    const stopSpeechAndCapture = () => {
+        try { window.speechSynthesis?.cancel() } catch { /* nothing to cancel */ }
+        try { recognitionRef.current?.stop() } catch { /* already stopped */ }
+        try { roomRef.current?.localParticipant?.setMicrophoneEnabled(false) } catch { /* room already gone */ }
+        if (agentAudioRef.current) { try { agentAudioRef.current.pause() } catch { /* ignore */ } }
+    }
+
+    const releaseMedia = () => {
+        stopSpeechAndCapture()
+        if (localStreamRef.current) {
+            localStreamRef.current.getTracks().forEach((t) => t.stop())
+            localStreamRef.current = null
+        }
+        screenStreamRef.current?.getTracks().forEach((t) => t.stop())
+        const room = roomRef.current
+        if (room) {
+            try {
+                room.localParticipant?.trackPublications?.forEach((pub) => pub.track?.stop())
+                room.disconnect()
+            } catch { /* already disconnected */ }
+        }
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
+    }
+
+    const runCompletion = async () => {
+        const steps = endStepsRef.current
+        setEndState('ending')
+        setEndError('')
         setSubmitting(true)
         try {
-            await stopAndUploadRecording()
-            await completeAgentInterview(driveId, roundNumber).catch(() => null)
-            await completeInterview(driveId, roundNumber)
-        } finally {
-            if (localStreamRef.current) {
-                localStreamRef.current.getTracks().forEach((t) => t.stop())
-                localStreamRef.current = null
+            stopSpeechAndCapture()
+            // 1. Finish the recording and wait (bounded) for the upload to be accepted.
+            if (!steps.recording) {
+                await withTimeout(stopAndUploadRecording(), 25000).catch((err) => console.warn('Recording finalize:', err.message))
+                steps.recording = true
             }
-            roomRef.current?.disconnect()
-            if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
-            navigate('/candidate/room')
+            // 2. Tell the interviewer service the session is over (best effort: it may already have completed it).
+            if (!steps.agent) {
+                await withTimeout(completeAgentInterview(driveId, roundNumber), 8000).catch(() => null)
+                steps.agent = true
+            }
+            // 3. Submit completion. The server treats an already-completed interview as success.
+            if (!steps.submit) {
+                try {
+                    await withTimeout(completeInterview(driveId, roundNumber), 15000)
+                } catch (err) {
+                    const already = err?.status === 409 || /already/i.test(err?.message || '')
+                    if (!already) throw err
+                }
+                steps.submit = true
+            }
+            releaseMedia()
+            setEndState('submitted')
+            setTimeout(() => navigate('/candidate/room'), 2500)
+        } catch (err) {
+            console.error('Interview completion failed:', err?.message)
+            stopSpeechAndCapture()
+            setEndError(err?.message === 'timed out'
+                ? 'Submitting is taking longer than expected.'
+                : 'We could not submit your interview just now.')
+            setEndState('failed')
+        } finally {
+            setSubmitting(false)
         }
     }
+
+    const endInterview = (reason = 'user_ended') => {
+        if (endingRef.current) return Promise.resolve()
+        endingRef.current = true
+        terminatedRef.current = true
+        endReasonRef.current = reason
+        clearTimeout(agentGoneTimerRef.current)
+        console.info('Interview ending:', reason)
+        return runCompletion()
+    }
+    const finishInterview = () => endInterview('user_ended')
+    const retryCompletion = () => { if (endState === 'failed') runCompletion() }
 
     // -------------------------------------------------------------
     // PROCTORING EVENT LISTENERS (FULLSCREEN, TAB SWITCH, CLIPBOARD)
@@ -762,12 +863,24 @@ function InterviewRoomPage() {
 
     useEffect(() => {
         if (!terminated) return
-        const t = setTimeout(() => finishInterview(), 2500)
+        const t = setTimeout(() => endInterview('integrity_violation'), 2500)
         return () => clearTimeout(t)
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [terminated])
 
-    useEffect(() => () => roomRef.current?.disconnect(), [])
+    // Unmount is only a fallback: leave the room and release the camera/mic even if the page is left mid-interview.
+    useEffect(() => () => {
+        clearTimeout(agentGoneTimerRef.current)
+        try { window.speechSynthesis?.cancel() } catch { /* ignore */ }
+        localStreamRef.current?.getTracks().forEach((t) => t.stop())
+        roomRef.current?.disconnect()
+    }, [])
+
+    // The interview's own time limit, when the backend sets one.
+    useEffect(() => {
+        if (timeLimitSeconds > 0 && elapsedSeconds >= timeLimitSeconds) endInterview('time_limit')
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [elapsedSeconds, timeLimitSeconds])
 
     // Clock
     useEffect(() => {
@@ -791,6 +904,7 @@ function InterviewRoomPage() {
     }
 
     const speakText = useCallback((text) => {
+        if (endingRef.current) return Promise.resolve()   // a late callback must not restart audio once ending has begun
         return new Promise((resolve) => {
             if (typeof window === 'undefined' || !window.speechSynthesis) {
                 resolve()
@@ -1605,6 +1719,36 @@ function InterviewRoomPage() {
                     </details>
                 </aside>
             </main>
+
+            {endState !== 'idle' && (
+                <div role='alertdialog' aria-modal='true' aria-labelledby='end-title' className='fixed inset-0 z-[60] bg-white/95 backdrop-blur-sm flex items-center justify-center p-6'>
+                    <div className='max-w-md w-full text-center'>
+                        {endState === 'ending' && (
+                            <>
+                                <Loader2 size={34} className='mx-auto text-accent animate-spin' aria-hidden='true' />
+                                <h2 id='end-title' className='font-display text-[20px] font-bold text-ink mt-4'>Finishing your interview</h2>
+                                <p className='text-[13.5px] text-text-secondary mt-2'>Saving your recording and answers. Please keep this page open.</p>
+                            </>
+                        )}
+                        {endState === 'submitted' && (
+                            <>
+                                <CheckCircle2 size={40} className='mx-auto text-success' aria-hidden='true' />
+                                <h2 id='end-title' className='font-display text-[20px] font-bold text-ink mt-4'>Interview submitted</h2>
+                                <p className='text-[13.5px] text-text-secondary mt-2'>Thank you. Your responses have been sent for review.</p>
+                                <button type='button' onClick={() => navigate('/candidate/room')} className='mt-5 inline-flex items-center justify-center min-h-[46px] px-6 rounded-full bg-accent hover:bg-accent-dark text-white text-[14px] font-bold'>Go to my interviews</button>
+                            </>
+                        )}
+                        {endState === 'failed' && (
+                            <>
+                                <AlertTriangle size={38} className='mx-auto text-amber-600' aria-hidden='true' />
+                                <h2 id='end-title' className='font-display text-[20px] font-bold text-ink mt-4'>Your interview has ended</h2>
+                                <p className='text-[13.5px] text-text-secondary mt-2'>{endError} Your camera and microphone are off. Please try again.</p>
+                                <button type='button' onClick={retryCompletion} className='mt-5 inline-flex items-center justify-center min-h-[46px] px-6 rounded-full bg-accent hover:bg-accent-dark text-white text-[14px] font-bold'>Try again</button>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
 
             <ConfirmModal
                 open={endConfirmOpen}

@@ -5,7 +5,9 @@ import { useAuth } from '../hooks/useAuth.jsx'
 // Gate for the client portal (organizations/colleges approved via
 // onboarding) - same session/auth-service as the admin side, just a
 // different landing point when signed out.
-function RequireClientAuth({ children }) {
+// allowPasswordChange: set only on the change-password page itself, which must stay reachable while a change is
+// required (otherwise this guard redirects it to itself forever and the screen stays blank).
+function RequireClientAuth({ children, allowPasswordChange = false }) {
     const { status, user } = useAuth()
 
     if (status === 'loading') {
@@ -26,7 +28,7 @@ function RequireClientAuth({ children }) {
         return <Navigate to='/login' replace />
     }
 
-    if (user?.mustChangePassword) {
+    if (user?.mustChangePassword && !allowPasswordChange) {
         return <Navigate to='/platform/client/change-password' replace />
     }
 

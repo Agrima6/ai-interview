@@ -15,6 +15,7 @@ export const validateAgainstFormVersion = (formVersion, data) => {
     }
 
     for (const field of allFields) {
+        if (field.visibility?.field && String(data?.[field.visibility.field] ?? "") !== String(field.visibility.equals)) continue
         const value = data?.[field.key]
         const isFileType = ["FILE", "IMAGE", "MULTI_FILE"].includes(field.type)
         if (isFileType) continue // file upload isn't part of the registration step in this slice

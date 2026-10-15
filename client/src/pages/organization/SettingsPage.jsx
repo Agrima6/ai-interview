@@ -5,6 +5,7 @@ import OrganizationLayout from '../../components/organization/OrganizationLayout
 import { Card, Button, Input, Select, Skeleton, Tabs } from '../../components/ui'
 import { getOrganizationProfile, updateOrganizationBranding } from '../../api/organization/organizationApi'
 import Avatar from '../../components/ui/Avatar'
+import { resolveAssetUrl } from '../../api/client'
 import SmtpSettingsSection from '../../components/organization/SmtpSettingsSection'
 
 const TYPOGRAPHY_OPTIONS = [
@@ -46,7 +47,7 @@ function SettingsPage() {
         if (data?.branding?.primaryColor) setPrimaryColor(data.branding.primaryColor)
         if (data?.branding?.secondaryColor) setSecondaryColor(data.branding.secondaryColor)
         if (data?.branding?.fontFamily) setFontFamily(data.branding.fontFamily)
-        if (data?.logoUrl || data?.branding?.logoUrl) setLogoPreview(data.logoUrl || data.branding?.logoUrl)
+        if (data?.logoUrl || data?.branding?.logoUrl) setLogoPreview(resolveAssetUrl(data.logoUrl || data.branding?.logoUrl))
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))

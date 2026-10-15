@@ -1,5 +1,6 @@
 import React from 'react'
 import { Avatar } from '../ui'
+import { resolveAssetUrl } from '../../api/client'
 
 /**
  * Organization identity in the sidebar/topbar - fully data-driven, never
@@ -20,7 +21,7 @@ function OrganizationBrand({ profile, loading, size = 'md', showName = true, cla
 
     return (
         <div className={`flex items-center gap-2.5 min-w-0 ${className}`}>
-            <Avatar src={profile?.logoUrl} name={name} size={size} />
+            <Avatar src={resolveAssetUrl(profile?.logoUrl)} name={name} size={size} />
             {showName && <span className='font-display text-[14.5px] font-bold text-ink truncate'>{name}</span>}
         </div>
     )

@@ -3,6 +3,7 @@ import { formServiceClient, onboardingServiceClient, communicationServiceClient 
 import { validateAgainstFormVersion } from "../utils/formValidator.js"
 import { verifyCaptcha } from "../utils/captcha.js"
 import { ApiError } from "../utils/response.js"
+import { entityNounFor, fallbackClientName } from "../utils/entityTerms.js"
 
 export const REGISTRATION_TYPES = [
     { key: "ORGANIZATION", label: "Organization" },
@@ -72,7 +73,8 @@ export const submit = async (payload, ctx) => {
     const variables = {
         recipientName: contact.name,
         recipientGreeting: contact.name || "there",
-        clientName: clientName || "your institution",
+        clientName: clientName || fallbackClientName(normalizedType),
+        entityNoun: entityNounFor(normalizedType),
         onboardingUrl,
         supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
     }

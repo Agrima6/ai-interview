@@ -127,7 +127,13 @@ export const requestPasswordReset = async (email, ctx) => {
         expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
     })
 
-    const resetUrl = `${process.env.PASSWORD_RESET_URL}?token=${rawToken}`
+    const base = (process.env.PASSWORD_RESET_URL || (process.env.PUBLIC_APP_URL ? `${process.env.PUBLIC_APP_URL.replace(/\/+$/, "")}/reset-password` : "")).trim()
+    if (!base) {
+        // Without a configured link target the email would carry a broken link; say so loudly instead.
+        console.error("[auth-service] PASSWORD_RESET_URL (or PUBLIC_APP_URL) is not set - password reset email not sent")
+        return
+    }
+    const resetUrl = `${base}${base.includes("?") ? "&" : "?"}token=${encodeURIComponent(rawToken)}`
     // Best-effort, matching the pattern elsewhere (onboarding/client-approval
     // emails) - a transient provider failure shouldn't turn into a 500 for
     // the user, and revealing delivery failure here would leak account

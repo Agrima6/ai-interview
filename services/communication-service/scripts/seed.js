@@ -12,7 +12,7 @@ const onboardingLinkHtml = wrapEmailBody(`
         Thank you for registering <strong>{{clientName}}</strong> with WorkmateIQ.
     </p>
     <p style="margin:0 0 4px;font-size:14px;color:${INK};line-height:1.6;">
-        You're almost there. Please complete the remaining onboarding details so our team can review your institution and get everything set up.
+        You're almost there. Please complete the remaining onboarding details so our team can review your {{entityNoun}} and get everything set up.
     </p>
     ${button("Complete Onboarding →", "{{onboardingUrl}}")}
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fdf1f1;border:1px solid #f7dcdc;border-radius:12px;margin:0 0 4px;">
@@ -179,9 +179,9 @@ const templates = [
     {
         channel: "EMAIL", eventType: "ONBOARDING_LINK", name: "Onboarding link (email)",
         subject: "Complete your WorkmateIQ onboarding",
-        body: "Hi {{recipientGreeting}},\n\nThank you for registering {{clientName}} with WorkmateIQ.\n\nYou're almost there. Please complete the remaining onboarding details so our team can review your institution and get everything set up.\n\nComplete Onboarding: {{onboardingUrl}}\n\nThis link is valid for 7 days.\n\nIf you have any questions or run into an issue while completing the form, please contact our support team at {{supportEmail}}.\n\nRegards,\nThe WorkmateIQ Team",
+        body: "Hi {{recipientGreeting}},\n\nThank you for registering {{clientName}} with WorkmateIQ.\n\nYou're almost there. Please complete the remaining onboarding details so our team can review your {{entityNoun}} and get everything set up.\n\nComplete Onboarding: {{onboardingUrl}}\n\nThis link is valid for 7 days.\n\nIf you have any questions or run into an issue while completing the form, please contact our support team at {{supportEmail}}.\n\nRegards,\nThe WorkmateIQ Team",
         htmlBody: onboardingLinkHtml,
-        variables: ["recipientGreeting", "clientName", "onboardingUrl", "supportEmail"],
+        variables: ["recipientGreeting", "clientName", "entityNoun", "onboardingUrl", "supportEmail"],
     },
     {
         channel: "WHATSAPP", eventType: "ONBOARDING_LINK", name: "Onboarding link (WhatsApp)",

@@ -17,16 +17,79 @@ import {
     AlertCircle
 } from 'lucide-react'
 import { Card, Button, Input, Select, Textarea } from '../../components/ui'
-import { getOnboarding, autosaveOnboarding, uploadOnboardingFile, submitOnboarding } from '../../api/onboardingApi'
+import { getOnboardingFileLink, getOnboarding, autosaveOnboarding, uploadOnboardingFile, submitOnboarding } from '../../api/onboardingApi'
 import { getCaptcha } from '../../api/registrationsApi'
 import logo from '../../assets/logo.png'
 
 // Helper to check if a field is of file/image type
 const isFileType = (type) => ['FILE', 'IMAGE', 'MULTI_FILE'].includes(type)
+// A conditional field (visibility: { field, equals }) only appears, and is only validated, when its condition holds.
+const isFieldVisible = (field, data) => !field.visibility?.field || String(data?.[field.visibility.field] ?? '') === String(field.visibility.equals)
 const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || 'support@workmateiq.com'
 const fieldLabelParts = (field) => field.required
     ? <span className="text-red-500 ml-0.5">*</span>
     : <span className="text-text-secondary font-normal ml-1">(optional)</span>
+
+// Loads the file once (so a failure can be reported) and shows it as an image or a PDF. A missing file, a storage
+// outage or a non-PDF response becomes a visible message with a retry instead of a blank frame.
+function FilePreviewBody({ file }) {
+    const [state, setState] = useState({ status: 'loading', objectUrl: '', message: '' })
+    const [attempt, setAttempt] = useState(0)
+
+    useEffect(() => {
+        let cancelled = false
+        let objectUrl = ''
+        if (file.pending) { setState({ status: 'loading', objectUrl: '', message: '' }); return undefined }
+        if (!file.url) { setState({ status: 'error', objectUrl: '', message: 'The file could not be opened right now.' }); return undefined }
+        setState({ status: 'loading', objectUrl: '', message: '' })
+        ;(async () => {
+            try {
+                const res = await fetch(file.url, { credentials: 'include' })
+                if (!res.ok) {
+                    const msg = res.status === 404 ? 'This file could not be found.'
+                        : res.status === 401 || res.status === 403 ? 'You do not have access to this file.'
+                            : 'The file could not be loaded right now.'
+                    throw new Error(msg)
+                }
+                const blob = await res.blob()
+                const wantsPdf = file.type === 'application/pdf'
+                if (wantsPdf && !/pdf/i.test(blob.type)) throw new Error('The server did not return a valid PDF.')
+                objectUrl = URL.createObjectURL(blob)
+                if (!cancelled) setState({ status: 'ready', objectUrl, message: '' })
+            } catch (err) {
+                if (!cancelled) setState({ status: 'error', objectUrl: '', message: err?.message || 'The file could not be loaded.' })
+            }
+        })()
+        return () => { cancelled = true; if (objectUrl) URL.revokeObjectURL(objectUrl) }
+    }, [file.url, file.type, file.pending, attempt])
+
+    const downloadHref = `${file.url}${file.url.includes('?') ? '&' : '?'}download=1`
+    if (state.status === 'loading') {
+        return <p role="status" className="text-[13.5px] text-text-secondary py-16">Loading preview...</p>
+    }
+    if (state.status === 'error') {
+        return (
+            <div role="alert" className="text-center py-12 space-y-3">
+                <FileText size={44} className="text-text-secondary mx-auto" />
+                <p className="text-[14px] text-ink font-medium">{state.message}</p>
+                <Button size="sm" onClick={() => setAttempt((n) => n + 1)}>Try again</Button>
+            </div>
+        )
+    }
+    if (file.type?.startsWith('image/')) {
+        return <img src={state.objectUrl} alt={file.name} className="max-w-full max-h-[70vh] object-contain rounded-lg border border-line bg-white shadow-sm" />
+    }
+    if (file.type === 'application/pdf') {
+        return <iframe src={state.objectUrl} title={file.name} className="w-full h-[70vh] rounded-lg border border-line bg-white" />
+    }
+    return (
+        <div className="text-center py-12 space-y-4">
+            <FileText size={48} className="text-text-secondary mx-auto" />
+            <p className="text-[14px] text-text-secondary font-medium">Preview not available for this file type</p>
+            <a href={downloadHref}><Button size="sm">Download File</Button></a>
+        </div>
+    )
+}
 
 function OnboardingFlow() {
     const { type, token } = useParams()
@@ -50,6 +113,17 @@ function OnboardingFlow() {
 
     // For file preview modal
     const [previewFile, setPreviewFile] = useState(null) // { name, url, type }
+    // The link is requested at click time: private files open only through a short-lived signed URL.
+    const openPreview = async (file) => {
+        const base = { name: file.originalName, type: file.mimeType }
+        setPreviewFile({ ...base, url: '', pending: true })
+        try {
+            const url = await getOnboardingFileLink(onboarding.id, file.fileId, token, type.toUpperCase())
+            setPreviewFile({ ...base, url })
+        } catch {
+            setPreviewFile({ ...base, url: '' })
+        }
+    }
 
     // Captcha challenge states
     const [captcha, setCaptcha] = useState(null)
@@ -171,7 +245,7 @@ function OnboardingFlow() {
             if (fieldKey === 'logo') {
                 setBranding(b => ({
                     ...b,
-                    logoUrl: `/api/v1/onboardings/${onboarding.id}/files/${result.fileId}/view`
+                    logoUrl: ''
                 }))
             }
 
@@ -195,6 +269,7 @@ function OnboardingFlow() {
         const errors = {}
 
         for (const field of section.fields) {
+            if (!isFieldVisible(field, formData)) continue
             const val = formData[field.key]
             const file = files[field.key]
             const isFile = isFileType(field.type)
@@ -576,6 +651,8 @@ function OnboardingFlow() {
 
                             <div className="grid sm:grid-cols-2 gap-6 pt-4">
                                 {activeSection.fields.map((field) => {
+                                    if (!isFieldVisible(field, formData)) return null
+                                    const locked = Boolean(field.readOnly && onboarding?.data?.[field.key])
                                     const hasError = validationErrors[field.key]
                                     const isFullWidth = ['TEXTAREA', 'ADDRESS', 'RADIO', 'MULTI_SELECT', 'CHECKBOX', 'FILE', 'IMAGE'].includes(field.type)
                                     const limitMb = field.maxFileSizeMb || 10
@@ -615,11 +692,7 @@ function OnboardingFlow() {
                                                             </div>
                                                             <div className="flex items-center gap-2 ml-4">
                                                                 <button
-                                                                    onClick={() => setPreviewFile({
-                                                                        name: files[field.key].originalName,
-                                                                        url: `/api/v1/onboardings/${onboarding.id}/files/${files[field.key].fileId}/view`,
-                                                                        type: files[field.key].mimeType
-                                                                    })}
+                                                                    onClick={() => openPreview(files[field.key])}
                                                                     className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/[0.05] text-text-secondary transition-colors"
                                                                     title="Preview document"
                                                                 >
@@ -845,6 +918,8 @@ function OnboardingFlow() {
                                                     value={formData[field.key] || ''}
                                                     onChange={(e) => handleFieldChange(field.key, e.target.value)}
                                                     error={hasError}
+                                                    readOnly={locked}
+                                                    disabled={locked}
                                                     className="focus:ring-accent focus:border-accent"
                                                 />
                                             )}
@@ -873,7 +948,7 @@ function OnboardingFlow() {
                                         </button>
                                     </div>
                                     <div className="px-6 py-5 grid sm:grid-cols-2 gap-x-8 gap-y-4">
-                                        {sec.fields.map(field => {
+                                        {sec.fields.filter((field) => isFieldVisible(field, formData)).map(field => {
                                             const isFile = isFileType(field.type)
                                             const value = isFile ? files[field.key] : formData[field.key]
                                             return (
@@ -885,11 +960,7 @@ function OnboardingFlow() {
                                                                 <div className="flex items-center gap-3">
                                                                     <span className="text-[13px] font-semibold text-ink truncate">{value.originalName}</span>
                                                                     <button
-                                                                        onClick={() => setPreviewFile({
-                                                                            name: value.originalName,
-                                                                            url: `/api/v1/onboardings/${onboarding.id}/files/${value.fileId}/view`,
-                                                                            type: value.mimeType
-                                                                        })}
+                                                                        onClick={() => openPreview(value)}
                                                                         className="text-[12px] font-semibold text-accent hover:underline flex items-center gap-1"
                                                                     >
                                                                         <Eye size={12} /> Preview
@@ -1040,7 +1111,8 @@ function OnboardingFlow() {
                             </div>
                             <div className="flex items-center gap-2">
                                 <a
-                                    href={previewFile.url}
+                                    href={previewFile.url ? `${previewFile.url}${previewFile.url.includes('?') ? '&' : '?'}download=1` : undefined}
+                                    aria-disabled={!previewFile.url}
                                     download={previewFile.name}
                                     className="w-8 h-8 rounded-full flex items-center justify-center text-text-secondary hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition-colors"
                                     title="Download file"
@@ -1057,27 +1129,7 @@ function OnboardingFlow() {
                             </div>
                         </div>
                         <div className="flex-1 p-4 bg-bg overflow-auto flex items-center justify-center">
-                            {previewFile.type.startsWith('image/') ? (
-                                <img
-                                    src={previewFile.url}
-                                    alt={previewFile.name}
-                                    className="max-w-full max-h-[70vh] object-contain rounded-lg border border-line bg-white shadow-sm"
-                                />
-                            ) : previewFile.type === 'application/pdf' ? (
-                                <iframe
-                                    src={`${previewFile.url}#toolbar=0`}
-                                    title={previewFile.name}
-                                    className="w-full h-[70vh] rounded-lg border border-line bg-white"
-                                />
-                            ) : (
-                                <div className="text-center py-12 space-y-4">
-                                    <FileText size={48} className="text-text-secondary mx-auto" />
-                                    <p className="text-[14px] text-text-secondary font-medium">Preview not available for this file type</p>
-                                    <a href={previewFile.url} download={previewFile.name}>
-                                        <Button size="sm">Download File</Button>
-                                    </a>
-                                </div>
-                            )}
+                            <FilePreviewBody file={previewFile} />
                         </div>
                     </div>
                 </div>

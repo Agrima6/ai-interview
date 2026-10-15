@@ -7,6 +7,8 @@ import { formServiceClient, clientServiceClient, authServiceClient, communicatio
 import { generateRawToken, hashToken, invitationExpiry } from "../utils/token.js"
 import { validateAgainstFormVersion } from "../utils/formValidator.js"
 import { ApiError } from "../utils/response.js"
+import { entityNounFor, fallbackClientName } from "../utils/entityTerms.js"
+import { signedFilePath } from "../utils/signedFileUrl.js"
 import { keyFor } from "../utils/localFileStore.js"
 
 
@@ -86,7 +88,7 @@ export const getByToken = async (type, rawToken, ctx) => {
     const reviewItems = await reviewItemRepo.findOpenForOnboarding(session._id)
 
     const logoFile = session.files?.find((f) => f.fieldKey === "logo")
-    const logoUrl = logoFile ? `/api/v1/onboardings/${session._id}/files/${logoFile.fileId}/view` : null
+    const logoUrl = logoFile ? signedFilePath(session._id, logoFile.fileId) : null
 
     return {
         onboarding: {
@@ -110,12 +112,22 @@ export const getByToken = async (type, rawToken, ctx) => {
     }
 }
 
-export const autosave = async ({ onboardingId, rawToken, type, data, currentStep }) => {
+export const autosave = async ({ onboardingId, rawToken, type, data, currentStep }, ctx) => {
     const { session } = await resolveOwnedSession(onboardingId, rawToken, type)
     if (["SUBMITTED", "APPROVED"].includes(session.status)) {
         throw new ApiError(409, "ONBOARDING_LOCKED", "This onboarding has already been submitted and can no longer be edited.")
     }
-    const updated = await sessionRepo.mergeData(onboardingId, data || {}, currentStep)
+    // Read-only fields (e.g. the registered company name) keep the value the registration gave them: a client
+    // cannot overwrite one once it has a value, whatever the browser sends.
+    const incoming = { ...(data || {}) }
+    const formVersion = await formServiceClient.getVersion(session.formVersionId, ctx).catch(() => null)
+    for (const field of (formVersion?.sections || []).flatMap((s) => s.fields)) {
+        const existing = session.data?.[field.key]
+        if (field.readOnly && existing !== undefined && existing !== null && String(existing).trim() !== "") {
+            delete incoming[field.key]
+        }
+    }
+    const updated = await sessionRepo.mergeData(onboardingId, incoming, currentStep)
     return { savedAt: updated.lastSavedAt, currentStep: updated.currentStep }
 }
 
@@ -168,7 +180,8 @@ export const submit = async ({ onboardingId, rawToken, type, consent }, ctx) => 
             eventType: "ONBOARDING_SUBMITTED", recipient: session.contact.email,
             variables: {
                 recipientGreeting: session.contact.name || "there",
-                clientName: clientName || "your institution",
+                clientName: clientName || fallbackClientName(session.type),
+                entityNoun: entityNounFor(session.type),
                 supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
             },
         }, ctx).catch((err) => console.error("[onboarding-service] onboarding-submitted email failed:", err.message))
@@ -270,7 +283,8 @@ export const approve = async (id, reviewerId, ctx) => {
                     variables: {
                         recipientGreeting: session.contact.name || "there",
                         recipientEmail: session.contact.email,
-                        clientName: clientName || "your institution",
+                        clientName: clientName || fallbackClientName(session.type),
+                entityNoun: entityNounFor(session.type),
                         loginUrl: process.env.CLIENT_LOGIN_URL,
                         tempPassword: credentials.password,
                         supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
@@ -344,7 +358,8 @@ export const requestChanges = async (id, reviewerId, items, ctx) => {
             eventType: "ONBOARDING_CHANGES_REQUESTED", recipient: session.contact.email,
             variables: {
                 recipientGreeting: session.contact.name || "there",
-                clientName: clientName || "your institution",
+                clientName: clientName || fallbackClientName(session.type),
+                entityNoun: entityNounFor(session.type),
                 changesListHtml, changesListText, resumeUrl,
                 supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
             },
@@ -376,6 +391,13 @@ export const activityPage = async ({ cursor, limit = 10 }) => {
 }
 
 export const trend = (since, filters = {}) => sessionRepo.dailyCountsSince(since, filters)
+
+// A one-hour signed link to one file of an onboarding the caller owns (token) or may review (admin route).
+export const issueFileLink = async ({ onboardingId, fileId, rawToken, type, skipOwnership = false }) => {
+    if (!skipOwnership) await resolveOwnedSession(onboardingId, rawToken, type)
+    await getFileDetails(onboardingId, fileId)   // 404s a file that is not on this onboarding
+    return { url: signedFilePath(onboardingId, fileId) }
+}
 
 export const getFileDetails = async (onboardingId, fileId) => {
     const session = await sessionRepo.findById(onboardingId)
