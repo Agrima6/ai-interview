@@ -113,7 +113,7 @@ function RegistrationModal({ open, role, onClose, onSubmitSuccess }) {
             {/* CAPTCHA Field */}
             {captcha && (
                 <div className="space-y-2">
-                    <label htmlFor="modal-captcha" className="block text-[13.5px] font-semibold text-gray-700">
+                    <label htmlFor="modal-captcha" className="block text-[13.5px] font-medium text-gray-700">
                         {captcha.question} <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">

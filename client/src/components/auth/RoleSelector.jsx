@@ -39,7 +39,7 @@ function RoleSelector({ selectedRole, onSelectRole, onContinue }) {
     if (error) {
         return (
             <div className="text-center py-6">
-                <p className="text-[14px] font-semibold text-red-600 bg-red-50 border border-red-100 rounded-2xl px-4 py-3">
+                <p className="text-[14px] font-medium text-red-600 bg-red-50 border border-red-100 rounded-2xl px-4 py-3">
                     {error}
                 </p>
             </div>
@@ -49,12 +49,12 @@ function RoleSelector({ selectedRole, onSelectRole, onContinue }) {
     return (
         <div className="space-y-6">
             <div className="text-center space-y-2">
-                <h2 className="font-display text-[20px] font-bold text-ink">Choose how you want to join</h2>
-                <p className="text-[14.5px] text-text-secondary">Select a role to create your WorkmateIQ account</p>
+                <h2 className="font-display text-[26px] font-medium tracking-tight text-ink">Choose how you want to join</h2>
+                <p className="text-[15px] font-normal text-text-secondary">Select a role to create your WorkmateIQ account</p>
             </div>
 
             {/* Role cards list */}
-            <div className="space-y-3.5">
+            <div className="space-y-3" role="radiogroup" aria-label="Account type">
                 {roles.map((role) => (
                     <RoleCard
                         key={role.key}
@@ -73,7 +73,7 @@ function RoleSelector({ selectedRole, onSelectRole, onContinue }) {
                 onClick={onContinue}
                 className="mt-6"
             >
-                Continue
+                {selectedRole ? `Continue as ${(roles.find((r) => r.key === selectedRole)?.label) || ""} →` : "Continue"}
             </AuthButton>
         </div>
     )

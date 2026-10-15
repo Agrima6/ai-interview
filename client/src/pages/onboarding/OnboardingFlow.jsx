@@ -405,7 +405,7 @@ function OnboardingFlow() {
                     <div className='w-14 h-14 rounded-full bg-red-50 dark:bg-red-950/20 flex items-center justify-center mx-auto mb-5'>
                         <AlertCircle size={28} className='text-red-600' />
                     </div>
-                    <h1 className='font-display text-[22px] font-bold text-ink mb-2'>This onboarding link is invalid</h1>
+                    <h1 className='font-display text-[22px] font-medium text-ink mb-2'>This onboarding link is invalid</h1>
                     <p className='text-text-secondary text-[14px] mb-8 leading-relaxed'>{error}</p>
                     <a href="/login" className="w-full block">
                         <Button variant='secondary' className='w-full'>Return to Home Page</Button>
@@ -422,7 +422,7 @@ function OnboardingFlow() {
                     <div className='w-16 h-16 rounded-full bg-green-50 dark:bg-green-950/20 flex items-center justify-center mx-auto mb-6'>
                         <CheckCircle2 size={36} className='text-green-600' />
                     </div>
-                    <h1 className='font-display text-[26px] font-bold text-ink mb-3'>Thank You!</h1>
+                    <h1 className='font-display text-[26px] font-medium text-ink mb-3'>Thank You!</h1>
                     <p className='text-ink text-[15px] font-medium mb-2 leading-relaxed'>
                         We've received your onboarding form successfully.
                     </p>
@@ -430,7 +430,7 @@ function OnboardingFlow() {
                         Our team will review the information and send updates to your provided contact details.
                     </p>
                     <p className='text-[13px] text-text-secondary mb-8'>
-                        Need help? Contact <a href={`mailto:${SUPPORT_EMAIL}`} className='text-accent font-semibold hover:underline'>{SUPPORT_EMAIL}</a>.
+                        Need help? Contact <a href={`mailto:${SUPPORT_EMAIL}`} className='text-accent font-medium hover:underline'>{SUPPORT_EMAIL}</a>.
                     </p>
                     {type?.toLowerCase() === 'candidate' ? (
                         <a href='/login' className='w-full block'>
@@ -447,39 +447,40 @@ function OnboardingFlow() {
     }
 
     if (phase === 'welcome') {
-        const totalSteps = (schema?.sections?.length || 0) + 1
         return (
-            <div className='min-h-screen bg-bg flex items-center justify-center px-6 py-12 relative bg-noise'>
-                <Card className='max-w-[560px] p-12 text-center shadow-[var(--shadow-lift)] border border-line bg-card rounded-2xl'>
-                    <div className='w-16 h-16 rounded-full bg-accent/5 flex items-center justify-center mx-auto mb-6'>
-                        <img src={logo} alt='Workmate.IQ Logo' className='w-8 h-8 rounded-full' />
+            <div className='min-h-screen bg-[#FBF7F6] flex items-center justify-center px-6 py-12'>
+                <div className='w-full max-w-[640px] bg-white border border-[#F1E6E9] rounded-[30px] p-8 sm:p-10 shadow-[0_30px_70px_-50px_rgba(90,20,40,0.4)]'>
+                    <div className='flex items-center gap-3'>
+                        <span className='w-[46px] h-[46px] rounded-[14px] bg-[#FFF4F5] border border-[#F3DDE3] inline-flex items-center justify-center'>
+                            <img src={logo} alt='Workmate.IQ' className='w-8 h-8 rounded-full' />
+                        </span>
+                        <span className='text-[12px] text-text-secondary tracking-[0.08em]'>WORKMATEIQ</span>
                     </div>
-                    <h1 className='font-display text-[26px] font-bold text-ink mb-3'>
-                        Onboarding Setup
+                    <h1 className='font-display text-[32px] sm:text-[36px] font-medium tracking-tight leading-[1.15] text-ink mt-5'>
+                        Let&apos;s set up your account profile
                     </h1>
-                    <p className='text-text-secondary text-[15px] mb-8 leading-relaxed'>
-                        We need a few details to set up your account profile. This step-by-step flow will guide you through entering profile details and documents.
+                    <p className='text-[15px] font-normal text-text-secondary leading-relaxed mt-3'>
+                        This step-by-step flow guides you through your profile details and documents. You can save and come back anytime.
                     </p>
 
-                    <div className='bg-bg border border-line rounded-2xl p-6 mb-8 text-left'>
-                        <h4 className="text-[14px] font-semibold text-ink mb-3">Onboarding Overview</h4>
-                        <div className='grid grid-cols-4 gap-2 mb-4'>
-                            {Array.from({ length: totalSteps }).map((_, i) => (
-                                <div key={i} className={`h-2 rounded-full ${i === 0 ? 'bg-accent' : 'bg-line'}`} />
-                            ))}
-                        </div>
-                        <p className='text-[12px] text-text-secondary font-medium'>{totalSteps} steps in total</p>
-                    </div>
+                    <ol className='grid sm:grid-cols-2 gap-3 mt-6'>
+                        {[...(schema?.sections || []).map((sec) => sec.title), 'Review & Submit'].map((title, i) => (
+                            <li key={title} className='border border-[#F1E6E9] rounded-[18px] p-4 bg-[#FFFCFB]'>
+                                <span className='w-[34px] h-[34px] rounded-[11px] bg-[#FFF1F3] text-accent inline-flex items-center justify-center text-[14px] font-medium'>{i + 1}</span>
+                                <p className='mt-2.5 text-[15px] font-medium text-ink'>{title}</p>
+                            </li>
+                        ))}
+                    </ol>
 
-                    <div className='flex items-center justify-center gap-2.5 text-[13px] text-text-secondary mb-8 bg-accent/5 rounded-xl px-4 py-3'>
-                        <ShieldCheck size={16} className='text-accent flex-shrink-0' />
+                    <div className='flex items-center gap-2.5 text-[13.5px] text-text-secondary mt-5 bg-[#FFF7F5] rounded-[14px] px-4 py-3'>
+                        <ShieldCheck size={18} className='text-accent shrink-0' aria-hidden='true' />
                         <span>Your information is encrypted and transmitted securely.</span>
                     </div>
 
-                    <Button size='lg' className='w-full bg-accent hover:bg-accent-dark' onClick={() => setPhase('form')}>
-                        Start Onboarding <ArrowRight size={16} className="ml-1" />
+                    <Button size='lg' className='w-full mt-5 bg-accent hover:bg-accent-dark !rounded-[14px] !font-medium' onClick={() => setPhase('form')}>
+                        Start onboarding <ArrowRight size={16} className='ml-1' />
                     </Button>
-                </Card>
+                </div>
             </div>
         )
     }
@@ -511,12 +512,12 @@ function OnboardingFlow() {
                         <img src={logo} alt="Workmate.IQ Logo" className="w-6 h-6 rounded-full" />
                     </div>
                     <div className="text-left">
-                        <span className="font-display text-[16px] font-bold text-ink block">
+                        <span className="font-display text-[16px] font-medium text-ink block">
                             {type?.toUpperCase() === 'ORGANIZATION' ? 'Company Onboarding'
                                 : type?.toUpperCase() === 'COLLEGE' ? 'Institution Onboarding'
                                     : 'Candidate Onboarding'}
                         </span>
-                        <span className="text-[11.5px] text-text-secondary font-semibold tracking-wide uppercase">
+                        <span className="text-[11.5px] text-text-secondary font-medium tracking-wide uppercase">
                             {onboarding?.data?.company_name || onboarding?.data?.college_name || onboarding?.data?.full_name || 'Workmate.IQ'}
                         </span>
                     </div>
@@ -559,7 +560,7 @@ function OnboardingFlow() {
                                     className={`flex items-center gap-2.5 group transition-all text-left ${isCompleted ? 'cursor-pointer' : 'cursor-default'}`}
                                 >
                                     <div
-                                        className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-[13px] border transition-all ${isActive ? 'bg-accent border-accent text-white shadow-sm'
+                                        className={`w-8 h-8 rounded-full flex items-center justify-center font-medium text-[13px] border transition-all ${isActive ? 'bg-accent border-accent text-white shadow-sm'
                                             : isCompleted ? 'bg-accent border-accent text-white'
                                                 : 'bg-card border-line text-text-secondary'
                                             }`}
@@ -567,7 +568,7 @@ function OnboardingFlow() {
                                         {isCompleted ? <Check size={14} className="stroke-[3]" /> : idx + 1}
                                     </div>
                                     <span
-                                        className={`text-[13.5px] font-semibold leading-none hidden sm:inline ${isActive ? 'text-ink font-bold'
+                                        className={`text-[13.5px] font-medium leading-none hidden sm:inline ${isActive ? 'text-ink font-medium'
                                             : isCompleted ? 'text-accent'
                                                 : 'text-text-secondary'
                                             }`}
@@ -588,13 +589,13 @@ function OnboardingFlow() {
                     {/* Review Step bubble */}
                     <div className="flex items-center gap-2.5">
                         <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-[13px] border transition-all ${isReviewStep ? 'bg-accent border-accent text-white shadow-sm'
+                            className={`w-8 h-8 rounded-full flex items-center justify-center font-medium text-[13px] border transition-all ${isReviewStep ? 'bg-accent border-accent text-white shadow-sm'
                                 : 'bg-card border-line text-text-secondary'
                                 }`}
                         >
                             {totalSteps}
                         </div>
-                        <span className={`text-[13.5px] font-semibold leading-none hidden sm:inline ${isReviewStep ? 'text-ink font-bold' : 'text-text-secondary'}`}>
+                        <span className={`text-[13.5px] font-medium leading-none hidden sm:inline ${isReviewStep ? 'text-ink font-medium' : 'text-text-secondary'}`}>
                             Review & Submit
                         </span>
                     </div>
@@ -619,7 +620,7 @@ function OnboardingFlow() {
                             <div className="flex items-start gap-3 mb-2.5">
                                 <AlertTriangle size={17} className="text-amber-700 shrink-0 mt-0.5" />
                                 <div>
-                                    <h4 className="font-bold text-amber-800 dark:text-amber-400 text-[14px]">Verification Feedback</h4>
+                                    <h4 className="font-medium text-amber-800 dark:text-amber-400 text-[14px]">Verification Feedback</h4>
                                     <p className="text-[12.5px] text-amber-700 dark:text-amber-500 mt-0.5">
                                         {reviewItems.some((i) => i.fieldKey)
                                             ? 'Fields that need updating are highlighted below.'
@@ -643,7 +644,8 @@ function OnboardingFlow() {
                     {!isReviewStep ? (
                         <div className="space-y-6">
                             <div>
-                                <h2 className="font-display text-[24px] font-bold text-ink mb-1.5">{activeSection.title}</h2>
+                                <p className="text-[13px] font-medium text-accent">Step {currentStep + 1} of {totalSteps}</p>
+                                <h2 className="font-display text-[28px] font-medium tracking-tight text-ink mt-1 mb-1.5">{activeSection.title}</h2>
                                 {activeSection.description && (
                                     <p className="text-[15px] text-text-secondary">{activeSection.description}</p>
                                 )}
@@ -721,7 +723,7 @@ function OnboardingFlow() {
                                                                     <Loader2 size={13} className="animate-spin text-accent" />
                                                                     Uploading file...
                                                                 </span>
-                                                                <span className="font-semibold">{uploadProgress[field.key] || 0}%</span>
+                                                                <span className="font-medium">{uploadProgress[field.key] || 0}%</span>
                                                             </div>
                                                             <div className="w-full bg-line h-1.5 rounded-full overflow-hidden">
                                                                 <div
@@ -734,7 +736,7 @@ function OnboardingFlow() {
                                                         // Drag and drop zone
                                                         <label className="flex flex-col items-center justify-center border-2 border-dashed border-line hover:border-accent/40 rounded-xl px-6 py-6 cursor-pointer bg-bg/50 transition-colors group">
                                                             <Upload size={22} className="text-text-secondary group-hover:scale-110 transition-transform mb-2" />
-                                                            <span className="text-[13.5px] font-semibold text-ink">Choose a file or drag here</span>
+                                                            <span className="text-[13.5px] font-medium text-ink">Choose a file or drag here</span>
                                                             <span className="text-[11.5px] text-text-secondary mt-1">
                                                                 {field.accept?.toUpperCase() || 'All formats'} up to {limitMb}MB
                                                             </span>
@@ -932,17 +934,17 @@ function OnboardingFlow() {
                         // Step 4: Custom Read-Only Review Screen
                         <div className="space-y-8 animate-in fade-in duration-200">
                             <div>
-                                <h2 className="font-display text-[24px] font-bold text-ink mb-1">Review & Submit</h2>
+                                <h2 className="font-display text-[24px] font-medium text-ink mb-1">Review & Submit</h2>
                                 <p className="text-[15px] text-text-secondary">Please review all your details carefully before submitting.</p>
                             </div>
 
                             {schema.sections.map((sec, idx) => (
                                 <div key={sec.key} className="border border-line rounded-2xl bg-bg/40 overflow-hidden shadow-sm">
                                     <div className="flex items-center justify-between px-6 py-4 border-b border-line bg-bg/70">
-                                        <h3 className="font-semibold text-[14.5px] text-ink">{sec.title}</h3>
+                                        <h3 className="font-medium text-[14.5px] text-ink">{sec.title}</h3>
                                         <button
                                             onClick={() => handleJumpToStep(idx)}
-                                            className="text-[13px] font-bold text-accent hover:underline"
+                                            className="text-[13px] font-medium text-accent hover:underline"
                                         >
                                             Edit
                                         </button>
@@ -958,10 +960,10 @@ function OnboardingFlow() {
                                                         {isFile ? (
                                                             value ? (
                                                                 <div className="flex items-center gap-3">
-                                                                    <span className="text-[13px] font-semibold text-ink truncate">{value.originalName}</span>
+                                                                    <span className="text-[13px] font-medium text-ink truncate">{value.originalName}</span>
                                                                     <button
                                                                         onClick={() => openPreview(value)}
-                                                                        className="text-[12px] font-semibold text-accent hover:underline flex items-center gap-1"
+                                                                        className="text-[12px] font-medium text-accent hover:underline flex items-center gap-1"
                                                                     >
                                                                         <Eye size={12} /> Preview
                                                                     </button>
@@ -973,21 +975,21 @@ function OnboardingFlow() {
                                                             value ? (
                                                                 <div className="flex items-center gap-2">
                                                                     <div className="w-5 h-5 rounded border border-line" style={{ backgroundColor: value }} />
-                                                                    <span className="text-[13px] font-mono text-ink font-semibold">{value}</span>
+                                                                    <span className="text-[13px] font-mono text-ink font-medium">{value}</span>
                                                                 </div>
                                                             ) : (
                                                                 <span className="text-[13px] text-text-secondary italic">Not specified</span>
                                                             )
                                                         ) : field.type === 'MULTI_SELECT' ? (
                                                             Array.isArray(value) && value.length > 0 ? (
-                                                                <span className="text-[13px] text-ink font-semibold leading-relaxed">
+                                                                <span className="text-[13px] text-ink font-medium leading-relaxed">
                                                                     {value.map(v => field.options?.find(o => o.value === v)?.label || v).join(', ')}
                                                                 </span>
                                                             ) : (
                                                                 <span className="text-[13px] text-text-secondary italic">Not specified</span>
                                                             )
                                                         ) : (
-                                                            <span className="text-[13px] text-ink font-semibold leading-relaxed">
+                                                            <span className="text-[13px] text-ink font-medium leading-relaxed">
                                                                 {value === true ? 'Yes' : value === false ? 'No' : value || <span className="text-text-secondary italic font-normal">Not specified</span>}
                                                             </span>
                                                         )}
@@ -1001,11 +1003,11 @@ function OnboardingFlow() {
 
                             {/* Consent and Submit Section */}
                             <div className="border border-line rounded-2xl p-6 space-y-5 bg-card">
-                                <h3 className="font-semibold text-[15px] text-ink">Declaration & Consent</h3>
+                                <h3 className="font-medium text-[15px] text-ink">Declaration & Consent</h3>
 
                                 {captcha && (
                                     <div className="border-b border-line pb-4 mb-4">
-                                        <label className='block text-[13px] font-semibold text-ink mb-2.5'>
+                                        <label className='block text-[13px] font-medium text-ink mb-2.5'>
                                             {captcha.question} <span className='text-red-500'>*</span>
                                         </label>
                                         <div className="relative w-full max-w-[280px]">
@@ -1107,7 +1109,7 @@ function OnboardingFlow() {
                         <div className="flex items-center justify-between px-6 py-4 border-b border-line bg-card shrink-0">
                             <div className="flex items-center gap-2">
                                 <FileText className="text-accent" size={18} />
-                                <h3 className="text-[14.5px] font-semibold text-ink truncate max-w-md md:max-w-lg">{previewFile.name}</h3>
+                                <h3 className="text-[14.5px] font-medium text-ink truncate max-w-md md:max-w-lg">{previewFile.name}</h3>
                             </div>
                             <div className="flex items-center gap-2">
                                 <a

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useLocation, useParams } from 'react-router-dom'
-import { Mail, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Mail, ArrowLeft, CheckCircle2, AlertCircle, Lock, Send } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { forgotPassword } from '../../api/authApi'
 import { getOrganizationProfile } from '../../api/organization/organizationApi'
@@ -158,17 +158,17 @@ function AuthPage() {
             {/* Split layout container */}
             <div className="flex-1 flex flex-col lg:flex-row min-h-[calc(100vh-69px)]">
                 {/* Left side brand panel (hidden on mobile) */}
-                <AuthBrandPanel mode={authMode} />
+                {authMode !== 'forgot-password' && <AuthBrandPanel mode={authMode} />}
 
                 {/* Right side form container */}
-                <div className="flex-1 bg-white flex items-center justify-center p-6 md:p-12">
+                <div className={`flex-1 flex items-center justify-center p-6 md:p-12 ${authMode === 'forgot-password' ? 'bg-[#FBF6F4]' : 'bg-white'}`}>
                     {/* Render registration success page if set */}
                     {registrationSuccessData ? (
                         <AuthCard className="text-center animate-in fade-in duration-300">
                             <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-6">
                                 <CheckCircle2 size={32} className="text-green-600" />
                             </div>
-                            <h2 className="font-display text-[22px] font-bold text-ink mb-2">Thank You!</h2>
+                            <h2 className="font-display text-[22px] font-medium text-ink mb-2">Thank You!</h2>
                             <p className="text-ink text-[14.5px] font-medium mb-1 leading-relaxed">
                                 We've received your registration successfully.
                             </p>
@@ -180,7 +180,7 @@ function AuthPage() {
                                 <div className="flex items-center gap-3 text-[14px] text-ink">
                                     <Mail size={16} className="text-accent shrink-0" />
                                     <div>
-                                        <span className="font-semibold text-ink">Email</span>
+                                        <span className="font-medium text-ink">Email</span>
                                         <span className="text-text-secondary ml-2">
                                             — {STATUS_LABEL[registrationSuccessData.communications.email] || registrationSuccessData.communications.email}
                                         </span>
@@ -189,7 +189,7 @@ function AuthPage() {
                             </div>
 
                             <p className="text-[13px] text-text-secondary mb-6">
-                                Need help? Contact <a href={`mailto:${SUPPORT_EMAIL}`} className="text-accent font-semibold hover:underline">{SUPPORT_EMAIL}</a>.
+                                Need help? Contact <a href={`mailto:${SUPPORT_EMAIL}`} className="text-accent font-medium hover:underline">{SUPPORT_EMAIL}</a>.
                             </p>
 
                             <AuthButton variant="secondary" onClick={() => handleSwitchMode('register')}>
@@ -201,7 +201,7 @@ function AuthPage() {
                         <AuthCard className="animate-in fade-in duration-200">
                             <div className="space-y-6">
                                 <div className="space-y-1.5">
-                                    <h2 className="font-display text-[22px] font-bold text-ink">Welcome back</h2>
+                                    <h2 className="font-display text-[22px] font-medium text-ink">Welcome back</h2>
                                     <p className="text-[14.5px] text-text-secondary">Sign in to your recruitment desk</p>
                                 </div>
 
@@ -224,7 +224,7 @@ function AuthPage() {
                                     />
                                     <div className="space-y-1.5 relative">
                                         <div className="flex justify-between items-center mb-0.5">
-                                            <label htmlFor="login-password" className="block text-[13.5px] font-semibold text-gray-700">
+                                            <label htmlFor="login-password" className="block text-[13.5px] font-medium text-gray-700">
                                                 Password
                                             </label>
                                             <button
@@ -233,7 +233,7 @@ function AuthPage() {
                                                     setAuthMode('forgot-password')
                                                     setError('')
                                                 }}
-                                                className="text-[12.5px] font-semibold text-accent hover:text-accent-dark hover:underline transition-colors"
+                                                className="text-[12.5px] font-medium text-accent hover:text-accent-dark hover:underline transition-colors"
                                             >
                                                 Forgot password?
                                             </button>
@@ -267,7 +267,7 @@ function AuthPage() {
                                     <button
                                         type="button"
                                         onClick={() => handleSwitchMode('register')}
-                                        className="font-bold text-accent hover:text-accent-dark transition-colors hover:underline"
+                                        className="font-medium text-accent hover:text-accent-dark transition-colors hover:underline"
                                     >
                                         Join Now
                                     </button>
@@ -287,7 +287,7 @@ function AuthPage() {
                                 <button
                                     type="button"
                                     onClick={() => handleSwitchMode('login')}
-                                    className="font-bold text-accent hover:text-accent-dark transition-colors hover:underline"
+                                    className="font-medium text-accent hover:text-accent-dark transition-colors hover:underline"
                                 >
                                     Sign in
                                 </button>
@@ -297,25 +297,19 @@ function AuthPage() {
                         /* Forgot Password Screen Container */
                         <AuthCard className="animate-in fade-in duration-200">
                             {forgotPasswordStep === 'input' ? (
-                                <div className="space-y-6">
-                                    <div className="space-y-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => handleSwitchMode('login')}
-                                            className="flex items-center gap-1.5 text-[13.5px] font-semibold text-accent hover:text-accent-dark transition-colors"
-                                        >
-                                            <ArrowLeft size={16} /> Back to Login
-                                        </button>
-                                        <h2 className="font-display text-[22px] font-bold text-ink pt-2">Reset Password</h2>
-                                        <p className="text-[14px] text-text-secondary leading-normal">
-                                            Enter your email address and we'll send you a link to reset your password.
-                                        </p>
-                                    </div>
+                                <div className="text-center">
+                                    <span className="mx-auto w-[88px] h-[88px] rounded-[26px] bg-accent flex items-center justify-center" aria-hidden="true">
+                                        <Lock size={40} strokeWidth={1.7} className="text-white" />
+                                    </span>
+                                    <h2 className="font-display text-[30px] font-medium tracking-tight text-ink mt-7">Reset your password</h2>
+                                    <p className="text-[15px] font-normal text-text-secondary leading-relaxed mt-2.5">
+                                        Enter your email address and we'll send you a link to reset your password.
+                                    </p>
 
-                                    <form onSubmit={handleForgotPasswordSubmit} className="space-y-4">
+                                    <form onSubmit={handleForgotPasswordSubmit} className="mt-7 space-y-4 text-left">
                                         {error && (
                                             <div role="alert" className="bg-red-50 border border-red-100 rounded-xl px-4 py-3">
-                                                <p className="text-red-700 text-[13px] font-medium leading-tight">{error}</p>
+                                                <p className="text-red-700 text-[13px] leading-tight">{error}</p>
                                             </div>
                                         )}
                                         <AuthInput
@@ -327,25 +321,39 @@ function AuthPage() {
                                             onChange={(e) => setForgotPasswordEmail(e.target.value)}
                                             required
                                         />
-                                        <AuthButton type="submit" loading={loading} className="mt-4">
-                                            Send Reset Link
+                                        <AuthButton type="submit" loading={loading} className="mt-2">
+                                            Send reset link
                                         </AuthButton>
                                     </form>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSwitchMode('login')}
+                                        className="mt-5 inline-flex items-center gap-1.5 text-[14px] font-medium text-accent hover:text-accent-dark transition-colors min-h-[44px]"
+                                    >
+                                        <ArrowLeft size={16} /> Back to login
+                                    </button>
                                 </div>
                             ) : (
-                                <div className="space-y-6 text-center">
-                                    <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto border border-red-100/50">
-                                        <CheckCircle2 size={32} className="text-green-600" />
+                                <div className="text-center">
+                                    <span className="mx-auto w-[88px] h-[88px] rounded-[26px] bg-accent flex items-center justify-center" aria-hidden="true">
+                                        <Send size={38} strokeWidth={1.7} className="text-white" />
+                                    </span>
+                                    <h2 className="font-display text-[30px] font-medium tracking-tight text-ink mt-7">Check your inbox</h2>
+                                    <p className="text-[15px] font-normal text-text-secondary leading-relaxed mt-2.5 px-2">
+                                        If an account exists for <span className="font-medium text-ink">{forgotPasswordEmail}</span>, a reset link is on its way. It may take a minute to arrive.
+                                    </p>
+                                    <div className="mt-7 space-y-3">
+                                        <AuthButton type="button" onClick={() => handleSwitchMode('login')}>
+                                            Back to login
+                                        </AuthButton>
+                                        <button
+                                            type="button"
+                                            onClick={() => setForgotPasswordStep('input')}
+                                            className="text-[14px] font-medium text-text-secondary hover:text-ink min-h-[44px]"
+                                        >
+                                            Didn't get it? Send again
+                                        </button>
                                     </div>
-                                    <div className="space-y-2">
-                                        <h2 className="font-display text-[22px] font-bold text-ink">Reset Link Sent</h2>
-                                        <p className="text-[14.5px] text-text-secondary leading-relaxed px-2">
-                                            We've sent a password reset link to <span className="font-semibold text-ink">{forgotPasswordEmail}</span>. Please check your inbox.
-                                        </p>
-                                    </div>
-                                    <AuthButton type="button" onClick={() => handleSwitchMode('login')} className="mt-4">
-                                        Back to Login
-                                    </AuthButton>
                                 </div>
                             )}
                         </AuthCard>
