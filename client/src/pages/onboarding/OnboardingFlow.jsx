@@ -416,32 +416,50 @@ function OnboardingFlow() {
     }
 
     if (phase === 'submitted') {
+        const nextSteps = [
+            { title: 'Onboarding form submitted', done: true },
+            { title: 'Verification by our team', sub: 'Usually within 1–2 business days', active: true },
+            { title: 'Login details and temporary password by email' },
+        ]
         return (
-            <div className='min-h-screen bg-bg flex items-center justify-center px-6 relative bg-noise'>
-                <Card className='max-w-[540px] p-12 text-center shadow-[var(--shadow-lift)] border border-line bg-card rounded-2xl'>
-                    <div className='w-16 h-16 rounded-full bg-green-50 dark:bg-green-950/20 flex items-center justify-center mx-auto mb-6'>
-                        <CheckCircle2 size={36} className='text-green-600' />
+            <div className='min-h-screen bg-[#FBF7F6] flex items-center justify-center px-6 py-12'>
+                <div className='w-full max-w-[560px] bg-white border border-[#F1E6E9] rounded-[30px] p-8 sm:p-11 text-center shadow-[0_40px_80px_-50px_rgba(90,20,40,0.45)]'>
+                    <span className='mx-auto w-24 h-24 rounded-full bg-[#E3F6EE] flex items-center justify-center' aria-hidden='true'>
+                        <CheckCircle2 size={44} strokeWidth={2} className='text-[#0F8A6B]' />
+                    </span>
+                    <h1 className='font-display text-[30px] font-medium tracking-tight text-ink mt-6'>Thank you!</h1>
+                    <p className='text-[15px] font-medium text-ink mt-2'>We&apos;ve received your onboarding form.</p>
+                    <p className='text-[14.5px] text-text-secondary mt-1.5'>Our team will review it and send updates to your contact details.</p>
+
+                    <ol className='mt-6 space-y-2.5 text-left'>
+                        {nextSteps.map((step, i) => (
+                            <li key={step.title} className={`flex gap-3 items-center px-3.5 py-3 rounded-[14px] ${step.done ? 'bg-[#F3FBF7]' : step.active ? 'bg-[#FFF7F5]' : 'bg-[#FBF8F8]'}`}>
+                                <span className={`w-7 h-7 rounded-full inline-flex items-center justify-center text-[13px] font-medium shrink-0 ${
+                                    step.done ? 'bg-[#0F8A6B] text-white' : step.active ? 'border-2 border-accent text-accent' : 'border-2 border-[#D9C6CC] text-[#8A7880]'
+                                }`}>{step.done ? '✓' : i + 1}</span>
+                                <span>
+                                    <span className={`block text-[14.5px] font-medium ${step.done || step.active ? 'text-ink' : 'text-text-secondary'}`}>{step.title}</span>
+                                    {step.sub && <span className='block text-[12.5px] text-text-secondary'>{step.sub}</span>}
+                                </span>
+                            </li>
+                        ))}
+                    </ol>
+
+                    <p className='text-[14px] text-text-secondary mt-5'>
+                        Need help? Contact <a href={`mailto:${SUPPORT_EMAIL}`} className='text-accent font-medium hover:underline'>{SUPPORT_EMAIL}</a>
+                    </p>
+                    <div className='mt-5 space-y-2.5'>
+                        {type?.toLowerCase() === 'candidate' ? (
+                            <a href='/login' className='block'>
+                                <Button className='w-full bg-accent hover:bg-accent-dark !rounded-[14px] !font-medium'>Sign in to Candidate Dashboard</Button>
+                            </a>
+                        ) : (
+                            <a href='/' className='block'>
+                                <Button variant='secondary' className='w-full !rounded-[14px] !font-medium'>Back to home</Button>
+                            </a>
+                        )}
                     </div>
-                    <h1 className='font-display text-[26px] font-medium text-ink mb-3'>Thank You!</h1>
-                    <p className='text-ink text-[15px] font-medium mb-2 leading-relaxed'>
-                        We've received your onboarding form successfully.
-                    </p>
-                    <p className='text-text-secondary text-[14.5px] mb-6 leading-relaxed'>
-                        Our team will review the information and send updates to your provided contact details.
-                    </p>
-                    <p className='text-[13px] text-text-secondary mb-8'>
-                        Need help? Contact <a href={`mailto:${SUPPORT_EMAIL}`} className='text-accent font-medium hover:underline'>{SUPPORT_EMAIL}</a>.
-                    </p>
-                    {type?.toLowerCase() === 'candidate' ? (
-                        <a href='/login' className='w-full block'>
-                            <Button className='w-full bg-accent hover:bg-accent-dark'>Sign in to Candidate Dashboard</Button>
-                        </a>
-                    ) : (
-                        <a href='/' className='w-full block border-t border-line pt-6'>
-                            <Button variant='secondary' className='w-full'>Back to Home</Button>
-                        </a>
-                    )}
-                </Card>
+                </div>
             </div>
         )
     }
@@ -503,6 +521,15 @@ function OnboardingFlow() {
     }
     const isCaptchaCorrect = checkCaptchaAnswer()
 
+    // Sidebar progress: how many of the required (and currently visible) fields have a value.
+    const requiredFields = (schema?.sections || []).flatMap((sec) => sec.fields).filter((f) => f.required && isFieldVisible(f, formData))
+    const filledRequired = requiredFields.filter((f) => {
+        if (isFileType(f.type)) return Boolean(files[f.key])
+        const v = formData[f.key]
+        return Array.isArray(v) ? v.length > 0 : String(v ?? '').trim() !== ''
+    })
+    const completionPct = requiredFields.length ? Math.round((filledRequired.length / requiredFields.length) * 100) : 0
+
     return (
         <div className="h-screen w-full bg-card flex flex-col relative bg-noise overflow-hidden">
             {/* Header bar */}
@@ -524,7 +551,8 @@ function OnboardingFlow() {
                 </div>
 
                 {/* Autosave status indicator */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-4">
+                    <a href={`mailto:${SUPPORT_EMAIL}`} className="text-[14px] font-medium text-accent hover:text-accent-dark hidden sm:inline">Need help?</a>
                     {saveState === 'saving' && (
                         <span className="flex items-center gap-1.5 text-[12px] text-text-secondary bg-black/[0.03] dark:bg-white/[0.03] px-3 py-1 rounded-full border border-line animate-pulse">
                             <Loader2 size={13} className="animate-spin text-accent" />
@@ -603,8 +631,9 @@ function OnboardingFlow() {
             </div>
 
             {/* Scrollable body content */}
-            <div className="flex-1 overflow-y-auto bg-card">
-                <div className="max-w-4xl mx-auto w-full px-8 py-10">
+            <div className="flex-1 overflow-y-auto bg-[#FBF7F6]">
+                <div className="max-w-[1180px] mx-auto w-full px-6 sm:px-10 py-8 flex flex-wrap gap-7 items-start">
+                  <div className="flex-[2_1_560px] min-w-0">
                     {error && (
                         <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 rounded-2xl px-6 py-4 mb-6 flex items-start gap-3">
                             <AlertCircle className="text-red-600 shrink-0 mt-0.5" size={18} />
@@ -651,7 +680,7 @@ function OnboardingFlow() {
                                 )}
                             </div>
 
-                            <div className="grid sm:grid-cols-2 gap-6 pt-4">
+                            <div className="grid sm:grid-cols-2 gap-6 bg-white border border-[#F1E6E9] rounded-[22px] p-6 mt-5">
                                 {activeSection.fields.map((field) => {
                                     if (!isFieldVisible(field, formData)) return null
                                     const locked = Boolean(field.readOnly && onboarding?.data?.[field.key])
@@ -785,17 +814,23 @@ function OnboardingFlow() {
                                                             type="color"
                                                             value={formData[field.key] || field.placeholder || '#4F46E5'}
                                                             onChange={(e) => handleFieldChange(field.key, e.target.value)}
-                                                            className="w-12 h-10 rounded-xl border border-line cursor-pointer p-0.5 bg-card shrink-0"
+                                                            aria-label={`${field.label} picker`}
+                                                            className={`w-12 h-10 rounded-xl border border-line cursor-pointer p-0.5 bg-card shrink-0 ${formData[field.key] ? '' : 'opacity-40 grayscale'}`}
                                                         />
                                                         <Input
                                                             type="text"
                                                             value={formData[field.key] || ''}
                                                             onChange={(e) => handleFieldChange(field.key, e.target.value)}
-                                                            placeholder={field.placeholder || '#4F46E5'}
+                                                            placeholder="Pick a colour or type a hex code"
                                                             error={hasError}
                                                             className="focus:ring-accent focus:border-accent font-mono flex-1"
                                                         />
                                                     </div>
+                                                    {!formData[field.key] && (
+                                                        <p className="text-[12px] text-text-secondary mt-1.5">
+                                                            Not set yet. Choose a colour above, or the platform default will be used.
+                                                        </p>
+                                                    )}
                                                 </div>
                                             ) : field.type === 'RADIO' ? (
                                                 <div className="space-y-2">
@@ -1052,12 +1087,43 @@ function OnboardingFlow() {
                             </div>
                         </div>
                     )}
+                  </div>
+
+                  {/* Sidebar: progress, why we ask, support */}
+                  <aside className="flex-[1_1_280px] min-w-0 lg:sticky lg:top-6 space-y-3.5">
+                      <div className="bg-white border border-[#F1E6E9] rounded-[22px] p-5 flex gap-4 items-center">
+                          <div
+                              className="w-[76px] h-[76px] rounded-full flex items-center justify-center shrink-0"
+                              style={{ background: `conic-gradient(var(--color-accent, #A3123A) ${completionPct * 3.6}deg, #F5E9EC 0)` }}
+                              role="img"
+                              aria-label={`${completionPct}% of required details completed`}
+                          >
+                              <div className="w-[60px] h-[60px] rounded-full bg-white flex items-center justify-center text-[15px] font-medium text-ink">{completionPct}%</div>
+                          </div>
+                          <div>
+                              <p className="text-[15px] font-medium text-ink">Profile completion</p>
+                              <p className="text-[13px] text-text-secondary">
+                                  {requiredFields.length - filledRequired.length > 0
+                                      ? `${requiredFields.length - filledRequired.length} required ${requiredFields.length - filledRequired.length === 1 ? 'field' : 'fields'} left`
+                                      : 'All required details added'}
+                              </p>
+                          </div>
+                      </div>
+                      <div className="rounded-[22px] border border-[#F8E0DE] p-5 bg-gradient-to-br from-[#FFF1F3] to-[#FFF6EE]">
+                          <p className="text-[12px] font-medium tracking-[0.08em] text-accent">WHY WE ASK</p>
+                          <p className="text-[14px] text-[#4A3A41] mt-2">Registration and tax details are used only to verify your organization. They are never shown to candidates.</p>
+                      </div>
+                      <div className="bg-white border border-[#F1E6E9] rounded-[22px] p-4 text-[13.5px]">
+                          <p className="font-medium text-ink">Stuck on something?</p>
+                          <a href={`mailto:${SUPPORT_EMAIL}`} className="text-accent hover:underline">{SUPPORT_EMAIL}</a>
+                      </div>
+                  </aside>
                 </div>
             </div>
 
             {/* Bottom navigation bar */}
-            <div className="px-8 py-5 border-t border-line bg-bg shrink-0 z-10">
-                <div className="max-w-4xl mx-auto w-full flex items-center justify-between">
+            <div className="px-6 sm:px-10 py-3.5 border-t border-[#F1E6E9] bg-white/95 backdrop-blur-sm shrink-0 z-10">
+                <div className="max-w-[1180px] mx-auto w-full flex items-center justify-between">
                     <Button
                         variant="secondary"
                         onClick={handleBack}

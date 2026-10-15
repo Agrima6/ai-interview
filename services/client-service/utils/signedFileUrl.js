@@ -20,10 +20,23 @@ export const signedFilePath = (onboardingId, fileId, ttlSeconds = 3600) => {
     return `/api/v1/onboardings/${onboardingId}/files/${fileId}/view?exp=${exp}&sig=${mac(onboardingId, fileId, exp)}`
 }
 
+// Same link, but a missing/invalid FILE_URL_SECRET yields null (and one log line) instead of an exception, so a
+// page that merely shows a logo never fails because link signing is not configured.
+let warned = false
+export const trySignedFilePath = (onboardingId, fileId, ttlSeconds = 3600) => {
+    try {
+        return signedFilePath(onboardingId, fileId, ttlSeconds)
+    } catch (err) {
+        if (!warned) { warned = true; console.error("[signedFileUrl] cannot sign file links:", err.message) }
+        return null
+    }
+}
+
 export const verifyFileSignature = (onboardingId, fileId, exp, sig) => {
     const expNum = Number(exp)
     if (!Number.isFinite(expNum) || expNum < Math.floor(Date.now() / 1000) || typeof sig !== "string") return false
-    const expected = Buffer.from(mac(onboardingId, fileId, expNum))
+    let expected
+    try { expected = Buffer.from(mac(onboardingId, fileId, expNum)) } catch { return false }
     const given = Buffer.from(sig)
     return expected.length === given.length && crypto.timingSafeEqual(expected, given)
 }

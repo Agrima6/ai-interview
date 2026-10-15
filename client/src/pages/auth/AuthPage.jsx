@@ -164,35 +164,35 @@ function AuthPage() {
                 <div className={`flex-1 flex items-center justify-center p-6 md:p-12 ${authMode === 'forgot-password' ? 'bg-[#FBF6F4]' : 'bg-white'}`}>
                     {/* Render registration success page if set */}
                     {registrationSuccessData ? (
-                        <AuthCard className="text-center animate-in fade-in duration-300">
-                            <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-6">
-                                <CheckCircle2 size={32} className="text-green-600" />
-                            </div>
-                            <h2 className="font-display text-[22px] font-medium text-ink mb-2">Thank You!</h2>
-                            <p className="text-ink text-[14.5px] font-medium mb-1 leading-relaxed">
-                                We've received your registration successfully.
-                            </p>
-                            <p className="text-text-secondary text-[14px] mb-6 leading-relaxed">
+                        <AuthCard className="text-center animate-in fade-in duration-300 !max-w-[520px]">
+                            <span className="mx-auto w-24 h-24 rounded-full bg-[#E3F6EE] flex items-center justify-center" aria-hidden="true">
+                                <CheckCircle2 size={44} strokeWidth={2} className="text-[#0F8A6B]" />
+                            </span>
+                            <h2 className="font-display text-[30px] font-medium tracking-tight text-ink mt-6">Thank you!</h2>
+                            <p className="text-ink text-[15px] font-medium mt-2">We've received your registration.</p>
+                            <p className="text-text-secondary text-[14.5px] mt-1.5 leading-relaxed">
                                 We've sent your onboarding link to the email address you provided. Check the delivery status below.
                             </p>
 
-                            <div className="space-y-3.5 text-left bg-bg border border-line rounded-2xl p-5 mb-6">
-                                <div className="flex items-center gap-3 text-[14px] text-ink">
-                                    <Mail size={16} className="text-accent shrink-0" />
-                                    <div>
-                                        <span className="font-medium text-ink">Email</span>
-                                        <span className="text-text-secondary ml-2">
-                                            — {STATUS_LABEL[registrationSuccessData.communications.email] || registrationSuccessData.communications.email}
-                                        </span>
+                            <div className="mt-6 text-left bg-[#FBF8F8] border border-[#F1E6E9] rounded-2xl p-4">
+                                <div className="flex items-center gap-3">
+                                    <span className="w-10 h-10 rounded-xl bg-white border border-[#F3DDE3] text-accent flex items-center justify-center shrink-0">
+                                        <Mail size={18} aria-hidden="true" />
+                                    </span>
+                                    <div className="min-w-0">
+                                        <p className="text-[14.5px] font-medium text-ink">Email</p>
+                                        <p className="text-[13px] text-text-secondary">
+                                            {STATUS_LABEL[registrationSuccessData.communications.email] || registrationSuccessData.communications.email}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
 
-                            <p className="text-[13px] text-text-secondary mb-6">
-                                Need help? Contact <a href={`mailto:${SUPPORT_EMAIL}`} className="text-accent font-medium hover:underline">{SUPPORT_EMAIL}</a>.
+                            <p className="text-[13.5px] text-text-secondary mt-5">
+                                Need help? Contact <a href={`mailto:${SUPPORT_EMAIL}`} className="text-accent font-medium hover:underline">{SUPPORT_EMAIL}</a>
                             </p>
 
-                            <AuthButton variant="secondary" onClick={() => handleSwitchMode('register')}>
+                            <AuthButton variant="secondary" onClick={() => handleSwitchMode('register')} className="mt-5">
                                 Back to registration
                             </AuthButton>
                         </AuthCard>
@@ -274,6 +274,17 @@ function AuthPage() {
                                 </div>
                             </div>
                         </AuthCard>
+                    ) : authMode === 'register' && registrationModalOpen && selectedRole ? (
+                        /* Registration form, inline in the panel */
+                        <div className="w-full max-w-[520px] animate-in fade-in duration-200">
+                            <RegistrationModal
+                                inline
+                                open
+                                role={selectedRole}
+                                onClose={() => setRegistrationModalOpen(false)}
+                                onSubmitSuccess={handleRegistrationSuccess}
+                            />
+                        </div>
                     ) : authMode === 'register' ? (
                         /* Role Selector Container */
                         <AuthCard className="animate-in fade-in duration-200">
@@ -361,13 +372,6 @@ function AuthPage() {
                 </div>
             </div>
 
-            {/* Registration Modal */}
-            <RegistrationModal
-                open={registrationModalOpen}
-                role={selectedRole}
-                onClose={() => setRegistrationModalOpen(false)}
-                onSubmitSuccess={handleRegistrationSuccess}
-            />
         </AuthLayout>
     )
 }

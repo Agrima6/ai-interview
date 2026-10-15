@@ -13,7 +13,8 @@ const ROLE_LABELS = {
     CANDIDATE: 'Candidate'
 }
 
-function RegistrationModal({ open, role, onClose, onSubmitSuccess }) {
+// `inline` renders the same form in the page (the register screen's right-hand panel) instead of a popup.
+function RegistrationModal({ open, role, onClose, onSubmitSuccess, inline = false }) {
     const [schema, setSchema] = useState(null)
     const [captcha, setCaptcha] = useState(null)
     const [captchaAnswer, setCaptchaAnswer] = useState('')
@@ -165,15 +166,34 @@ function RegistrationModal({ open, role, onClose, onSubmitSuccess }) {
         </div>
     )
 
-    return (
-        <Modal open={open} onClose={onClose} title={`${roleLabel} Registration`} size="lg">
+    const content = (
             <div className="space-y-6">
-                {/* Descriptive subheader */}
-                <div className="text-left">
-                    <p className="text-[14.5px] text-gray-500">
-                        Please fill in the details below to register as a partner with WorkmateIQ.
-                    </p>
-                </div>
+                {inline ? (
+                    <div>
+                        <div className="flex gap-1.5 justify-center mb-6" aria-hidden="true">
+                            <span className="h-1.5 w-2.5 rounded-full bg-accent" />
+                            <span className="h-1.5 w-[34px] rounded-full bg-accent" />
+                            <span className="h-1.5 w-2.5 rounded-full bg-[#EAD9DE]" />
+                        </div>
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="text-[14px] font-medium text-accent hover:text-accent-dark min-h-[44px] -mt-2"
+                        >
+                            ← Change role
+                        </button>
+                        <h2 className="font-display text-[26px] font-medium tracking-tight text-ink mt-1">{roleLabel} registration</h2>
+                        <p className="text-[15px] font-normal text-gray-500 mt-1.5">
+                            Please fill in the details below to register as a partner with WorkmateIQ.
+                        </p>
+                    </div>
+                ) : (
+                    <div className="text-left">
+                        <p className="text-[14.5px] text-gray-500">
+                            Please fill in the details below to register as a partner with WorkmateIQ.
+                        </p>
+                    </div>
+                )}
 
                 {error && (
                     <div className="bg-red-50 border border-red-200 rounded-2xl px-5 py-4 flex items-start gap-3 animate-in fade-in duration-200">
@@ -202,9 +222,16 @@ function RegistrationModal({ open, role, onClose, onSubmitSuccess }) {
                         submitLabel="Create Account"
                         extraFooter={extraFooter}
                         submitDisabled={!consent || !isCaptchaCorrect}
+                        submitFullWidth={inline}
                     />
                 )}
             </div>
+    )
+
+    if (inline) return open ? content : null
+    return (
+        <Modal open={open} onClose={onClose} title={`${roleLabel} Registration`} size="lg">
+            {content}
         </Modal>
     )
 }

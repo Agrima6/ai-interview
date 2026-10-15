@@ -43,7 +43,7 @@ function FileField({ field, value, onUpload, uploading, error }) {
     )
 }
 
-function DynamicForm({ schema, defaultValues = {}, onSubmit, onFileUpload, uploadingField, files = {}, submitLabel = 'Continue', extraFooter = null, submitting = false, onValuesChange, onSectionChange, submitDisabled = false }) {
+function DynamicForm({ schema, defaultValues = {}, onSubmit, onFileUpload, uploadingField, files = {}, submitLabel = 'Continue', extraFooter = null, submitting = false, onValuesChange, onSectionChange, submitDisabled = false, submitFullWidth = false }) {
     const { register, handleSubmit, watch, formState: { errors, isValid } } = useForm({
         mode: 'onChange',
         defaultValues,
@@ -223,7 +223,7 @@ function DynamicForm({ schema, defaultValues = {}, onSubmit, onFileUpload, uploa
             {schema.sections.map((section, sectionIdx) => (
                 <div key={section.key} className='space-y-6'>
                     <div className='border-b border-line pb-4'>
-                        <h3 className='font-display text-[20px] font-bold text-ink mb-1'>{section.title}</h3>
+                        <h3 className='text-[12.5px] font-medium tracking-[0.1em] uppercase text-text-secondary mb-1'>{section.title}</h3>
                         {section.description && (
                             <p className='text-[14px] text-text-secondary'>{section.description}</p>
                         )}
@@ -239,8 +239,8 @@ function DynamicForm({ schema, defaultValues = {}, onSubmit, onFileUpload, uploa
             ))}
             {extraFooter}
             <div className='flex items-center justify-between gap-4 pt-4'>
-                <div></div>
-                <Button type='submit' size='lg' disabled={!isValid || submitting || submitDisabled} className=''>
+                {!submitFullWidth && <div></div>}
+                <Button type='submit' size='lg' disabled={!isValid || submitting || submitDisabled} className={submitFullWidth ? 'w-full' : ''}>
                     {submitting ? (
                         <span className='flex items-center gap-2'>
                             <Loader2 size={16} className='animate-spin' />
