@@ -10,9 +10,10 @@ const ICONS = {
 const DESCRIPTIONS = {
     ORGANIZATION: 'Hire smarter and build stronger teams.',
     COLLEGE: 'Connect students with real opportunities.',
-    CANDIDATE: 'Present potential and get discovered.'
+    CANDIDATE: 'Present your potential and get discovered.'
 }
 
+// One selectable role, shown as a radio option: icon tile, title and description, with a ring that fills when chosen.
 function RoleCard({ roleKey, label, selected, onClick }) {
     const Icon = ICONS[roleKey] || User
     const description = DESCRIPTIONS[roleKey] || ''
@@ -20,38 +21,31 @@ function RoleCard({ roleKey, label, selected, onClick }) {
     return (
         <button
             type="button"
+            role="radio"
+            aria-checked={selected}
             onClick={onClick}
-            className={`w-full relative flex items-start gap-4 p-5 rounded-2xl border text-left transition-all duration-200 select-none group focus:outline-none focus:ring-4 focus:ring-accent/15 ${
+            className={`w-full flex items-center gap-4 px-5 py-4 min-h-[84px] rounded-[20px] border-[1.5px] text-left transition-all duration-200 select-none group focus:outline-none focus-visible:ring-4 focus-visible:ring-accent/15 hover:-translate-y-0.5 ${
                 selected
-                    ? 'border-accent bg-[#fff5f5] shadow-[0_4px_20px_-4px_rgba(196,22,31,0.1)]'
-                    : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/50'
+                    ? 'border-accent bg-[#FFF6F7]'
+                    : 'border-[#EFE3E7] bg-white hover:border-[#E3CDD3] hover:shadow-[0_18px_40px_-28px_rgba(90,20,40,0.45)]'
             }`}
         >
-            {/* Left Icon Container */}
-            <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-200 ${
-                selected
-                    ? 'bg-accent text-white border-accent'
-                    : 'bg-red-50 text-accent border-red-100/50 group-hover:bg-accent group-hover:text-white group-hover:border-accent'
+            <span className={`w-[50px] h-[50px] rounded-[14px] flex items-center justify-center shrink-0 transition-colors duration-200 ${
+                selected ? 'bg-accent text-white' : 'bg-[#FFF1F3] text-accent'
             }`}>
-                <Icon size={20} />
-            </div>
+                <Icon size={24} strokeWidth={1.7} aria-hidden='true' />
+            </span>
 
-            {/* Content area */}
-            <div className="flex-1 space-y-1">
-                <h4 className="font-display font-bold text-[15px] text-ink leading-snug">
-                    {label}
-                </h4>
-                <p className="text-[12.5px] text-text-secondary leading-normal">
-                    {description}
-                </p>
-            </div>
+            <span className="flex-1 min-w-0">
+                <span className="block text-[16px] font-medium text-ink leading-snug">{label}</span>
+                <span className="block text-[13.5px] font-normal text-text-secondary leading-normal">{description}</span>
+            </span>
 
-            {/* Checkmark Indicator */}
-            {selected && (
-                <div className="absolute top-4 right-4 w-5 h-5 rounded-full bg-accent text-white flex items-center justify-center animate-in scale-in duration-150">
-                    <Check size={12} className="stroke-[3]" />
-                </div>
-            )}
+            <span className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors duration-200 ${
+                selected ? 'border-accent bg-accent text-white' : 'border-[#D9C6CC] bg-white text-transparent'
+            }`} aria-hidden='true'>
+                <Check size={12} className="stroke-[3]" />
+            </span>
         </button>
     )
 }

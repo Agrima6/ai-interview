@@ -22,7 +22,7 @@ function AuthHeader({ onSwitchMode }) {
                 <div className="pad" style={{ maxWidth: 1320, margin: '0 auto', padding: '12px 40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}>
                     <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: '#1F1417', minHeight: 44 }}>
                         <img src={logo} alt="" style={{ width: 38, height: 38, borderRadius: '50%' }} />
-                        <span style={{ fontWeight: 700, fontSize: 20, letterSpacing: '-0.02em' }}>WorkmateIQ</span>
+                        <span style={{ fontWeight: 500, fontSize: 20, letterSpacing: '-0.02em' }}>WorkmateIQ</span>
                     </Link>
 
                     <nav className="navmid" aria-label="Main" style={{ display: 'flex', gap: 32, fontSize: 15 }}>
@@ -36,7 +36,7 @@ function AuthHeader({ onSwitchMode }) {
                             Log in
                         </button>
                         <button type="button" className="btn gb" onClick={() => onSwitchMode('register')}
-                            style={{ border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 15, fontWeight: 600, padding: '11px 20px', minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 8, color: '#FFFFFF', borderRadius: 999 }}>
+                            style={{ border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 15, fontWeight: 500, padding: '11px 20px', minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 8, color: '#FFFFFF', borderRadius: 999 }}>
                             Join now <span className="arr">→</span>
                         </button>
                         <button type="button" className="mbtn" aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen}

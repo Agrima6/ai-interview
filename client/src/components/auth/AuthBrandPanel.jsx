@@ -1,70 +1,58 @@
 import React from 'react'
 import { Sparkles, ShieldCheck, Layers } from 'lucide-react'
 
+const FEATURES = [
+    { icon: Sparkles, title: 'Smart recruitment', description: 'Streamline hiring with AI-powered tools.' },
+    { icon: ShieldCheck, title: 'Secure & reliable', description: 'Your data is protected with enterprise-grade security.' },
+    { icon: Layers, title: 'Everything in one place', description: 'Manage jobs, candidates and interviews from one platform.' },
+]
+
 function AuthBrandPanel({ mode }) {
     const isLogin = mode === 'login'
-
-    const features = [
-        {
-            icon: Sparkles,
-            title: 'Smart Recruitment',
-            description: 'Streamline hiring with AI-powered tools.'
-        },
-        {
-            icon: ShieldCheck,
-            title: 'Secure & Reliable',
-            description: 'Your data is protected with enterprise-grade security.'
-        },
-        {
-            icon: Layers,
-            title: 'Everything in One Place',
-            description: 'Manage jobs, candidates and interviews from one platform.'
-        }
-    ]
-
-    // Use login.png for login, and img1.png for registration/forgot password
+    // login.png for sign-in, img1.png for registration
     const illustrationSrc = isLogin ? '/login.png' : '/img1.png'
 
     return (
-        <div className="w-full lg:w-[48%] bg-gradient-to-br from-[#fff7f7] to-[#fffcfc] p-8 md:p-12 lg:p-16 flex flex-col justify-center items-center border-r border-gray-100 gap-10">
-            <div className="space-y-8 max-w-[460px] w-full text-center flex flex-col items-center">
-                {/* Title & Description */}
-                <div className="space-y-3">
-                    <h1 className="font-display text-[32px] md:text-[38px] font-bold tracking-tight text-ink leading-tight">
-                        {isLogin ? 'Welcome back!' : 'Join WorkmateIQ'}
+        <div className="w-full lg:w-[48%] bg-gradient-to-br from-[#FFF5F2] to-white p-8 md:p-12 lg:p-16 flex flex-col justify-center border-r border-[#F3E8EB] gap-10">
+            <div className="max-w-[520px] w-full mx-auto space-y-8">
+                <div className="space-y-4">
+                    {!isLogin && (
+                        <span className="inline-flex px-3.5 py-1.5 rounded-full bg-white border border-[#F3DDE3] text-[13px] font-medium text-accent">
+                            Free to get started
+                        </span>
+                    )}
+                    <h1 className="font-display text-[36px] md:text-[44px] font-medium tracking-tight text-ink leading-[1.1]">
+                        {isLogin ? 'Welcome back' : 'Join WorkmateIQ'}
                     </h1>
-                    <p className="text-[15px] text-text-secondary leading-relaxed max-w-sm mx-auto">
+                    <p className="text-[16px] font-normal text-text-secondary leading-relaxed max-w-md">
                         {isLogin
                             ? 'Enter your credentials to access your recruitment desk.'
-                            : 'Get started with the ultimate AI-driven recruitment and evaluation platform.'}
+                            : "Get started with the AI-driven recruitment and evaluation platform built for India's hiring teams and campuses."}
                     </p>
                 </div>
 
-                {/* Feature Highlights */}
-                <div className="space-y-5 pt-2 text-left w-full max-w-[380px] mx-auto">
-                    {features.map((feature, index) => {
-                        const IconComponent = feature.icon
+                <ul className="space-y-4">
+                    {FEATURES.map((feature) => {
+                        const Icon = feature.icon
+                        const { title, description } = feature
                         return (
-                            <div key={index} className="flex gap-4 items-start">
-                                <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center shrink-0 border border-red-100/50">
-                                    <IconComponent size={18} className="text-accent" />
-                                </div>
-                                <div className="space-y-0.5">
-                                    <h3 className="font-display font-semibold text-[14px] text-ink">{feature.title}</h3>
-                                    <p className="text-[12.5px] text-text-secondary leading-relaxed">{feature.description}</p>
-                                </div>
-                            </div>
+                        <li key={title} className="flex gap-4 items-start">
+                            <span className="w-[42px] h-[42px] rounded-xl bg-white border border-[#F3DDE3] flex items-center justify-center shrink-0 text-accent">
+                                <Icon size={20} strokeWidth={1.7} aria-hidden="true" />
+                            </span>
+                            <span>
+                                <span className="block text-[15px] font-medium text-ink">{title}</span>
+                                <span className="block text-[14px] font-normal text-text-secondary leading-relaxed">{description}</span>
+                            </span>
+                        </li>
                         )
                     })}
-                </div>
-            </div>
+                </ul>
 
-            {/* Illustration Image */}
-            <div className="flex justify-center w-full max-w-[460px]">
                 <img
                     src={illustrationSrc}
-                    alt="WorkmateIQ Illustration"
-                    className="w-full max-w-[420px] h-auto object-contain rounded-2xl shadow-[0_16px_36px_-12px_rgba(196,22,31,0.18)] border border-white bg-white/50 p-2.5 transition-transform duration-500 hover:scale-[1.02]"
+                    alt=""
+                    className="w-full max-w-[460px] h-auto object-contain rounded-[26px] border border-white bg-white/60 p-2.5 shadow-[0_40px_70px_-44px_rgba(90,20,40,0.5)]"
                 />
             </div>
         </div>
