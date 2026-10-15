@@ -1,4 +1,4 @@
-import client, { apiGet, apiGetList, apiPatch, apiPost } from "./client"
+import client, { apiGet, apiGetList, apiPatch, apiPost, GatewayUrl } from "./client"
 
 // The raw onboarding token is only ever held in memory by whichever
 // component is driving the onboarding flow, then passed explicitly into
@@ -29,6 +29,16 @@ export const uploadOnboardingFile = async (onboardingId, token, { type, fieldKey
 
 export const submitOnboarding = (onboardingId, token, { type, consent, captchaToken, captchaAnswer }) =>
     apiPost(`/api/v1/onboardings/${onboardingId}/submit`, { type, consent, captchaToken, captchaAnswer }, tokenHeaders(token))
+
+// Private files open only through a short-lived signed link issued by the API (never a bare file URL).
+export const getOnboardingFileLink = async (onboardingId, fileId, token, type) => {
+    const { url } = await apiPost(`/api/v1/onboardings/${onboardingId}/files/${fileId}/link`, { type }, tokenHeaders(token))
+    return `${GatewayUrl}${url}`
+}
+export const getReviewFileLink = async (onboardingId, fileId) => {
+    const { url } = await apiPost(`/api/v1/onboardings/${onboardingId}/files/${fileId}/review-link`)
+    return `${GatewayUrl}${url}`
+}
 
 /* ---- Authenticated admin/review endpoints (JWT, via client.js interceptor) ---- */
 export const listOnboardings = (params) => apiGetList("/api/v1/onboardings", params)

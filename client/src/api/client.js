@@ -3,6 +3,10 @@ import { getFriendlyMessage } from "./errorMessages"
 
 export const GatewayUrl = import.meta.env.VITE_GATEWAY_URL || "http://localhost:4000"
 
+// Stored file URLs come back as API paths ("/api/v1/..."); an <img>/<iframe> must load them from the gateway,
+// not from the web app's own origin. Absolute and data/blob URLs pass through unchanged.
+export const resolveAssetUrl = (url) => (typeof url === "string" && url.startsWith("/api/") ? `${GatewayUrl}${url}` : url)
+
 // The single API client every feature module goes through - components must
 // never call axios/fetch directly. Owns the access token (in-memory only,
 // never localStorage), 401 refresh-and-retry, and error normalization.

@@ -5,8 +5,7 @@ import AdminShell from '../../components/layout/AdminShell'
 import { Card, Badge, Button, Modal, ConfirmModal, Textarea, useToast } from '../../components/ui'
 import { usePermission } from '../../hooks/useAuth.jsx'
 import { actionPermissions } from '../../permissions/actionPermissions'
-import { getOnboardingForReview, approveOnboarding, rejectOnboarding, requestOnboardingChanges } from '../../api/onboardingApi'
-import { GatewayUrl } from '../../api/client'
+import { getReviewFileLink, getOnboardingForReview, approveOnboarding, rejectOnboarding, requestOnboardingChanges } from '../../api/onboardingApi'
 
 function OnboardingReviewDetail() {
     const { id } = useParams()
@@ -24,12 +23,22 @@ function OnboardingReviewDetail() {
     // of typing a field key by hand and hoping it matches.
     const [fieldChanges, setFieldChanges] = useState({})
     const [generalNote, setGeneralNote] = useState('')
+    const [fileUrls, setFileUrls] = useState({})   // fileId -> signed link (private files have no bare URL)
 
     const load = () => {
         setLoading(true)
         getOnboardingForReview(id).then(setData).catch((err) => setError(err.message)).finally(() => setLoading(false))
     }
     useEffect(() => { load() }, [id])
+    useEffect(() => {
+        let cancelled = false
+        ;(data?.files || []).forEach((f) => {
+            getReviewFileLink(id, f.fileId)
+                .then((url) => { if (!cancelled) setFileUrls((prev) => ({ ...prev, [f.fileId]: url })) })
+                .catch(() => { /* the row shows no preview; the file name is still listed */ })
+        })
+        return () => { cancelled = true }
+    }, [data, id])
 
     const runAction = async (fn, successMessage) => {
         setBusy(true)
@@ -122,7 +131,7 @@ function OnboardingReviewDetail() {
                                                 fieldFiles.length > 0 ? (
                                                     <div className="grid sm:grid-cols-2 gap-3 mt-1">
                                                         {fieldFiles.map((fileObj) => {
-                                                            const fileUrl = `${GatewayUrl}/api/v1/onboardings/${id}/files/${fileObj.fileId}/view`
+                                                            const fileUrl = fileUrls[fileObj.fileId] || ''
                                                             const isImg = fileObj.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fileObj.originalName)
                                                             return (
                                                                 <div key={fileObj.fileId} className="p-3 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-between gap-3 group hover:bg-gray-100/60 transition-all">
@@ -130,7 +139,7 @@ function OnboardingReviewDetail() {
                                                                         {isImg ? (
                                                                             <div className="w-12 h-12 rounded-lg border border-gray-200 overflow-hidden bg-white shrink-0 flex items-center justify-center shadow-sm">
                                                                                 <img
-                                                                                    src={fileUrl}
+                                                                                    src={fileUrl || undefined}
                                                                                     alt={fileObj.originalName}
                                                                                     className="w-full h-full object-cover"
                                                                                     onError={(e) => {

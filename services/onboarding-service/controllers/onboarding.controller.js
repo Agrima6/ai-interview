@@ -5,6 +5,7 @@ import { getObjectStream } from "../config/s3Client.js"
 import { ok } from "../utils/response.js"
 import { ApiError } from "../utils/response.js"
 import { verifyCaptcha } from "../utils/captcha.js"
+import { verifyFileSignature } from "../utils/signedFileUrl.js"
 
 // Client-reported Content-Type only (no magic-byte sniffing) - not a strong
 // guarantee, but at least rejects the obviously-wrong-category uploads that
@@ -51,7 +52,7 @@ export const autosave = async (req, res, next) => {
             type,
             data,
             currentStep,
-        })
+        }, { requestId: req.requestId, correlationId: req.correlationId })
         ok(res, result)
     } catch (error) { next(error) }
 }
@@ -107,12 +108,46 @@ export const submit = async (req, res, next) => {
     } catch (error) { next(error) }
 }
 
+// Candidate/organization side: proves ownership with the onboarding token, gets a one-hour link.
+export const fileLink = async (req, res, next) => {
+    try {
+        ok(res, await onboardingService.issueFileLink({
+            onboardingId: req.params.id, fileId: req.params.fileId, rawToken: tokenFromRequest(req), type: req.body?.type,
+        }))
+    } catch (error) { next(error) }
+}
+
 export const viewFile = async (req, res, next) => {
     try {
         const { id, fileId } = req.params
+        // The file is private: only a link issued by the authenticated API (see issueFileLink) opens it.
+        if (!verifyFileSignature(id, fileId, req.query.exp, req.query.sig)) {
+            throw new ApiError(403, "FILE_LINK_INVALID", "This file link is invalid or has expired. Reload the page to get a new one.")
+        }
         const file = await onboardingService.getFileDetails(id, fileId)
-        const object = await getObjectStream(file.key)
-        res.setHeader("Content-Type", object.contentType || file.mimeType)
+        const object = await getObjectStream(file.key).catch((err) => {
+            if (err?.name === "NoSuchKey" || err?.$metadata?.httpStatusCode === 404) {
+                throw new ApiError(404, "FILE_NOT_FOUND", "This file could not be found.")
+            }
+            // Storage down / unreachable: say so plainly instead of a generic 500.
+            console.error("[onboarding-service] file storage read failed:", err?.name || err?.message)
+            throw new ApiError(502, "FILE_STORAGE_UNAVAILABLE", "File storage is not reachable right now. Please try again shortly.")
+        })
+        const contentType = object.contentType || file.mimeType || "application/octet-stream"
+        // inline for previews (<img>, PDF viewer), attachment when ?download=1. The filename is sanitised for the
+        // plain header and sent again in RFC 5987 form so non-ASCII names survive.
+        const name = String(file.originalName || "file").replace(/[\r\n"\\]/g, "_")
+        const ascii = name.replace(/[^\x20-\x7E]/g, "_")
+        const disposition = req.query.download === "1" ? "attachment" : "inline"
+        res.setHeader("Content-Type", contentType)
+        res.setHeader("Content-Disposition", `${disposition}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`)
+        res.setHeader("X-Content-Type-Options", "nosniff")
+        res.setHeader("Cache-Control", "private, max-age=300")
+        object.stream.on("error", (err) => {
+            // A stream that dies midway must end the response rather than leave the browser spinning.
+            if (!res.headersSent) return next(err)
+            res.destroy(err)
+        })
         object.stream.pipe(res)
     } catch (error) { next(error) }
 }

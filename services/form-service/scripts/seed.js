@@ -10,6 +10,16 @@ const INSTITUTION_NAME_VALIDATION = { minLength: 2, maxLength: 150, pattern: "^[
 const REGISTRATION_NUMBER_VALIDATION = { minLength: 3, maxLength: 30, pattern: "^[A-Za-z0-9]+$", patternMessage: "Registration number can contain letters and numbers only." }
 const ADDRESS_VALIDATION = { maxLength: 500 }
 
+// The industry list is data: extend it here and re-run this seed - no UI change is needed.
+const INDUSTRY_OPTIONS = [
+    ["Technology", "TECHNOLOGY"], ["Finance & Banking", "FINANCE"], ["Healthcare & Life Sciences", "HEALTHCARE"],
+    ["Education & Training", "EDUCATION"], ["Manufacturing", "MANUFACTURING"], ["Retail & E-commerce", "RETAIL"],
+    ["Consulting & Professional Services", "CONSULTING"], ["Telecommunications", "TELECOM"], ["Media & Entertainment", "MEDIA"],
+    ["Logistics & Transportation", "LOGISTICS"], ["Real Estate & Construction", "REAL_ESTATE"], ["Energy & Utilities", "ENERGY"],
+    ["Hospitality & Travel", "HOSPITALITY"], ["Government & Public Sector", "GOVERNMENT"], ["Non-profit", "NON_PROFIT"],
+    ["Other", "OTHER"],
+].map(([label, value]) => ({ label, value }))
+
 const registrationForms = [
     {
         type: "ORGANIZATION", stage: "REGISTRATION", name: "Organization Registration",
@@ -60,17 +70,18 @@ const onboardingForms = [
             {
                 key: "business_details", title: "Business Details", order: 1,
                 fields: [
-                    { key: "company_name", label: "Company name", type: "TEXT", required: true, validation: INSTITUTION_NAME_VALIDATION },
-                    { key: "industry", label: "Industry", type: "SELECT", required: true, options: [{ label: "Technology", value: "TECHNOLOGY" }, { label: "Finance", value: "FINANCE" }, { label: "Healthcare", value: "HEALTHCARE" }, { label: "Other", value: "OTHER" }] },
+                    { key: "company_name", label: "Company name", type: "TEXT", required: true, readOnly: true, validation: INSTITUTION_NAME_VALIDATION },
+                    { key: "industry", label: "Industry", type: "SELECT", required: true, options: INDUSTRY_OPTIONS },
+                    { key: "industry_other", label: "Please specify your industry", type: "TEXT", required: true, placeholder: "e.g. Aerospace", visibility: { field: "industry", equals: "OTHER" }, validation: { minLength: 2, maxLength: 80 } },
                     { key: "website", label: "Company website", type: "URL", required: false },
-                    { key: "headquarters_address", label: "Headquarters address", type: "ADDRESS", required: true, validation: ADDRESS_VALIDATION },
+                    { key: "headquarters_address", label: "Registered address", type: "ADDRESS", required: true, validation: ADDRESS_VALIDATION },
                 ],
             },
             {
                 key: "operations_legal", title: "Operations & Legal", order: 2,
                 fields: [
                     { key: "gst_number", label: "GST Number", type: "TEXT", required: true, validation: { pattern: "^[0-9A-Z]{15}$", patternMessage: "GST number must be 15 characters (letters and numbers only)." } },
-                    { key: "registration_number", label: "Company registration number", type: "TEXT", required: true, validation: REGISTRATION_NUMBER_VALIDATION },
+                    { key: "registration_number", label: "Company registration number", type: "TEXT", required: false, validation: REGISTRATION_NUMBER_VALIDATION },
                     { key: "employee_count", label: "Number of employees", type: "NUMBER", required: false, validation: { min: 0 } },
                 ],
             },

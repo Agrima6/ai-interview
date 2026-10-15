@@ -1,5 +1,6 @@
 import React from 'react'
-import { Route, Routes, Navigate } from 'react-router-dom'
+import { Route, Routes, Navigate, useLocation } from 'react-router-dom'
+import ErrorBoundary from './components/ErrorBoundary'
 import AuthPage from './pages/auth/AuthPage'
 import Home from './pages/Home'
 import { useEffect, useState } from 'react'
@@ -66,6 +67,7 @@ export { ServerUrl }
 function App() {
 
   const dispatch = useDispatch()
+  const location = useLocation()
   const [authChecked, setAuthChecked] = useState(false)
 
   useEffect(() => {
@@ -88,6 +90,7 @@ function App() {
   }
 
   return (
+    <ErrorBoundary resetKey={location.pathname}>
     <Routes>
       {/* The redesigned front page (pages/landing) is the real landing page. The previous design
           (WHome) is kept and reachable at /welcome-classic so the two can be compared. */}
@@ -126,7 +129,7 @@ function App() {
       <Route path='/platform/admin/enquiries' element={<RequirePlatformAuth permission={featurePermissions.enquiries}><EnquiryList/></RequirePlatformAuth>}/>
 
       {/* Client portal: for approved organizations/colleges/candidates */}
-      <Route path='/platform/client/change-password' element={<RequireClientAuth><ClientChangePassword/></RequireClientAuth>}/>
+      <Route path='/platform/client/change-password' element={<RequireClientAuth allowPasswordChange><ClientChangePassword/></RequireClientAuth>}/>
       <Route path='/platform/client/dashboard' element={<RequireClientAuth><OrganizationDashboard/></RequireClientAuth>}/>
       <Route path='/platform/client/drives' element={<RequireClientAuth><DrivesListPage/></RequireClientAuth>}/>
       <Route path='/platform/client/drives/:id' element={<RequireClientAuth><DriveDetailPage/></RequireClientAuth>}/>
@@ -183,6 +186,7 @@ function App() {
       <Route path='/superadmin' element={<RequireAuth><RequireRole roles={["superadmin"]}><SuperAdminPanel/></RequireRole></RequireAuth>}/>
 
     </Routes>
+    </ErrorBoundary>
   )
 }
 

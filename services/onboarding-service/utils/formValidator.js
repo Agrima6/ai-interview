@@ -16,6 +16,8 @@ export const validateAgainstFormVersion = (formVersion, data, files = []) => {
     }
 
     for (const field of allFields) {
+        // A conditional field (visibility: { field, equals }) that is not shown is neither required nor checked.
+        if (field.visibility?.field && String(data?.[field.visibility.field] ?? "") !== String(field.visibility.equals)) continue
         const value = data?.[field.key]
         const isFileType = ["FILE", "IMAGE", "MULTI_FILE"].includes(field.type)
         const providedFile = files.find((f) => f.fieldKey === field.key)

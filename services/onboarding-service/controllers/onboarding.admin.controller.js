@@ -18,6 +18,12 @@ export const list = async (req, res, next) => {
     } catch (error) { next(error) }
 }
 
+export const fileLink = async (req, res, next) => {
+    try {
+        ok(res, await onboardingService.issueFileLink({ onboardingId: req.params.id, fileId: req.params.fileId, skipOwnership: true }))
+    } catch (error) { next(error) }
+}
+
 export const getById = async (req, res, next) => {
     try { ok(res, await onboardingService.getDetailForReview(req.params.id, { requestId: req.requestId, correlationId: req.correlationId })) }
     catch (error) { next(error) }

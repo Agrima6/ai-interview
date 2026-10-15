@@ -22,6 +22,7 @@ function ResetPasswordPage() {
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
     const [done, setDone] = useState(false)
+    const [linkProblem, setLinkProblem] = useState(false)
 
     const submit = async (e) => {
         e.preventDefault()
@@ -39,7 +40,9 @@ function ResetPasswordPage() {
             await resetPassword(token, password)
             setDone(true)
         } catch (err) {
-            setError(err.message)
+            // An invalid, expired or already-used link cannot be fixed by retyping: offer a fresh one instead.
+            if (err?.code === 'INVALID_RESET_TOKEN' || /invalid or has expired/i.test(err?.message || '')) setLinkProblem(true)
+            else setError(err?.message || 'We could not reset your password. Please try again.')
         } finally {
             setLoading(false)
         }
@@ -49,15 +52,15 @@ function ResetPasswordPage() {
         <AuthLayout>
             <div className="flex-1 flex items-center justify-center px-4 py-16">
                 <AuthCard>
-                    {!token ? (
+                    {!token || linkProblem ? (
                         <div className="space-y-4 text-center">
                             <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto border border-red-100/50">
                                 <XCircle size={32} className="text-red-500" />
                             </div>
-                            <h2 className="font-display text-[22px] font-bold text-ink">Invalid reset link</h2>
-                            <p className="text-[14px] text-text-secondary leading-relaxed">This password reset link is missing its token. Request a new one from the login screen.</p>
+                            <h2 className="font-display text-[22px] font-bold text-ink">{linkProblem ? 'This link has expired' : 'Invalid reset link'}</h2>
+                            <p className="text-[14px] text-text-secondary leading-relaxed">{linkProblem ? 'This password reset link is invalid, expired or has already been used. Request a new one to continue.' : null}{linkProblem ? null : 'This password reset link is incomplete. Please request a new one from the sign-in screen.'}</p>
                             <AuthButton type="button" onClick={() => navigate('/login')} className="mt-2">
-                                Back to login
+                                Request a new link
                             </AuthButton>
                         </div>
                     ) : done ? (

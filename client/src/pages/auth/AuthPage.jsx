@@ -313,6 +313,11 @@ function AuthPage() {
                                     </div>
 
                                     <form onSubmit={handleForgotPasswordSubmit} className="space-y-4">
+                                        {error && (
+                                            <div role="alert" className="bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+                                                <p className="text-red-700 text-[13px] font-medium leading-tight">{error}</p>
+                                            </div>
+                                        )}
                                         <AuthInput
                                             id="forgot-email"
                                             label="Email address"

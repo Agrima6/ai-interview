@@ -8,6 +8,7 @@ const fieldSchema = new mongoose.Schema({
         enum: ["TEXT", "EMAIL", "PHONE", "NUMBER", "DATE", "SELECT", "MULTI_SELECT", "RADIO", "CHECKBOX", "TEXTAREA", "FILE", "IMAGE", "MULTI_FILE", "URL", "ADDRESS", "COLOR"],
     },
     required: { type: Boolean, default: false },
+    readOnly: { type: Boolean, default: false },   // shown but not editable once a value exists (e.g. the registered company name)
     placeholder: { type: String, default: null },
     helpText: { type: String, default: null },
     validation: { type: mongoose.Schema.Types.Mixed, default: {} },
