@@ -1,6 +1,6 @@
 import * as clientRepo from "../repositories/client.repository.js"
 import { ApiError } from "../utils/response.js"
-import { signedFilePath } from "../utils/signedFileUrl.js"
+import { trySignedFilePath } from "../utils/signedFileUrl.js"
 
 const view = (c) => ({
     id: String(c._id),
@@ -135,9 +135,9 @@ const organizationView = (c) => ({
     displayName: c.name,
     slug: c.subdomain,
     type: c.type,
-    logoUrl: c.branding?.logoFileId && c.onboardingId
-        ? signedFilePath(c.onboardingId, c.branding.logoFileId, 24 * 3600)
-        : (c.branding?.logoUrl || null),
+    logoUrl: (c.branding?.logoFileId && c.onboardingId
+        ? trySignedFilePath(c.onboardingId, c.branding.logoFileId, 24 * 3600)
+        : null) || c.branding?.logoUrl || null,
     primaryColor: c.branding?.primaryColor || null,
     secondaryColor: c.branding?.secondaryColor || null,
     fontFamily: c.branding?.fontFamily || null,

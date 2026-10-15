@@ -8,7 +8,7 @@ import { generateRawToken, hashToken, invitationExpiry } from "../utils/token.js
 import { validateAgainstFormVersion } from "../utils/formValidator.js"
 import { ApiError } from "../utils/response.js"
 import { entityNounFor, fallbackClientName } from "../utils/entityTerms.js"
-import { signedFilePath } from "../utils/signedFileUrl.js"
+import { trySignedFilePath } from "../utils/signedFileUrl.js"
 import { keyFor } from "../utils/localFileStore.js"
 
 
@@ -88,7 +88,7 @@ export const getByToken = async (type, rawToken, ctx) => {
     const reviewItems = await reviewItemRepo.findOpenForOnboarding(session._id)
 
     const logoFile = session.files?.find((f) => f.fieldKey === "logo")
-    const logoUrl = logoFile ? signedFilePath(session._id, logoFile.fileId) : null
+    const logoUrl = logoFile ? trySignedFilePath(session._id, logoFile.fileId) : null
 
     return {
         onboarding: {
@@ -405,7 +405,9 @@ export const trend = (since, filters = {}) => sessionRepo.dailyCountsSince(since
 export const issueFileLink = async ({ onboardingId, fileId, rawToken, type, skipOwnership = false }) => {
     if (!skipOwnership) await resolveOwnedSession(onboardingId, rawToken, type)
     await getFileDetails(onboardingId, fileId)   // 404s a file that is not on this onboarding
-    return { url: signedFilePath(onboardingId, fileId) }
+    const url = trySignedFilePath(onboardingId, fileId)
+    if (!url) throw new ApiError(503, "FILE_LINKS_NOT_CONFIGURED", "File links are not configured on the server.")
+    return { url }
 }
 
 export const getFileDetails = async (onboardingId, fileId) => {
