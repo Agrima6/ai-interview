@@ -1,4 +1,5 @@
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3"
+import { NodeHttpHandler } from "@smithy/node-http-handler"
 
 // Object storage for onboarding attachments (logos, verification docs) -
 // points at local MinIO in dev/Docker; production swaps these env vars for
@@ -24,6 +25,10 @@ const forcePathStyle = Boolean(
 
 const s3Config = {
     region,
+    // Fail fast when object storage is unreachable. The SDK default keeps retrying for a long time, which outlasts the
+    // reverse proxy's timeout: the browser then sees a bare "Network Error" instead of our JSON error.
+    maxAttempts: 2,
+    requestHandler: new NodeHttpHandler({ connectionTimeout: 3000, socketTimeout: 30000 }),
     ...(customEndpoint ? { endpoint: customEndpoint, forcePathStyle } : {}),
     ...(accessKeyId && secretAccessKey ? {
         credentials: {

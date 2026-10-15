@@ -15,16 +15,26 @@ export const uploadOnboardingFile = async (onboardingId, token, { type, fieldKey
     form.append("type", type)
     form.append("fieldKey", fieldKey)
     form.append("file", file)
-    const { data } = await client.post(`/api/v1/onboardings/${onboardingId}/files/upload`, form, {
-        headers: { "X-Onboarding-Token": token, "Content-Type": "multipart/form-data" },
-        onUploadProgress: (progressEvent) => {
-            if (onProgress && progressEvent.total) {
-                const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total)
-                onProgress(percentCompleted)
+    try {
+        const { data } = await client.post(`/api/v1/onboardings/${onboardingId}/files/upload`, form, {
+            headers: { "X-Onboarding-Token": token, "Content-Type": "multipart/form-data" },
+            onUploadProgress: (progressEvent) => {
+                if (onProgress && progressEvent.total) {
+                    const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+                    onProgress(percentCompleted)
+                }
             }
+        })
+        return data.data
+    } catch (err) {
+        // No HTTP response at all (connection dropped, request too large for a proxy, CORS-stripped error):
+        // say what the person can do instead of the browser's bare "Network Error".
+        if (!err.response) {
+            throw new Error("The upload could not reach the server. Check your connection and try again, or choose a smaller file.")
         }
-    })
-    return data.data
+        const apiMessage = err.response.data?.error?.message
+        throw new Error(err.response.status >= 500 && !apiMessage ? "The upload failed on our side. Please try again in a moment." : (apiMessage || "The upload failed. Please try again."))
+    }
 }
 
 export const submitOnboarding = (onboardingId, token, { type, consent, captchaToken, captchaAnswer }) =>
