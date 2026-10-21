@@ -175,7 +175,7 @@ export default function LandingPage() {
 <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
 <Link to="/login" className="hidesm" style={{ textDecoration: "none", fontSize: "15px", fontWeight: "500", color: "#1F1417", padding: "11px 14px", minHeight: "44px", display: "inline-flex", alignItems: "center" }}>{"Log in"}</Link>
 
-<Link to="/register" className="btn gb" style={{ textDecoration: "none", fontSize: "15px", fontWeight: "600", padding: "11px 20px", minHeight: "44px", display: "inline-flex", alignItems: "center", gap: "8px", color: "#FFFFFF", borderRadius: "999px" }}>{"Join now "}
+<Link to="/register" className="btn gb hidesm" style={{ textDecoration: "none", fontSize: "15px", fontWeight: "600", padding: "11px 20px", minHeight: "44px", display: "inline-flex", alignItems: "center", gap: "8px", color: "#FFFFFF", borderRadius: "999px" }}>{"Join now "}
 <span className="arr">{"→"}</span>
 </Link>
 <button type="button" className="mbtn" aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen} aria-controls="wl-mobile-menu" onClick={() => setMenuOpen((o) => !o)}>
@@ -205,7 +205,7 @@ export default function LandingPage() {
 <div className="dots" style={{ position: "absolute", inset: "0" }}></div>
 </div>
 
-<div className="pad" style={{ position: "relative", maxWidth: "1320px", margin: "0 auto", padding: "76px 40px 70px", display: "flex", flexWrap: "wrap", gap: "48px", alignItems: "center" }}>
+<div className="pad" style={{ position: "relative", maxWidth: "1320px", margin: "0 auto", padding: "64px 40px 56px", display: "flex", flexWrap: "wrap", gap: "48px", alignItems: "center" }}>
 <div style={{ flex: "1 1 500px", minWidth: "0" }}>
 <div className="up" style={{ display: "inline-flex", alignItems: "center", gap: "10px", padding: "5px 14px 5px 5px", borderRadius: "999px", background: "#FFFFFF", border: "1px solid #F3DDE3", fontSize: "13px", fontWeight: "500", color: "#5E4E55", boxShadow: "0 6px 20px -12px rgba(163,18,58,.4)" }}>
 <span className="gb" style={{ color: "#fff", borderRadius: "999px", padding: "3px 10px", fontSize: "11.5px", fontWeight: "600" }}>{"New"}</span>
@@ -251,10 +251,10 @@ export default function LandingPage() {
 
 {/* stage with real product shot */}
 
-<div className="up u2" style={{ flex: "1.15 1 560px", minWidth: "0", position: "relative", padding: "30px 0 40px" }}>
+<div className="up u2 landing-hero-visual" style={{ flex: "1.15 1 560px", minWidth: "0", position: "relative", padding: "30px 0 40px" }}>
 <div className="tilt" style={{ position: "relative", borderRadius: "18px", overflow: "hidden", boxShadow: "0 50px 100px -40px rgba(90,20,40,0.45), 0 0 0 1px rgba(163,18,58,0.08)" }}>
 <div style={{ containerType: "inline-size", width: "100%", background: "#FFFFFF" }}>
-<div style={{ height: "3cqw", background: "#F6F2F3", display: "flex", alignItems: "center", gap: ".55cqw", padding: "0 1.1cqw", borderBottom: "1px solid #EEE4E7" }}>
+<div className="landing-hero-browser-chrome" style={{ height: "3cqw", background: "#F6F2F3", display: "flex", alignItems: "center", gap: ".55cqw", padding: "0 1.1cqw", borderBottom: "1px solid #EEE4E7" }}>
 <span style={{ width: ".85cqw", height: ".85cqw", borderRadius: "50%", background: "#FF5F57" }}></span>
 
 <span style={{ width: ".85cqw", height: ".85cqw", borderRadius: "50%", background: "#FEBC2E" }}></span>
@@ -264,7 +264,7 @@ export default function LandingPage() {
 <span style={{ marginLeft: "1.2cqw", width: "32cqw", height: "1.95cqw", borderRadius: ".55cqw", background: "#FFFFFF", border: "1px solid #EEE4E7", fontSize: ".85cqw", color: "#7A6870", display: "flex", alignItems: "center", padding: "0 .8cqw" }}>{"app.workmateiq.com/interview/live"}</span>
 </div>
 
-<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1cqw 1.5cqw", borderBottom: "1px solid #F0E6E9" }}>
+<div className="landing-hero-toolbar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1cqw 1.5cqw", borderBottom: "1px solid #F0E6E9" }}>
 <div style={{ display: "flex", alignItems: "center", gap: ".7cqw" }}>
 <img src={IMG.logo} alt="" style={{ width: "2.1cqw", height: "2.1cqw", borderRadius: "50%" }} />
 <div>
@@ -274,12 +274,12 @@ export default function LandingPage() {
 </div>
 </div>
 
-<div style={{ display: "flex", gap: ".55cqw" }}>
-<span style={{ fontSize: ".8cqw", fontWeight: "600", padding: ".3cqw .7cqw", borderRadius: "999px", background: "#E3F6EE", color: "#0B6B52", display: "inline-flex", alignItems: "center", gap: ".35cqw" }}>
+<div className="landing-hero-status" style={{ display: "flex", gap: ".55cqw" }}>
+<span className="landing-status-pill" style={{ fontSize: ".8cqw", fontWeight: "600", padding: ".3cqw .7cqw", borderRadius: "999px", background: "#E3F6EE", color: "#0B6B52", display: "inline-flex", alignItems: "center", gap: ".35cqw" }}>
 <span className="pulse" style={{ width: ".5cqw", height: ".5cqw", borderRadius: "50%", background: "#0F8A6B" }}></span>
 {"Integrity monitoring active"}</span>
 
-<span style={{ fontSize: ".8cqw", fontWeight: "600", padding: ".3cqw .7cqw", borderRadius: "999px", background: "#FDE7EC", color: "#A3123A", display: "inline-flex", alignItems: "center", gap: ".35cqw" }}>
+<span className="landing-status-pill" style={{ fontSize: ".8cqw", fontWeight: "600", padding: ".3cqw .7cqw", borderRadius: "999px", background: "#FDE7EC", color: "#A3123A", display: "inline-flex", alignItems: "center", gap: ".35cqw" }}>
 <span className="pulse" style={{ width: ".5cqw", height: ".5cqw", borderRadius: "50%", background: "#E94B6A" }}></span>
 {"REC 12:"}
 <span className="lsec"></span>
@@ -287,7 +287,7 @@ export default function LandingPage() {
 </div>
 </div>
 
-<div style={{ display: "flex", gap: ".4cqw", padding: ".85cqw 1.5cqw 0" }}>
+<div className="landing-hero-timeline" style={{ display: "flex", gap: ".4cqw", padding: ".85cqw 1.5cqw 0" }}>
 <span style={{ flex: "1", height: ".28cqw", borderRadius: "4px", background: "#E94B6A" }}></span>
 
 <span style={{ flex: "1", height: ".28cqw", borderRadius: "4px", background: "#E94B6A" }}></span>
@@ -305,12 +305,12 @@ export default function LandingPage() {
 <span style={{ flex: "1", height: ".28cqw", borderRadius: "4px", background: "#F2E6E9" }}></span>
 </div>
 
-<div style={{ display: "flex", gap: "1.25cqw", padding: "1.1cqw 1.5cqw 1.5cqw", background: "#FBF7F8" }}>
+<div className="landing-hero-content" style={{ display: "flex", gap: "1.25cqw", padding: "1.1cqw 1.5cqw 1.5cqw", background: "#FBF7F8" }}>
 <div style={{ flex: "2", minWidth: "0", display: "flex", flexDirection: "column", gap: "1cqw" }}>
-<div style={{ position: "relative", borderRadius: "1.25cqw", overflow: "hidden", height: "31cqw", background: "#222" }}>
+<div className="landing-hero-video" style={{ position: "relative", borderRadius: "1.25cqw", overflow: "hidden", height: "31cqw", background: "#222" }}>
 <video src={VIDEO.interview} autoPlay muted loop playsInline aria-label="AI interviewer speaking" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}></video>
 
-<span style={{ position: "absolute", left: "1cqw", top: "1cqw", fontSize: ".82cqw", fontWeight: "600", padding: ".35cqw .8cqw .35cqw .4cqw", borderRadius: "999px", background: "rgba(255,255,255,0.92)", display: "inline-flex", alignItems: "center", gap: ".5cqw" }}>
+<span className="landing-live-badge" style={{ position: "absolute", left: "1cqw", top: "1cqw", fontSize: ".82cqw", fontWeight: "600", padding: ".35cqw .8cqw .35cqw .4cqw", borderRadius: "999px", background: "rgba(255,255,255,0.92)", display: "inline-flex", alignItems: "center", gap: ".5cqw" }}>
 <span className="leq" style={{ display: "inline-flex", alignItems: "center", height: "1.5cqw", padding: "0 .45cqw", borderRadius: "999px", background: "#A3123A" }}>
 <i></i>
 
@@ -322,18 +322,18 @@ export default function LandingPage() {
 </span>
 {"AI interviewer · speaking"}</span>
 
-<div style={{ position: "absolute", left: "1cqw", bottom: "1cqw", maxWidth: "58%", background: "rgba(31,20,23,0.72)", color: "#FFFFFF", borderRadius: ".7cqw", padding: ".5cqw .8cqw", fontSize: ".9cqw" }}>
+<div className="landing-live-caption" style={{ position: "absolute", left: "1cqw", bottom: "1cqw", maxWidth: "58%", background: "rgba(31,20,23,0.72)", color: "#FFFFFF", borderRadius: ".7cqw", padding: ".5cqw .8cqw", fontSize: ".9cqw" }}>
 <div className="lcap">{"\"Tell me about a time you solved a complex problem.\""}</div>
 </div>
 
-<div style={{ position: "absolute", right: "1cqw", bottom: "1cqw", width: "16cqw", height: "11cqw", borderRadius: "1cqw", overflow: "hidden", border: ".22cqw solid #FFFFFF", boxShadow: "0 12px 30px -10px rgba(0,0,0,.5)" }}>
-<img className="lkb" src={IMG.candidatePip} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-<span style={{ position: "absolute", left: ".55cqw", bottom: ".55cqw", fontSize: ".75cqw", fontWeight: "600", padding: ".2cqw .6cqw", borderRadius: "999px", background: "rgba(0,0,0,0.55)", color: "#FFFFFF" }}>{"You"}</span>
+<div className="landing-pip-frame landing-pip-frame--cqw" style={{ position: "absolute", right: "1cqw", bottom: "1cqw", width: "16cqw", height: "11cqw", borderRadius: "1cqw", overflow: "hidden", border: ".22cqw solid #FFFFFF", boxShadow: "0 12px 30px -10px rgba(0,0,0,.5)" }}>
+<img className="lkb landing-pip-image" src={IMG.candidatePip} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+<span className="landing-pip-label" style={{ position: "absolute", left: ".55cqw", bottom: ".55cqw", fontSize: ".75cqw", fontWeight: "600", padding: ".2cqw .6cqw", borderRadius: "999px", background: "rgba(0,0,0,0.55)", color: "#FFFFFF" }}>{"You"}</span>
 </div>
 </div>
 
-<div style={{ background: "#FFFFFF", border: "1px solid #F0E6E9", borderRadius: "1.25cqw", padding: "1.1cqw", display: "flex", gap: "1.2cqw", alignItems: "center" }}>
-<div className="lring" style={{ width: "5.4cqw", height: "5.4cqw", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
+<div className="landing-hero-question" style={{ background: "#FFFFFF", border: "1px solid #F0E6E9", borderRadius: "1.25cqw", padding: "1.1cqw", display: "flex", gap: "1.2cqw", alignItems: "center" }}>
+<div className="lring landing-hero-timer" style={{ width: "5.4cqw", height: "5.4cqw", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
 <div style={{ width: "4.3cqw", height: "4.3cqw", borderRadius: "50%", background: "#FFFFFF", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
 <b style={{ fontSize: "1.15cqw", fontWeight: "600" }}>{"02:"}
 <span className="lsec"></span>
@@ -365,7 +365,7 @@ export default function LandingPage() {
 </div>
 </div>
 
-<div style={{ flex: "1", minWidth: "0", display: "flex", flexDirection: "column", gap: "1cqw" }}>
+<div className="landing-hero-sidebar" style={{ flex: "1", minWidth: "0", display: "flex", flexDirection: "column", gap: "1cqw" }}>
 <div style={{ flex: "1", background: "#FFFFFF", border: "1px solid #F0E6E9", borderRadius: "1.25cqw", padding: "1.1cqw" }}>
 <div style={{ fontWeight: "600", fontSize: "1cqw" }}>{"Real-time dialogue"}</div>
 
@@ -467,19 +467,19 @@ export default function LandingPage() {
 </div>
 
 <div className="bento">
-<article className="tile s7 r2 rvs" style={{ minHeight: "540px", background: "#F6EEF0" }}>
+<article className="tile s7 r2 rvs landing-organization-card" style={{ minHeight: "540px", background: "#F6EEF0" }}>
 <img className="cover para" src={IMG.photoRecruiter} alt="Recruiter interviewing a candidate across a desk" style={{ position: "absolute", inset: "0", width: "100%", height: "100%", objectFit: "cover" }} />
-<div style={{ position: "absolute", inset: "0", background: "linear-gradient(180deg, rgba(31,20,23,0) 45%, rgba(31,20,23,0.78) 100%)" }}></div>
+<div className="landing-organization-scrim" style={{ position: "absolute", inset: "0", background: "linear-gradient(180deg, rgba(31,20,23,0) 45%, rgba(31,20,23,0.78) 100%)" }}></div>
 
-<div style={{ position: "absolute", left: "28px", right: "28px", bottom: "28px", color: "#FFFFFF" }}>
+<div className="landing-organization-copy" style={{ position: "absolute", left: "28px", right: "28px", bottom: "28px", color: "#FFFFFF" }}>
 <span style={{ display: "inline-flex", padding: "5px 12px", borderRadius: "999px", background: "rgba(255,255,255,0.9)", color: "#A3123A", fontSize: "12px", fontWeight: "600" }}>{"For organizations"}</span>
 
-<h3 style={{ margin: "12px 0 6px", fontSize: "30px", fontWeight: "600", letterSpacing: "-0.025em", lineHeight: "1.2" }}>{"Intelligent, efficient hiring — without the guesswork."}</h3>
+<h3 className="landing-organization-heading" style={{ margin: "12px 0 6px", fontSize: "30px", fontWeight: "600", letterSpacing: "-0.025em", lineHeight: "1.2" }}>{"Intelligent, efficient hiring — without the guesswork."}</h3>
 
-<p style={{ margin: "0", color: "#F5E6EA", maxWidth: "520px" }}>{"Structured interviews, consistent scores and clear rankings your whole team can stand behind."}</p>
+<p className="landing-organization-description" style={{ margin: "0", color: "#F5E6EA", maxWidth: "520px" }}>{"Structured interviews, consistent scores and clear rankings your whole team can stand behind."}</p>
 </div>
 
-<div className="f1" style={{ position: "absolute", right: "22px", top: "22px", background: "#FFFFFF", borderRadius: "16px", padding: "10px 14px 10px 10px", display: "flex", gap: "10px", alignItems: "center", boxShadow: "0 20px 40px -18px rgba(0,0,0,0.4)" }}>
+<div className="f1 landing-organization-offer" style={{ position: "absolute", right: "22px", top: "22px", background: "#FFFFFF", borderRadius: "16px", padding: "10px 14px 10px 10px", display: "flex", gap: "10px", alignItems: "center", boxShadow: "0 20px 40px -18px rgba(0,0,0,0.4)" }}>
 <img src={IMG.avatar1} alt="" style={{ width: "36px", height: "36px", borderRadius: "50%", objectFit: "cover" }} />
 <div>
 <div style={{ fontSize: "13px", fontWeight: "600" }}>{"Offer accepted"}</div>
@@ -500,7 +500,7 @@ export default function LandingPage() {
 <article className="tile s5 rv" style={{ background: "#FFFFFF", border: "1px solid #F3E8EB", padding: "28px", minHeight: "260px" }}>
 <div style={{ fontSize: "13px", fontWeight: "600", color: "#A3123A", letterSpacing: "0.08em" }}>{"CONNECTED ECOSYSTEM"}</div>
 
-<div style={{ position: "relative", height: "170px", marginTop: "14px" }}>
+<div className="landing-ecosystem" style={{ position: "relative", height: "170px", marginTop: "14px" }}>
 <svg aria-hidden="true" viewBox="0 0 400 170" preserveAspectRatio="none" style={{ position: "absolute", inset: "0", width: "100%", height: "100%" }}>
 <path className="flow" d="M70 35 C 150 35, 150 85, 200 85" fill="none" stroke="#E94B6A" strokeWidth="2"></path>
 
@@ -598,7 +598,7 @@ export default function LandingPage() {
 <span style={{ marginLeft: "1.2cqw", width: "32cqw", height: "1.95cqw", borderRadius: ".55cqw", background: "#FFFFFF", border: "1px solid #EEE4E7", fontSize: ".85cqw", color: "#7A6870", display: "flex", alignItems: "center", padding: "0 .8cqw" }}>{"app.workmateiq.com/interview/live"}</span>
 </div>
 
-<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1cqw 1.5cqw", borderBottom: "1px solid #F0E6E9" }}>
+<div className="landing-tour-toolbar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1cqw 1.5cqw", borderBottom: "1px solid #F0E6E9" }}>
 <div style={{ display: "flex", alignItems: "center", gap: ".7cqw" }}>
 <img src={IMG.logo} alt="" style={{ width: "2.1cqw", height: "2.1cqw", borderRadius: "50%" }} />
 <div>
@@ -608,12 +608,12 @@ export default function LandingPage() {
 </div>
 </div>
 
-<div style={{ display: "flex", gap: ".55cqw" }}>
-<span style={{ fontSize: ".8cqw", fontWeight: "600", padding: ".3cqw .7cqw", borderRadius: "999px", background: "#E3F6EE", color: "#0B6B52", display: "inline-flex", alignItems: "center", gap: ".35cqw" }}>
+<div className="landing-tour-status" style={{ display: "flex", gap: ".55cqw" }}>
+<span className="landing-status-pill" style={{ fontSize: ".8cqw", fontWeight: "600", padding: ".3cqw .7cqw", borderRadius: "999px", background: "#E3F6EE", color: "#0B6B52", display: "inline-flex", alignItems: "center", gap: ".35cqw" }}>
 <span className="pulse" style={{ width: ".5cqw", height: ".5cqw", borderRadius: "50%", background: "#0F8A6B" }}></span>
 {"Integrity monitoring active"}</span>
 
-<span style={{ fontSize: ".8cqw", fontWeight: "600", padding: ".3cqw .7cqw", borderRadius: "999px", background: "#FDE7EC", color: "#A3123A", display: "inline-flex", alignItems: "center", gap: ".35cqw" }}>
+<span className="landing-status-pill" style={{ fontSize: ".8cqw", fontWeight: "600", padding: ".3cqw .7cqw", borderRadius: "999px", background: "#FDE7EC", color: "#A3123A", display: "inline-flex", alignItems: "center", gap: ".35cqw" }}>
 <span className="pulse" style={{ width: ".5cqw", height: ".5cqw", borderRadius: "50%", background: "#E94B6A" }}></span>
 {"REC 12:"}
 <span className="lsec"></span>
@@ -641,10 +641,10 @@ export default function LandingPage() {
 
 <div style={{ display: "flex", gap: "1.25cqw", padding: "1.1cqw 1.5cqw 1.5cqw", background: "#FBF7F8" }}>
 <div style={{ flex: "2", minWidth: "0", display: "flex", flexDirection: "column", gap: "1cqw" }}>
-<div style={{ position: "relative", borderRadius: "1.25cqw", overflow: "hidden", height: "31cqw", background: "#222" }}>
+<div className="landing-tour-video" style={{ position: "relative", borderRadius: "1.25cqw", overflow: "hidden", height: "31cqw", background: "#222" }}>
 <video src={VIDEO.interview} autoPlay muted loop playsInline aria-label="AI interviewer speaking" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}></video>
 
-<span style={{ position: "absolute", left: "1cqw", top: "1cqw", fontSize: ".82cqw", fontWeight: "600", padding: ".35cqw .8cqw .35cqw .4cqw", borderRadius: "999px", background: "rgba(255,255,255,0.92)", display: "inline-flex", alignItems: "center", gap: ".5cqw" }}>
+<span className="landing-live-badge" style={{ position: "absolute", left: "1cqw", top: "1cqw", fontSize: ".82cqw", fontWeight: "600", padding: ".35cqw .8cqw .35cqw .4cqw", borderRadius: "999px", background: "rgba(255,255,255,0.92)", display: "inline-flex", alignItems: "center", gap: ".5cqw" }}>
 <span className="leq" style={{ display: "inline-flex", alignItems: "center", height: "1.5cqw", padding: "0 .45cqw", borderRadius: "999px", background: "#A3123A" }}>
 <i></i>
 
@@ -656,13 +656,13 @@ export default function LandingPage() {
 </span>
 {"AI interviewer · speaking"}</span>
 
-<div style={{ position: "absolute", left: "1cqw", bottom: "1cqw", maxWidth: "58%", background: "rgba(31,20,23,0.72)", color: "#FFFFFF", borderRadius: ".7cqw", padding: ".5cqw .8cqw", fontSize: ".9cqw" }}>
+<div className="landing-live-caption" style={{ position: "absolute", left: "1cqw", bottom: "1cqw", maxWidth: "58%", background: "rgba(31,20,23,0.72)", color: "#FFFFFF", borderRadius: ".7cqw", padding: ".5cqw .8cqw", fontSize: ".9cqw" }}>
 <div className="lcap">{"\"Tell me about a time you solved a complex problem.\""}</div>
 </div>
 
-<div style={{ position: "absolute", right: "1cqw", bottom: "1cqw", width: "16cqw", height: "11cqw", borderRadius: "1cqw", overflow: "hidden", border: ".22cqw solid #FFFFFF", boxShadow: "0 12px 30px -10px rgba(0,0,0,.5)" }}>
-<img className="lkb" src={IMG.candidatePip} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-<span style={{ position: "absolute", left: ".55cqw", bottom: ".55cqw", fontSize: ".75cqw", fontWeight: "600", padding: ".2cqw .6cqw", borderRadius: "999px", background: "rgba(0,0,0,0.55)", color: "#FFFFFF" }}>{"You"}</span>
+<div className="landing-pip-frame landing-pip-frame--cqw" style={{ position: "absolute", right: "1cqw", bottom: "1cqw", width: "16cqw", height: "11cqw", borderRadius: "1cqw", overflow: "hidden", border: ".22cqw solid #FFFFFF", boxShadow: "0 12px 30px -10px rgba(0,0,0,.5)" }}>
+<img className="lkb landing-pip-image" src={IMG.candidatePip} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+<span className="landing-pip-label" style={{ position: "absolute", left: ".55cqw", bottom: ".55cqw", fontSize: ".75cqw", fontWeight: "600", padding: ".2cqw .6cqw", borderRadius: "999px", background: "rgba(0,0,0,0.55)", color: "#FFFFFF" }}>{"You"}</span>
 </div>
 </div>
 
@@ -769,7 +769,7 @@ export default function LandingPage() {
 <p style={{ margin: "0", color: "#5E4E55", fontSize: "17px" }}>{s.d}</p>
 </div>
 
-<div style={{ flex: "1 1 460px", minWidth: "0", position: "relative", borderRadius: "24px", overflow: "hidden", height: "360px" }}>{(s.isVideo) && (<>
+<div className={`landing-step-visual${s.isVideo ? ' landing-step-video' : ''}`} style={{ flex: "1 1 460px", minWidth: "0", position: "relative", borderRadius: "24px", overflow: "hidden", height: "360px" }}>{(s.isVideo) && (<>
 <video src={s.video} autoPlay muted loop playsInline aria-label={s.alt} style={{ position: "absolute", inset: "0", width: "100%", height: "100%", objectFit: "cover" }}></video>
 
 <span style={{ position: "absolute", left: "16px", top: "16px", fontSize: "12.5px", fontWeight: "600", padding: "5px 12px 5px 6px", borderRadius: "999px", background: "rgba(255,255,255,0.94)", display: "inline-flex", alignItems: "center", gap: "8px" }}>
@@ -784,9 +784,9 @@ export default function LandingPage() {
 </span>
 {"AI interviewer · speaking"}</span>
 
-<div style={{ position: "absolute", right: "16px", top: "16px", width: "150px", height: "110px", borderRadius: "14px", overflow: "hidden", border: "3px solid #FFFFFF", boxShadow: "0 14px 30px -12px rgba(0,0,0,0.5)" }}>
-<img className="lkb" src={IMG.candidatePip} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-<span style={{ position: "absolute", left: "6px", bottom: "6px", fontSize: "11px", fontWeight: "600", padding: "2px 8px", borderRadius: "999px", background: "rgba(0,0,0,0.55)", color: "#FFFFFF" }}>{"You"}</span>
+<div className="landing-pip-frame landing-step-pip" style={{ position: "absolute", right: "16px", top: "16px", width: "150px", height: "110px", borderRadius: "14px", overflow: "hidden", border: "3px solid #FFFFFF", boxShadow: "0 14px 30px -12px rgba(0,0,0,0.5)" }}>
+<img className="lkb landing-pip-image" src={IMG.candidatePip} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+<span className="landing-pip-label" style={{ position: "absolute", left: "6px", bottom: "6px", fontSize: "11px", fontWeight: "600", padding: "2px 8px", borderRadius: "999px", background: "rgba(0,0,0,0.55)", color: "#FFFFFF" }}>{"You"}</span>
 </div>
 </>)}{(s.isImg) && (<>
 <img className="kbs" src={s.img} alt={s.alt} style={{ position: "absolute", inset: "0", width: "100%", height: "100%", objectFit: "cover", objectPosition: s.pos }} />
@@ -827,23 +827,23 @@ export default function LandingPage() {
 </div>
 
 <div className="accrow rv" style={{ display: "flex", gap: "16px", height: "560px" }}>{(aud).map((a, __i1) => (<Fragment key={__i1}>
-<article className="acc" tabIndex={0} aria-label={a.tag} onMouseEnter={a.pick} onFocus={a.pick} onClick={a.pick} style={{ flex: `${a.flex} 1 0`, minWidth: "0", position: "relative", borderRadius: "28px", overflow: "hidden", background: "#F6EEF0", cursor: "pointer" }}>
+<article className={`acc landing-audience-card${a.open ? ' is-open' : ''}`} tabIndex={0} aria-label={a.tag} aria-expanded={a.open} onMouseEnter={a.pick} onFocus={a.pick} onClick={a.pick} style={{ flex: `${a.flex} 1 0`, minWidth: "0", position: "relative", borderRadius: "28px", overflow: "hidden", background: "#F6EEF0", cursor: "pointer" }}>
 <img src={a.img} alt={a.alt} style={{ position: "absolute", inset: "0", width: "100%", height: "100%", objectFit: "cover" }} />
 <div style={{ position: "absolute", inset: "0", background: a.shade, transition: "background .6s ease" }}></div>
 
-<div style={{ position: "absolute", left: "26px", right: "26px", bottom: "26px", color: "#FFFFFF" }}>
+<div className="landing-audience-copy" style={{ position: "absolute", left: "26px", right: "26px", bottom: "26px", color: "#FFFFFF" }}>
 <span style={{ display: "inline-flex", padding: "5px 12px", borderRadius: "999px", background: "rgba(255,255,255,0.92)", color: '#A3123A', fontSize: "12px", fontWeight: "600" }}>{a.tag}</span>
 
-<h3 style={{ margin: "12px 0 0", fontSize: "28px", fontWeight: "600", letterSpacing: "-0.025em", lineHeight: "1.2" }}>{a.title}</h3>
+<h3 className="landing-audience-title" style={{ margin: "12px 0 0", fontSize: "28px", fontWeight: "600", letterSpacing: "-0.025em", lineHeight: "1.2" }}>{a.title}</h3>
 {(a.open) && (<>
 <div className="fadein">
-<ul style={{ listStyle: "none", margin: "14px 0 0", padding: "0", display: "flex", flexDirection: "column", gap: "8px", fontSize: "15px", color: "#FBEFF2", maxWidth: "520px" }}>{(a.points).map((p, __i2) => (<Fragment key={__i2}>
+<ul className="landing-audience-points" style={{ listStyle: "none", margin: "14px 0 0", padding: "0", display: "flex", flexDirection: "column", gap: "8px", fontSize: "15px", color: "#FBEFF2", maxWidth: "520px" }}>{(a.points).map((p, __i2) => (<Fragment key={__i2}>
 <li style={{ display: "flex", gap: "10px" }}>
 <span style={{ color: "#FFD58A" }}>{"✓"}</span>
 {p}</li>
 </Fragment>))}</ul>
 
-<Link to="/register" className="btn" style={{ marginTop: "18px", textDecoration: "none", background: "#FFFFFF", color: "#1F1417", fontWeight: "600", padding: "12px 22px", borderRadius: "999px", minHeight: "46px", display: "inline-flex", alignItems: "center", gap: "10px" }}>{a.cta}{" "}
+<Link to="/register" className="btn landing-audience-cta" style={{ marginTop: "18px", textDecoration: "none", background: "#FFFFFF", color: "#1F1417", fontWeight: "600", padding: "12px 22px", borderRadius: "999px", minHeight: "46px", display: "inline-flex", alignItems: "center", gap: "10px" }}>{a.cta}{" "}
 <span className="arr">{"→"}</span>
 </Link>
 </div>
@@ -875,7 +875,7 @@ export default function LandingPage() {
 </Fragment>))}</div>
 </div>
 
-<div className="rvs" style={{ flex: "0 1 440px", minWidth: "0", margin: "0 auto", display: "flex", flexDirection: "column", alignItems: "center", gap: "20px" }}>
+<div className="rvs landing-security-visual" style={{ flex: "0 1 440px", minWidth: "0", margin: "0 auto", display: "flex", flexDirection: "column", alignItems: "center", gap: "20px" }}>
 <div style={{ position: "relative", width: "320px", height: "320px", borderRadius: "50%", background: "radial-gradient(circle, #FFF1F3, #FFFFFF 70%)", border: "1px solid #F3E8EB", display: "flex", alignItems: "center", justifyContent: "center" }}>
 <div aria-hidden="true" className="sweep" style={{ position: "absolute", inset: "0", borderRadius: "50%", background: "conic-gradient(from 0deg, rgba(233,75,106,0.22), transparent 25%)" }}></div>
 

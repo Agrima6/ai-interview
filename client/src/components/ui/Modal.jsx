@@ -52,11 +52,11 @@ function Modal({ open, onClose, title, children, footer, size = 'md' }) {
             className={`relative ${
               isFull
                 ? 'w-full h-full min-h-screen bg-card flex flex-col overflow-hidden'
-                : `w-full ${widths[size]} bg-card border border-line rounded-2xl shadow-[var(--shadow-lift)] max-h-[85vh] overflow-y-auto`
+                : `w-full ${widths[size]} bg-card border border-line rounded-2xl shadow-[var(--shadow-lift)] max-h-[calc(100dvh-2rem)] overflow-y-auto`
             }`}
           >
             {(title || onClose) && (
-              <div className={`flex items-center justify-between border-b border-line sticky top-0 bg-card z-10 ${isFull ? 'px-8 py-5 shadow-sm' : 'px-6 py-5 rounded-t-2xl'}`}>
+              <div className={`flex items-center justify-between border-b border-line sticky top-0 bg-card z-10 ${isFull ? 'px-4 py-4 sm:px-8 sm:py-5 shadow-sm' : 'px-4 py-4 sm:px-6 sm:py-5 rounded-t-2xl'}`}>
                 <div className={isFull ? 'max-w-6xl w-full mx-auto flex items-center justify-between' : 'flex items-center justify-between w-full'}>
                   <h3 className={`font-semibold text-ink ${isFull ? 'text-[18px] font-bold' : 'text-[16px]'}`}>{title}</h3>
                   {onClose && (
@@ -68,12 +68,12 @@ function Modal({ open, onClose, title, children, footer, size = 'md' }) {
               </div>
             )}
 
-            <div className={isFull ? 'flex-1 overflow-y-auto px-8 py-8 max-w-6xl w-full mx-auto' : 'px-6 py-6'}>
+            <div className={isFull ? 'flex-1 overflow-y-auto px-4 py-5 sm:px-8 sm:py-8 max-w-6xl w-full mx-auto' : 'px-4 py-5 sm:px-6 sm:py-6'}>
               {children}
             </div>
 
             {footer && (
-              <div className={`border-t border-line bg-card ${isFull ? 'px-8 py-4 sticky bottom-0 z-10' : 'px-6 py-5 flex justify-end gap-3'}`}>
+              <div className={`border-t border-line bg-card ${isFull ? 'px-4 py-4 sm:px-8 sticky bottom-0 z-10' : 'px-4 py-4 sm:px-6 sm:py-5 flex justify-end gap-3'}`}>
                 <div className={isFull ? 'max-w-6xl w-full mx-auto flex items-center justify-between' : 'w-full flex justify-end gap-3'}>
                   {footer}
                 </div>

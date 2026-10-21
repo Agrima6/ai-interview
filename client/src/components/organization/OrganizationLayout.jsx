@@ -33,7 +33,7 @@ function OrganizationLayout({ title, description, action, onSearch, children }) 
     return (
         <div className='min-h-screen bg-bg flex' style={themeStyle}>
             <OrganizationSidebar profile={profile} profileLoading={profileLoading} mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
-            <main className='flex-1 min-w-0 p-5 sm:p-8 overflow-x-hidden'>
+            <main className='flex-1 min-w-0 p-4 sm:p-8 overflow-x-hidden'>
                 <OrganizationTopbar title={title} description={description} action={action} onSearch={onSearch} onMenuClick={() => setMobileOpen(true)} />
                 {children}
             </main>

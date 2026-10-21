@@ -23,7 +23,7 @@ export function ReportMock() {
     return (
         <div style={frame} role="img" aria-label="Candidate report: overall score 87 out of 100 with skill scores and an AI summary">
             <Chrome path="app.workmateiq.com/reports/ananya-sharma" />
-            <div style={{ padding: 28, display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.3fr)', gap: 28, alignItems: 'start' }}>
+            <div className="report-mock-grid" style={{ padding: 28, display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.3fr)', gap: 28, alignItems: 'start' }}>
                 <div>
                     <div style={{ fontSize: 12, color: '#7A6870' }}>Candidate report</div>
                     <div style={{ fontSize: 20, fontWeight: 600, marginTop: 2 }}>Ananya Sharma</div>
@@ -73,15 +73,15 @@ export function RankingMock() {
         <div style={frame} role="img" aria-label="Candidate ranking table with scores and role-fit benchmarks">
             <Chrome path="app.workmateiq.com/drives/software-engineer/rank" />
             <div style={{ padding: 22 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <div className="ranking-mock-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                     <div><div style={{ fontSize: 12, color: '#7A6870' }}>Software Engineer · Campus drive</div><div style={{ fontSize: 17, fontWeight: 600 }}>Ranked candidates</div></div>
                     <span style={{ fontSize: 12.5, fontWeight: 600, color: '#fff', background: '#A3123A', borderRadius: 999, padding: '8px 14px' }}>Shortlist top 3</span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '32px minmax(0,1.6fr) minmax(0,1fr) 70px', gap: 10, fontSize: 11, color: '#7A6870', padding: '0 8px 8px', letterSpacing: '.04em' }}>
+                <div className="ranking-mock-grid ranking-mock-header" style={{ display: 'grid', gridTemplateColumns: '32px minmax(0,1.6fr) minmax(0,1fr) 70px', gap: 10, fontSize: 11, color: '#7A6870', padding: '0 8px 8px', letterSpacing: '.04em' }}>
                     <span>#</span><span>CANDIDATE</span><span>ROLE FIT</span><span style={{ textAlign: 'right' }}>SCORE</span>
                 </div>
                 {ROWS.map(([name, role, score, fit], i) => (
-                    <div key={name} style={{ display: 'grid', gridTemplateColumns: '32px minmax(0,1.6fr) minmax(0,1fr) 70px', gap: 10, alignItems: 'center', padding: '11px 8px', borderTop: '1px solid #F3E8EB', fontSize: 13.5, background: i < 3 ? '#FFFBFC' : '#fff' }}>
+                    <div key={name} className="ranking-mock-grid ranking-mock-row" style={{ display: 'grid', gridTemplateColumns: '32px minmax(0,1.6fr) minmax(0,1fr) 70px', gap: 10, alignItems: 'center', padding: '11px 8px', borderTop: '1px solid #F3E8EB', fontSize: 13.5, background: i < 3 ? '#FFFBFC' : '#fff' }}>
                         <b style={{ color: i === 0 ? '#A3123A' : '#7A6870' }}>{i + 1}</b>
                         <span><b style={{ fontWeight: 600 }}>{name}</b><br /><span style={{ fontSize: 12, color: '#7A6870' }}>{role}</span></span>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

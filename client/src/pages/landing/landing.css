@@ -142,10 +142,73 @@
 .wiq-landing .h1{font-size:46px !important}
 .wiq-landing .h2{font-size:36px !important}
 .wiq-landing .pad{padding-left:20px !important;padding-right:20px !important}
+.wiq-landing > section.pad{padding-top:64px !important;padding-bottom:56px !important}
+.wiq-landing #top > .pad{padding-top:44px !important;padding-bottom:36px !important}
 .wiq-landing .hidesm{display:none !important}
 .wiq-landing .stack{position:relative;top:auto !important}
 .wiq-landing .accrow{flex-direction:column;height:auto !important}
 .wiq-landing .acc{min-height:420px}
+.wiq-landing .landing-hero-visual{flex-basis:100% !important;padding:8px 0 24px !important}
+.wiq-landing .landing-hero-visual .tilt{animation:none;transform:none}
+.wiq-landing .landing-hero-visual .tilt [style*="cqw"]{font-size:clamp(10px,1.25cqw,13px) !important}
+.wiq-landing .landing-hero-video{height:clamp(180px,50cqw,300px) !important}
+.wiq-landing .landing-hero-video > div:last-child{width:clamp(76px,18cqw,130px) !important;height:clamp(56px,13cqw,92px) !important}
+.wiq-landing .landing-hero-sidebar{min-width:0}
+.wiq-landing .bento{gap:14px}
+.wiq-landing .bento .s7.r2{min-height:clamp(360px,100vw,460px) !important}
+.wiq-landing .stack{min-height:0 !important;padding:28px !important;gap:24px !important}
+.wiq-landing .landing-step-visual{flex-basis:100% !important;height:clamp(220px,58vw,340px) !important}
+.wiq-landing .landing-security-visual > div:first-child{width:min(320px,82vw) !important;height:auto !important;aspect-ratio:1}
+.wiq-landing .landing-security-visual .ring{width:61.25% !important;height:auto !important;aspect-ratio:1}
+.wiq-landing .landing-security-visual .ring > div{width:83.7% !important;height:auto !important;aspect-ratio:1}
+.wiq-landing .landing-security-visual .ring > div > span:first-child{font-size:clamp(34px,12vw,48px) !important}
+}
+@media (min-width:981px) and (max-width:1199px){
+.wiq-landing #top > .pad{gap:32px !important;padding-left:32px !important;padding-right:32px !important}
+.wiq-landing #top > .pad > div:first-of-type{flex-basis:420px !important}
+.wiq-landing .landing-hero-visual{flex-basis:480px !important;padding:18px 0 24px !important}
+.wiq-landing .h1{font-size:48px !important}
+}
+@media (max-width:767px){
+.wiq-landing .landing-hero-visual{display:none !important}
+}
+@media (max-width:480px){
+.wiq-landing .h1{font-size:clamp(32px,8.5vw,40px) !important;line-height:1.08}
+.wiq-landing .h2{font-size:clamp(27px,7vw,34px) !important;line-height:1.12}
+.wiq-landing .pad{padding-left:16px !important;padding-right:16px !important}
+.wiq-landing > section.pad{padding-top:48px !important;padding-bottom:40px !important}
+.wiq-landing #top > .pad{padding-top:28px !important;padding-bottom:24px !important}
+.wiq-landing .acc{min-height:420px}
+.wiq-landing header .pad{gap:8px;padding-left:12px !important;padding-right:12px !important}
+.wiq-landing header .pad > a:first-child{gap:6px !important}
+.wiq-landing header .pad > a:first-child img{width:32px !important;height:32px !important}
+.wiq-landing header .pad > a:first-child span{font-size:14px !important}
+.wiq-landing header .pad > div:last-child{gap:8px !important}
+.wiq-landing header .btn{padding:10px 12px !important;font-size:14px !important}
+.wiq-landing .mbtn{width:40px;height:40px;flex:0 0 40px}
+.wiq-landing .landing-hero-visual .f2{display:none}
+.wiq-landing .landing-hero-visual{padding-top:0 !important}
+.wiq-landing .landing-hero-visual .tilt{border-radius:12px !important}
+.wiq-landing .landing-hero-visual .tilt > div{border-radius:12px}
+.wiq-landing .landing-hero-visual .tilt [style*="cqw"]{font-size:clamp(10px,1.4cqw,12px) !important}
+.wiq-landing .landing-hero-video{height:clamp(180px,58cqw,260px) !important}
+.wiq-landing .landing-hero-sidebar{display:none !important}
+.wiq-landing .bento .s7.r2{min-height:380px !important}
+.wiq-landing .bento .tile{border-radius:20px}
+.wiq-landing .bento .tile[style*="padding"]{padding:20px !important}
+.wiq-landing .stack{padding:20px !important;border-radius:22px !important;gap:18px !important}
+.wiq-landing .stack h3{font-size:clamp(24px,7vw,30px) !important}
+.wiq-landing .landing-step-visual{height:clamp(210px,66vw,300px) !important;border-radius:18px !important}
+.wiq-landing .landing-step-pip{width:clamp(88px,28vw,120px) !important;height:auto !important;aspect-ratio:15 / 11}
+.wiq-landing #contact .rvs{gap:24px !important;padding:20px !important;border-radius:24px !important}
+.wiq-landing #contact .rvs > div{min-width:0 !important;flex-basis:100% !important}
+.wiq-landing #contact form{padding:18px !important;border-radius:20px !important}
+.wiq-landing #contact form > div{grid-template-columns:minmax(0,1fr) !important}
+.wiq-landing #contact fieldset > div{gap:6px !important}
+.wiq-landing #contact fieldset button{padding:9px 12px !important;font-size:13px !important}
+.wiq-landing footer .pad{padding-top:40px !important}
+.wiq-landing footer .pad > div:last-child{gap:28px !important}
+.wiq-landing #contact .rvs{gap:24px !important;padding:20px !important;border-radius:24px !important}
 }
 /* keyboard focus, which the design export did not define */
 .wiq-landing a:focus-visible, .wiq-landing button:focus-visible, .wiq-landing input:focus-visible, .wiq-landing textarea:focus-visible{outline:3px solid #E94B6A;outline-offset:3px}
@@ -159,4 +222,219 @@
   .wiq-landing .mbtn{display:inline-flex}
   .wiq-landing .mpanel{display:flex;flex-direction:column;padding:8px 20px 16px;border-top:1px solid #F3E8EB;background:rgba(255,255,255,.96)}
   .wiq-landing .mpanel a{color:#1F1417;text-decoration:none;font-weight:500;font-size:16px;padding:14px 4px;min-height:48px;border-bottom:1px solid #F7EEF0}
+}
+
+@media (max-width:980px){
+  .wiq-landing #product > .pad,
+  .wiq-landing #who > .pad{padding-top:64px !important;padding-bottom:56px !important}
+  .wiq-landing #contact .rvs{align-items:stretch}
+  .wiq-landing #contact .rvs > div,
+  .wiq-landing #contact form{flex:1 1 100% !important;width:100%;min-width:0}
+  .wiq-landing #contact .rvs > div:first-of-type{max-width:100%}
+  .wiq-landing #contact form input,
+  .wiq-landing #contact form textarea{width:100%;min-width:0}
+}
+
+@media (max-width:767px){
+  .wiq-landing #top > .pad{gap:24px !important}
+  .wiq-landing .landing-hero-visual{display:block !important;width:100%;max-width:680px;margin:0 auto;padding:0 0 12px !important}
+  .wiq-landing .landing-hero-visual .tilt{transform:none !important}
+  .wiq-landing .landing-hero-visual .f2{display:none}
+  .wiq-landing .landing-hero-sidebar{display:none !important}
+  .wiq-landing #product > .pad,
+  .wiq-landing #who > .pad{padding-top:48px !important;padding-bottom:40px !important}
+  .wiq-landing #who .accrow{gap:12px}
+  .wiq-landing #who .acc{min-height:360px}
+  .wiq-landing #contact{padding-top:0 !important;padding-bottom:56px !important}
+  .wiq-landing #contact .rvs{gap:22px !important;padding:clamp(20px,5vw,32px) !important;border-radius:24px !important}
+  .wiq-landing #contact .rvs > div:first-of-type h2{font-size:clamp(30px,7.5vw,42px) !important;line-height:1.1}
+  .wiq-landing #contact form{padding:clamp(18px,4vw,28px) !important;border-radius:22px !important}
+  .wiq-landing #contact form > div{grid-template-columns:minmax(0,1fr) !important}
+  .wiq-landing #contact form > button[type="submit"]{width:100%}
+  .wiq-landing .up.u3{gap:10px}
+  .wiq-landing .up.u3 > a{justify-content:center}
+}
+
+@media (max-width:480px){
+  .wiq-landing #top > .pad{gap:20px !important}
+  .wiq-landing header .pad{padding-top:6px !important;padding-bottom:6px !important}
+  .wiq-landing header .btn{white-space:nowrap;flex-shrink:0;gap:4px !important}
+  .wiq-landing .up.u3 > a{flex:1 1 100%;width:100%;min-height:48px;padding:12px 18px !important}
+  .wiq-landing .landing-hero-visual{padding:0 !important}
+  .wiq-landing .landing-hero-visual .tilt{border-radius:14px !important}
+  .wiq-landing .landing-hero-video{height:clamp(180px,56vw,240px) !important}
+  .wiq-landing #contact .rvs{padding:18px !important;border-radius:20px !important}
+  .wiq-landing #contact .rvs > div:first-of-type{padding:0}
+  .wiq-landing #contact .rvs > div:first-of-type h2{font-size:clamp(28px,8vw,36px) !important}
+  .wiq-landing #contact fieldset > div{gap:8px !important}
+  .wiq-landing #contact fieldset button{flex:1 1 auto;justify-content:center;padding:9px 10px !important}
+  .wiq-landing footer .pad{gap:28px !important}
+  .wiq-landing footer .pad > div:last-child{width:100%;justify-content:space-between;gap:24px !important}
+}
+
+@media (max-width:340px){
+  .wiq-landing header .pad{padding-left:10px !important;padding-right:10px !important;gap:6px !important}
+  .wiq-landing header .pad > a:first-child{flex-shrink:0;gap:5px !important}
+  .wiq-landing header .pad > a:first-child img{width:28px !important;height:28px !important}
+  .wiq-landing header .pad > a:first-child span{font-size:13px !important}
+  .wiq-landing header .pad > div:last-child{flex-shrink:0;gap:6px !important}
+  .wiq-landing header .btn{padding:8px 9px !important;font-size:12px !important}
+  .wiq-landing .mbtn{width:38px;height:38px;flex-basis:38px}
+}
+
+.wiq-landing img,
+.wiq-landing video{display:block;max-width:100%}
+.wiq-landing button{font-family:inherit}
+.wiq-landing .tile,
+.wiq-landing .shotin,
+.wiq-landing .landing-step-visual{isolation:isolate}
+.wiq-landing .landing-hero-video,
+.wiq-landing .landing-tour-video{height:auto !important;aspect-ratio:16 / 9;max-height:380px}
+.wiq-landing .landing-hero-video > video,
+.wiq-landing .landing-tour-video > video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain !important;background:#1F1417}
+.wiq-landing .landing-step-video{height:auto !important;aspect-ratio:16 / 9}
+.wiq-landing .landing-step-video > video{object-fit:contain !important;background:#1F1417}
+.wiq-landing .landing-ecosystem > svg{pointer-events:none}
+
+@media (max-width:767px){
+  .wiq-landing header .hidesm{display:none !important}
+  .wiq-landing #about .bento .tile{min-width:0}
+  .wiq-landing #about .bento .s7.r2{min-height:clamp(360px,100vw,440px) !important}
+  .wiq-landing #about .bento .s5.rv[style*="min-height: 260px"]{min-height:0 !important}
+  .wiq-landing #about .bento .s5.rv[style*="min-height: 260px"] p{font-size:clamp(18px,5vw,23px) !important}
+  .wiq-landing .landing-ecosystem{display:grid;grid-template-columns:minmax(0,1fr);align-items:center;gap:8px;height:auto !important;min-height:0}
+  .wiq-landing .landing-ecosystem > svg{display:none}
+  .wiq-landing .landing-ecosystem > span{position:relative !important;inset:auto !important;transform:none !important;min-width:0;width:100%;max-width:220px;justify-self:center;justify-content:center;text-align:center;padding:7px 10px !important;font-size:12px !important;white-space:nowrap}
+  .wiq-landing .landing-ecosystem > span:nth-of-type(3){justify-self:center;width:58px !important;height:58px !important;padding:4px !important}
+  .wiq-landing .landing-ecosystem > span:nth-of-type(3) img{width:48px !important;height:48px !important}
+  .wiq-landing .landing-ecosystem > span:nth-of-type(4){justify-self:center}
+  .wiq-landing .landing-hero-toolbar,
+  .wiq-landing .landing-tour-toolbar{flex-wrap:wrap;gap:8px !important;align-items:flex-start !important}
+  .wiq-landing .landing-hero-toolbar > div:first-child,
+  .wiq-landing .landing-tour-toolbar > div:first-child{min-width:0;flex:1 1 100%}
+  .wiq-landing .landing-hero-toolbar > div:first-child > div:first-child,
+  .wiq-landing .landing-tour-toolbar > div:first-child > div:first-child{font-size:clamp(11px,3vw,13px) !important;line-height:1.3}
+  .wiq-landing .landing-hero-status,
+  .wiq-landing .landing-tour-status{flex:1 1 100%;flex-wrap:wrap;gap:6px !important}
+  .wiq-landing .landing-status-pill{font-size:clamp(9px,2.6vw,11px) !important;line-height:1.25;white-space:normal}
+  .wiq-landing .landing-live-badge{font-size:clamp(10px,2.7vw,12px) !important;line-height:1.2;gap:5px !important;padding:5px 8px 5px 5px !important}
+  .wiq-landing .landing-live-badge .leq{height:20px !important;padding:0 6px !important}
+  .wiq-landing .landing-live-caption{font-size:clamp(10px,2.6vw,12px) !important;line-height:1.3;padding:6px 8px !important;max-width:58%}
+  .wiq-landing .landing-hero-video,
+  .wiq-landing .landing-tour-video{max-height:clamp(220px,58vw,340px)}
+  .wiq-landing .landing-step-video{max-height:clamp(220px,58vw,340px)}
+  .wiq-landing .landing-step-video > div[style*="width: 150px"]{width:clamp(80px,22vw,120px) !important;height:clamp(60px,17vw,88px) !important}
+  .wiq-landing #product [role="tablist"]{gap:8px}
+  .wiq-landing #product [role="tablist"] button{flex:1 1 auto;max-width:100%;white-space:normal;padding:8px 14px !important;min-height:44px}
+  .wiq-landing #product .lift3d,
+  .wiq-landing #product .shotin{width:100%;max-width:100%;min-width:0}
+  .wiq-landing .report-mock-grid{grid-template-columns:minmax(0,1fr) !important;gap:16px !important;padding:18px !important}
+  .wiq-landing .ranking-mock-heading{flex-wrap:wrap;gap:10px !important;align-items:flex-start !important}
+  .wiq-landing .ranking-mock-heading > span{font-size:11px !important;padding:6px 10px !important}
+  .wiq-landing .ranking-mock-grid{grid-template-columns:20px minmax(0,1.2fr) minmax(0,.7fr) 30px !important;gap:4px !important;overflow-wrap:anywhere}
+  .wiq-landing .ranking-mock-header{font-size:9px !important;letter-spacing:0 !important}
+  .wiq-landing .ranking-mock-row{font-size:11px !important;padding:9px 4px !important}
+  .wiq-landing .ranking-mock-row > span:nth-child(2) b{font-size:10px}
+  .wiq-landing .ranking-mock-row > span:nth-child(2) span{font-size:9px !important}
+  .wiq-landing .ranking-mock-row > span:nth-child(3) > span:last-child{width:28px !important;font-size:9px !important}
+  .wiq-landing .landing-step-visual > img{object-position:center}
+  .wiq-landing #how .stack{width:100%}
+  .wiq-landing #contact .rvs > div{overflow-wrap:anywhere}
+  .wiq-landing #contact fieldset button{min-height:44px}
+  .wiq-landing .btn::after{pointer-events:none}
+}
+
+@media (max-width:480px){
+  .wiq-landing .landing-hero-video,
+  .wiq-landing .landing-tour-video{max-height:clamp(200px,64vw,300px)}
+  .wiq-landing .landing-live-caption{max-width:54%}
+  .wiq-landing #about .bento .s7.r2{min-height:clamp(340px,100vw,390px) !important}
+  .wiq-landing .acc{min-height:clamp(340px,100vw,420px)}
+  .wiq-landing #product [role="tablist"] button{font-size:13px !important}
+  .wiq-landing #product .shotin{border-radius:14px !important}
+  .wiq-landing #how .stack{padding:18px !important}
+}
+
+@media (max-width:340px){
+  .wiq-landing .landing-ecosystem > span{font-size:11px !important}
+  .wiq-landing #contact fieldset button{font-size:12px !important}
+}
+
+@media (max-width:480px){
+  .wiq-landing .landing-hero-visual{padding:0 0 8px !important}
+  .wiq-landing .landing-hero-browser-chrome,
+  .wiq-landing .landing-hero-timeline,
+  .wiq-landing .landing-hero-status .landing-status-pill:nth-child(2){display:none !important}
+  .wiq-landing .landing-hero-toolbar{align-items:center !important;padding:10px 12px !important}
+  .wiq-landing .landing-hero-toolbar > div:first-child{flex:1 1 auto;gap:8px !important}
+  .wiq-landing .landing-hero-toolbar > div:first-child img{width:30px !important;height:30px !important;flex:none}
+  .wiq-landing .landing-hero-toolbar > div:first-child > div{min-width:0}
+  .wiq-landing .landing-hero-toolbar > div:first-child > div > div:first-child{font-size:clamp(11px,3.2vw,13px) !important;line-height:1.25}
+  .wiq-landing .landing-hero-toolbar > div:first-child > div > div:last-child{font-size:10px !important;line-height:1.25}
+  .wiq-landing .landing-hero-status{flex:0 0 auto;width:auto}
+  .wiq-landing .landing-hero-status .landing-status-pill{font-size:10px !important;padding:5px 7px !important;white-space:nowrap}
+  .wiq-landing .landing-hero-content{display:flex !important;flex-direction:column;gap:8px !important;padding:10px !important}
+  .wiq-landing .landing-hero-content > div:first-child{gap:8px !important}
+  .wiq-landing .landing-hero-video{border-radius:12px !important}
+  .wiq-landing .landing-hero-video .landing-live-badge{max-width:calc(100% - 12px);font-size:10px !important}
+  .wiq-landing .landing-hero-video .landing-live-caption{left:8px;bottom:8px;max-width:calc(100% - 112px);font-size:10px !important;line-height:1.25}
+  .wiq-landing .landing-hero-video .landing-live-caption .lcap{width:auto;max-width:100%;white-space:normal;overflow:visible;animation:none;opacity:1}
+  .wiq-landing .landing-pip-frame--cqw{right:8px !important;bottom:8px !important;width:clamp(78px,26vw,100px) !important;height:auto !important;aspect-ratio:16 / 11;border-radius:8px !important;border-width:2px !important}
+  .wiq-landing .landing-pip-label{left:5px !important;bottom:5px !important;font-size:10px !important;padding:2px 6px !important}
+  .wiq-landing .landing-pip-image{animation:none !important;transform:none !important;object-position:center}
+  .wiq-landing .landing-hero-question{gap:10px !important;padding:9px 11px !important;border-radius:12px !important}
+  .wiq-landing .landing-hero-timer{width:38px !important;height:38px !important}
+  .wiq-landing .landing-hero-timer > div{width:30px !important;height:30px !important}
+  .wiq-landing .landing-hero-timer b{font-size:11px !important;line-height:1}
+  .wiq-landing .landing-hero-timer > div > span:last-child{font-size:8px !important}
+  .wiq-landing .landing-hero-question .lq{min-width:0;display:grid;gap:2px}
+  .wiq-landing .landing-hero-question .lq > span{grid-area:1 / 1;opacity:0;animation:none !important;transform:none !important}
+  .wiq-landing .landing-hero-question .lq > span:first-child{opacity:1}
+  .wiq-landing .landing-hero-question .lq > span > span:first-child{font-size:10px !important;line-height:1.2}
+  .wiq-landing .landing-hero-question .lq > span > span:last-child{font-size:clamp(11px,3.2vw,13px) !important;line-height:1.3;margin-top:3px !important}
+}
+
+@media (max-width:340px){
+  .wiq-landing .landing-hero-toolbar{align-items:center !important;padding:8px 9px !important}
+  .wiq-landing .landing-hero-toolbar > div:first-child{flex:1 1 auto}
+  .wiq-landing .landing-hero-status{display:none !important}
+  .wiq-landing .landing-hero-toolbar > div:first-child img{width:26px !important;height:26px !important}
+  .wiq-landing .landing-hero-toolbar > div:first-child > div > div:first-child{font-size:11px !important}
+  .wiq-landing .landing-hero-toolbar > div:first-child > div > div:last-child{font-size:9px !important}
+  .wiq-landing .landing-hero-video .landing-live-caption{max-width:calc(100% - 100px)}
+  .wiq-landing .landing-pip-frame--cqw{width:78px !important}
+}
+
+@media (max-width:767px){
+  .wiq-landing #about .landing-organization-card{min-height:clamp(400px,60vw,500px) !important}
+  .wiq-landing #about .landing-organization-card > img{object-position:center 38% !important}
+  .wiq-landing #about .landing-organization-copy{left:clamp(18px,4vw,28px) !important;right:clamp(18px,4vw,28px) !important;bottom:clamp(18px,4vw,28px) !important}
+  .wiq-landing #about .landing-organization-heading{font-size:clamp(24px,4.6vw,30px) !important;line-height:1.15 !important;overflow-wrap:anywhere}
+  .wiq-landing #about .landing-organization-description{font-size:clamp(14px,2.3vw,16px);line-height:1.45}
+}
+
+@media (max-width:480px){
+  .wiq-landing #about .landing-organization-card{min-height:clamp(400px,115vw,460px) !important}
+  .wiq-landing #about .landing-organization-heading{font-size:clamp(23px,7vw,28px) !important}
+  .wiq-landing #about .landing-organization-description{font-size:14px}
+  .wiq-landing #about .landing-organization-offer{display:none !important}
+}
+
+@media (max-width:980px){
+  .wiq-landing #who .landing-audience-card{min-height:300px}
+  .wiq-landing #who .landing-audience-card.is-open{min-height:460px}
+  .wiq-landing #who .landing-audience-copy{left:clamp(20px,4vw,26px) !important;right:clamp(20px,4vw,26px) !important;bottom:clamp(20px,4vw,26px) !important}
+  .wiq-landing #who .landing-audience-title{font-size:clamp(22px,3.2vw,28px) !important;line-height:1.15 !important;text-wrap:balance}
+  .wiq-landing #who .landing-audience-points{font-size:14px !important;line-height:1.35;gap:6px !important}
+  .wiq-landing #who .landing-audience-cta{font-size:14px;padding:11px 18px !important}
+}
+
+@media (max-width:480px){
+  .wiq-landing #who .landing-audience-card{min-height:220px}
+  .wiq-landing #who .landing-audience-card.is-open{min-height:clamp(440px,128vw,500px)}
+  .wiq-landing #who .landing-audience-title{font-size:clamp(20px,6vw,25px) !important;line-height:1.15 !important}
+  .wiq-landing #who .landing-audience-points{font-size:13px !important;line-height:1.3;gap:5px !important}
+  .wiq-landing #who .landing-audience-points li{gap:7px !important}
+  .wiq-landing #who .landing-audience-cta{font-size:13px;padding:10px 16px !important;min-height:42px}
+  .wiq-landing .landing-step-pip{width:clamp(78px,26vw,106px) !important;aspect-ratio:15 / 11}
 }

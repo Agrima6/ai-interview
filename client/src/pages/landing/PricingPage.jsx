@@ -41,6 +41,7 @@ const QUESTIONS = [
 
 export default function PricingPage() {
     const [openIndex, setOpenIndex] = useState(0)
+    const [menuOpen, setMenuOpen] = useState(false)
     const plans = PLANS
     const compare = COMPARE
     const faqs = QUESTIONS.map((x, i) => ({
@@ -51,7 +52,7 @@ export default function PricingPage() {
     return (
 
 <div className="wiq-pricing" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", color: "#1C1114", background: "#FBF6F4", width: "100%", fontSize: "16px", lineHeight: "1.55", overflowX: "clip" }}>
-<header style={{ position: "sticky", top: "0", zIndex: "50", background: "rgba(251,246,244,0.85)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderBottom: "1px solid rgba(176,18,63,0.12)" }}>
+<header className="pricing-header" style={{ position: "sticky", top: "0", zIndex: "50", background: "rgba(251,246,244,0.85)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderBottom: "1px solid rgba(176,18,63,0.12)" }}>
 <div className="pad" style={{ maxWidth: "1320px", margin: "0 auto", padding: "12px 40px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "24px" }}>
 <Link to="/" style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none", color: "#1C1114", minHeight: "44px" }}>
 <img src={IMG.logo} alt="" style={{ width: "38px", height: "38px", borderRadius: "50%" }} />
@@ -70,15 +71,26 @@ export default function PricingPage() {
 <a href="/#contact">{"Contact"}</a>
 </nav>
 
-<div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+<div className="pricing-header-actions" style={{ display: "flex", gap: "8px", alignItems: "center" }}>
 <Link to="/login" style={{ textDecoration: "none", fontSize: "15px", fontWeight: "600", padding: "11px 14px", minHeight: "44px", display: "inline-flex", alignItems: "center" }}>{"Log in"}</Link>
 
 <Link to="/register" className="btn" style={{ textDecoration: "none", fontSize: "15px", fontWeight: "600", padding: "11px 18px", minHeight: "44px", display: "inline-flex", alignItems: "center", background: accent, color: "#fff", borderRadius: "999px" }}>{"Join now"}</Link>
+<button type="button" className="pricing-menu-button" aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen} aria-controls="pricing-mobile-menu" onClick={() => setMenuOpen((open) => !open)}>
+<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1C1114" strokeWidth="2" strokeLinecap="round">{menuOpen ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}</svg>
+</button>
 </div>
 </div>
+{menuOpen && <nav id="pricing-mobile-menu" className="pricing-mobile-menu" aria-label="Mobile">
+<Link to="/" onClick={() => setMenuOpen(false)}>{"Home"}</Link>
+<a href="/#how" onClick={() => setMenuOpen(false)}>{"How it works"}</a>
+<a href="/#who" onClick={() => setMenuOpen(false)}>{"Solutions"}</a>
+<a href="/#contact" onClick={() => setMenuOpen(false)}>{"Contact"}</a>
+<Link to="/login" onClick={() => setMenuOpen(false)}>{"Log in"}</Link>
+<Link to="/register" onClick={() => setMenuOpen(false)}>{"Join now"}</Link>
+</nav>}
 </header>
 
-<section className="pad" style={{ maxWidth: "1320px", margin: "0 auto", padding: "88px 40px 40px", textAlign: "center" }}>
+<section className="pad pricing-intro" style={{ maxWidth: "1320px", margin: "0 auto", padding: "64px 40px 20px", textAlign: "center" }}>
 <p className="in" style={{ margin: "0", display: "inline-flex", padding: "7px 14px", borderRadius: "999px", background: "#FFE4E8", color: "#8A0E33", fontSize: "13px", fontWeight: "600", letterSpacing: "0.04em" }}>{"PRICING"}</p>
 
 <h1 className="h1 in i1" style={{ margin: "22px auto 0", fontWeight: "600", fontSize: "68px", lineHeight: "1.02", letterSpacing: "-0.04em", maxWidth: "880px" }}>{"Practice more. Pay only for "}
@@ -88,7 +100,7 @@ export default function PricingPage() {
 <p className="in i2" style={{ margin: "22px auto 0", fontSize: "18px", color: "#4A3B3F", maxWidth: "600px" }}>{"Interview credits for candidates, with no subscription. Organizations and colleges get a plan built around their drives."}</p>
 </section>
 
-<section className="pad" style={{ maxWidth: "1320px", margin: "0 auto", padding: "40px 40px 100px" }}>
+<section className="pad pricing-plans" style={{ maxWidth: "1320px", margin: "0 auto", padding: "20px 40px 80px" }}>
 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "24px", alignItems: "stretch" }}>{(plans).map((p, __i1) => (<Fragment key={__i1}>
 <article className="plan in" style={{ position: "relative", borderRadius: "28px", padding: "36px", display: "flex", flexDirection: "column", gap: "18px", background: p.bg, color: p.fg, border: `1px solid ${p.bd}` }}>{(p.badge) && (<>
 <span className="shine" style={{ position: "absolute", top: "24px", right: "24px", background: "#FF6F91", color: "#1F0712", fontSize: "12px", fontWeight: "600", padding: "6px 12px", borderRadius: "999px" }}>{"Best value"}</span>
@@ -120,7 +132,7 @@ export default function PricingPage() {
 
 {/* Org band */}
 
-<section className="pad rv" style={{ maxWidth: "1320px", margin: "0 auto", padding: "0 40px 110px" }}>
+<section className="pad rv pricing-org-band" style={{ maxWidth: "1320px", margin: "0 auto", padding: "0 40px 110px" }}>
 <div style={{ borderRadius: "32px", overflow: "hidden", display: "flex", flexWrap: "wrap", background: "#1F0712", color: "#FFFFFF" }}>
 <div style={{ flex: "1 1 520px", minWidth: "0", padding: "56px", display: "flex", flexDirection: "column", gap: "18px", justifyContent: "center" }}>
 <p style={{ margin: "0", fontSize: "13px", fontWeight: "600", letterSpacing: "0.08em", color: "#FF6F91" }}>{"ORGANIZATIONS "}{"&"}{" COLLEGES"}</p>
@@ -143,7 +155,7 @@ export default function PricingPage() {
 
 {/* Compare */}
 
-<section className="pad rv" style={{ maxWidth: "1100px", margin: "0 auto", padding: "0 40px 110px" }}>
+<section className="pad rv pricing-compare" style={{ maxWidth: "1100px", margin: "0 auto", padding: "0 40px 110px" }}>
 <h2 style={{ margin: "0 0 32px", fontSize: "40px", fontWeight: "600", letterSpacing: "-0.03em", textAlign: "center" }}>{"Compare packs"}</h2>
 
 <div style={{ overflowX: "auto", background: "#FFFFFF", border: "1px solid #EAD7DB", borderRadius: "24px" }}>
@@ -177,7 +189,7 @@ export default function PricingPage() {
 
 {/* FAQ */}
 
-<section className="pad" style={{ maxWidth: "900px", margin: "0 auto", padding: "0 40px 120px" }}>
+<section className="pad pricing-faq" style={{ maxWidth: "900px", margin: "0 auto", padding: "0 40px 120px" }}>
 <h2 className="rv" style={{ margin: "0 0 28px", fontSize: "40px", fontWeight: "600", letterSpacing: "-0.03em", textAlign: "center" }}>{"Questions, answered"}</h2>
 
 <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>{(faqs).map((q, __i1) => (<Fragment key={__i1}>

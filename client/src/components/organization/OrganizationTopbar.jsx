@@ -37,8 +37,8 @@ function OrganizationTopbar({ title, description, action, onMenuClick, onSearch 
                     <Avatar name={user?.name} size='sm' />
                 </div>
             </div>
-            {description && <p className='text-text-secondary text-[14px] mb-4'>{description}</p>}
-            {action && <div>{action}</div>}
+            {description && <p className='min-w-0 text-text-secondary text-[14px] mb-4 [overflow-wrap:anywhere]'>{description}</p>}
+            {action && <div className='flex min-w-0 flex-wrap items-start gap-2'>{action}</div>}
         </div>
     )
 }

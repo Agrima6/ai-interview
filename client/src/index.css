@@ -293,6 +293,14 @@ body {
   transition: background-color 0.25s ease, color 0.25s ease;
 }
 
+:where(img, video, canvas, iframe) {
+  max-width: 100%;
+}
+
+:where(.grid > *, [class*="grid-cols-"] > *) {
+  min-width: 0;
+}
+
 ::selection {
   background: rgba(224, 39, 27, 0.2);
 }
@@ -1431,4 +1439,3 @@ body {
     padding: 0.5rem !important;
   }
 }
-
