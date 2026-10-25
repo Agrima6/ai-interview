@@ -8,6 +8,7 @@ import mongoose from "mongoose"
 import { ACTIVE_STATUSES, SKIP_MESSAGES, advanceStatus, mapServiceStatus, planDispatch } from "../utils/communicationPlan.js"
 import { bookSlot } from "./slotBooking.service.js"
 import { resolveAvailability, publicAvailability } from "../utils/slotPolicy.js"
+import { csvEscape } from "../utils/csv.js"
 import { requireValidObjectId } from "../utils/validateId.js"
 import { communicationServiceClient, authServiceClient } from "../config/internalClients.js"
 import * as clientRepo from "../repositories/client.repository.js"
@@ -65,6 +66,9 @@ const normalizeCandidate = (candidate, index = 0) => {
     const exp = String(candidate?.exp || "").trim()
     if (!name || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         throw new ApiError(400, "INVALID_CANDIDATE", `Candidate ${index + 1} needs a valid name and email.`)
+    }
+    if (name.length > 100 || email.length > 254) {
+        throw new ApiError(400, "INVALID_CANDIDATE", `Candidate ${index + 1} has a name or email that is too long.`)
     }
     if (phone && !/^\d{10}$/.test(phone)) {
         throw new ApiError(400, "INVALID_PHONE", `Candidate ${index + 1} phone must contain exactly 10 digits.`)
@@ -353,20 +357,28 @@ export const addCandidatesToDrive = async (tenantId, driveId, candidates, ctx, r
     const existingDriveCandidates = drive.rounds.flatMap((item) => item.candidates || [])
     const existingEmails = new Set(existingDriveCandidates.map((candidate) => candidate.email.toLowerCase()))
     const existingPhones = new Set(existingDriveCandidates.map((candidate) => candidate.phone).filter(Boolean))
+    const existingRolls = new Set(existingDriveCandidates.map((candidate) => candidate.rollNumber?.toLowerCase()).filter(Boolean))
     const additions = []
-    for (const candidate of candidates) {
-        const normalized = normalizeCandidate(candidate, additions.length)
+    const skipped = []   // { email, reason } - shown to the person instead of vanishing
+    for (const [index, candidate] of candidates.entries()) {
+        const normalized = normalizeCandidate(candidate, index)   // the row's own position, so an error names the right row
         const { email } = normalized
-        if (existingEmails.has(email) || (normalized.phone && existingPhones.has(normalized.phone))) continue
+        const roll = normalized.rollNumber?.toLowerCase()
+        const reason = existingEmails.has(email) ? "email already on this drive"
+            : normalized.phone && existingPhones.has(normalized.phone) ? "phone number already on this drive"
+                : roll && existingRolls.has(roll) ? "roll number already on this drive" : null
+        if (reason) { skipped.push({ email, reason }); continue }
         existingEmails.add(email)
         if (normalized.phone) existingPhones.add(normalized.phone)
+        if (roll) existingRolls.add(roll)
         additions.push(normalized)
     }
-    if (additions.length === 0) throw new ApiError(400, "NO_NEW_CANDIDATES", "No unique new candidates were found. Existing email or phone records were skipped.")
+    if (additions.length === 0) throw new ApiError(400, "NO_NEW_CANDIDATES", "Everyone in this list is already on the drive (same email, phone number or roll number), so nobody was added.")
 
     round.candidates.push(...additions)
     drive.candidatesCount = drive.rounds.reduce((total, item) => total + item.candidates.length, 0)
     await drive.save()
+    drive.$locals.addSummary = { added: additions.length, skipped }
     drive.$locals.inviteSummary = await inviteCandidates(tenantId, drive, additions, ctx)
     return drive
 }
@@ -1553,10 +1565,6 @@ export const listAllCandidates = async (tenantId, { search, status, department, 
 
 const CSV_EXPORT_CAP = 5000
 
-const csvEscape = (value) => {
-    const str = String(value ?? "")
-    return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str
-}
 
 // Streams the SAME filtered dataset listAllCandidates would page through,
 // as CSV - never "fetch everything, filter on the frontend" (section 16).
