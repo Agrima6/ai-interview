@@ -175,6 +175,25 @@ const repairRoundStatuses = async (drive) => {
     return drive
 }
 
+// Dates in emails: "8 Nov 2026", never "11/8/2026" (which is 8 November or 11 August depending on who reads it).
+const formatEmailDate = (value) => (value ? new Date(value).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" }) : "")
+
+// The invite email is one template; these variables decide whether it talks about an interview (hiring) or an exam
+// (college), so a student is never told they are a "candidate" applying for a "role".
+const inviteWording = (drive) => (drive.driveKind === "EXAM"
+    ? {
+        invite_phrase: "the AI-powered exam", invite_noun: "exam", title_label: "Exam", org_label: "College", deadline_label: "Complete by",
+        portal_label: "Student Portal", subject_action: "the exam",
+        portal_help: "Sign in to your student portal to share your details, upload your resume, and choose your exam slot.",
+        invite_eyebrow: "You're invited to an exam", invite_tagline: "A proctored AI exam you can take at a time that suits you.",
+    }
+    : {
+        invite_phrase: "an AI-powered interview for", invite_noun: "interview", title_label: "Role", org_label: "Company", deadline_label: "Apply by",
+        portal_label: "Candidate Portal", subject_action: "interview for",
+        portal_help: "Sign in to your candidate portal to share your background details, upload your resume, and choose your interview slot.",
+        invite_eyebrow: "You're invited to interview", invite_tagline: "A quick, flexible interview experience - on your schedule.",
+    })
+
 // Fires one CANDIDATE_INVITE email per candidate - best-effort (a slow/
 // unavailable communication-service must never fail drive/round creation,
 // the roster is already persisted regardless of whether the email goes
@@ -195,8 +214,9 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
     const pending = []
     const failed = []
     const org = await clientRepo.findById(tenantId).catch(() => null)
-    const expiryDate = new Date(drive.expiryDate).toLocaleDateString()
+    const expiryDate = formatEmailDate(drive.expiryDate)
     const loginUrl = buildFrontendUrl("/login")
+    const wording = inviteWording(drive)
 
     for (const candidate of candidates) {
         if (!candidate.email) continue
@@ -229,6 +249,7 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
                 login_email: candidate.email,
                 temp_password: tempPassword,
                 existing_account: isExisting ? "true" : "false",
+                ...wording,
                 expiry_date: expiryDate,
                 supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
             },
@@ -272,6 +293,13 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
     }
 
     const attempted = candidates.filter((c) => c.email).length
+    // Remember when this went out so a re-invite can refuse a double-click.
+    const invitedIds = candidates.filter((c) => c.email).map((c) => c.id)
+    await InterviewDrive.updateOne(
+        { _id: drive._id },
+        { $set: { "rounds.$[].candidates.$[c].lastInviteAt": new Date() } },
+        { arrayFilters: [{ "c.id": { $in: invitedIds } }] }
+    ).catch((err) => console.error("[client-service] could not record invite time:", err.message))
     if (candidates.length > INVITE_AWAIT_LIMIT) return { attempted, failed: [], pending: true }
     await Promise.all(pending)
     return { attempted, failed }
@@ -339,6 +367,40 @@ export const createDrive = async (tenantId, driveData, ctx) => {
     const saved = await newDrive.save()
     if (status === "ACTIVE") saved.$locals.inviteSummary = await inviteCandidates(tenantId, saved, initialCandidates, ctx)
     return saved
+}
+
+const REINVITE_COOLDOWN_MS = 60 * 1000
+const REINVITE_MAX = 200
+
+// Sends the invite email again to chosen students/candidates who have not finished: for an invite that failed or was
+// lost. Completed attempts are never re-invited, and one that went out less than a minute ago is skipped, so a
+// double-click cannot mail someone twice.
+export const resendInvites = async (tenantId, driveId, roundNumber, candidateIds, ctx) => {
+    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+    requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    if (!Array.isArray(candidateIds) || candidateIds.length === 0) throw new ApiError(400, "CANDIDATES_REQUIRED", "Choose at least one person to invite again.")
+    if (candidateIds.length > REINVITE_MAX) throw new ApiError(400, "CANDIDATE_LIMIT", `You can send at most ${REINVITE_MAX} invites at a time.`)
+
+    const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
+    if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    if (drive.status !== "ACTIVE") throw new ApiError(409, "DRIVE_NOT_ACTIVE", "Invites can only be sent while the drive is open.")
+    const round = drive.rounds?.find((item) => item.roundNumber === Number(roundNumber))
+    if (!round) throw new ApiError(404, "ROUND_NOT_FOUND", "Round not found on this drive.")
+    if (round.status !== "ACTIVE") throw new ApiError(409, "ROUND_NOT_ACTIVE", "Invites can only be sent while the round is open.")
+
+    const wanted = new Set(candidateIds.map(String))
+    const skipped = []
+    const toInvite = []
+    for (const c of round.candidates.filter((x) => wanted.has(x.id))) {
+        if (c.status === "COMPLETED") skipped.push({ email: c.email, reason: "already completed" })
+        else if (c.lastInviteAt && Date.now() - new Date(c.lastInviteAt).getTime() < REINVITE_COOLDOWN_MS) skipped.push({ email: c.email, reason: "an invite was sent a moment ago" })
+        else toInvite.push(c)
+    }
+    if (toInvite.length === 0) {
+        throw new ApiError(409, "NOTHING_TO_SEND", skipped.length ? `Nobody was invited: ${skipped[0].reason}.` : "None of the chosen people were found on this drive.")
+    }
+    const inviteSummary = await inviteCandidates(tenantId, drive, toInvite.map(plainEntry), ctx)
+    return { inviteSummary, sent: toInvite.length, skipped }
 }
 
 export const addCandidatesToDrive = async (tenantId, driveId, candidates, ctx, roundNumber = 1) => {
@@ -1715,7 +1777,7 @@ export const communicateWithCandidates = async (tenantId, driveId, roundNumber, 
 
     const org = await clientRepo.findById(tenantId).catch(() => null)
     const interviewLink = drive.publicLink ? buildFrontendUrl(`/apply/${drive.publicLink}`) : ""
-    const expiryDate = round.expiryDate ? new Date(round.expiryDate).toLocaleDateString() : ""
+    const expiryDate = formatEmailDate(round.expiryDate)
 
     const candidates = round.candidates.filter((c) => candidateIds.includes(c.id))
     if (candidates.length === 0) throw new ApiError(404, "CANDIDATE_NOT_FOUND", "None of the selected candidates were found in this round.")

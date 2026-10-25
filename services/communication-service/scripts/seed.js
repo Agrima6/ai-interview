@@ -103,23 +103,23 @@ const changesRequestedHtml = wrapEmailBody(`
 const candidateInviteHtml = wrapOrgEmailBodyWithHero(`
     <p style="margin:0 0 4px;font-size:14.5px;font-weight:700;color:${ACCENT};">Hi {{candidate_name}},</p>
     <p style="margin:0 0 16px;font-size:14px;color:${INK};line-height:1.6;">
-        Great news - <strong>{{company_name}}</strong> has invited you to complete an AI-powered interview for <strong>{{drive_title}}</strong>.
+        Great news - <strong>{{company_name}}</strong> has invited you to complete {{invite_phrase}} <strong>{{drive_title}}</strong>.
     </p>
-    ${stepStrip(["Sign in to portal", "Upload resume & pick slot", "Take AI interview"])}
-    ${infoCard([["Role", "{{drive_title}}"], ["Company", "{{company_name}}"], ["Apply by", "{{expiry_date}}"]])}
+    ${stepStrip(["Sign in to portal", "Upload resume & pick slot", "Take AI {{invite_noun}}"])}
+    ${infoCard([["{{title_label}}", "{{drive_title}}"], ["{{org_label}}", "{{company_name}}"], ["{{deadline_label}}", "{{expiry_date}}"]])}
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f7f5f5;border:1px solid #eee6e6;border-radius:12px;margin:16px 0 20px;">
         <tr><td style="padding:14px 18px;font-size:13.5px;color:${INK};line-height:1.8;">
-            <strong>Your Candidate Portal Login:</strong><br/>
+            <strong>Your {{portal_label}} Login:</strong><br/>
             <strong>Email:</strong> {{login_email}}<br/>
             <strong>Temporary password:</strong> {{temp_password}}
         </td></tr>
     </table>
     ${button("Sign In to Complete Application →", "{{login_url}}")}
     <p style="margin:16px 0 4px;font-size:13px;color:${INK};line-height:1.6;">
-        Sign in to your candidate portal to share your background details, upload your resume, and choose your interview slot.
+        {{portal_help}}
     </p>
     ${supportBox()}
-`, "company_name", { eyebrow: "You're invited to interview", heading: "{{drive_title}}", subheading: "A quick, flexible interview experience - on your schedule." })
+`, "company_name", { eyebrow: "{{invite_eyebrow}}", heading: "{{drive_title}}", subheading: "{{invite_tagline}}" })
 
 const applicationConfirmedHtml = wrapOrgEmailBodyWithHero(`
     <p style="margin:0 0 4px;font-size:14.5px;font-weight:700;color:${ACCENT};">Hi {{candidate_name}},</p>
@@ -157,10 +157,10 @@ const teamInviteHtml = wrapOrgEmailBody(`
 const templates = [
     {
         channel: "EMAIL", eventType: "CANDIDATE_INVITE", name: "Candidate interview invitation (email)",
-        subject: "You've been invited to interview for {{drive_title}} at {{company_name}}",
+        subject: "You've been invited to {{subject_action}} {{drive_title}} at {{company_name}}",
         body: "Hi {{candidate_name}},\n\n{{company_name}} has invited you to apply and complete an AI-powered video interview for {{drive_title}}.\n\nYour WorkmateIQ Login:\nEmail: {{login_email}}\nTemporary password: {{temp_password}}\nSign in: {{login_url}}\n\nThis invitation expires on {{expiry_date}}.\n\nIf you have any questions, please contact our support team at {{supportEmail}}.\n\nRegards,\nThe {{company_name}} Team",
         htmlBody: candidateInviteHtml,
-        variables: ["candidate_name", "drive_title", "company_name", "login_url", "login_email", "temp_password", "interview_link", "expiry_date", "supportEmail"],
+        variables: ["candidate_name", "drive_title", "company_name", "login_url", "login_email", "temp_password", "interview_link", "expiry_date", "supportEmail", "invite_phrase", "invite_noun", "title_label", "org_label", "deadline_label", "portal_label", "portal_help", "invite_eyebrow", "invite_tagline", "subject_action"],
     },
     {
         channel: "EMAIL", eventType: "CANDIDATE_APPLICATION_CONFIRMED", name: "Candidate application confirmed (email)",

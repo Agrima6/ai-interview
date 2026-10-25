@@ -50,3 +50,17 @@ Adding students (or candidates) now reports what happened to the invite emails: 
 `inviteSummary: { attempted, failed: [{ email, reason }], skipped, pending }` and the screens show a warning when
 invites failed or were skipped (a drive with no public link sends none). Failures are logged with the HTTP status and
 error code: `grep "candidate-invite" ~/.pm2/logs/client-service-error.log`.
+
+## Invite wording and re-sending
+
+The invite email is one template (`CANDIDATE_INVITE`); the words come from variables chosen by the drive kind
+(`inviteWording` in `interviewDrive.service.js`): a college exam says "exam", "Exam", "College", "Complete by" and
+"Student Portal"; a hiring drive keeps "interview", "Role", "Company", "Apply by" and "Candidate Portal". Dates in
+emails are written like `8 Nov 2026` (India time), never `11/8/2026`.
+
+**Deploy order matters:** deploy the code first, then re-run `communication-service/scripts/seed.js`. The new template
+uses the new variables; the old code does not send them.
+
+A student who has not finished can be invited again from the exam page (Resend, or "Resend invite to N pending"):
+`POST /api/v1/drives/:id/rounds/:n/candidates/invite`. Completed students are skipped, an invite sent less than a minute
+ago is skipped, and someone who has never signed in gets a fresh temporary password in the new email.

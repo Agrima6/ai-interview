@@ -222,6 +222,15 @@ export const createCandidateUser = async ({ email, name, tenantId }) => {
             existing.roles = [...new Set([...existing.roles, "CANDIDATE"])]
             await existing.save()
         }
+        // Someone who has never signed in or changed the temporary password still has no password of their own.
+        // Their first invite may never have arrived, so a re-invite carries a fresh temporary one instead of
+        // telling them to use a password they were never given.
+        if (existing.mustChangePassword && !existing.lastLoginAt && existing.roles.every((r) => r === "CANDIDATE")) {
+            const freshPassword = generateTempPassword()
+            existing.passwordHash = await bcrypt.hash(freshPassword, 10)
+            await existing.save()
+            return { email: existing.email, password: freshPassword, existingAccount: false }
+        }
         return { email: existing.email, password: null, existingAccount: true }
     }
     const tempPassword = generateTempPassword()
