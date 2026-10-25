@@ -6,7 +6,8 @@ import { downloadCandidateResume, getCandidateRecordingUrl, getCandidateTranscri
 import { useToast } from '../ui/Toast'
 import InterviewIntelligence from './InterviewIntelligence'
 
-function CandidateDetailModal({ open, onClose, candidate, onStatusChange }) {
+// examMode: college exam drives record results only - the Shortlist / Reject decision buttons are not shown.
+function CandidateDetailModal({ open, onClose, candidate, onStatusChange, examMode = false, passMark = 0 }) {
   const toast = useToast()
   const [downloading, setDownloading] = useState(false)
   const [recordingUrl, setRecordingUrl] = useState(null)
@@ -61,17 +62,23 @@ function CandidateDetailModal({ open, onClose, candidate, onStatusChange }) {
     <Modal
       open={open}
       onClose={onClose}
-      title="Candidate AI Evaluation Scorecard"
+      title={examMode ? "Student Result" : "Candidate AI Evaluation Scorecard"}
       size="lg"
       footer={
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-2">
-            <span className="text-[12.5px] text-text-secondary">Current Status:</span>
-            <Badge variant={candidate.status === 'SHORTLISTED' ? 'success' : candidate.status === 'REJECTED' ? 'danger' : 'neutral'}>
-              {candidate.status}
-            </Badge>
+            <span className="text-[12.5px] text-text-secondary">{examMode ? 'Result:' : 'Current Status:'}</span>
+            {examMode ? (
+              <Badge variant={candidate.status !== 'COMPLETED' ? 'neutral' : candidate.aiScore >= passMark ? 'success' : 'danger'}>
+                {candidate.status !== 'COMPLETED' ? 'PENDING' : candidate.aiScore >= passMark ? 'PASS' : 'FAIL'}
+              </Badge>
+            ) : (
+              <Badge variant={candidate.status === 'SHORTLISTED' ? 'success' : candidate.status === 'REJECTED' ? 'danger' : 'neutral'}>
+                {candidate.status}
+              </Badge>
+            )}
           </div>
-          <div className="flex items-center gap-2">
+          {examMode ? <Button type="button" variant="secondary" size="sm" onClick={onClose}>Close</Button> : <div className="flex items-center gap-2">
             <Button
               type="button"
               variant="secondary"
@@ -94,7 +101,7 @@ function CandidateDetailModal({ open, onClose, candidate, onStatusChange }) {
             >
               <Check size={14} /> Shortlist Candidate
             </Button>
-          </div>
+          </div>}
         </div>
       }
     >

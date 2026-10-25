@@ -74,7 +74,21 @@ const normalizeCandidate = (candidate, index = 0) => {
     if (exp && (!/^\d+(?:\.\d+)?(?:\s*(?:years?|yrs?))?$/.test(exp) || !experienceNumber || Number(experienceNumber) <= 0 || Number(experienceNumber) > 70)) {
         throw new ApiError(400, "INVALID_EXPERIENCE", `Candidate ${index + 1} experience must be greater than 0 and no more than 70 years.`)
     }
-    return { id: candidate.id || `candidate-${crypto.randomBytes(8).toString("hex")}`, name, email, phone, exp, status: candidate.status || "INVITED", aiScore: Number(candidate.aiScore) || 0, malpracticeFlags: Number(candidate.malpracticeFlags) || 0 }
+    const entry = { id: candidate.id || `candidate-${crypto.randomBytes(8).toString("hex")}`, name, email, phone, exp, status: candidate.status || "INVITED", aiScore: Number(candidate.aiScore) || 0, malpracticeFlags: Number(candidate.malpracticeFlags) || 0 }
+    // Student fields (college exam drives). Trimmed and length-capped; omitted when empty so hiring rosters are unchanged.
+    for (const [key, max] of [["rollNumber", 40], ["branch", 80], ["batch", 40]]) {
+        const value = String(candidate?.[key] ?? "").trim().slice(0, max)
+        if (value) entry[key] = value
+    }
+    return entry
+}
+
+// College exam drives are results-only: no shortlisting, hiring communications or next rounds. Hiring-only actions call
+// this so the rule holds even if a client sends the request directly.
+const assertHiringDrive = (drive, what) => {
+    if (drive?.driveKind === "EXAM") {
+        throw new ApiError(409, "NOT_AVAILABLE_FOR_EXAMS", `${what} is not available on an exam drive. Exam drives only record results.`)
+    }
 }
 
 const normalizeCandidates = (candidates = []) => candidates.map((candidate, index) => normalizeCandidate(candidate, index))
@@ -164,8 +178,19 @@ const repairRoundStatuses = async (drive) => {
 // out). Every candidate gets the same public apply link since the
 // interview isn't tied to one candidate's identity yet (no auth/session
 // exists per-candidate - see backend.md's not-yet-built Interview Service).
+//
+// Returns { attempted, failed: [{ email, reason }], skipped } so the caller can tell the person what happened instead
+// of the failure living only in a server log. Up to INVITE_AWAIT_LIMIT candidates are awaited; a large import keeps
+// sending in the background and reports { pending: true }.
+const INVITE_AWAIT_LIMIT = 25
 const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
-    if (!candidates?.length || !drive.publicLink) return
+    if (!candidates?.length) return { attempted: 0, failed: [] }
+    if (!drive.publicLink) {
+        console.error(`[client-service] invites NOT sent for drive ${drive._id}: it has no public link (enablePublicLink=${drive.enablePublicLink})`)
+        return { attempted: 0, failed: [], skipped: "NO_PUBLIC_LINK" }
+    }
+    const pending = []
+    const failed = []
     const org = await clientRepo.findById(tenantId).catch(() => null)
     const expiryDate = new Date(drive.expiryDate).toLocaleDateString()
     const loginUrl = buildFrontendUrl("/login")
@@ -189,7 +214,7 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
         const token = signPrefillToken(String(drive._id), candidate.email)
         const interviewLink = buildFrontendUrl(`/apply/${drive.publicLink}?email=${encodeURIComponent(candidate.email)}&token=${token}`)
 
-        communicationServiceClient.send({
+        const emailSend = communicationServiceClient.send({
             entityType: "CLIENT", entityId: tenantId, channel: "EMAIL",
             eventType: "CANDIDATE_INVITE", recipient: candidate.email,
             variables: {
@@ -205,7 +230,11 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
                 supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
             },
             metadata: { driveId: String(drive._id), candidateId: candidate.id },
-        }, ctx).catch((err) => console.error(`[client-service] candidate-invite email failed for ${candidate.email}:`, err.message))
+        }, ctx).catch((err) => {
+            console.error(`[client-service] candidate-invite email failed for ${candidate.email} (${err.status || "no status"} ${err.code || ""}):`, err.message)
+            failed.push({ email: candidate.email, reason: err.code || err.message })
+        })
+        pending.push(emailSend)
 
         if (drive.communicationSettings?.whatsappEnabled && candidate.phone) {
             const rawBody = drive.communicationSettings.whatsappText ||
@@ -238,6 +267,11 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
             }, ctx).catch((err) => console.error(`[client-service] candidate-invite whatsapp failed for ${candidate.phone}:`, err.message))
         }
     }
+
+    const attempted = candidates.filter((c) => c.email).length
+    if (candidates.length > INVITE_AWAIT_LIMIT) return { attempted, failed: [], pending: true }
+    await Promise.all(pending)
+    return { attempted, failed }
 }
 
 export const createDrive = async (tenantId, driveData, ctx) => {
@@ -255,7 +289,10 @@ export const createDrive = async (tenantId, driveData, ctx) => {
     if (!isDraft && (Number.isNaN(expiryDate.getTime()) || expiryDate < startDate || windowDays > 50)) throw new ApiError(400, "INVALID_EXPIRY_DATE", "Expiry date must be within 50 days of the start date.")
 
     const initialCandidates = normalizeCandidates(driveData.importedCandidateList || [])
-    const totalRounds = Math.min(Math.max(Number(driveData.totalRounds) || 1, 1), 4)
+    // The kind comes from who is creating the drive (a college is always exam-only), never from the request body.
+    const tenant = await clientRepo.findById(tenantId).catch(() => null)
+    const driveKind = tenant?.type === "COLLEGE" ? "EXAM" : "HIRING"
+    const totalRounds = driveKind === "EXAM" ? 1 : Math.min(Math.max(Number(driveData.totalRounds) || 1, 1), 4)
     const status = isDraft ? "DRAFT" : "ACTIVE"
     const rounds = Array.from({ length: isDraft ? 1 : totalRounds }, (_, index) => ({
         roundNumber: index + 1,
@@ -277,6 +314,7 @@ export const createDrive = async (tenantId, driveData, ctx) => {
     const newDrive = new InterviewDrive({
         ...driveData,
         tenantId,
+        driveKind,
         title: driveData.title || "Untitled Interview Drive",
         roleCategory: driveData.roleCategory || "UNSPECIFIED",
         department: driveData.department || "UNSPECIFIED",
@@ -296,7 +334,7 @@ export const createDrive = async (tenantId, driveData, ctx) => {
     })
 
     const saved = await newDrive.save()
-    if (status === "ACTIVE") await inviteCandidates(tenantId, saved, initialCandidates, ctx)
+    if (status === "ACTIVE") saved.$locals.inviteSummary = await inviteCandidates(tenantId, saved, initialCandidates, ctx)
     return saved
 }
 
@@ -330,7 +368,7 @@ export const addCandidatesToDrive = async (tenantId, driveId, candidates, ctx, r
     round.candidates.push(...additions)
     drive.candidatesCount = drive.rounds.reduce((total, item) => total + item.candidates.length, 0)
     await drive.save()
-    await inviteCandidates(tenantId, drive, additions, ctx)
+    drive.$locals.inviteSummary = await inviteCandidates(tenantId, drive, additions, ctx)
     return drive
 }
 
@@ -1166,6 +1204,30 @@ export const exportDrivesCsv = async (tenantId, filters = {}) => {
     return [header.join(","), ...lines].join("\n")
 }
 
+// Results for one drive as CSV: one row per student, with PASS/FAIL against the drive's passing score. Only completed
+// attempts get a result - an unattempted or in-progress student is shown as pending, never as a fail.
+export const exportDriveResultsCsv = async (tenantId, driveId) => {
+    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+    requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
+    if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
+
+    const header = ["Roll Number", "Name", "Email", "Branch", "Batch", "Status", "Score", "Result", "Integrity Flags", "Attempted On"]
+    const lines = []
+    for (const round of drive.rounds || []) {
+        const passMark = round.passingThreshold || drive.passingThreshold || 70
+        for (const c of round.candidates || []) {
+            const done = c.status === "COMPLETED" && (c.aiScore > 0 || Boolean(c.agentReport))   // same rule as the portal: scored attempts only
+            lines.push([
+                c.rollNumber || "", c.name, c.email, c.branch || "", c.batch || "",
+                c.status, done ? c.aiScore : "", done ? (c.aiScore >= passMark ? "PASS" : "FAIL") : "PENDING",
+                c.malpracticeFlags || 0, c.attemptedDate ? new Date(c.attemptedDate).toISOString().slice(0, 10) : "",
+            ].map(csvEscape).join(","))
+        }
+    }
+    return { csv: [header.join(","), ...lines].join("\n"), title: drive.title }
+}
+
 export const getDriveById = async (tenantId, driveId) => {
     if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
     requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
@@ -1215,6 +1277,7 @@ export const addRoundToDrive = async (tenantId, driveId, roundData, ctx) => {
     const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
     if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
     if (drive.status === "ARCHIVED") throw new ApiError(409, "ARCHIVED_DRIVE", "Archived drives cannot have new rounds.")
+    assertHiringDrive(drive, "Adding a round")
 
     const nextRoundNum = (drive.rounds?.length || 0) + 1
     if (nextRoundNum > 4) throw new ApiError(400, "ROUND_LIMIT", "An interview drive can have a maximum of 4 rounds.")
@@ -1383,6 +1446,9 @@ export const updateCandidateStatus = async (tenantId, driveId, roundNumber, cand
     if (!["INVITED", "SHORTLISTED", "COMPLETED", "REJECTED"].includes(status)) {
         throw new ApiError(400, "INVALID_STATUS", "Invalid candidate status.")
     }
+    if (["SHORTLISTED", "REJECTED"].includes(status)) {
+        assertHiringDrive(await InterviewDrive.findOne({ _id: driveId, tenantId }).select("driveKind"), "Shortlisting or rejecting")
+    }
 
     const drive = await InterviewDrive.findOneAndUpdate(
         { _id: driveId, tenantId, "rounds.roundNumber": Number(roundNumber), "rounds.candidates.id": candidateId },
@@ -1446,7 +1512,12 @@ export const removeCandidate = async (tenantId, driveId, roundNumber, candidateI
 const buildCandidatePipeline = (tenantId, { search, status, department } = {}) => {
     const matchCandidate = {}
     if (status && status !== "ALL") matchCandidate["candidate.status"] = status
-    if (search) matchCandidate["candidate.name"] = { $regex: search, $options: "i" }
+    if (search) {
+        // Escaped: the search box is free text and must never be interpreted as a pattern. Matches name, email and (for
+        // college rosters) roll number.
+        const rx = { $regex: String(search).slice(0, 80).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" }
+        matchCandidate.$or = [{ "candidate.name": rx }, { "candidate.email": rx }, { "candidate.rollNumber": rx }]
+    }
     if (department) matchCandidate["department"] = department
 
     return [
@@ -1460,6 +1531,7 @@ const buildCandidatePipeline = (tenantId, { search, status, department } = {}) =
                 department: "$department",
                 roundNumber: "$rounds.roundNumber",
                 roundTitle: "$rounds.title",
+                passingThreshold: { $ifNull: ["$rounds.passingThreshold", "$passingThreshold"] },
                 candidate: "$rounds.candidates",
             },
         },
@@ -1509,11 +1581,12 @@ export const exportCandidatesCsv = async (tenantId, filters = {}) => {
         { $limit: CSV_EXPORT_CAP },
     ])
 
-    const header = ["Name", "Email", "Phone", "Experience", "Department", "Drive", "Round", "Status", "AI Score", "Attempted Date"]
+    const header = ["Name", "Email", "Phone", "Experience", "Department", "Drive", "Round", "Status", "AI Score", "Attempted Date", "Roll Number", "Branch", "Batch"]
     const lines = rows.map((r) => [
         r.candidate.name, r.candidate.email, r.candidate.phone || "", r.candidate.exp || "",
         r.department || "", r.driveTitle, r.roundTitle, r.candidate.status,
         r.candidate.aiScore ?? "", r.candidate.attemptedDate ? new Date(r.candidate.attemptedDate).toISOString().slice(0, 10) : "",
+        r.candidate.rollNumber || "", r.candidate.branch || "", r.candidate.batch || "",
     ].map(csvEscape).join(","))
 
     return [header.join(","), ...lines].join("\n")
@@ -1628,6 +1701,7 @@ export const communicateWithCandidates = async (tenantId, driveId, roundNumber, 
 
     const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
     if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    assertHiringDrive(drive, "Congratulation and rejection messages")
     const round = drive.rounds.find((r) => r.roundNumber === Number(roundNumber))
     if (!round) throw new ApiError(404, "ROUND_NOT_FOUND", "Round not found on this drive.")
 
