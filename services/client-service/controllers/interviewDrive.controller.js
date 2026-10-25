@@ -202,7 +202,7 @@ export const addCandidatesToDrive = async (req, res, next) => {
     try {
         const tenantId = req.user?.tenantId
         const drive = await driveService.addCandidatesToDrive(tenantId, req.params.id, req.body.candidates, { requestId: req.requestId, correlationId: req.correlationId }, req.body.roundNumber || 1)
-        ok(res, { ...drive.toObject(), inviteSummary: drive.$locals?.inviteSummary })
+        ok(res, { ...drive.toObject(), inviteSummary: drive.$locals?.inviteSummary, addSummary: drive.$locals?.addSummary })
     } catch (error) {
         next(error)
     }

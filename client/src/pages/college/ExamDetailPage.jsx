@@ -44,6 +44,16 @@ function ExamDetailPage() {
         return studentsOf(drive).filter((s) => !q || `${s.name} ${s.email} ${s.rollNumber || ''} ${s.branch || ''}`.toLowerCase().includes(q))
     }, [drive, search])
 
+    // What the exam already holds, so the dialog can flag duplicates before anything is sent.
+    const existing = useMemo(() => {
+        const list = studentsOf(drive)
+        return {
+            emails: new Set(list.map((s) => s.email?.toLowerCase()).filter(Boolean)),
+            phones: new Set(list.map((s) => s.phone).filter(Boolean)),
+            rolls: new Set(list.map((s) => s.rollNumber?.toLowerCase()).filter(Boolean)),
+        }
+    }, [drive])
+
     const addStudents = async (list) => {
         if (adding) return
         setAdding(true)
@@ -52,9 +62,12 @@ function ExamDetailPage() {
             setDrive(updated)
             setAddOpen(false)
             const sum = updated.inviteSummary
-            if (sum?.skipped === 'NO_PUBLIC_LINK') toast.warning('Students were added, but no invites were sent because this exam has no public link.')
-            else if (sum?.failed?.length) toast.warning(`Added. ${sum.failed.length} invite email${sum.failed.length === 1 ? '' : 's'} could not be sent - see the Invite column.`)
-            else toast.success(sum?.pending ? 'Students added. Invites are being sent.' : 'Students added and invited by email.')
+            const added = updated.addSummary?.added ?? list.length
+            const skippedCount = updated.addSummary?.skipped?.length || 0
+            const head = `${added} student${added === 1 ? '' : 's'} added${skippedCount ? `, ${skippedCount} skipped as already on the exam` : ''}.`
+            if (sum?.skipped === 'NO_PUBLIC_LINK') toast.warning(`${head} No invites were sent because this exam has no public link.`)
+            else if (sum?.failed?.length) toast.warning(`${head} ${sum.failed.length} invite email${sum.failed.length === 1 ? '' : 's'} could not be sent - see the Invite column.`)
+            else toast.success(`${head} ${sum?.pending ? 'Invites are being sent.' : 'They were invited by email.'}`)
         } catch (err) {
             toast.error(err.message || 'Could not add the students.')
         } finally {
@@ -181,7 +194,7 @@ function ExamDetailPage() {
                 )}
             </Card>
 
-            <AddStudentsModal open={addOpen} onClose={() => setAddOpen(false)} onSubmit={addStudents} submitting={adding} />
+            {addOpen && <AddStudentsModal open onClose={() => setAddOpen(false)} onSubmit={addStudents} submitting={adding} existing={existing} />}
             {selected && <CandidateDetailModal open candidate={selected} onClose={() => setSelected(null)} examMode passMark={passMark} />}
             <ConfirmModal
                 open={Boolean(confirm)}

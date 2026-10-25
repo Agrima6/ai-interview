@@ -10,8 +10,11 @@ hiring parts removed: one round, results only, no shortlisting, no rejection or 
 2. **Create exam** (Exam Drives): name, topic, branch, interview type, proctoring level, window (max 50 days), pass mark
    and a question set. The server marks the drive `driveKind: "EXAM"` from the tenant type and forces one round - the
    request body can never choose the kind.
-3. **Add students** (paste or CSV: name, email, phone, roll number, branch, batch). Each student gets an account and an
-   invite email with their login details and the exam link.
+3. **Add students** - type them in one by one, upload a CSV, or paste rows from a spreadsheet. For a file, the dialog maps
+   your column names to the fields (Name and Email are required; Phone, Roll number, Branch, Batch are optional) and a
+   sample CSV can be downloaded. Everything lands in one review list: invalid rows and duplicates (same email, phone or
+   roll number, in the list or already on the exam) are flagged and skipped without blocking the good rows. Each added
+   student gets an account and an invite email with their login details and the exam link.
 4. Students book a slot and take the proctored AI interview exactly like candidates do.
 5. **Results**: per exam (score, PASS/FAIL against the pass mark, integrity flags, invite status), a branch-wise
    breakdown, a per-exam results CSV, and an all-students CSV.
