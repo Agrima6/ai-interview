@@ -25,6 +25,7 @@ const CandidateRosterSchema = new mongoose.Schema({
     branch: { type: String, trim: true, maxlength: 80 },
     batch: { type: String, trim: true, maxlength: 40 },
     malpracticeFlags: { type: Number, default: 0 },
+    lastInviteAt: { type: Date, default: null },   // last time an invite email was attempted (re-invite cooldown)
     status: { type: String, enum: ["INVITED", "SCHEDULED", "SHORTLISTED", "COMPLETED", "REJECTED"], default: "INVITED" },
     attemptedDate: { type: Date },
     // Demo/showcase candidates only (set by scripts/seed-demo-interview.js): the Start-interview time

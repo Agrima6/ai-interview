@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Download, UserPlus, Lock, Archive, Users } from 'lucide-react'
+import { ArrowLeft, Download, UserPlus, Lock, Archive, Users, Mail } from 'lucide-react'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
 import AddStudentsModal from '../../components/college/AddStudentsModal'
 import CandidateDetailModal from '../../components/organization/CandidateDetailModal'
 import PublicLinkPopover from '../../components/organization/PublicLinkPopover'
 import { ExamStatusBadge, ResultBadge } from '../../components/college/ExamStatusBadge'
 import { Card, Button, StatCard, SearchInput, Skeleton, EmptyState, ConfirmModal, useToast } from '../../components/ui'
-import { getInterviewDriveById, addCandidatesToDrive, updateDriveStatus, exportDriveResultsCsv } from '../../api/organization/organizationApi'
+import { getInterviewDriveById, addCandidatesToDrive, updateDriveStatus, exportDriveResultsCsv, resendInvites } from '../../api/organization/organizationApi'
 import { examStats, branchBreakdown, resultOf, studentsOf, passMarkOf } from '../../utils/collegeStats'
 import { formatEnumLabel } from '../../utils/formatEnumLabel'
 
@@ -28,6 +28,7 @@ function ExamDetailPage() {
     const [confirm, setConfirm] = useState(null)   // 'close' | 'archive'
     const [busy, setBusy] = useState(false)
     const [exporting, setExporting] = useState(false)
+    const [resending, setResending] = useState(() => new Set())   // student ids with a resend in flight
 
     const load = useCallback(async () => {
         setLoading(true)
@@ -39,6 +40,8 @@ function ExamDetailPage() {
     const passMark = passMarkOf(drive)
     const stats = useMemo(() => (drive ? examStats(drive) : null), [drive])
     const branches = useMemo(() => (drive ? branchBreakdown(drive) : []), [drive])
+    // Anyone who has not finished can be invited again.
+    const pendingIds = useMemo(() => studentsOf(drive).filter((s) => resultOf(s, passMarkOf(drive)) === 'PENDING').map((s) => s.id), [drive])
     const students = useMemo(() => {
         const q = search.trim().toLowerCase()
         return studentsOf(drive).filter((s) => !q || `${s.name} ${s.email} ${s.rollNumber || ''} ${s.branch || ''}`.toLowerCase().includes(q))
@@ -72,6 +75,26 @@ function ExamDetailPage() {
             toast.error(err.message || 'Could not add the students.')
         } finally {
             setAdding(false)
+        }
+    }
+
+    // Sends the invite email again. Completed students are never re-invited (the server refuses them too).
+    const resend = async (ids) => {
+        const fresh = ids.filter((sid) => !resending.has(sid))
+        if (fresh.length === 0) return
+        setResending((cur) => new Set([...cur, ...fresh]))
+        try {
+            const res = await resendInvites(id, 1, fresh)
+            const failed = res.inviteSummary?.failed?.length || 0
+            const skippedCount = res.skipped?.length || 0
+            if (res.inviteSummary?.skipped === 'NO_PUBLIC_LINK') toast.warning('No invites were sent because this exam has no public link.')
+            else if (failed) toast.warning(`${res.sent - failed} of ${res.sent} invite${res.sent === 1 ? '' : 's'} sent. ${failed} could not be sent - the email service rejected them. Try again, or contact support if it keeps failing.`)
+            else toast.success(`${res.sent} invite${res.sent === 1 ? '' : 's'} sent${skippedCount ? `, ${skippedCount} skipped` : ''}.`)
+            setDrive(await getInterviewDriveById(id))
+        } catch (err) {
+            toast.error(err.message || 'Could not send the invite.')
+        } finally {
+            setResending((cur) => { const next = new Set(cur); fresh.forEach((sid) => next.delete(sid)); return next })
         }
     }
 
@@ -157,6 +180,11 @@ function ExamDetailPage() {
             <Card className="overflow-hidden">
                 <div className="flex items-center justify-between gap-3 p-4 border-b border-line">
                     <h2 className="text-[15px] font-medium text-ink">Students</h2>
+                    {open && pendingIds.length > 0 && (
+                        <Button variant="secondary" size="sm" onClick={() => resend(pendingIds)} disabled={pendingIds.some((sid) => resending.has(sid))}>
+                            <Mail size={14} /> Resend invite to {pendingIds.length} pending
+                        </Button>
+                    )}
                     <div className="w-full sm:w-72"><SearchInput placeholder="Search name, roll number, branch..." value={search} onChange={setSearch} /></div>
                 </div>
                 {studentsOf(drive).length === 0 ? (
@@ -181,7 +209,21 @@ function ExamDetailPage() {
                                             <td className="px-5 py-3 text-text-secondary">{s.rollNumber || '—'}</td>
                                             <td className="px-3 py-3"><p className="font-medium text-ink">{s.name}</p><p className="text-[12.5px] text-text-secondary">{s.email}</p></td>
                                             <td className="px-3 py-3 text-text-secondary">{s.branch || '—'}</td>
-                                            <td className="px-3 py-3 text-text-secondary">{INVITE_LABEL[s.inviteStatus] || '—'}</td>
+                                            <td className="px-3 py-3 text-text-secondary whitespace-nowrap">
+                                                {INVITE_LABEL[s.inviteStatus] || '—'}
+                                                {open && result === 'PENDING' && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => { e.stopPropagation(); resend([s.id]) }}
+                                                        onKeyDown={(e) => e.stopPropagation()}
+                                                        disabled={resending.has(s.id)}
+                                                        aria-label={`Resend invite to ${s.name}`}
+                                                        className="ml-2 text-[12.5px] font-medium text-accent hover:underline disabled:opacity-50 min-h-[32px]"
+                                                    >
+                                                        {resending.has(s.id) ? 'Sending...' : 'Resend'}
+                                                    </button>
+                                                )}
+                                            </td>
                                             <td className="px-3 py-3 text-right tabular-nums">{result === 'PENDING' ? '—' : s.aiScore}</td>
                                             <td className="px-3 py-3"><ResultBadge result={result} /></td>
                                             <td className="px-5 py-3 text-right tabular-nums">{s.malpracticeFlags || 0}</td>

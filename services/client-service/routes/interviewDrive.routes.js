@@ -31,6 +31,7 @@ router.patch("/drives/:id/rounds/:roundNumber", authenticate, requirePermission(
 router.patch("/drives/:id/rounds/:roundNumber/candidates/:candidateId/status", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.updateCandidateStatus)
 router.patch("/drives/:id/rounds/:roundNumber/candidates/:candidateId", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.updateCandidate)
 router.delete("/drives/:id/rounds/:roundNumber/candidates/:candidateId", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.removeCandidate)
+router.post("/drives/:id/rounds/:roundNumber/candidates/invite", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.resendInvites)
 router.post("/drives/:id/rounds/:roundNumber/candidates/communicate", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.communicateWithCandidates)
 router.post("/drives/:id/rounds/:roundNumber/communications/refresh", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.refreshRoundCommunications)
 router.get("/drives/:id/rounds/:roundNumber/candidates/:candidateId/transcript", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.getCandidateTranscript)

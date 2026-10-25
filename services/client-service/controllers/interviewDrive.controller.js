@@ -208,6 +208,15 @@ export const addCandidatesToDrive = async (req, res, next) => {
     }
 }
 
+export const resendInvites = async (req, res, next) => {
+    try {
+        const tenantId = req.user?.tenantId
+        ok(res, await driveService.resendInvites(tenantId, req.params.id, req.params.roundNumber, req.body?.candidateIds, { requestId: req.requestId, correlationId: req.correlationId }))
+    } catch (error) {
+        next(error)
+    }
+}
+
 export const addRoundToDrive = async (req, res, next) => {
     try {
         const tenantId = req.user?.tenantId

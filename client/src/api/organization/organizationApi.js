@@ -59,6 +59,9 @@ export const downloadCandidateResume = async (driveId, roundNumber, candidateId,
     link.remove()
     window.URL.revokeObjectURL(url)
 }
+// Sends the invite email again to people who have not finished (a failed or lost first invite).
+export const resendInvites = (driveId, roundNumber, candidateIds) =>
+    apiPost(`/api/v1/drives/${driveId}/rounds/${roundNumber}/candidates/invite`, { candidateIds })
 export const addRoundToInterviewDrive = (driveId, payload) => apiPost(`/api/v1/drives/${driveId}/rounds`, payload)
 export const updateDriveStatus = (driveId, status) => apiPatch(`/api/v1/drives/${driveId}/status`, { status })
 export const updateRoundStatus = (driveId, roundNumber, status) => apiPatch(`/api/v1/drives/${driveId}/rounds/${roundNumber}/status`, { status })
