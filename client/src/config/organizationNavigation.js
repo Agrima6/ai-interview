@@ -19,17 +19,18 @@ export function getNavigationForPath(pathname = '', profileType = '') {
         prefix = '/organization'
     }
 
-    const drivesLabel = prefix === '/college' ? 'Campus Drives' : prefix === '/candidate' ? 'My Drives' : 'Interview Drives'
+    const isCollege = prefix === '/college'
+    const drivesLabel = isCollege ? 'Exam Drives' : prefix === '/candidate' ? 'My Drives' : 'Interview Drives'
     const teamLabel = prefix === '/college' ? 'Faculty & Team' : prefix === '/candidate' ? 'Profile' : 'Team'
 
     return [
         { key: 'dashboard', label: 'Dashboard', path: `${prefix}/dashboard`, icon: LayoutDashboard, permission: organizationPermissions.dashboard },
         { key: 'drives', label: drivesLabel, path: `${prefix}/drives`, icon: ListChecks, permission: organizationPermissions.drives },
         { key: 'question-sets', label: 'Question Sets', path: `${prefix}/question-sets`, icon: FileQuestion, permission: organizationPermissions.drives },
-        { key: 'candidates', label: 'Candidates', path: `${prefix}/candidates`, icon: UsersRound, permission: organizationPermissions.candidates },
+        { key: 'candidates', label: isCollege ? 'Students' : 'Candidates', path: `${prefix}/candidates`, icon: UsersRound, permission: organizationPermissions.candidates },
         { key: 'team', label: teamLabel, path: `${prefix}/team`, icon: UsersRound, permission: organizationPermissions.team },
         { key: 'templates', label: 'Templates', path: `${prefix}/templates`, icon: Mail, permission: organizationPermissions.templates },
-        { key: 'reports', label: 'Reports', path: `${prefix}/reports`, icon: BarChart3, permission: organizationPermissions.reports },
+        { key: 'reports', label: isCollege ? 'Results' : 'Reports', path: `${prefix}/reports`, icon: BarChart3, permission: organizationPermissions.reports },
         { key: 'settings', label: 'Settings', path: `${prefix}/settings`, icon: Settings, permission: organizationPermissions.settings },
     ]
 }

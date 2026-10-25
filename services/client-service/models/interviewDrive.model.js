@@ -20,6 +20,10 @@ const CandidateRosterSchema = new mongoose.Schema({
     phone: { type: String },
     exp: { type: String },
     aiScore: { type: Number, default: 0 },
+    // Students on a college exam drive (all optional; hiring drives leave them empty).
+    rollNumber: { type: String, trim: true, maxlength: 40 },
+    branch: { type: String, trim: true, maxlength: 80 },
+    batch: { type: String, trim: true, maxlength: 40 },
     malpracticeFlags: { type: Number, default: 0 },
     status: { type: String, enum: ["INVITED", "SCHEDULED", "SHORTLISTED", "COMPLETED", "REJECTED"], default: "INVITED" },
     attemptedDate: { type: Date },
@@ -100,6 +104,9 @@ const RoundSchema = new mongoose.Schema({
 const InterviewDriveSchema = new mongoose.Schema(
     {
         tenantId: { type: String, required: true, index: true },
+        // HIRING = organization interview drive (rounds, shortlisting). EXAM = college exam drive: one round, results
+        // only - no shortlisting, rejection mails or next round. Set by the server from the tenant type.
+        driveKind: { type: String, enum: ["HIRING", "EXAM"], default: "HIRING", index: true },
         title: { type: String, required: true },
         roleCategory: { type: String, required: true },
         department: { type: String, required: true },

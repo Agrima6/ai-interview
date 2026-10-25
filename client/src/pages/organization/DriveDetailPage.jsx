@@ -142,7 +142,11 @@ function DriveDetailPage() {
       const updated = await addCandidatesToDrive(id, candidates, currentRound.roundNumber)
       setDrive(updated)
       setCandidateImportOpen(false)
-      toast.success('New unique candidates were added. Existing email or phone records were skipped.')
+      // Say what happened to the invite emails: a failure used to be visible only in a server log.
+      const invites = updated.inviteSummary
+      if (invites?.skipped === 'NO_PUBLIC_LINK') toast.warning('Candidates were added, but no invites were sent because this drive has no public link.')
+      else if (invites?.failed?.length) toast.warning(`Candidates were added, but ${invites.failed.length} invite email${invites.failed.length === 1 ? '' : 's'} could not be sent. Check the Invite column.`)
+      else toast.success('New unique candidates were added. Existing email or phone records were skipped.')
     } catch (err) {
       toast.error(err.message)
     } finally {

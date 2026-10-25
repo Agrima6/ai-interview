@@ -2,6 +2,11 @@ import React from 'react'
 import { Route, Routes, Navigate, useLocation } from 'react-router-dom'
 import ErrorBoundary from './components/ErrorBoundary'
 import NotFoundPage from './pages/NotFoundPage'
+import CollegeDashboard from './pages/college/CollegeDashboard'
+import ExamDrivesPage from './pages/college/ExamDrivesPage'
+import ExamDetailPage from './pages/college/ExamDetailPage'
+import CollegeResultsPage from './pages/college/CollegeResultsPage'
+import CollegeStudentsPage from './pages/college/CollegeStudentsPage'
 import AuthPage from './pages/auth/AuthPage'
 import Home from './pages/Home'
 import { useEffect, useState } from 'react'
@@ -156,14 +161,14 @@ function App() {
       <Route path='/organization/settings' element={<RequireClientAuth><SettingsPage/></RequireClientAuth>}/>
 
       {/* College Portal Routes */}
-      <Route path='/college/dashboard' element={<RequireClientAuth><OrganizationDashboard/></RequireClientAuth>}/>
-      <Route path='/college/drives' element={<RequireClientAuth><DrivesListPage/></RequireClientAuth>}/>
-      <Route path='/college/drives/:id' element={<RequireClientAuth><DriveDetailPage/></RequireClientAuth>}/>
+      <Route path='/college/dashboard' element={<RequireClientAuth><CollegeDashboard/></RequireClientAuth>}/>
+      <Route path='/college/drives' element={<RequireClientAuth><ExamDrivesPage/></RequireClientAuth>}/>
+      <Route path='/college/drives/:id' element={<RequireClientAuth><ExamDetailPage/></RequireClientAuth>}/>
       <Route path='/college/question-sets' element={<RequireClientAuth><QuestionSetsPage/></RequireClientAuth>}/>
-      <Route path='/college/candidates' element={<RequireClientAuth><CandidatesListPage/></RequireClientAuth>}/>
+      <Route path='/college/candidates' element={<RequireClientAuth><CollegeStudentsPage/></RequireClientAuth>}/>
       <Route path='/college/team' element={<RequireClientAuth><TeamPage/></RequireClientAuth>}/>
       <Route path='/college/templates' element={<RequireClientAuth><TemplatesPage/></RequireClientAuth>}/>
-      <Route path='/college/reports' element={<RequireClientAuth><ReportsPage/></RequireClientAuth>}/>
+      <Route path='/college/reports' element={<RequireClientAuth><CollegeResultsPage/></RequireClientAuth>}/>
       <Route path='/college/settings' element={<RequireClientAuth><SettingsPage/></RequireClientAuth>}/>
 
       {/* Candidate Portal Routes - self-service applicants (CANDIDATE role),

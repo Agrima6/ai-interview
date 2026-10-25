@@ -6,7 +6,7 @@ export const createDrive = async (req, res, next) => {
     try {
         const tenantId = req.user?.tenantId
         const drive = await driveService.createDrive(tenantId, req.body, { requestId: req.requestId, correlationId: req.correlationId })
-        ok(res, drive)
+        ok(res, { ...drive.toObject(), inviteSummary: drive.$locals?.inviteSummary })
     } catch (error) {
         next(error)
     }
@@ -202,7 +202,7 @@ export const addCandidatesToDrive = async (req, res, next) => {
     try {
         const tenantId = req.user?.tenantId
         const drive = await driveService.addCandidatesToDrive(tenantId, req.params.id, req.body.candidates, { requestId: req.requestId, correlationId: req.correlationId }, req.body.roundNumber || 1)
-        ok(res, drive)
+        ok(res, { ...drive.toObject(), inviteSummary: drive.$locals?.inviteSummary })
     } catch (error) {
         next(error)
     }
@@ -309,6 +309,18 @@ export const getTenantReportInternal = async (req, res, next) => {
     try {
         const report = await driveService.getTenantReport(req.query.tenantId, { days: req.query.days })
         ok(res, report)
+    } catch (error) {
+        next(error)
+    }
+}
+
+export const exportDriveResultsCsv = async (req, res, next) => {
+    try {
+        const { csv, title } = await driveService.exportDriveResultsCsv(req.user?.tenantId, req.params.id)
+        const safe = String(title || "results").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "results"
+        res.setHeader("Content-Type", "text/csv; charset=utf-8")
+        res.setHeader("Content-Disposition", `attachment; filename="${safe}-results.csv"`)
+        res.send(csv)
     } catch (error) {
         next(error)
     }
