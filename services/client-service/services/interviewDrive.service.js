@@ -3,6 +3,7 @@ import crypto from "crypto"
 import path from "path"
 import { InterviewDrive } from "../models/interviewDrive.model.js"
 import { NotificationTemplate } from "../models/notificationTemplate.model.js"
+import { TEMPLATE_VARIABLE_KEYS } from "../utils/defaultTemplates.js"
 import { ApiError } from "../utils/response.js"
 import mongoose from "mongoose"
 import { resolveInterviewQuestions } from "../utils/interviewQuestions.js"
@@ -195,6 +196,7 @@ const repairRoundStatuses = async (drive) => {
 }
 
 // Dates in emails: "8 Nov 2026", never "11/8/2026" (which is 8 November or 11 August depending on who reads it).
+const formatEmailDateTime = (value) => new Date(value).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata", timeZoneName: "short" })
 const formatEmailDate = (value) => (value ? new Date(value).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" }) : "")
 
 // The invite email is one template; these variables decide whether it talks about an interview (hiring) or an exam
@@ -1862,8 +1864,8 @@ export const communicateWithCandidates = async (tenantId, driveId, roundNumber, 
     if (!Array.isArray(candidateIds) || candidateIds.length === 0) {
         throw new ApiError(400, "MISSING_CANDIDATES", "At least one candidate must be selected.")
     }
-    if (!["CONGRATULATIONS", "REJECTION"].includes(purpose)) {
-        throw new ApiError(400, "INVALID_PURPOSE", "purpose must be CONGRATULATIONS or REJECTION.")
+    if (!["INVITATION", "CONGRATULATIONS", "REJECTION"].includes(purpose)) {
+        throw new ApiError(400, "INVALID_PURPOSE", "purpose must be INVITATION, CONGRATULATIONS or REJECTION.")
     }
 
     const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
@@ -1880,7 +1882,7 @@ export const communicateWithCandidates = async (tenantId, driveId, roundNumber, 
         throw new ApiError(400, "TEMPLATE_NOT_SENDABLE", "Call templates are scripts for manual use and cannot be auto-sent.")
     }
 
-    const sampleVariables = { candidate_name: "", drive_title: "", company_name: "", interview_link: "", expiry_date: "" }
+    const sampleVariables = Object.fromEntries(TEMPLATE_VARIABLE_KEYS.map((k) => [k, ""]))
     const unknown = unresolvedPlaceholders([template.subject, template.body], sampleVariables)
     if (unknown.length) {
         throw new ApiError(422, "TEMPLATE_PLACEHOLDERS", `This template uses placeholders that can't be filled: ${unknown.map((k) => `{{${k}}}`).join(", ")}. Edit the template and try again.`)
@@ -1889,9 +1891,15 @@ export const communicateWithCandidates = async (tenantId, driveId, roundNumber, 
     const org = await clientRepo.findById(tenantId).catch(() => null)
     // Selected candidates move on through their candidate portal (they already have an account and a resume on
     // file); the public apply link only ever opens Round 1, so it is not what a selection message points to.
-    const interviewLink = purpose === "CONGRATULATIONS"
+    // Round 1 invitations and rejections point at the public apply link; anything that follows a first round is
+    // reached through the candidate portal.
+    const reachedViaPortal = purpose === "CONGRATULATIONS" || (purpose === "INVITATION" && Number(roundNumber) > 1)
+    const interviewLink = reachedViaPortal
         ? buildFrontendUrl("/candidate/room")
         : (drive.publicLink ? buildFrontendUrl(`/apply/${drive.publicLink}`) : "")
+    if (purpose === "INVITATION" && !interviewLink) {
+        throw new ApiError(409, "NO_INTERVIEW_LINK", "This drive has no public link, so there is nothing to invite candidates to.")
+    }
     const expiryDate = formatEmailDate(round.expiryDate)
 
     const candidates = round.candidates.filter((c) => candidateIds.includes(c.id))
@@ -1922,15 +1930,16 @@ export const communicateWithCandidates = async (tenantId, driveId, roundNumber, 
         //  - no active message of this kind may exist (two simultaneous requests cannot both send), and
         //  - the candidate must not already hold the opposite decision (a concurrent select/reject cannot both win).
         // If the write fails nothing is sent; the email only ever follows a persisted decision.
+        // An invitation records no hiring decision; it only needs the duplicate guard.
         const oppositeStatus = purpose === "REJECTION" ? "SHORTLISTED" : "REJECTED"
-        const decision = purpose === "REJECTION" ? "REJECTED" : "SHORTLISTED"
+        const decision = purpose === "REJECTION" ? "REJECTED" : purpose === "CONGRATULATIONS" ? "SHORTLISTED" : null
         const claim = await InterviewDrive.updateOne({ _id: drive._id, tenantId }, {
             $push: { [path]: { ...entry, status: "QUEUED" } },
-            $set: { "rounds.$[r].candidates.$[c].status": decision },
+            ...(decision ? { $set: { "rounds.$[r].candidates.$[c].status": decision } } : {}),
         }, {
             arrayFilters: [roundFilter, {
                 ...candidateFilter,
-                "c.status": { $ne: oppositeStatus },
+                ...(decision ? { "c.status": { $ne: oppositeStatus } } : {}),
                 "c.communications": { $not: { $elemMatch: { purpose, channel: template.type, status: { $in: ACTIVE_STATUSES } } } },
             }],
             timestamps: false,       // otherwise the drive's updatedAt is always "modified" and a lost claim looks like a win
@@ -1949,6 +1958,9 @@ export const communicateWithCandidates = async (tenantId, driveId, roundNumber, 
             company_name: org?.name || "the hiring team",
             interview_link: interviewLink,
             expiry_date: expiryDate,
+            round_number: String(round.roundNumber),
+            round_title: round.title || round.name || `Round ${round.roundNumber}`,
+            interview_date: candidate.interviewSlot ? formatEmailDateTime(candidate.interviewSlot) : "to be scheduled",
         }
         let status = "QUEUED", communicationId, error
         try {

@@ -13,6 +13,10 @@ import DeviceCheckModal from '../../components/candidate/DeviceCheckModal'
 import useNow from '../../hooks/useNow'
 import { formatCountdown, getSlotGate } from '../../utils/slotRules'
 import logo from '../../assets/logo.png'
+import CandidateIdentity from '../../components/candidate/CandidateIdentity'
+import { resolveCandidateName, firstNameOf } from '../../utils/candidateName'
+
+const initialsOf = (text) => (text || '?').trim().charAt(0).toUpperCase()
 
 const STATUS_CONFIG = {
     INVITED: { variant: 'neutral', label: 'Invited' },
@@ -59,7 +63,6 @@ const EMPTY_COPY = {
     REJECTED: 'Nothing here - no drives marked as not selected.',
 }
 
-const initialsOf = (text) => (text || '?').trim().charAt(0).toUpperCase()
 
 export default function CandidateRoomPage() {
     const navigate = useNavigate()
@@ -93,7 +96,7 @@ export default function CandidateRoomPage() {
 
     useEffect(() => { fetchInterviews() }, [])
 
-    const displayName = user?.displayName || user?.email?.split('@')[0] || 'Candidate'
+    const displayName = resolveCandidateName(user)
 
     const handleLogout = async () => {
         await logout()
@@ -247,14 +250,12 @@ export default function CandidateRoomPage() {
                                 <span className='w-1.5 h-1.5 rounded-full bg-success animate-pulse' /> Portal Active
                             </span>
                         </div>
-                        <p className='text-[12px] text-text-secondary truncate'>{user?.email}</p>
                     </div>
                 </div>
 
                 <div className='flex items-center gap-2 sm:gap-3 shrink-0'>
-                    <div className='hidden sm:flex items-center gap-2 pr-3 border-r border-line'>
-                        <span className='w-7 h-7 rounded-full bg-accent/10 text-accent text-[12px] font-bold flex items-center justify-center'>{initialsOf(displayName)}</span>
-                        <span className='text-[12.5px] font-semibold text-ink max-w-[10rem] truncate'>{displayName}</span>
+                    <div className='pr-2 sm:pr-3 sm:border-r border-line'>
+                        <CandidateIdentity user={user} compact />
                     </div>
                     <button
                         onClick={handleLogout}
@@ -274,7 +275,7 @@ export default function CandidateRoomPage() {
                             <div className='inline-flex items-center gap-1.5 text-[11.5px] font-bold text-accent uppercase tracking-wider'>
                                 <Sparkles size={13} /> WorkmateIQ Interview Portal
                             </div>
-                            <h1 className='font-display text-[21px] sm:text-[24px] font-bold text-ink break-words'>Welcome back, {displayName}</h1>
+                            <h1 className='font-display text-[21px] sm:text-[24px] font-bold text-ink break-words'>Welcome back, {firstNameOf(displayName)}</h1>
                             <p className='text-[13.5px] text-text-secondary max-w-xl leading-relaxed'>
                                 Manage your invitations, pick or change your interview time, and launch your AI interview when your slot opens.
                             </p>

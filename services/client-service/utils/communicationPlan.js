@@ -8,7 +8,7 @@
 // Asking the service to send is QUEUED, not SENT.
 
 export const ACTIVE_STATUSES = ["QUEUED", "SENT", "DELIVERED"]     // these block a repeat of the same message
-export const PURPOSES = ["CONGRATULATIONS", "REJECTION"]
+export const PURPOSES = ["INVITATION", "CONGRATULATIONS", "REJECTION"]
 
 /** Communication-service status -> ours. Anything unknown stays QUEUED (unconfirmed), never SENT. */
 export function mapServiceStatus(status) {

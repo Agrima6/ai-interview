@@ -6,6 +6,11 @@ import { getNotificationTemplates, communicateWithCandidates } from '../../api/o
 import { renderWithSamples } from '../../constants/templateVariables'
 
 const COPY = {
+  INVITATION: {
+    title: 'Send Interview Invitation',
+    consequence: (n, round) => `This will send your selected invitation template to ${n} candidate${n === 1 ? '' : 's'} for Round ${round}. Their status does not change.`,
+    confirmLabel: 'Send Invitation',
+  },
   CONGRATULATIONS: {
     title: 'Send Congratulations',
     consequence: (n) => `This will send your selected Congratulations template to ${n} candidate${n === 1 ? '' : 's'}. They are marked Shortlisted for the next stage.`,
@@ -20,7 +25,7 @@ const COPY = {
 
 /**
  * `candidates`: [{ id, name }] already selected on the drive detail page.
- * `purpose`: 'CONGRATULATIONS' | 'REJECTION'
+ * `purpose`: 'INVITATION' | 'CONGRATULATIONS' | 'REJECTION'
  */
 function SendRoundCommunicationModal({ open, onClose, purpose, candidates, driveId, roundNumber, onSent }) {
   const toast = useToast()
@@ -38,13 +43,17 @@ function SendRoundCommunicationModal({ open, onClose, purpose, candidates, drive
     setLoadingTemplates(true)
     getNotificationTemplates()
       .then((data) => {
-        const matching = (data || []).filter((t) => t.purpose === purpose && (t.type === 'EMAIL' || t.type === 'WHATSAPP'))
+        // Invitations are written per round: the template for this round comes first, generic ones after.
+        const fitsRound = (t) => (purpose !== 'INVITATION' ? 0 : t.roundNumber === Number(roundNumber) ? 0 : !t.roundNumber ? 1 : 2)
+        const matching = (data || [])
+          .filter((t) => t.purpose === purpose && t.status !== 'INACTIVE' && (t.type === 'EMAIL' || t.type === 'WHATSAPP'))
+          .sort((a, b) => fitsRound(a) - fitsRound(b))
         setTemplates(matching)
         setTemplateId(matching[0]?.templateId || matching[0]?._id || '')
       })
       .catch(() => setTemplates([]))
       .finally(() => setLoadingTemplates(false))
-  }, [open, purpose])
+  }, [open, purpose, roundNumber])
 
   const activeTemplate = templates.find((t) => (t.templateId || t._id) === templateId)
   const copy = COPY[purpose] || COPY.CONGRATULATIONS
@@ -52,10 +61,13 @@ function SendRoundCommunicationModal({ open, onClose, purpose, candidates, drive
   const previewValues = useMemo(() => ({
     candidate_name: candidates[0]?.name || 'Candidate',
     drive_title: 'this role',
+    round_number: String(roundNumber || 1),
+    round_title: `Round ${roundNumber || 1}`,
+    interview_date: 'your chosen slot',
     company_name: 'Your Organization',
     interview_link: 'https://…',
     expiry_date: '—',
-  }), [candidates])
+  }), [candidates, roundNumber])
 
   const handleSend = async () => {
     if (!activeTemplate || inFlight.current) return
@@ -105,14 +117,14 @@ function SendRoundCommunicationModal({ open, onClose, purpose, candidates, drive
       }
     >
       <div className="space-y-4">
-        <p className="text-[13.5px] text-text-secondary">{copy.consequence(candidates.length)}</p>
+        <p className="text-[13.5px] text-text-secondary">{copy.consequence(candidates.length, roundNumber)}</p>
 
         {loadingTemplates ? (
           <p className="text-[13px] text-text-secondary">Loading templates...</p>
         ) : templates.length === 0 ? (
           <div className="flex items-start gap-2 p-3 rounded-xl bg-[var(--color-warning-soft)] text-[var(--color-warning)] text-[13px]">
             <AlertCircle size={16} className="shrink-0 mt-0.5" />
-            <span>No {purpose === 'CONGRATULATIONS' ? 'Congratulations' : 'Rejection'} template exists yet. Create one on the Templates page first.</span>
+            <span>No active {{ INVITATION: 'Invitation', CONGRATULATIONS: 'Congratulations', REJECTION: 'Rejection' }[purpose]} template is available. Create or activate one on the Templates page first.</span>
           </div>
         ) : (
           <>

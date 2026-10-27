@@ -7,6 +7,9 @@ export const TEMPLATE_VARIABLES = [
   { key: 'company_name', label: 'Company Name', sample: 'Your Organization' },
   { key: 'interview_link', label: 'Interview Link', sample: 'https://workmateiq.com/apply/sample123abc' },
   { key: 'expiry_date', label: 'Expiry Date', sample: new Date(Date.now() + 14 * 86400000).toLocaleDateString() },
+  { key: 'round_number', label: 'Round Number', sample: '2' },
+  { key: 'round_title', label: 'Round Title', sample: 'Technical Interview' },
+  { key: 'interview_date', label: 'Interview Date & Time', sample: new Date(Date.now() + 3 * 86400000).toLocaleString() },
 ]
 
 export const TEMPLATE_VARIABLE_TAGS = TEMPLATE_VARIABLES.map((v) => `{${v.key}}`)
