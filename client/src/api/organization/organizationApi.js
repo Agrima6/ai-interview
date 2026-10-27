@@ -140,6 +140,8 @@ export const removeTeamMember = (id) => apiDelete(`/api/v1/organization/team/${i
 // Question Banks APIs
 export const getQuestionBanks = () => apiGet("/api/v1/question-banks")
 export const createQuestionBank = (payload) => apiPost("/api/v1/question-banks", payload)
+export const updateQuestionBank = (id, payload) => apiPatch(`/api/v1/question-banks/${id}`, payload)
+export const deleteQuestionBank = (id) => apiDelete(`/api/v1/question-banks/${id}`)
 
 // Notification Templates APIs
 export const getNotificationTemplates = () => apiGet("/api/v1/organization/templates")

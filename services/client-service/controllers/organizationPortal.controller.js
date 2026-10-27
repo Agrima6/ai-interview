@@ -53,6 +53,18 @@ export const createQuestionBank = async (req, res, next) => {
     }
 }
 
+export const getQuestionBank = async (req, res, next) => {
+    try { ok(res, await bankService.getQuestionBank(req.user?.tenantId, req.params.id)) } catch (error) { next(error) }
+}
+
+export const updateQuestionBank = async (req, res, next) => {
+    try { ok(res, await bankService.updateQuestionBank(req.user?.tenantId, req.params.id, req.body)) } catch (error) { next(error) }
+}
+
+export const deleteQuestionBank = async (req, res, next) => {
+    try { ok(res, await bankService.deleteQuestionBank(req.user?.tenantId, req.params.id)) } catch (error) { next(error) }
+}
+
 // Templates
 export const listTemplates = async (req, res, next) => {
     try {

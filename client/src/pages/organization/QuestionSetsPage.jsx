@@ -3,7 +3,8 @@ import { FileQuestion, Plus, Clock, Check, Trash2, Sparkles, Layers, AlertCircle
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
 import Modal from '../../components/ui/Modal'
 import { Card, Button, Badge, Input, Select, Textarea, SearchInput, StatCard, Skeleton, EmptyState, useToast } from '../../components/ui'
-import { getQuestionBanks, createQuestionBank } from '../../api/organization/organizationApi'
+import ConfirmModal from '../../components/ui/ConfirmModal'
+import { getQuestionBanks, createQuestionBank, deleteQuestionBank } from '../../api/organization/organizationApi'
 import { formatEnumLabel } from '../../utils/formatEnumLabel'
 
 const CATEGORY_OPTIONS = [
@@ -23,6 +24,7 @@ function QuestionSetsPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [previewSet, setPreviewSet] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
 
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
@@ -170,6 +172,11 @@ function QuestionSetsPage() {
                         <Button size="xs" variant="secondary" onClick={() => setPreviewSet(set)}>
                           <ListChecks size={13} /> View Questions
                         </Button>
+                        {!set.isSystemDefault && (
+                          <Button size="xs" variant="secondary" className="ml-2" aria-label={`Delete ${set.title}`} onClick={() => setDeleteTarget(set)}>
+                            <Trash2 size={13} />
+                          </Button>
+                        )}
                       </td>
                     </tr>
                   )
@@ -179,6 +186,28 @@ function QuestionSetsPage() {
           </div>
         )}
       </Card>
+
+      <ConfirmModal
+        open={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete this question set?"
+        confirmLabel="Delete"
+        danger
+        onConfirm={async () => {
+          try {
+            await deleteQuestionBank(deleteTarget._id || deleteTarget.id)
+            toast.success('Question set deleted.')
+            setDeleteTarget(null)
+            fetchSets()
+          } catch (err) {
+            toast.error(err.message)
+          }
+        }}
+      >
+        <p className="text-[13.5px] text-text-secondary leading-relaxed">
+          "{deleteTarget?.title}" will be removed from your library. Drives that already use it keep their own copy of the questions.
+        </p>
+      </ConfirmModal>
 
       <Modal
         open={Boolean(previewSet)}

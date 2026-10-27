@@ -49,6 +49,16 @@ const sanitizePathSegment = (str) => {
 const renderTemplateText = (text, values) =>
     (text || "").replace(/\{\{?\s*(\w+)\s*\}?\}/g, (match, key) => (key in values ? values[key] : match))
 
+// Placeholders a template uses that the sender cannot fill. Sending "Hi {{candidatename}}" to a candidate is
+// worse than not sending, so the request is refused up front, naming what is wrong.
+export const unresolvedPlaceholders = (texts, values) => {
+    const unknown = new Set()
+    for (const text of texts) {
+        for (const match of String(text || "").matchAll(/\{\{?\s*(\w+)\s*\}?\}/g)) if (!(match[1] in values)) unknown.add(match[1])
+    }
+    return [...unknown]
+}
+
 // The backend owns this, never the frontend - a client-generated
 // Math.random() slug could collide, isn't guaranteed unique, and gives a
 // candidate-facing URL no server-side record ever agreed to.
@@ -1861,6 +1871,12 @@ export const communicateWithCandidates = async (tenantId, driveId, roundNumber, 
     if (!template) throw new ApiError(404, "TEMPLATE_NOT_FOUND", "Communication template not found.")
     if (template.type !== "EMAIL" && template.type !== "WHATSAPP") {
         throw new ApiError(400, "TEMPLATE_NOT_SENDABLE", "Call templates are scripts for manual use and cannot be auto-sent.")
+    }
+
+    const sampleVariables = { candidate_name: "", drive_title: "", company_name: "", interview_link: "", expiry_date: "" }
+    const unknown = unresolvedPlaceholders([template.subject, template.body], sampleVariables)
+    if (unknown.length) {
+        throw new ApiError(422, "TEMPLATE_PLACEHOLDERS", `This template uses placeholders that can't be filled: ${unknown.map((k) => `{{${k}}}`).join(", ")}. Edit the template and try again.`)
     }
 
     const org = await clientRepo.findById(tenantId).catch(() => null)

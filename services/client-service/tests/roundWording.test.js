@@ -13,3 +13,10 @@ test("later rounds say the candidate is moving forward and only ask for a slot",
     assert.match(w.portal_help, /resume is already on file/)
     assert.equal(w.deadline_label, "Complete by")
 })
+
+import { unresolvedPlaceholders } from "../services/interviewDrive.service.js"
+test("placeholders that cannot be filled are reported, known ones are not", () => {
+    const values = { candidate_name: "", drive_title: "" }
+    assert.deepEqual(unresolvedPlaceholders(["Hi {{candidate_name}}, {drive_title}", "{{typo_name}}"], values), ["typo_name"])
+    assert.deepEqual(unresolvedPlaceholders(["Hi {candidate_name}"], values), [])
+})
