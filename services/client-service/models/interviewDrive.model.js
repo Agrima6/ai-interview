@@ -26,7 +26,19 @@ const CandidateRosterSchema = new mongoose.Schema({
     batch: { type: String, trim: true, maxlength: 40 },
     malpracticeFlags: { type: Number, default: 0 },
     lastInviteAt: { type: Date, default: null },   // last time an invite email was attempted (re-invite cooldown)
-    status: { type: String, enum: ["INVITED", "SCHEDULED", "SHORTLISTED", "COMPLETED", "REJECTED"], default: "INVITED" },
+    // CLOSED: the round ended (HR completed or closed it) before this candidate's interview was conducted.
+    status: { type: String, enum: ["INVITED", "SCHEDULED", "SHORTLISTED", "COMPLETED", "REJECTED", "CLOSED"], default: "INVITED" },
+    closedAt: { type: Date },
+    closedReason: { type: String },
+    // Append-only scheduling history HR can read: every booking, reschedule and closure, with the slot involved.
+    slotHistory: [{
+        action: { type: String, enum: ["BOOKED", "RESCHEDULED", "CLOSED"], required: true },
+        at: { type: Date, default: Date.now },
+        slot: { type: Date },
+        previousSlot: { type: Date },
+        reason: { type: String },
+        _id: false,
+    }],
     attemptedDate: { type: Date },
     // Demo/showcase candidates only (set by scripts/seed-demo-interview.js): the Start-interview time
     // window (10 min before / 90 min after the slot) never applies, so the same demo can be presented

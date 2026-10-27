@@ -76,7 +76,7 @@ function CandidateDetailModal({ open, onClose, candidate, onStatusChange, examMo
               }}
               className="text-red-600 hover:bg-red-50"
             >
-              <X size={14} /> Reject
+              <X size={14} /> Reject & Notify
             </Button>
             <Button
               type="button"
@@ -86,7 +86,7 @@ function CandidateDetailModal({ open, onClose, candidate, onStatusChange, examMo
                 onClose()
               }}
             >
-              <Check size={14} /> Shortlist Candidate
+              <Check size={14} /> Shortlist & Notify
             </Button>
           </div>}
         </div>

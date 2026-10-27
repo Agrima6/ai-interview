@@ -5,8 +5,8 @@
 // 09:00 means 09:00 for the hiring team wherever the candidate is; the candidate sees it in their own zone.
 //
 // Every number is configurable per drive (`drive.availability`) or by environment - none is hard-coded:
-//   SLOT_DAY_START / SLOT_DAY_END   "HH:MM" bookable window inside a day       (default 09:00 - 20:00)
-//   SLOT_INTERVAL_MINUTES           granularity of a bookable start time         (default 5; 30 = classic grid)
+//   SLOT_DAY_START / SLOT_DAY_END   "HH:MM" bookable window inside a day       (default 00:00 - 24:00: any time of day)
+//   SLOT_INTERVAL_MINUTES           granularity of a bookable start time         (default 1: any minute; 30 = classic grid)
 //   SLOT_DURATION_MINUTES           length reserved for an interview             (default 30)
 //   SLOT_BUFFER_MINUTES             gap kept between one candidate's bookings    (default 10)
 //   SLOT_MIN_NOTICE_MINUTES         earliest a slot may be from now              (default 60)
@@ -36,14 +36,16 @@ export const isValidTimezone = (zone) => {
 export function resolveAvailability(drive = {}, env = process.env) {
     const own = drive.availability || {}
     const timezone = [own.timezone, env.DEFAULT_TIMEZONE, "Asia/Kolkata"].find(isValidTimezone)
-    const dayStart = hhmm(own.dayStart ?? env.SLOT_DAY_START, 9 * 60)
-    let dayEnd = hhmm(own.dayEnd ?? env.SLOT_DAY_END, 20 * 60)
-    if (dayEnd <= dayStart) dayEnd = 20 * 60
+    // No built-in working-hours window and no built-in interval: interviews may start at any minute of the day.
+    // A drive (or the environment) can still configure hours and a grid when an organization genuinely wants them.
+    const dayStart = hhmm(own.dayStart ?? env.SLOT_DAY_START, 0)
+    let dayEnd = hhmm(own.dayEnd ?? env.SLOT_DAY_END, 24 * 60)
+    if (dayEnd <= dayStart) dayEnd = 24 * 60
     return {
         timezone,
         dayStart,
         dayEnd,
-        intervalMinutes: num(own.intervalMinutes ?? env.SLOT_INTERVAL_MINUTES, 5, { min: 1, max: 240 }),
+        intervalMinutes: num(own.intervalMinutes ?? env.SLOT_INTERVAL_MINUTES, 1, { min: 1, max: 240 }),
         durationMinutes: num(own.durationMinutes ?? env.SLOT_DURATION_MINUTES, 30, { min: 5, max: 480 }),
         bufferMinutes: num(own.bufferMinutes ?? env.SLOT_BUFFER_MINUTES, 10, { min: 0, max: 240 }),
         minNoticeMinutes: num(own.minNoticeMinutes ?? env.SLOT_MIN_NOTICE_MINUTES, 60, { min: 0, max: 60 * 24 * 30 }),
@@ -85,7 +87,10 @@ export function validateSlot(input, { now = Date.now(), window = {}, availabilit
     }
 
     const { minutes } = localParts(at, a.timezone)
-    if (minutes < a.dayStart || minutes + a.durationMinutes > a.dayEnd) {
+    // Hours are only enforced when the organization configured them; an interview that starts late in the evening may
+    // run past midnight.
+    const hoursRestricted = a.dayStart > 0 || a.dayEnd < 24 * 60
+    if (hoursRestricted && (minutes < a.dayStart || minutes + a.durationMinutes > a.dayEnd)) {
         const fmt = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`
         return bad("SLOT_OUTSIDE_HOURS", `Interviews run between ${fmt(a.dayStart)} and ${fmt(a.dayEnd)} (${a.timezone}).`)
     }

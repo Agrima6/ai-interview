@@ -102,7 +102,7 @@ function ApplyPage() {
       if (field.required && !value?.trim()) {
         errors[field.key] = `${field.label} is required.`
       } else if (field.validate && value && !field.validate(value)) {
-        errors[field.key] = field.invalidMessage || `Invalid ${field.label}.`
+        errors[field.key] = field.explain?.(value) || field.invalidMessage || `Invalid ${field.label}.`
       }
     }
     if (!resumeFile && !isBlueCollar) errors.resume = 'Please upload your resume.'
@@ -131,6 +131,8 @@ function ApplyPage() {
       localStorage.setItem(ALREADY_APPLIED_KEY(link), '1')
       setSubmitted(true)
     } catch (err) {
+      // The server re-validates everything; show each of its field errors next to the input it belongs to.
+      if (err.fields) setFieldErrors((prev) => ({ ...prev, ...err.fields }))
       setSubmitError(err.message)
     } finally {
       setSubmitting(false)
@@ -233,7 +235,7 @@ function ApplyPage() {
           </span>
           {drive.expiryDate && !Number.isNaN(new Date(drive.expiryDate).getTime()) && (
             <span className='inline-flex items-center gap-1.5'>
-              <Clock size={14} /> Apply by {new Date(drive.expiryDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' })}
+              <Clock size={14} /> Apply by {new Date(drive.expiryDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: drive.timezone || 'Asia/Kolkata' })}
             </span>
           )}
         </div>
@@ -246,9 +248,18 @@ function ApplyPage() {
                 key={field.key}
                 id={field.key}
                 label={`${field.label}${field.required ? ' *' : ''}`}
-                type={field.type === 'email' ? 'email' : 'text'}
+                type={field.type === 'email' ? 'email' : field.type === 'phone' ? 'tel' : 'text'}
+                inputMode={field.type === 'phone' ? 'tel' : field.key === 'exp' ? 'decimal' : undefined}
+                maxLength={field.key === 'name' ? 100 : field.key === 'phone' ? 20 : field.key === 'exp' ? 8 : 254}
+                autoComplete={field.key === 'name' ? 'name' : field.key === 'phone' ? 'tel' : field.key === 'email' ? 'email' : 'off'}
                 value={form[field.key]}
                 onChange={handleChange(field.key)}
+                onBlur={() => {
+                  const value = form[field.key]
+                  if (!isLocked && value && field.validate && !field.validate(value)) {
+                    setFieldErrors((prev) => ({ ...prev, [field.key]: field.explain?.(value) || field.invalidMessage }))
+                  }
+                }}
                 error={fieldErrors[field.key]}
                 placeholder={field.sample}
                 disabled={isLocked}

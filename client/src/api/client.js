@@ -73,6 +73,7 @@ const unwrap = async (promise) => {
         const code = envelope?.error?.code || "NETWORK_ERROR"
         const wrapped = new Error(getFriendlyMessage(code, envelope?.error?.message || error.message, status))
         wrapped.code = code
+        if (envelope?.error?.fields) wrapped.fields = envelope.error.fields
         wrapped.status = status
         throw wrapped
     }
@@ -97,6 +98,7 @@ export const apiGetList = async (url, params) => {
         const code = envelope?.error?.code || "NETWORK_ERROR"
         const wrapped = new Error(getFriendlyMessage(code, envelope?.error?.message || error.message, status))
         wrapped.code = code
+        if (envelope?.error?.fields) wrapped.fields = envelope.error.fields
         wrapped.status = status
         throw wrapped
     }

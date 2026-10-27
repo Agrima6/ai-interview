@@ -34,6 +34,7 @@ function DriveDetailPage() {
   const [selectedCandidate, setSelectedCandidate] = useState(null)
   const [copiedLink, setCopiedLink] = useState(false)
   const [selectedIds, setSelectedIds] = useState([])
+  const [decisionCandidate, setDecisionCandidate] = useState(null) // a single candidate decided from the scorecard
   const [communicationModal, setCommunicationModal] = useState(null) // 'INVITATION' | 'CONGRATULATIONS' | 'REJECTION' | null
 
   const basePath = location.pathname.startsWith('/college')
@@ -85,8 +86,19 @@ function DriveDetailPage() {
   const previousRoundForCreate = rounds.find((round) => round.roundNumber === nextRoundNumber - 1)
   const shortlistedCandidatesForCreate = (previousRoundForCreate?.candidates || []).filter((candidate) => candidate.status === 'SHORTLISTED')
 
+  // Shortlisting or rejecting from the scorecard is a hiring decision that the candidate is told about, so it opens the
+  // same confirm-and-send dialog as the bulk actions (template choice, preview, duplicate-send protection). The status
+  // changes together with the message, never on its own.
   const handleCandidateStatusChange = async (candId, newStatus) => {
     if (!currentRound) return
+    if (newStatus === 'SHORTLISTED' || newStatus === 'REJECTED') {
+      const candidate = currentCandidates.find((c) => c.id === candId)
+      if (candidate) {
+        setDecisionCandidate(candidate)
+        setCommunicationModal(newStatus === 'SHORTLISTED' ? 'CONGRATULATIONS' : 'REJECTION')
+        return
+      }
+    }
     try {
       const updated = await updateCandidateStatus(id, currentRound.roundNumber, candId, newStatus)
       setDrive(updated)
@@ -211,6 +223,7 @@ function DriveDetailPage() {
 
   const handleCommunicationSent = () => {
     setSelectedIds([])
+    setDecisionCandidate(null)
     fetchDrive()
   }
 
@@ -613,9 +626,9 @@ function DriveDetailPage() {
 
       <SendRoundCommunicationModal
         open={Boolean(communicationModal)}
-        onClose={() => setCommunicationModal(null)}
+        onClose={() => { setCommunicationModal(null); setDecisionCandidate(null) }}
         purpose={communicationModal}
-        candidates={selectedCandidateObjs}
+        candidates={decisionCandidate ? [decisionCandidate] : selectedCandidateObjs}
         driveId={id}
         roundNumber={currentRound?.roundNumber}
         onSent={handleCommunicationSent}
