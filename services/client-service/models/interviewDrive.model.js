@@ -78,6 +78,7 @@ const CandidateRosterSchema = new mongoose.Schema({
         communicationId: { type: String },              // the communication-service record, for status refresh
         idempotencyKey: { type: String },               // one UI action = one key: a repeat is ignored
         error: { type: String },
+        requestedBy: { type: String },                  // who triggered it (audit)
         updatedAt: { type: Date },
     }],
 })
