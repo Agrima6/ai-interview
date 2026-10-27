@@ -10,10 +10,11 @@ import {
     AlertCircle, ArrowRight, Send, MoreHorizontal, Wifi
 } from 'lucide-react'
 import { Card } from '../../components/ui'
-import { reportInterviewViolation, completeInterview, startAgentInterview, completeAgentInterview, uploadInterviewRecording, getMyInterviews } from '../../api/organization/organizationApi'
+import { reportInterviewViolation, completeInterview, startAgentInterview, completeAgentInterview, uploadRecordingChunk, finalizeInterviewRecording, getMyInterviews } from '../../api/organization/organizationApi'
 import {
     STATUS, FULL_REQUIREMENTS, WRONG_SURFACE_COPY, normalizeRequirements, classifyMediaError, isTrackLive, verifyStream, readiness, describeMissing,
 } from '../../utils/mediaPermissions'
+import { ChunkedRecorder, createRecordingMixer } from '../../utils/chunkedRecorder'
 import logo from '../../assets/logo.png'
 
 const MAX_VIOLATIONS = 3
@@ -117,8 +118,8 @@ function InterviewRoomPage() {
     const [endState, setEndState] = useState('idle')   // idle | ending | submitted | failed
     const [endError, setEndError] = useState('')
     const [timeLimitSeconds, setTimeLimitSeconds] = useState(0)   // whole-interview limit, when the backend provides one
-    const mediaRecorderRef = useRef(null)
-    const recordedChunksRef = useRef([])
+    const chunkRecorderRef = useRef(null)
+    const recordingMixerRef = useRef(null)
     const connectingRef = useRef(false)
 
     // -------------------------------------------------------------
@@ -330,38 +331,48 @@ function InterviewRoomPage() {
     // -------------------------------------------------------------
     // PROCTORING & RECORDING CAPABILITIES
     // -------------------------------------------------------------
-    const startRecording = (stream) => {
-        const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
-            ? 'video/webm;codecs=vp8,opus'
-            : 'video/webm'
-        try {
-            const recorder = new MediaRecorder(stream, { mimeType })
-            recordedChunksRef.current = []
-            recorder.ondataavailable = (e) => {
-                if (e.data.size > 0) recordedChunksRef.current.push(e.data)
-            }
-            recorder.onerror = () => setRecordingState('error')
-            recorder.start(1000)
-            mediaRecorderRef.current = recorder
-            setRecordingState('recording')
-        } catch (err) {
-            console.error('Recording could not start:', err.message)
-            setRecordingState('error')
+    // Recording is uploaded in chunks while the interview runs (see utils/chunkedRecorder.js), so an interrupted
+    // session keeps everything captured so far. `recordingState`: idle | recording | slow (chunks are queueing
+    // because the connection is poor) | error (the browser could not record).
+    const startRecording = (stream, { hasVideo = true } = {}) => {
+        if (chunkRecorderRef.current) return                   // already recording this session
+        const recorder = new ChunkedRecorder({
+            stream,
+            hasVideo,
+            uploadChunk: (chunk) => uploadRecordingChunk(driveId, roundNumber, chunk),
+            finalize: (payload) => finalizeInterviewRecording(driveId, roundNumber, payload),
+            onState: ({ status }) => setRecordingState(status === 'recording' ? 'recording' : status === 'degraded' ? 'slow' : status === 'error' ? 'error' : 'idle'),
+        })
+        if (!recorder.start()) {
+            console.error('Recording could not start in this browser.')
+            return
         }
+        chunkRecorderRef.current = recorder
     }
 
-    const stopAndUploadRecording = async () => {
-        const recorder = mediaRecorderRef.current
-        if (!recorder || recorder.state === 'inactive') return
-        await new Promise((resolve) => {
-            recorder.onstop = resolve
-            recorder.stop()
+    // Camera picture + a single audio track mixing the candidate's microphone and the interviewer's voice, so the
+    // saved recording contains the whole conversation (the camera track alone carries no sound).
+    const startRoomRecording = (room, cameraTrack) => {
+        if (chunkRecorderRef.current || !cameraTrack) return
+        const mixer = createRecordingMixer(cameraTrack)
+        recordingMixerRef.current = mixer
+        const micTrack = [...room.localParticipant.audioTrackPublications.values()][0]?.track?.mediaStreamTrack
+        mixer.addAudioTrack(micTrack)
+        room.remoteParticipants.forEach((participant) => {
+            participant.audioTrackPublications.forEach((pub) => mixer.addAudioTrack(pub.track?.mediaStreamTrack))
         })
-        if (recordedChunksRef.current.length === 0) return
-        const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' })
-        await uploadInterviewRecording(driveId, roundNumber, blob).catch((err) =>
-            console.error('Recording upload failed:', err.message)
-        )
+        startRecording(mixer.stream)
+    }
+
+    // Finish the capture and let the server confirm what it stored. Resolves with the server's verdict
+    // (COMPLETED / INCOMPLETE / FAILED), or PENDING when the server could not be reached in time.
+    const stopAndUploadRecording = async () => {
+        const recorder = chunkRecorderRef.current
+        if (!recorder) return null
+        const result = await recorder.stop('ENDED')
+        recordingMixerRef.current?.close()
+        if (result?.status && !['COMPLETED', 'NONE'].includes(result.status)) console.warn('Recording finalized as', result.status, result.reason || '')
+        return result
     }
 
     const captureFrame = (video) => {
@@ -476,6 +487,7 @@ function InterviewRoomPage() {
                 room.on(RoomEvent.TrackSubscribed, (track, _pub, participant) => {
                     if (participant.identity.startsWith('candidate-')) return
                     if (track.kind === Track.Kind.Audio) {
+                        recordingMixerRef.current?.addAudioTrack(track.mediaStreamTrack)
                         // Use the page's audio element when it exists; otherwise a hidden one, so the
                         // interviewer is never silent just because the element had not rendered yet.
                         if (agentAudioRef.current) {
@@ -574,7 +586,7 @@ function InterviewRoomPage() {
                 const camPub = [...room.localParticipant.videoTrackPublications.values()][0]
                 if (camPub?.track && videoRef.current) {
                     camPub.track.attach(videoRef.current)
-                    if (videoRef.current.srcObject) startRecording(videoRef.current.srcObject)
+                    startRoomRecording(room, camPub.track.mediaStreamTrack)
                 }
 
                 // Screen: reuse the share the candidate ALREADY approved on the readiness screen. Asking again would
@@ -1597,6 +1609,12 @@ function InterviewRoomPage() {
                         <div role='alert' className='p-3.5 rounded-xl border border-amber-300 bg-amber-50 text-[13px] text-amber-900 flex items-start gap-2'>
                             <Wifi size={16} className='shrink-0 mt-0.5' aria-hidden='true' />
                             <span><b>Connection interrupted.</b> We&apos;re trying to reconnect. Please stay on this page.</span>
+                        </div>
+                    )}
+                    {recordingState === 'slow' && (
+                        <div role='status' className='p-3.5 rounded-xl border border-amber-300 bg-amber-50 text-[13px] text-amber-900 flex items-start gap-2'>
+                            <AlertTriangle size={16} className='shrink-0 mt-0.5' aria-hidden='true' />
+                            <span><b>Your connection is slow.</b> The recording is still being captured and will keep saving. Please stay on this page.</span>
                         </div>
                     )}
                     {recordingState === 'error' && (

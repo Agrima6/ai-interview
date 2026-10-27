@@ -23,8 +23,8 @@ const DEFAULT_TEMPLATES = [
         name: "Shortlisted Candidate Next Round Email",
         type: "EMAIL",
         purpose: "CONGRATULATIONS",
-        subject: "Congratulations! You have been shortlisted for {drive_title}",
-        body: `Dear {candidate_name},\n\nGreat news! Based on your outstanding AI interview evaluation score, our hiring team has shortlisted your application for {drive_title}.\n\nOur recruiters will reach out shortly to schedule the final round.\n\nBest regards,\n{company_name} Talent Team`,
+        subject: "You're moving forward with {company_name}",
+        body: `Hi {candidate_name},\n\nThank you for completing your interview for {drive_title}. We're pleased to let you know that our hiring team would like to take you to the next round.\n\nNext step: sign in to your candidate portal at {interview_link} and choose a time for your next interview. Your resume is already on file, so there is nothing to upload again. Your interview is not booked until you choose a time.\n\nBest regards,\n{company_name} Hiring Team`,
     },
     {
         templateId: "tmpl-4",

@@ -65,6 +65,29 @@ const CandidateRosterSchema = new mongoose.Schema({
     // by MediaRecorder and uploaded on completion - what HR reviews on the
     // org dashboard, distinct from the point-in-time proctoring snapshots above.
     recordingFilename: { type: String, default: null },
+    // Chunked, in-session recording (one entry per uninterrupted capture; a page reload starts a new one).
+    // Chunks are uploaded while the interview runs, so a closed tab / lost connection loses seconds, not the
+    // whole session. Status is what is actually stored, never what we hoped:
+    //   RECORDING   chunks are arriving
+    //   FINALIZING  assembling the stored chunks into one file
+    //   COMPLETED   every chunk was received and the assembled file was read back and verified
+    //   INCOMPLETE  stored and playable, but chunks are missing or the capture stopped early
+    //   FAILED      nothing usable could be assembled
+    recordings: [{
+        recordingId: { type: String, required: true },
+        status: { type: String, enum: ["RECORDING", "FINALIZING", "COMPLETED", "INCOMPLETE", "FAILED"], default: "RECORDING" },
+        mimeType: { type: String },
+        startedAt: { type: Date, default: Date.now },
+        lastChunkAt: { type: Date },
+        finalizedAt: { type: Date },
+        parts: [{ index: { type: Number, required: true }, size: { type: Number, required: true }, key: { type: String, required: true }, _id: false }],
+        partCount: { type: Number, default: 0 },
+        expectedParts: { type: Number },
+        missing: [Number],
+        bytes: { type: Number, default: 0 },
+        key: { type: String },             // the assembled object, once verified
+        reason: { type: String },          // why it is not COMPLETED
+    }],
     // Audit trail + duplicate-send visibility (integration.md section 32/52)
     // for congratulations/rejection communications sent from the drive
     // detail page - not every invite/reminder, just the round-outcome ones.
@@ -87,7 +110,7 @@ const RoundSchema = new mongoose.Schema({
     roundNumber: { type: Number, required: true },
     title: { type: String, required: true },
     type: { type: String, required: true },
-    status: { type: String, enum: ["ACTIVE", "COMPLETED", "PENDING", "DRAFT"], default: "ACTIVE" },
+    status: { type: String, enum: ["ACTIVE", "COMPLETED", "CLOSED", "PENDING", "DRAFT"], default: "ACTIVE" },
     startDate: { type: Date },
     expiryDate: { type: Date },
     passingThreshold: { type: Number, default: 70 },
@@ -118,7 +141,7 @@ const InterviewDriveSchema = new mongoose.Schema(
         roundType: { type: String, default: "Technical Round" },
         startDate: { type: Date },
         expiryDate: { type: Date, required: true },
-        status: { type: String, enum: ["ACTIVE", "COMPLETED", "DRAFT", "ARCHIVED"], default: "ACTIVE" },
+        status: { type: String, enum: ["ACTIVE", "COMPLETED", "CLOSED", "DRAFT", "ARCHIVED"], default: "ACTIVE" },
         questionMode: { type: String, enum: ["PREBUILT", "CUSTOM"], default: "PREBUILT" },
         questionBankTitle: { type: String },
         questionBankId: { type: String, default: null },

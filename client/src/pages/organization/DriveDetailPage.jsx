@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { ArrowLeft, Plus, CheckCircle2, ShieldAlert, Sparkles, Eye, FileSpreadsheet, AlertCircle, Link2, Copy, Check, ExternalLink, Upload, Pencil, PartyPopper, XCircle, CheckSquare, Square, Mail, MailOpen, CalendarClock } from 'lucide-react'
+import { ArrowLeft, Plus, CheckCircle2, ShieldAlert, Sparkles, Eye, FileSpreadsheet, AlertCircle, Link2, Copy, Check, ExternalLink, Upload, Pencil, PartyPopper, XCircle, CheckSquare, Square, Mail, CalendarClock } from 'lucide-react'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
 import CandidateDetailModal from '../../components/organization/CandidateDetailModal'
 import CreateDriveModal from '../../components/organization/CreateDriveModal'
@@ -72,12 +72,11 @@ function DriveDetailPage() {
   const currentRound = rounds.find((r) => String(r.roundNumber) === activeRoundTab)
   const currentRoundStatus = currentRound?.status || 'DRAFT'
   const previousRound = currentRound ? rounds.find((r) => r.roundNumber === currentRound.roundNumber - 1) : null
-  const previousRoundReady = Boolean(drive?.status !== 'DRAFT' && previousRound && previousRound.status === 'COMPLETED')
+  const previousRoundReady = Boolean(drive?.status !== 'DRAFT' && previousRound && ['COMPLETED', 'CLOSED'].includes(previousRound.status))
   const roundNeedsPreviousActivation = Boolean(currentRound && previousRound && !previousRoundReady)
   const currentCandidates = currentRound?.candidates || []
   const inviteSummary = {
     total: currentCandidates.length,
-    opened: currentCandidates.filter((c) => c.inviteOpenedAt).length,
     scheduled: currentCandidates.filter((c) => c.interviewSlot).length,
   }
   const round1 = rounds.find((r) => r.roundNumber === 1)
@@ -101,7 +100,7 @@ function DriveDetailPage() {
     try {
       const updated = await updateDriveStatus(id, status)
       setDrive(updated)
-      toast.success(`Drive marked as ${status.toLowerCase()}.`)
+      toast.success(`Drive marked as ${String(updated.status).toLowerCase()}.`)
     } catch (err) {
       toast.error(err.message)
     }
@@ -121,7 +120,10 @@ function DriveDetailPage() {
     try {
       const updated = await updateRoundStatus(id, currentRound.roundNumber, status)
       setDrive(updated)
-      toast.success(`Round ${currentRound.roundNumber} marked as ${status.toLowerCase()}.`)
+      const result = updated.rounds?.find((r) => r.roundNumber === currentRound.roundNumber)?.status || status
+      toast.success(result === 'CLOSED' && status === 'COMPLETED'
+        ? `Round ${currentRound.roundNumber} closed - some candidates had not finished, so it is not marked completed.`
+        : `Round ${currentRound.roundNumber} marked as ${String(result).toLowerCase()}.`)
     } catch (err) {
       toast.error(err.message)
     } finally {
@@ -254,7 +256,7 @@ function DriveDetailPage() {
             </Button>
           ) : null}
           {drive.status === 'ACTIVE' ? (
-            <Button size="sm" onClick={() => handleDriveStatusChange('COMPLETED')}>
+            <Button size="sm" onClick={() => handleDriveStatusChange('CLOSED')}>
               <CheckCircle2 size={14} /> Close Drive
             </Button>
           ) : null}
@@ -421,7 +423,6 @@ function DriveDetailPage() {
         {inviteSummary.total > 0 && (
           <div className="flex items-center gap-5 mb-4 px-1 flex-wrap text-[12.5px] text-text-secondary">
             <span className="inline-flex items-center gap-1.5"><Mail size={13} /> {inviteSummary.total} invite{inviteSummary.total === 1 ? '' : 's'} sent</span>
-            <span className="inline-flex items-center gap-1.5"><MailOpen size={13} className={inviteSummary.opened > 0 ? 'text-accent' : ''} /> {inviteSummary.opened} opened</span>
             <span className="inline-flex items-center gap-1.5"><CalendarClock size={13} /> {inviteSummary.scheduled} scheduled a slot</span>
           </div>
         )}
@@ -466,9 +467,7 @@ function DriveDetailPage() {
                 <span>{cand.phone}</span>
               </div>
               <div className="flex items-center gap-3 text-[12px] text-text-secondary mb-2">
-                {cand.inviteOpenedAt ? (
-                  <span className="inline-flex items-center gap-1 text-accent font-medium"><MailOpen size={12} /> Opened</span>
-                ) : cand.inviteStatus ? (
+                {cand.inviteStatus ? (
                   <span className="inline-flex items-center gap-1"><Mail size={12} /> Sent</span>
                 ) : null}
                 <span className="inline-flex items-center gap-1"><CalendarClock size={12} /> {cand.interviewSlot ? new Date(cand.interviewSlot).toLocaleDateString() : 'Not scheduled'}</span>
@@ -528,9 +527,7 @@ function DriveDetailPage() {
                     </td>
                     <td className="py-4 px-3">
                       <div className="flex items-center gap-1.5 text-[12px] font-medium">
-                        {cand.inviteOpenedAt ? (
-                          <span className="inline-flex items-center gap-1 text-accent"><MailOpen size={12} /> Opened</span>
-                        ) : cand.inviteStatus ? (
+                        {cand.inviteStatus ? (
                           <span className="inline-flex items-center gap-1 text-text-secondary"><Mail size={12} /> Sent</span>
                         ) : (
                           <span className="text-text-secondary">—</span>

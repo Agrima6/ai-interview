@@ -2,16 +2,15 @@ import React, { useState } from 'react'
 import { Check, X, Sparkles, ShieldAlert, Phone, Briefcase, CalendarClock, Info, FileText, Download, Video } from 'lucide-react'
 import Modal from '../ui/Modal'
 import { Button, Badge } from '../ui'
-import { downloadCandidateResume, getCandidateRecordingUrl, getCandidateTranscript } from '../../api/organization/organizationApi'
+import { downloadCandidateResume, getCandidateTranscript } from '../../api/organization/organizationApi'
 import { useToast } from '../ui/Toast'
 import InterviewIntelligence from './InterviewIntelligence'
+import RecordingPanel from './RecordingPanel'
 
 // examMode: college exam drives record results only - the Shortlist / Reject decision buttons are not shown.
 function CandidateDetailModal({ open, onClose, candidate, onStatusChange, examMode = false, passMark = 0 }) {
   const toast = useToast()
   const [downloading, setDownloading] = useState(false)
-  const [recordingUrl, setRecordingUrl] = useState(null)
-  const [loadingRecording, setLoadingRecording] = useState(false)
   const [transcript, setTranscript] = useState(null)          // null = not loaded yet
   const [loadingTranscript, setLoadingTranscript] = useState(false)
   const [transcriptError, setTranscriptError] = useState('')
@@ -37,18 +36,6 @@ function CandidateDetailModal({ open, onClose, candidate, onStatusChange, examMo
       setTranscriptError(err.message || 'Failed to load the transcript.')
     } finally {
       setLoadingTranscript(false)
-    }
-  }
-
-  const handleLoadRecording = async () => {
-    setLoadingRecording(true)
-    try {
-      const url = await getCandidateRecordingUrl(candidate.driveId, candidate.roundNumber, candidate.id)
-      setRecordingUrl(url)
-    } catch (err) {
-      toast.error(err.message || 'Failed to load recording.')
-    } finally {
-      setLoadingRecording(false)
     }
   }
 
@@ -167,21 +154,12 @@ function CandidateDetailModal({ open, onClose, candidate, onStatusChange, examMo
         </div>
       )}
 
-      {candidate.recordingFilename && (
+      {(candidate.recordingFilename || candidate.recordings?.length > 0 || candidate.status === 'COMPLETED') && (
         <div className="mb-6">
           <h3 className="text-[13px] font-semibold text-ink mb-2.5 flex items-center gap-1.5">
             <Video size={14} /> Interview Recording
           </h3>
-          {recordingUrl ? (
-            <video src={recordingUrl} controls className="w-full rounded-xl border border-line bg-black max-h-[400px]" />
-          ) : (
-            <div className="p-3.5 rounded-xl border border-line bg-card flex items-center justify-between gap-3">
-              <p className="text-[13px] text-text-secondary">The candidate's full camera/mic recording is available for review.</p>
-              <Button size="xs" variant="secondary" onClick={handleLoadRecording} disabled={loadingRecording}>
-                <Video size={13} /> {loadingRecording ? 'Loading...' : 'Watch Recording'}
-              </Button>
-            </div>
-          )}
+          <RecordingPanel driveId={candidate.driveId} roundNumber={candidate.roundNumber} candidateId={candidate.id} interviewDone={candidate.status === 'COMPLETED'} />
         </div>
       )}
 

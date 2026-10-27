@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import Modal from '../ui/Modal'
 import DynamicForm from '../forms/DynamicForm'
-import { getCaptcha, submitRegistration } from '../../api/registrationsApi'
+import { submitRegistration } from '../../api/registrationsApi'
+import CaptchaField from './CaptchaField'
 import { getRegistrationForm } from '../../api/formsApi'
 import AuthInput from './AuthInput'
 import AuthButton from './AuthButton'
@@ -16,8 +17,8 @@ const ROLE_LABELS = {
 // `inline` renders the same form in the page (the register screen's right-hand panel) instead of a popup.
 function RegistrationModal({ open, role, onClose, onSubmitSuccess, inline = false }) {
     const [schema, setSchema] = useState(null)
-    const [captcha, setCaptcha] = useState(null)
-    const [captchaAnswer, setCaptchaAnswer] = useState('')
+    const [captchaPayload, setCaptchaPayload] = useState(null)
+    const [captchaReset, setCaptchaReset] = useState(0)
     const [consent, setConsent] = useState(false)
     const [error, setError] = useState('')
     const [submitting, setSubmitting] = useState(false)
@@ -33,19 +34,14 @@ function RegistrationModal({ open, role, onClose, onSubmitSuccess, inline = fals
         let cancelled = false
 
         setSchema(null)
-        setCaptcha(null)
-        setCaptchaAnswer('')
+        setCaptchaReset((n) => n + 1)
         setConsent(false)
         setError('')
 
-        Promise.all([
-            getRegistrationForm(role.toLowerCase()),
-            getCaptcha()
-        ])
-            .then(([schemaRes, captchaRes]) => {
+        getRegistrationForm(role.toLowerCase())
+            .then((schemaRes) => {
                 if (cancelled) return
                 setSchema(schemaRes)
-                setCaptcha(captchaRes)
             })
             .catch((err) => {
                 if (cancelled) return
@@ -55,33 +51,13 @@ function RegistrationModal({ open, role, onClose, onSubmitSuccess, inline = fals
         return () => { cancelled = true }
     }, [open, role])
 
-    // Real-time client-side captcha check
-    const checkCaptchaAnswer = () => {
-        if (!captcha || !captchaAnswer) return false
-        try {
-            const [encoded] = captcha.challengeToken.split('.')
-            const payload = JSON.parse(atob(encoded.replace(/-/g, '+').replace(/_/g, '/')))
-            // Check expiry
-            if (Date.now() > payload.exp) {
-                return 'EXPIRED'
-            }
-            return Number(captchaAnswer) === (payload.a + payload.b)
-        } catch (e) {
-            return false
-        }
-    }
-
-    const captchaStatus = checkCaptchaAnswer()
-    const isCaptchaCorrect = captchaStatus === true
-    const isCaptchaExpired = captchaStatus === 'EXPIRED'
-
     const handleFormSubmit = async (formData) => {
         if (!consent) {
             setError('Please accept the consent checkbox.')
             return
         }
-        if (!isCaptchaCorrect) {
-            setError('Please complete the CAPTCHA correctly.')
+        if (!captchaPayload) {
+            setError('Please complete the verification.')
             return
         }
 
@@ -92,15 +68,13 @@ function RegistrationModal({ open, role, onClose, onSubmitSuccess, inline = fals
                 type: role.toUpperCase(),
                 data: formData,
                 consent: true,
-                captchaToken: captcha.challengeToken,
-                captchaAnswer: Number(captchaAnswer)
+                ...captchaPayload,
             })
             onSubmitSuccess(res)
         } catch (err) {
             setError(err.message || 'Something went wrong. Please try again.')
-            // Refresh captcha on failure
-            getCaptcha().then(setCaptcha)
-            setCaptchaAnswer('')
+            // A challenge is single-use: whatever went wrong, the next attempt needs a fresh one.
+            setCaptchaReset((n) => n + 1)
         } finally {
             setSubmitting(false)
         }
@@ -111,45 +85,7 @@ function RegistrationModal({ open, role, onClose, onSubmitSuccess, inline = fals
     // Extra footer for CAPTCHA & Consent
     const extraFooter = (
         <div className="space-y-5 border-t border-gray-100 pt-6 mt-6">
-            {/* CAPTCHA Field */}
-            {captcha && (
-                <div className="space-y-2">
-                    <label htmlFor="modal-captcha" className="block text-[13.5px] font-medium text-gray-700">
-                        {captcha.question} <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                        <input
-                            id="modal-captcha"
-                            type="number"
-                            value={captchaAnswer}
-                            onChange={(e) => setCaptchaAnswer(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (['e', 'E', '+', '-'].includes(e.key)) {
-                                    e.preventDefault()
-                                }
-                            }}
-                            className={`w-full bg-white border border-gray-200 rounded-xl py-3 px-4 text-[14.5px] text-gray-900 placeholder:text-gray-400 outline-none transition-all duration-200 focus:border-accent focus:ring-4 focus:ring-accent/10 ${
-                                isCaptchaCorrect
-                                    ? '!border-green-500 focus:!ring-green-500/10'
-                                    : isCaptchaExpired
-                                    ? '!border-red-500 focus:!ring-red-500/10'
-                                    : ''
-                            }`}
-                            placeholder="Enter your answer"
-                        />
-                        {isCaptchaCorrect && (
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-green-600 font-medium text-[12px] flex items-center gap-1">
-                                <CheckCircle2 size={16} /> Verified
-                            </span>
-                        )}
-                    </div>
-                    {isCaptchaExpired && (
-                        <p className="text-[12.5px] text-red-600 font-medium">
-                            CAPTCHA verification expired. Please complete the CAPTCHA again.
-                        </p>
-                    )}
-                </div>
-            )}
+            <CaptchaField onChange={setCaptchaPayload} resetKey={captchaReset} inputId="modal-captcha" />
 
             {/* Consent checkbox */}
             <label className="flex items-start gap-3 text-[13.5px] text-gray-500 cursor-pointer select-none group">
@@ -221,7 +157,7 @@ function RegistrationModal({ open, role, onClose, onSubmitSuccess, inline = fals
                         submitting={submitting}
                         submitLabel="Create Account"
                         extraFooter={extraFooter}
-                        submitDisabled={!consent || !isCaptchaCorrect}
+                        submitDisabled={!consent || !captchaPayload}
                         submitFullWidth={inline}
                     />
                 )}

@@ -19,11 +19,19 @@ import { uploadBuffer, getObjectBuffer, getObjectStream, RESUMES_BUCKET, RECORDI
 import { enqueueRecordingProcessing } from "../config/sqsClient.js"
 
 const signPrefillToken = (driveId, email) => {
-    const secret = process.env.ACCESS_TOKEN_SECRET || "prefill-protection-token"
+    const secret = process.env.ACCESS_TOKEN_SECRET
+    if (!secret) throw new ApiError(500, "SERVER_MISCONFIGURED", "Link signing is not configured.")
     return crypto.createHmac("sha256", secret).update(`${driveId}:${String(email).toLowerCase().trim()}`).digest("hex")
 }
 
-const sanitizePathSegment = (str) => {
+// Constant-time comparison so a wrong link token can't be guessed byte by byte from response timing.
+const tokensMatch = (given, expected) => {
+    const a = Buffer.from(String(given || ""))
+    const b = Buffer.from(String(expected || ""))
+    return a.length === b.length && crypto.timingSafeEqual(a, b)
+}
+
+export const sanitizePathSegment = (str) => {
     if (!str || typeof str !== "string") return "default"
     return str
         .toLowerCase()
@@ -40,6 +48,16 @@ const sanitizePathSegment = (str) => {
 // actually sends.
 const renderTemplateText = (text, values) =>
     (text || "").replace(/\{\{?\s*(\w+)\s*\}?\}/g, (match, key) => (key in values ? values[key] : match))
+
+// Placeholders a template uses that the sender cannot fill. Sending "Hi {{candidatename}}" to a candidate is
+// worse than not sending, so the request is refused up front, naming what is wrong.
+export const unresolvedPlaceholders = (texts, values) => {
+    const unknown = new Set()
+    for (const text of texts) {
+        for (const match of String(text || "").matchAll(/\{\{?\s*(\w+)\s*\}?\}/g)) if (!(match[1] in values)) unknown.add(match[1])
+    }
+    return [...unknown]
+}
 
 // The backend owns this, never the frontend - a client-generated
 // Math.random() slug could collide, isn't guaranteed unique, and gives a
@@ -162,7 +180,7 @@ const repairRoundStatuses = async (drive) => {
                 const expectedStatus = round.roundNumber === currentRound.roundNumber
                     ? "ACTIVE"
                     : round.roundNumber < currentRound.roundNumber && round.status === "ACTIVE"
-                    ? "COMPLETED"
+                    ? resolveEndStatus("COMPLETED", [round])
                     : round.status
                 if (round.status !== expectedStatus) {
                     round.status = expectedStatus
@@ -206,7 +224,25 @@ const inviteWording = (drive) => (drive.driveKind === "EXAM"
 // of the failure living only in a server log. Up to INVITE_AWAIT_LIMIT candidates are awaited; a large import keeps
 // sending in the background and reports { pending: true }.
 const INVITE_AWAIT_LIMIT = 25
-const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
+
+// A later round is not a fresh application: the candidate already has an account and a resume on file, so the
+// message says they are moving forward and only asks them to confirm a slot, with THAT round's deadline.
+export const roundWording = (drive, round) => {
+    const base = inviteWording(drive)
+    if (!round || Number(round.roundNumber) <= 1) return base
+    const n = Number(round.roundNumber)
+    return {
+        ...base,
+        invite_phrase: `Round ${n} of the AI-powered interview for`,
+        subject_action: `Round ${n} of the interview for`,
+        invite_eyebrow: "You're moving forward",
+        invite_tagline: `You've been selected for Round ${n}.`,
+        deadline_label: "Complete by",
+        portal_help: "Sign in to your candidate portal. Your resume is already on file - you only need to confirm your interview slot.",
+    }
+}
+
+const inviteCandidates = async (tenantId, drive, candidates, ctx, round = null) => {
     if (!candidates?.length) return { attempted: 0, failed: [] }
     if (!drive.publicLink) {
         console.error(`[client-service] invites NOT sent for drive ${drive._id}: it has no public link (enablePublicLink=${drive.enablePublicLink})`)
@@ -215,9 +251,11 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
     const pending = []
     const failed = []
     const org = await clientRepo.findById(tenantId).catch(() => null)
-    const expiryDate = formatEmailDate(drive.expiryDate)
+    const laterRound = round && Number(round.roundNumber) > 1 ? round : null
+    // The deadline shown is the one configured for THIS round, falling back to the drive's only when the round has none.
+    const expiryDate = formatEmailDate(round?.expiryDate || drive.expiryDate)
     const loginUrl = buildFrontendUrl("/login")
-    const wording = inviteWording(drive)
+    const wording = roundWording(drive, round)
 
     for (const candidate of candidates) {
         if (!candidate.email) continue
@@ -236,7 +274,10 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
         const isExisting = credentials?.existingAccount === true
         const tempPassword = credentials?.password || "(Use your existing WorkmateIQ password)"
         const token = signPrefillToken(String(drive._id), candidate.email)
-        const interviewLink = buildFrontendUrl(`/apply/${drive.publicLink}?email=${encodeURIComponent(candidate.email)}&token=${token}`)
+        // The public apply link only ever opens Round 1. Later rounds are reached by signing in to the candidate room.
+        const interviewLink = laterRound
+            ? buildFrontendUrl("/candidate/room")
+            : buildFrontendUrl(`/apply/${drive.publicLink}?email=${encodeURIComponent(candidate.email)}&token=${token}`)
 
         const emailSend = communicationServiceClient.send({
             entityType: "CLIENT", entityId: tenantId, channel: "EMAIL",
@@ -254,7 +295,7 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
                 expiry_date: expiryDate,
                 supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
             },
-            metadata: { driveId: String(drive._id), candidateId: candidate.id },
+            metadata: { driveId: String(drive._id), candidateId: candidate.id, roundNumber: round?.roundNumber || 1 },
         }, ctx).catch((err) => {
             console.error(`[client-service] candidate-invite email failed for ${candidate.email} (${err.status || "no status"} ${err.code || ""}):`, err.message)
             failed.push({ email: candidate.email, reason: err.code || err.message })
@@ -298,8 +339,8 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
     const invitedIds = candidates.filter((c) => c.email).map((c) => c.id)
     await InterviewDrive.updateOne(
         { _id: drive._id },
-        { $set: { "rounds.$[].candidates.$[c].lastInviteAt": new Date() } },
-        { arrayFilters: [{ "c.id": { $in: invitedIds } }] }
+        { $set: { "rounds.$[r].candidates.$[c].lastInviteAt": new Date() } },
+        { arrayFilters: [{ "r.roundNumber": round?.roundNumber || 1 }, { "c.id": { $in: invitedIds } }] }
     ).catch((err) => console.error("[client-service] could not record invite time:", err.message))
     if (candidates.length > INVITE_AWAIT_LIMIT) return { attempted, failed: [], pending: true }
     await Promise.all(pending)
@@ -400,7 +441,7 @@ export const resendInvites = async (tenantId, driveId, roundNumber, candidateIds
     if (toInvite.length === 0) {
         throw new ApiError(409, "NOTHING_TO_SEND", skipped.length ? `Nobody was invited: ${skipped[0].reason}.` : "None of the chosen people were found on this drive.")
     }
-    const inviteSummary = await inviteCandidates(tenantId, drive, toInvite.map(plainEntry), ctx)
+    const inviteSummary = await inviteCandidates(tenantId, drive, toInvite.map(plainEntry), ctx, round)
     return { inviteSummary, sent: toInvite.length, skipped }
 }
 
@@ -442,7 +483,7 @@ export const addCandidatesToDrive = async (tenantId, driveId, candidates, ctx, r
     drive.candidatesCount = drive.rounds.reduce((total, item) => total + item.candidates.length, 0)
     await drive.save()
     drive.$locals.addSummary = { added: additions.length, skipped }
-    drive.$locals.inviteSummary = await inviteCandidates(tenantId, drive, additions, ctx)
+    drive.$locals.inviteSummary = await inviteCandidates(tenantId, drive, additions, ctx, round)
     return drive
 }
 
@@ -491,7 +532,7 @@ export const getPublicApplicationPrefill = async (link, email, token) => {
     const drive = await InterviewDrive.findOne({ publicLink: link, status: "ACTIVE" })
     if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "This interview link is invalid or no longer active.")
     const expectedToken = signPrefillToken(String(drive._id), email)
-    if (token !== expectedToken) return { prefilled: false }
+    if (!tokensMatch(token, expectedToken)) return { prefilled: false }
 
     const round = drive.rounds?.find((r) => r.roundNumber === 1)
     const candidate = round?.candidates.find((c) => c.email.toLowerCase() === email.toLowerCase())
@@ -768,7 +809,7 @@ export const getMyInterviews = async (tenantId, email) => {
 // candidate can only ever act on their OWN roster entry, matched by the
 // email on their access token (never a client-supplied candidateId), on a
 // drive that belongs to their own token's tenant.
-const findOwnRosterEntry = async (tenantId, email, driveId, roundNumber) => {
+export const findOwnRosterEntry = async (tenantId, email, driveId, roundNumber) => {
     if (!tenantId || !email) throw new ApiError(403, "FORBIDDEN", "Candidate context is missing.")
     requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
     const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
@@ -946,6 +987,13 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber)
         throw new ApiError(409, "APPLICATION_CLOSED", "This application is no longer active, so the interview can't be started.")
     } else if (candidate.status === "COMPLETED") {
         throw new ApiError(409, "INTERVIEW_ALREADY_COMPLETED", "This interview has already been completed, so it can't be started again.")
+    }
+    // Round-level access is enforced here, on the server: a round that is not live (not yet activated, completed,
+    // closed) or a drive that is not active cannot be STARTED, whatever link or page the candidate came from.
+    // A reload part-way through an interview that already started is let through (below).
+    if (!candidate.demoAlwaysLive && !candidate.agentInterviewId) {
+        if (drive.status !== "ACTIVE") throw new ApiError(409, "DRIVE_NOT_ACTIVE", "This interview is not open right now.")
+        if (round.status !== "ACTIVE") throw new ApiError(409, "ROUND_NOT_OPEN", `Round ${round.roundNumber} is not open for interviews right now.`)
     }
     // Only inside the candidate's slot window - unless the interview was already started (a reload or
     // reconnect part-way through must never be locked out).
@@ -1205,12 +1253,19 @@ export const streamCandidateRecording = async (tenantId, driveId, roundNumber, c
     const round = drive.rounds?.find((r) => r.roundNumber === Number(roundNumber))
     if (!round) throw new ApiError(404, "ROUND_NOT_FOUND", "Round not found.")
     const candidate = round.candidates?.id(candidateId) || round.candidates?.find((c) => String(c._id) === candidateId || c.id === candidateId)
-    if (!candidate || !candidate.recordingFilename) throw new ApiError(404, "RECORDING_NOT_FOUND", "No recording on file for this candidate.")
+    // Which stored file: a chosen capture segment (?segment=<recordingId>), else the one on file for the candidate,
+    // else the first assembled segment. Only objects a finalize step verified are ever offered.
+    const wanted = typeof req?.query?.segment === "string" ? req.query.segment : null
+    const segmentKey = wanted && wanted !== "legacy"
+        ? candidate?.recordings?.find((s) => s.recordingId === wanted)?.key
+        : null
+    const recordingKey = segmentKey || (wanted ? null : (candidate?.recordingFilename || candidate?.recordings?.find((s) => s.key)?.key))
+    if (!candidate || !recordingKey) throw new ApiError(404, "RECORDING_NOT_FOUND", "No recording on file for this candidate.")
 
     const range = req?.headers?.range
     let object
     try {
-        object = await getObjectStream(RECORDINGS_BUCKET, candidate.recordingFilename, range)
+        object = await getObjectStream(RECORDINGS_BUCKET, recordingKey, range)
     } catch {
         throw new ApiError(404, "RECORDING_NOT_FOUND", "This recording file is no longer available.")
     }
@@ -1229,19 +1284,31 @@ export const streamCandidateRecording = async (tenantId, driveId, roundNumber, c
 // filtered dataset) so the two can never disagree on what "matching the
 // filters" means - integration.md section 16 requires an export to
 // contain exactly the filtered rows, not a separately-computed set.
+const DRIVE_STATUSES = ["ACTIVE", "COMPLETED", "CLOSED", "DRAFT", "ARCHIVED"]
+const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+// Query-string values can arrive as objects/arrays (?status[$ne]=x). Only plain strings are ever used in a query.
+const asText = (value) => (typeof value === "string" ? value.trim().slice(0, 200) : "")
+const asDate = (value) => { const d = new Date(asText(value)); return Number.isNaN(d.getTime()) ? null : d }
+
 const buildDriveQuery = (tenantId, filters = {}) => {
     const query = { tenantId }
-    if (filters.status && filters.status !== "ALL") query.status = filters.status
-    if (filters.department) query.department = filters.department
-    if (filters.roleCategory) query.roleCategory = filters.roleCategory
-    if (filters.experienceLevel) query.experienceLevel = filters.experienceLevel
-    if (filters.search) {
-        query.title = { $regex: filters.search, $options: "i" }
+    const status = asText(filters.status).toUpperCase()
+    if (status && status !== "ALL") {
+        if (!DRIVE_STATUSES.includes(status)) throw new ApiError(400, "INVALID_FILTER", "Unknown status filter.")
+        query.status = status
     }
-    if (filters.createdFrom || filters.createdTo) {
+    for (const field of ["department", "roleCategory", "experienceLevel"]) {
+        const value = asText(filters[field])
+        if (value) query[field] = value
+    }
+    const search = asText(filters.search)
+    if (search) query.title = { $regex: escapeRegex(search), $options: "i" }
+    const from = asDate(filters.createdFrom)
+    const to = asDate(filters.createdTo)
+    if (from || to) {
         query.createdAt = {}
-        if (filters.createdFrom) query.createdAt.$gte = new Date(filters.createdFrom)
-        if (filters.createdTo) query.createdAt.$lte = new Date(filters.createdTo)
+        if (from) query.createdAt.$gte = from
+        if (to) query.createdAt.$lte = to
     }
     return query
 }
@@ -1400,21 +1467,46 @@ export const addRoundToDrive = async (tenantId, driveId, roundData, ctx) => {
     }
 
     await drive.save()
-    if (newRound.status === "ACTIVE") await inviteCandidates(tenantId, drive, candidates, ctx)
+    if (newRound.status === "ACTIVE") await inviteCandidates(tenantId, drive, candidates, ctx, newRound)
     return drive
+}
+
+// Candidates who have not finished their attempt in this round. Closing a round/drive with any of them
+// still outstanding is a CLOSE, not a successful completion.
+const PENDING_CANDIDATE_STATUSES = ["INVITED", "SCHEDULED"]
+export const countUnfinishedCandidates = (round) =>
+    (round?.candidates || []).filter((c) => PENDING_CANDIDATE_STATUSES.includes(c.status) && !c.demoAlwaysLive).length
+
+// One rule for "the recruiter ended this": COMPLETED only when the work really finished, otherwise CLOSED.
+// Asking for either value is allowed; the server decides which one is true (a "Close" click never claims
+// a completion that did not happen, and an explicit CLOSED is always honoured).
+export const resolveEndStatus = (requested, rounds) => {
+    if (requested === "CLOSED") return "CLOSED"
+    const live = (rounds || []).filter((r) => r && !["DRAFT", "PENDING"].includes(r.status))
+    const unfinished = live.some((r) => r.status === "ACTIVE" && countUnfinishedCandidates(r) > 0)
+    return unfinished ? "CLOSED" : "COMPLETED"
 }
 
 export const updateDriveStatus = async (tenantId, driveId, status, ctx = {}) => {
     if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
     requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
 
-    if (!["ACTIVE", "COMPLETED", "DRAFT", "ARCHIVED"].includes(status)) {
+    if (!["ACTIVE", "COMPLETED", "CLOSED", "DRAFT", "ARCHIVED"].includes(status)) {
         throw new ApiError(400, "INVALID_STATUS", "Invalid drive status.")
     }
     const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
     if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    if (["COMPLETED", "CLOSED"].includes(status) && drive.status === "DRAFT") {
+        throw new ApiError(409, "INVALID_TRANSITION", "A draft drive was never run, so it can't be completed or closed.")
+    }
     const activatingDraft = drive.status === "DRAFT" && status === "ACTIVE"
-    drive.status = status
+    drive.status = ["COMPLETED", "CLOSED"].includes(status) ? resolveEndStatus(status, drive.rounds) : status
+    if (drive.status === "CLOSED") {
+        // Closing the drive closes the rounds still open; nothing is silently "completed".
+        for (const r of drive.rounds || []) if (r.status === "ACTIVE") r.status = resolveEndStatus("COMPLETED", [r])
+    } else if (drive.status === "COMPLETED") {
+        for (const r of drive.rounds || []) if (r.status === "ACTIVE") r.status = "COMPLETED"
+    }
     if (activatingDraft && drive.enablePublicLink && !drive.publicLink) drive.publicLink = generatePublicLink()
     if (activatingDraft) {
         const firstRound = drive.rounds?.find((round) => round.roundNumber === 1)
@@ -1428,7 +1520,7 @@ export const updateDriveStatus = async (tenantId, driveId, status, ctx = {}) => 
 export const updateRoundStatus = async (tenantId, driveId, roundNumber, status, ctx = {}) => {
     if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
     requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
-    if (!['ACTIVE', 'COMPLETED', 'DRAFT', 'PENDING'].includes(status)) {
+    if (!['ACTIVE', 'COMPLETED', 'CLOSED', 'DRAFT', 'PENDING'].includes(status)) {
         throw new ApiError(400, "INVALID_STATUS", "Invalid round status.")
     }
 
@@ -1440,11 +1532,14 @@ export const updateRoundStatus = async (tenantId, driveId, roundNumber, status, 
 
     const activating = status === 'ACTIVE' && round.status !== 'ACTIVE'
     const previousRound = drive.rounds?.find((item) => item.roundNumber === Number(roundNumber) - 1)
-    const previousRoundReady = drive.status !== 'DRAFT' && previousRound && previousRound.status === 'COMPLETED'
+    const previousRoundReady = drive.status !== 'DRAFT' && previousRound && ['COMPLETED', 'CLOSED'].includes(previousRound.status)
     if (activating && previousRound && !previousRoundReady) {
         throw new ApiError(409, "PREVIOUS_ROUND_REQUIRED", `Complete Round ${previousRound.roundNumber} before activating Round ${round.roundNumber}.`)
     }
-    round.status = status
+    if (['COMPLETED', 'CLOSED'].includes(status) && round.status !== 'ACTIVE') {
+        throw new ApiError(409, "INVALID_TRANSITION", "Only a live round can be completed or closed.")
+    }
+    round.status = ['COMPLETED', 'CLOSED'].includes(status) ? resolveEndStatus(status, [round]) : status
     if (activating) {
         drive.currentRound = round.roundNumber
         if (drive.status === 'DRAFT') {
@@ -1453,7 +1548,7 @@ export const updateRoundStatus = async (tenantId, driveId, roundNumber, status, 
         }
     }
     await drive.save()
-    if (activating) await inviteCandidates(tenantId, drive, round.candidates || [], ctx)
+    if (activating) await inviteCandidates(tenantId, drive, round.candidates || [], ctx, round)
     return drive
 }
 
@@ -1785,8 +1880,18 @@ export const communicateWithCandidates = async (tenantId, driveId, roundNumber, 
         throw new ApiError(400, "TEMPLATE_NOT_SENDABLE", "Call templates are scripts for manual use and cannot be auto-sent.")
     }
 
+    const sampleVariables = { candidate_name: "", drive_title: "", company_name: "", interview_link: "", expiry_date: "" }
+    const unknown = unresolvedPlaceholders([template.subject, template.body], sampleVariables)
+    if (unknown.length) {
+        throw new ApiError(422, "TEMPLATE_PLACEHOLDERS", `This template uses placeholders that can't be filled: ${unknown.map((k) => `{{${k}}}`).join(", ")}. Edit the template and try again.`)
+    }
+
     const org = await clientRepo.findById(tenantId).catch(() => null)
-    const interviewLink = drive.publicLink ? buildFrontendUrl(`/apply/${drive.publicLink}`) : ""
+    // Selected candidates move on through their candidate portal (they already have an account and a resume on
+    // file); the public apply link only ever opens Round 1, so it is not what a selection message points to.
+    const interviewLink = purpose === "CONGRATULATIONS"
+        ? buildFrontendUrl("/candidate/room")
+        : (drive.publicLink ? buildFrontendUrl(`/apply/${drive.publicLink}`) : "")
     const expiryDate = formatEmailDate(round.expiryDate)
 
     const candidates = round.candidates.filter((c) => candidateIds.includes(c.id))

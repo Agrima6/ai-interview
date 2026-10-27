@@ -2,7 +2,7 @@ import { Router } from "express"
 import * as driveController from "../controllers/interviewDrive.controller.js"
 import { authenticate, requirePermission } from "../middlewares/authenticate.js"
 import { uploadResume } from "../middlewares/resumeUpload.js"
-import { uploadRecording } from "../middlewares/recordingUpload.js"
+import { uploadRecording, uploadRecordingChunk } from "../middlewares/recordingUpload.js"
 
 const router = Router()
 
@@ -36,6 +36,7 @@ router.post("/drives/:id/rounds/:roundNumber/candidates/communicate", authentica
 router.post("/drives/:id/rounds/:roundNumber/communications/refresh", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.refreshRoundCommunications)
 router.get("/drives/:id/rounds/:roundNumber/candidates/:candidateId/transcript", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.getCandidateTranscript)
 router.get("/drives/:id/rounds/:roundNumber/candidates/:candidateId/resume", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.downloadCandidateResume)
+router.get("/drives/:id/rounds/:roundNumber/candidates/:candidateId/recording/manifest", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.getRecordingManifest)
 router.get("/drives/:id/rounds/:roundNumber/candidates/:candidateId/recording", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.streamCandidateRecording)
 router.get("/drives/:id/rounds/:roundNumber/candidates/:candidateId/violations/:violationIndex/:type", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.streamCandidateViolationSnapshot)
 
@@ -47,6 +48,9 @@ router.post("/candidate/me/interviews/:id/rounds/:roundNumber/complete", authent
 router.post("/candidate/me/interviews/:id/rounds/:roundNumber/agent-session", authenticate, driveController.startAgentInterview)
 router.post("/candidate/me/interviews/:id/rounds/:roundNumber/agent-complete", authenticate, driveController.completeAgentInterview)
 router.post("/candidate/me/interviews/:id/rounds/:roundNumber/recording", authenticate, uploadRecording.single("recording"), driveController.saveCandidateRecording)
+// Chunked in-session recording: slices are stored as they are captured, then finalized (see services/recording.service.js).
+router.post("/candidate/me/interviews/:id/rounds/:roundNumber/recording/chunk", authenticate, uploadRecordingChunk.single("chunk"), driveController.saveRecordingChunk)
+router.post("/candidate/me/interviews/:id/rounds/:roundNumber/recording/finalize", authenticate, driveController.finalizeRecording)
 
 // Not /dashboard/*: the gateway sends that prefix to the platform-admin dashboard-service.
 router.get("/organizations/me/hiring-analytics/:metric", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.getDashboardMetric)

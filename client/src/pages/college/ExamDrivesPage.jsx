@@ -13,7 +13,8 @@ const fmt = (iso) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: '
 const TABS = [
     { id: 'ALL', label: 'All exams' },
     { id: 'ACTIVE', label: 'Open' },
-    { id: 'COMPLETED', label: 'Closed' },
+    { id: 'COMPLETED', label: 'Completed' },
+    { id: 'CLOSED', label: 'Closed' },
     { id: 'ARCHIVED', label: 'Archived' },
 ]
 

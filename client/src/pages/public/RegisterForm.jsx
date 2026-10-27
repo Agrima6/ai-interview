@@ -4,7 +4,8 @@ import { Card, Button } from '../../components/ui'
 import { CheckCircle2, Mail, MessageCircle, ArrowLeft, Home, FileEdit } from 'lucide-react'
 import DynamicForm from '../../components/forms/DynamicForm'
 import { getRegistrationForm } from '../../api/formsApi'
-import { getCaptcha, submitRegistration } from '../../api/registrationsApi'
+import { submitRegistration } from '../../api/registrationsApi'
+import CaptchaField from '../../components/auth/CaptchaField'
 import AmbientBackground from '../workmate/AmbientBackground'
 import logo from '../../assets/logo.png'
 
@@ -14,8 +15,8 @@ function RegisterForm() {
     const { type } = useParams()
     const navigate = useNavigate()
     const [schema, setSchema] = useState(null)
-    const [captcha, setCaptcha] = useState(null)
-    const [captchaAnswer, setCaptchaAnswer] = useState('')
+    const [captchaPayload, setCaptchaPayload] = useState(null)
+    const [captchaReset, setCaptchaReset] = useState(0)
     const [consent, setConsent] = useState(false)
     const [error, setError] = useState('')
     const [submitting, setSubmitting] = useState(false)
@@ -25,34 +26,15 @@ function RegisterForm() {
     // a slower stale response must not overwrite the newer one.
     useEffect(() => {
         let cancelled = false
-        Promise.all([getRegistrationForm(type), getCaptcha()])
-            .then(([formRes, captchaRes]) => {
-                if (cancelled) return
-                setSchema(formRes)
-                setCaptcha(captchaRes)
-            })
+        getRegistrationForm(type)
+            .then((formRes) => { if (!cancelled) setSchema(formRes) })
             .catch((err) => { if (!cancelled) setError(err.message) })
         return () => { cancelled = true }
     }, [type])
 
-    // Real-time client-side captcha check, mirrors RegistrationModal.jsx
-    const checkCaptchaAnswer = () => {
-        if (!captcha || !captchaAnswer) return false
-        try {
-            const [encoded] = captcha.challengeToken.split('.')
-            const payload = JSON.parse(atob(encoded.replace(/-/g, '+').replace(/_/g, '/')))
-            if (Date.now() > payload.exp) return 'EXPIRED'
-            return Number(captchaAnswer) === (payload.a + payload.b)
-        } catch (e) {
-            return false
-        }
-    }
-    const captchaStatus = checkCaptchaAnswer()
-    const isCaptchaCorrect = captchaStatus === true
-    const isCaptchaExpired = captchaStatus === 'EXPIRED'
-
     const onSubmit = async (data) => {
         if (!consent) { setError('Please accept the consent checkbox.'); return }
+        if (!captchaPayload) { setError('Please complete the verification.'); return }
         setError('')
         setSubmitting(true)
         try {
@@ -60,13 +42,13 @@ function RegisterForm() {
                 type: type.toUpperCase(),
                 data,
                 consent: true,
-                captchaToken: captcha.challengeToken,
-                captchaAnswer: Number(captchaAnswer),
+                ...captchaPayload,
             })
             setResult(res)
         } catch (err) {
             setError(err.message || 'Something went wrong, please try again.')
-            if (err.code?.startsWith('CAPTCHA')) getCaptcha().then(setCaptcha)
+            // A challenge is single-use: whatever went wrong, the next attempt needs a fresh one.
+            setCaptchaReset((n) => n + 1)
         } finally {
             setSubmitting(false)
         }
@@ -161,38 +143,7 @@ function RegisterForm() {
                             submitLabel='Submit registration'
                             extraFooter={
                                 <div className='space-y-5 border-t border-line pt-6'>
-                                    {captcha && (
-                                        <div className='space-y-2'>
-                                            <div className='flex flex-wrap items-center gap-3 bg-bg border border-line rounded-xl px-4 py-3'>
-                                                <label className='text-[13.5px] font-medium text-ink whitespace-nowrap'>{captcha.question}<span className='text-red-500 ml-0.5'>*</span></label>
-                                                <div className='relative'>
-                                                    <input
-                                                        type='number'
-                                                        value={captchaAnswer}
-                                                        onChange={(e) => setCaptchaAnswer(e.target.value)}
-                                                        className={`w-24 bg-card border rounded-lg px-3 py-1.5 text-[14px] text-ink outline-none transition-all ${
-                                                            isCaptchaCorrect
-                                                                ? '!border-green-500 focus:!ring-2 focus:!ring-green-500/15'
-                                                                : captchaAnswer && !isCaptchaExpired
-                                                                ? '!border-red-500 focus:!ring-2 focus:!ring-red-500/15'
-                                                                : 'border-line focus:border-accent/60 focus:ring-2 focus:ring-accent/15'
-                                                        }`}
-                                                        placeholder='Answer'
-                                                    />
-                                                </div>
-                                                {isCaptchaCorrect && (
-                                                    <span className='text-green-600 font-medium text-[12px] flex items-center gap-1'>
-                                                        <CheckCircle2 size={16} /> Verified
-                                                    </span>
-                                                )}
-                                            </div>
-                                            {isCaptchaExpired ? (
-                                                <p className='text-[12.5px] text-red-600 font-medium'>CAPTCHA verification expired. Please complete the CAPTCHA again.</p>
-                                            ) : captchaAnswer && !isCaptchaCorrect ? (
-                                                <p className='text-[12.5px] text-red-600 font-medium'>That's not the right answer. Please try again.</p>
-                                            ) : null}
-                                        </div>
-                                    )}
+                                    <CaptchaField onChange={setCaptchaPayload} resetKey={captchaReset} inputId='register-captcha' />
                                     <label className='flex items-start gap-2 text-[13.5px] text-text-secondary'>
                                         <input type='checkbox' checked={consent} onChange={(e) => setConsent(e.target.checked)} className='mt-0.5' />
                                         I agree to be contacted by WorkmateIQ about this registration.

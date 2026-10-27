@@ -452,7 +452,7 @@ export default function CandidateRoomPage() {
                                                                 <CalendarClock size={13} className='text-accent shrink-0' />
                                                                 {interview.interviewSlot ? (
                                                                     <span className='text-ink font-semibold'>
-                                                                        {new Date(interview.interviewSlot).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                                                                        {new Date(interview.interviewSlot).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })}
                                                                     </span>
                                                                 ) : (
                                                                     <span className='text-amber-600 font-medium'>Slot pending selection</span>

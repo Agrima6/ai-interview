@@ -15,4 +15,4 @@ export const signAccessToken = (user) => {
     return { token, expiresIn: 15 * 60 }
 }
 
-export const verifyAccessToken = (token) => jwt.verify(token, process.env.ACCESS_TOKEN_SECRET)
+export const verifyAccessToken = (token) => jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, { algorithms: ["HS256"] })

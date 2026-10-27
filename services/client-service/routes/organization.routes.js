@@ -17,6 +17,9 @@ router.delete("/organization/team/:id", authenticate, requirePermission("CLIENT_
 // Question Banks
 router.get("/question-banks", authenticate, requirePermission("CLIENT_SELF_READ"), portalController.listQuestionBanks)
 router.post("/question-banks", authenticate, requirePermission("CLIENT_SELF_UPDATE"), portalController.createQuestionBank)
+router.get("/question-banks/:id", authenticate, requirePermission("CLIENT_SELF_READ"), portalController.getQuestionBank)
+router.patch("/question-banks/:id", authenticate, requirePermission("CLIENT_SELF_UPDATE"), portalController.updateQuestionBank)
+router.delete("/question-banks/:id", authenticate, requirePermission("CLIENT_SELF_UPDATE"), portalController.deleteQuestionBank)
 
 // Notification Templates
 router.get("/organization/templates", authenticate, requirePermission("CLIENT_SELF_READ"), portalController.listTemplates)

@@ -18,9 +18,9 @@ const clientNameFor = (type, data) => {
 }
 
 export const submit = async (payload, ctx) => {
-    const { type, data, consent, captchaToken, captchaAnswer } = payload
+    const { type, data, consent, captchaToken, captchaAnswer, turnstileToken } = payload
     if (!consent) throw new ApiError(400, "CONSENT_REQUIRED", "You must accept the consent checkbox.")
-    verifyCaptcha(captchaToken, captchaAnswer)
+    await verifyCaptcha({ captchaToken, captchaAnswer, turnstileToken }, ctx?.ip)
 
     const normalizedType = type?.toUpperCase()
     if (!REGISTRATION_TYPES.some((t) => t.key === normalizedType)) {

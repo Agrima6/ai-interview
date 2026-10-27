@@ -3,6 +3,11 @@
 // the admin who built the form forgot to set one.
 const DEFAULT_MAX_LENGTH = 5000
 
+// Contact numbers are validated as phone numbers even when the form definition typed the field as plain text
+// (company contact number, contact-person mobile, ...), so a bad number can't slip in through a mis-typed field.
+const PHONE_KEY = /(^|_)(phone|mobile|contact_?(no|number)|whatsapp)(_|$)/i
+const isPhoneField = (field) => field.type === "PHONE" || (["TEXT", "NUMBER"].includes(field.type) && PHONE_KEY.test(field.key || ""))
+
 // Server-side re-validation against the exact published registration form.
 // Frontend validation is UX only.
 export const validateAgainstFormVersion = (formVersion, data) => {
@@ -25,7 +30,12 @@ export const validateAgainstFormVersion = (formVersion, data) => {
         }
         if (value !== undefined && value !== null && value !== "") {
             if (field.type === "EMAIL" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) errors.push({ fieldKey: field.key, message: `${field.label} must be a valid email.` })
-            if (field.type === "PHONE" && !/^[6-9][0-9]{9}$/.test(value)) errors.push({ fieldKey: field.key, message: `${field.label} must be a valid 10-digit mobile number.` })
+            if (isPhoneField(field)) {
+                // Stored as the bare 10 digits whatever the person typed (+91, spaces, dashes).
+                const digits = String(value).replace(/[\s-]/g, "").replace(/^\+?91/, "")
+                if (!/^[6-9][0-9]{9}$/.test(digits)) errors.push({ fieldKey: field.key, message: `${field.label} must be a valid 10-digit mobile number.` })
+                else data[field.key] = digits
+            }
             if (field.type === "NUMBER") {
                 const num = Number(value)
                 if (isNaN(num) || !Number.isInteger(num)) {
