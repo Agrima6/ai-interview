@@ -290,7 +290,7 @@ export const communicateWithCandidates = async (req, res, next) => {
         const tenantId = req.user?.tenantId
         const { id: driveId, roundNumber } = req.params
         const result = await driveService.communicateWithCandidates(
-            tenantId, driveId, roundNumber, req.body,
+            tenantId, driveId, roundNumber, { ...req.body, requestedBy: req.user?.userId || req.user?.id || req.user?.email },
             { requestId: req.requestId, correlationId: req.correlationId }
         )
         ok(res, result)

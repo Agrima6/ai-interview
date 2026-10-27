@@ -31,8 +31,8 @@ const DEFAULT_TEMPLATES = [
         name: "Application Not Progressing",
         type: "EMAIL",
         purpose: "REJECTION",
-        subject: "Update on your application for {drive_title}",
-        body: `Dear {candidate_name},\n\nThank you for taking the time to interview for {drive_title} at {company_name}. After careful review, we've decided to move forward with other candidates for this role.\n\nWe appreciate your interest and encourage you to apply again in the future.\n\nBest regards,\n{company_name} Talent Team`,
+        subject: "Update on Your Application",
+        body: `Hi {candidate_name},\n\nThank you for taking the time to participate in the hiring process for {drive_title} at {company_name}.\n\nAfter careful consideration, we regret to inform you that we will not be moving forward with your application at this time.\n\nWe appreciate your interest in {company_name} and the time and effort you invested in the process. We wish you all the best in your future endeavors.\n\nBest regards,\n{company_name} Hiring Team`,
     },
     {
         templateId: "tmpl-5",

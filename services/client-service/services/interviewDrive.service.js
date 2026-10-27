@@ -941,6 +941,8 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber)
     // time-window check below never applies to it.
     if (candidate.demoAlwaysLive && candidate.status === "COMPLETED") {
         Object.assign(candidate, { status: "SCHEDULED", agentInterviewId: null, agentReport: null, attemptedDate: null, malpracticeFlags: 0, violations: [] })
+    } else if (candidate.status === "REJECTED") {
+        throw new ApiError(409, "APPLICATION_CLOSED", "This application is no longer active, so the interview can't be started.")
     } else if (candidate.status === "COMPLETED") {
         throw new ApiError(409, "INTERVIEW_ALREADY_COMPLETED", "This interview has already been completed, so it can't be started again.")
     }
@@ -1751,7 +1753,7 @@ export const getTenantReport = async (tenantId, { days = 30 } = {}) => {
 // stop the rest of the batch or the status update the recruiter asked
 // for), but every attempt is recorded on the candidate for audit/duplicate
 // visibility (integration.md section 32/52).
-export const communicateWithCandidates = async (tenantId, driveId, roundNumber, { candidateIds, purpose, templateId, idempotencyKey }, ctx) => {
+export const communicateWithCandidates = async (tenantId, driveId, roundNumber, { candidateIds, purpose, templateId, idempotencyKey, requestedBy }, ctx) => {
     if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
     requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
     if (!Array.isArray(candidateIds) || candidateIds.length === 0) {
@@ -1793,7 +1795,7 @@ export const communicateWithCandidates = async (tenantId, driveId, roundNumber, 
     for (const candidate of toSend) {
         const recipient = template.type === "EMAIL" ? candidate.email : candidate.phone
         const entryId = new mongoose.Types.ObjectId()
-        const entry = { _id: entryId, purpose, channel: template.type, templateId: String(template._id), sentAt: new Date(), idempotencyKey: key }
+        const entry = { _id: entryId, purpose, channel: template.type, templateId: String(template._id), sentAt: new Date(), idempotencyKey: key, requestedBy: requestedBy ? String(requestedBy).slice(0, 120) : undefined }
         const candidateFilter = { "c.id": candidate.id }
 
         if (!recipient) {
@@ -1803,14 +1805,28 @@ export const communicateWithCandidates = async (tenantId, driveId, roundNumber, 
             continue
         }
 
-        // Claim the send atomically: the push only happens if no active message of this kind exists on the
-        // candidate at this instant, so two simultaneous requests cannot both send.
-        const claim = await InterviewDrive.updateOne({ _id: drive._id, tenantId }, { $push: { [path]: { ...entry, status: "QUEUED" } } }, {
-            arrayFilters: [roundFilter, { ...candidateFilter, "c.communications": { $not: { $elemMatch: { purpose, channel: template.type, status: { $in: ACTIVE_STATUSES } } } } }],
+        // Claim the send AND record the hiring decision in one atomic write, before anything is emailed:
+        //  - no active message of this kind may exist (two simultaneous requests cannot both send), and
+        //  - the candidate must not already hold the opposite decision (a concurrent select/reject cannot both win).
+        // If the write fails nothing is sent; the email only ever follows a persisted decision.
+        const oppositeStatus = purpose === "REJECTION" ? "SHORTLISTED" : "REJECTED"
+        const decision = purpose === "REJECTION" ? "REJECTED" : "SHORTLISTED"
+        const claim = await InterviewDrive.updateOne({ _id: drive._id, tenantId }, {
+            $push: { [path]: { ...entry, status: "QUEUED" } },
+            $set: { "rounds.$[r].candidates.$[c].status": decision },
+        }, {
+            arrayFilters: [roundFilter, {
+                ...candidateFilter,
+                "c.status": { $ne: oppositeStatus },
+                "c.communications": { $not: { $elemMatch: { purpose, channel: template.type, status: { $in: ACTIVE_STATUSES } } } },
+            }],
             timestamps: false,       // otherwise the drive's updatedAt is always "modified" and a lost claim looks like a win
         })
         if (claim.modifiedCount === 0) {
-            results.push({ candidateId: candidate.id, name: candidate.name, status: "SKIPPED", reason: "ALREADY_SENT", message: SKIP_MESSAGES.ALREADY_SENT })
+            const fresh = await InterviewDrive.findOne({ _id: drive._id, tenantId }, { rounds: 1 }).lean()
+            const current = fresh?.rounds?.find((r) => r.roundNumber === Number(roundNumber))?.candidates?.find((c) => c.id === candidate.id)
+            const reason = current?.status === oppositeStatus ? (purpose === "REJECTION" ? "ALREADY_SELECTED" : "ALREADY_REJECTED") : "ALREADY_SENT"
+            results.push({ candidateId: candidate.id, name: candidate.name, status: "SKIPPED", reason, message: SKIP_MESSAGES[reason] })
             continue
         }
 
@@ -1843,9 +1859,6 @@ export const communicateWithCandidates = async (tenantId, driveId, roundNumber, 
             ...(communicationId ? { [`${path}.$[m].communicationId`]: String(communicationId) } : {}),
             ...(error ? { [`${path}.$[m].error`]: error } : {}),
         }
-        // The hiring decision is recorded with the message: selected candidates become SHORTLISTED, rejected ones REJECTED.
-        if (purpose === "REJECTION") set["rounds.$[r].candidates.$[c].status"] = "REJECTED"
-        else set["rounds.$[r].candidates.$[c].status"] = "SHORTLISTED"
         await InterviewDrive.updateOne({ _id: drive._id, tenantId }, { $set: set }, { arrayFilters: [roundFilter, candidateFilter, { "m._id": entryId }] })
 
         results.push({ candidateId: candidate.id, name: candidate.name, status, communicationId, ...(error ? { message: "Could not queue the message." } : {}) })
