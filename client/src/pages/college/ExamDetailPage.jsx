@@ -12,7 +12,7 @@ import { examStats, branchBreakdown, resultOf, studentsOf, passMarkOf } from '..
 import { formatEnumLabel } from '../../utils/formatEnumLabel'
 
 const fmt = (iso) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—')
-const INVITE_LABEL = { SENT: 'Sent', OPENED: 'Opened', FAILED: 'Failed', QUEUED: 'Queued', MOCK_SENT: 'Sent' }
+const INVITE_LABEL = { SENT: 'Sent', OPENED: 'Sent', FAILED: 'Failed', QUEUED: 'Queued', MOCK_SENT: 'Sent' }
 
 function ExamDetailPage() {
     const { id } = useParams()
@@ -245,7 +245,7 @@ function ExamDetailPage() {
                 confirmLabel={confirm === 'archive' ? 'Archive' : 'Close exam'}
                 danger={confirm === 'archive'}
                 loading={busy}
-                onConfirm={() => changeStatus(confirm === 'archive' ? 'ARCHIVED' : 'COMPLETED')}
+                onConfirm={() => changeStatus(confirm === 'archive' ? 'ARCHIVED' : 'CLOSED')}
             >
                 <p className="text-[13.5px] text-text-secondary leading-relaxed">
                     {confirm === 'archive'

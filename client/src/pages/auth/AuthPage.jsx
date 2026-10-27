@@ -3,7 +3,7 @@ import { useNavigate, useLocation, useParams } from 'react-router-dom'
 import { Mail, ArrowLeft, CheckCircle2, AlertCircle, Lock, Send } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { forgotPassword } from '../../api/authApi'
-import { getOrganizationProfile } from '../../api/organization/organizationApi'
+import { resolvePostLoginPath } from '../../utils/postLoginPath'
 import AuthLayout from '../../components/auth/AuthLayout'
 import AuthHeader from '../../components/auth/AuthHeader'
 import AuthBrandPanel from '../../components/auth/AuthBrandPanel'
@@ -91,35 +91,7 @@ function AuthPage() {
         setLoading(true)
         try {
             const user = await login(email, password)
-            // An org admin who also has a candidate application (e.g. they
-            // tested their own drive) is still primarily an org admin here -
-            // this is the ORG login page, so that identity always wins over
-            // CANDIDATE when an account happens to carry both roles.
-            const isOrgAdmin = user?.tenantId || user?.roles?.includes('CLIENT_ADMIN')
-            if (!isOrgAdmin && user?.roles?.includes('CANDIDATE')) {
-                navigate(user?.mustChangePassword ? '/candidate/change-password' : '/candidate/room')
-                return
-            }
-            if (user?.mustChangePassword) {
-                navigate('/platform/client/change-password')
-                return
-            }
-            if (isOrgAdmin) {
-                try {
-                    const profile = await getOrganizationProfile()
-                    if (profile?.type === 'COLLEGE') {
-                        navigate('/college/dashboard')
-                    } else if (profile?.type === 'CANDIDATE') {
-                        navigate('/candidate/dashboard')
-                    } else {
-                        navigate('/organization/dashboard')
-                    }
-                } catch {
-                    navigate('/organization/dashboard')
-                }
-            } else {
-                navigate('/platform/dashboard')
-            }
+            navigate(await resolvePostLoginPath(user))
         } catch (err) {
             setError(err.message || 'Invalid email or password.')
         } finally {

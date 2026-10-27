@@ -18,7 +18,7 @@ const RANGE_OPTIONS = [
     { value: '90d', label: '90 days' },
 ]
 
-const STATUS_BADGE = { ACTIVE: 'success', DRAFT: 'neutral', COMPLETED: 'info', ARCHIVED: 'danger' }
+const STATUS_BADGE = { ACTIVE: 'success', DRAFT: 'neutral', COMPLETED: 'info', CLOSED: 'warning', ARCHIVED: 'danger' }
 
 const chartTooltipStyle = { borderRadius: 12, border: '1px solid var(--color-line)', fontSize: 13, background: 'var(--color-card)', color: 'var(--color-ink)' }
 const axisTick = { fontSize: 12, fill: 'var(--color-text-secondary)' }

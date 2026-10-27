@@ -16,6 +16,9 @@ export const login = async (req, res, next) => {
     try {
         const { email, password, deviceId } = req.body
         const { user, accessToken, expiresIn, rawRefreshToken } = await authService.login({ email, password, deviceId })
+        // Signing in replaces whoever this browser was signed in as: end the previous session server-side so
+        // switching accounts can never leave the old account's refresh token usable.
+        await authService.logout(req.cookies?.[REFRESH_COOKIE]).catch(() => {})
         setRefreshCookie(res, rawRefreshToken)
         ok(res, { user, accessToken, expiresIn })
     } catch (error) { next(error) }
@@ -74,6 +77,7 @@ export const googleLogin = async (req, res, next) => {
         const { idToken } = req.body
         if (!idToken) return next(new ApiError(400, "MISSING_TOKEN", "idToken is required."))
         const { user, accessToken, expiresIn, rawRefreshToken } = await authService.googleLogin(idToken)
+        await authService.logout(req.cookies?.[REFRESH_COOKIE]).catch(() => {})
         setRefreshCookie(res, rawRefreshToken)
         ok(res, { user, accessToken, expiresIn })
     } catch (error) { next(error) }

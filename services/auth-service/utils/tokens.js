@@ -20,7 +20,7 @@ export const signAccessToken = (user) => {
     return { token, expiresIn: ACCESS_TOKEN_TTL_SECONDS }
 }
 
-export const verifyAccessToken = (token) => jwt.verify(token, process.env.ACCESS_TOKEN_SECRET)
+export const verifyAccessToken = (token) => jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, { algorithms: ["HS256"] })
 
 // Raw refresh token -> URL/cookie. SHA256(raw) -> database. Never store the
 // raw value, mirroring how onboarding invitation tokens are handled.

@@ -13,6 +13,7 @@ const STATUS_BADGE = {
   ACTIVE: 'success',
   DRAFT: 'neutral',
   COMPLETED: 'info',
+  CLOSED: 'warning',
   ARCHIVED: 'danger',
 }
 
@@ -180,6 +181,7 @@ function DrivesListPage() {
               { id: 'ALL', label: 'All Drives' },
               { id: 'ACTIVE', label: 'Active Drives' },
               { id: 'COMPLETED', label: 'Completed' },
+              { id: 'CLOSED', label: 'Closed' },
               { id: 'DRAFT', label: 'Drafts' },
             ]}
             value={activeTab}

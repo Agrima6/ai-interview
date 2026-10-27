@@ -24,6 +24,7 @@ import QuestionBankManager from './pages/admin/QuestionBankManager'
 import TemplateBuilder from './pages/admin/TemplateBuilder'
 import InviteCandidates from './pages/admin/InviteCandidates'
 import RequireAuth from './components/RequireAuth'
+import RedirectIfAuthenticated from './components/RedirectIfAuthenticated'
 import RequireRole from './components/RequireRole'
 import InviteLanding from './pages/InviteLanding'
 import WHome from './pages/workmate/WHome'
@@ -100,7 +101,7 @@ function App() {
     <Routes>
       {/* The redesigned front page (pages/landing) is the real landing page. The previous design
           (WHome) is kept and reachable at /welcome-classic so the two can be compared. */}
-      <Route path='/' element={<LandingPage/>}/>
+      <Route path='/' element={<RedirectIfAuthenticated><LandingPage/></RedirectIfAuthenticated>}/>
       <Route path='/welcome' element={<LandingPage/>}/>
       <Route path='/welcome-classic' element={<WHome/>}/>
       {/* Public pricing page. /pricing (signed-in purchase flow) is unchanged. */}
@@ -114,7 +115,7 @@ function App() {
       <Route path='/hero-ecosystem' element={<WorkmateLayout showCursorSpotlight={false}><HeroEcosystem/></WorkmateLayout>}/>
       <Route path='/hero-flow' element={<WorkmateLayout showCursorSpotlight={false}><HeroFlow/></WorkmateLayout>}/>
       <Route path='/hero-depth' element={<WorkmateLayout showCursorSpotlight={false}><HeroDepth/></WorkmateLayout>}/>
-      <Route path='/login' element={<AuthPage/>}/>
+      <Route path='/login' element={<RedirectIfAuthenticated><AuthPage/></RedirectIfAuthenticated>}/>
       <Route path='/platform/login' element={<Navigate to='/login' replace/>}/>
       <Route path='/platform/client/login' element={<Navigate to='/login' replace/>}/>
       <Route path='/platform/register' element={<Navigate to='/register' replace/>}/>

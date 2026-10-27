@@ -19,8 +19,16 @@ import { uploadBuffer, getObjectBuffer, getObjectStream, RESUMES_BUCKET, RECORDI
 import { enqueueRecordingProcessing } from "../config/sqsClient.js"
 
 const signPrefillToken = (driveId, email) => {
-    const secret = process.env.ACCESS_TOKEN_SECRET || "prefill-protection-token"
+    const secret = process.env.ACCESS_TOKEN_SECRET
+    if (!secret) throw new ApiError(500, "SERVER_MISCONFIGURED", "Link signing is not configured.")
     return crypto.createHmac("sha256", secret).update(`${driveId}:${String(email).toLowerCase().trim()}`).digest("hex")
+}
+
+// Constant-time comparison so a wrong link token can't be guessed byte by byte from response timing.
+const tokensMatch = (given, expected) => {
+    const a = Buffer.from(String(given || ""))
+    const b = Buffer.from(String(expected || ""))
+    return a.length === b.length && crypto.timingSafeEqual(a, b)
 }
 
 const sanitizePathSegment = (str) => {
@@ -162,7 +170,7 @@ const repairRoundStatuses = async (drive) => {
                 const expectedStatus = round.roundNumber === currentRound.roundNumber
                     ? "ACTIVE"
                     : round.roundNumber < currentRound.roundNumber && round.status === "ACTIVE"
-                    ? "COMPLETED"
+                    ? resolveEndStatus("COMPLETED", [round])
                     : round.status
                 if (round.status !== expectedStatus) {
                     round.status = expectedStatus
@@ -491,7 +499,7 @@ export const getPublicApplicationPrefill = async (link, email, token) => {
     const drive = await InterviewDrive.findOne({ publicLink: link, status: "ACTIVE" })
     if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "This interview link is invalid or no longer active.")
     const expectedToken = signPrefillToken(String(drive._id), email)
-    if (token !== expectedToken) return { prefilled: false }
+    if (!tokensMatch(token, expectedToken)) return { prefilled: false }
 
     const round = drive.rounds?.find((r) => r.roundNumber === 1)
     const candidate = round?.candidates.find((c) => c.email.toLowerCase() === email.toLowerCase())
@@ -947,6 +955,13 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber)
     } else if (candidate.status === "COMPLETED") {
         throw new ApiError(409, "INTERVIEW_ALREADY_COMPLETED", "This interview has already been completed, so it can't be started again.")
     }
+    // Round-level access is enforced here, on the server: a round that is not live (not yet activated, completed,
+    // closed) or a drive that is not active cannot be STARTED, whatever link or page the candidate came from.
+    // A reload part-way through an interview that already started is let through (below).
+    if (!candidate.demoAlwaysLive && !candidate.agentInterviewId) {
+        if (drive.status !== "ACTIVE") throw new ApiError(409, "DRIVE_NOT_ACTIVE", "This interview is not open right now.")
+        if (round.status !== "ACTIVE") throw new ApiError(409, "ROUND_NOT_OPEN", `Round ${round.roundNumber} is not open for interviews right now.`)
+    }
     // Only inside the candidate's slot window - unless the interview was already started (a reload or
     // reconnect part-way through must never be locked out).
     if (!gateDisabled() && !candidate.demoAlwaysLive && !candidate.agentInterviewId && candidate.interviewSlot) {
@@ -1229,19 +1244,31 @@ export const streamCandidateRecording = async (tenantId, driveId, roundNumber, c
 // filtered dataset) so the two can never disagree on what "matching the
 // filters" means - integration.md section 16 requires an export to
 // contain exactly the filtered rows, not a separately-computed set.
+const DRIVE_STATUSES = ["ACTIVE", "COMPLETED", "CLOSED", "DRAFT", "ARCHIVED"]
+const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+// Query-string values can arrive as objects/arrays (?status[$ne]=x). Only plain strings are ever used in a query.
+const asText = (value) => (typeof value === "string" ? value.trim().slice(0, 200) : "")
+const asDate = (value) => { const d = new Date(asText(value)); return Number.isNaN(d.getTime()) ? null : d }
+
 const buildDriveQuery = (tenantId, filters = {}) => {
     const query = { tenantId }
-    if (filters.status && filters.status !== "ALL") query.status = filters.status
-    if (filters.department) query.department = filters.department
-    if (filters.roleCategory) query.roleCategory = filters.roleCategory
-    if (filters.experienceLevel) query.experienceLevel = filters.experienceLevel
-    if (filters.search) {
-        query.title = { $regex: filters.search, $options: "i" }
+    const status = asText(filters.status).toUpperCase()
+    if (status && status !== "ALL") {
+        if (!DRIVE_STATUSES.includes(status)) throw new ApiError(400, "INVALID_FILTER", "Unknown status filter.")
+        query.status = status
     }
-    if (filters.createdFrom || filters.createdTo) {
+    for (const field of ["department", "roleCategory", "experienceLevel"]) {
+        const value = asText(filters[field])
+        if (value) query[field] = value
+    }
+    const search = asText(filters.search)
+    if (search) query.title = { $regex: escapeRegex(search), $options: "i" }
+    const from = asDate(filters.createdFrom)
+    const to = asDate(filters.createdTo)
+    if (from || to) {
         query.createdAt = {}
-        if (filters.createdFrom) query.createdAt.$gte = new Date(filters.createdFrom)
-        if (filters.createdTo) query.createdAt.$lte = new Date(filters.createdTo)
+        if (from) query.createdAt.$gte = from
+        if (to) query.createdAt.$lte = to
     }
     return query
 }
@@ -1404,17 +1431,42 @@ export const addRoundToDrive = async (tenantId, driveId, roundData, ctx) => {
     return drive
 }
 
+// Candidates who have not finished their attempt in this round. Closing a round/drive with any of them
+// still outstanding is a CLOSE, not a successful completion.
+const PENDING_CANDIDATE_STATUSES = ["INVITED", "SCHEDULED"]
+export const countUnfinishedCandidates = (round) =>
+    (round?.candidates || []).filter((c) => PENDING_CANDIDATE_STATUSES.includes(c.status) && !c.demoAlwaysLive).length
+
+// One rule for "the recruiter ended this": COMPLETED only when the work really finished, otherwise CLOSED.
+// Asking for either value is allowed; the server decides which one is true (a "Close" click never claims
+// a completion that did not happen, and an explicit CLOSED is always honoured).
+export const resolveEndStatus = (requested, rounds) => {
+    if (requested === "CLOSED") return "CLOSED"
+    const live = (rounds || []).filter((r) => r && !["DRAFT", "PENDING"].includes(r.status))
+    const unfinished = live.some((r) => r.status === "ACTIVE" && countUnfinishedCandidates(r) > 0)
+    return unfinished ? "CLOSED" : "COMPLETED"
+}
+
 export const updateDriveStatus = async (tenantId, driveId, status, ctx = {}) => {
     if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
     requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
 
-    if (!["ACTIVE", "COMPLETED", "DRAFT", "ARCHIVED"].includes(status)) {
+    if (!["ACTIVE", "COMPLETED", "CLOSED", "DRAFT", "ARCHIVED"].includes(status)) {
         throw new ApiError(400, "INVALID_STATUS", "Invalid drive status.")
     }
     const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
     if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    if (["COMPLETED", "CLOSED"].includes(status) && drive.status === "DRAFT") {
+        throw new ApiError(409, "INVALID_TRANSITION", "A draft drive was never run, so it can't be completed or closed.")
+    }
     const activatingDraft = drive.status === "DRAFT" && status === "ACTIVE"
-    drive.status = status
+    drive.status = ["COMPLETED", "CLOSED"].includes(status) ? resolveEndStatus(status, drive.rounds) : status
+    if (drive.status === "CLOSED") {
+        // Closing the drive closes the rounds still open; nothing is silently "completed".
+        for (const r of drive.rounds || []) if (r.status === "ACTIVE") r.status = resolveEndStatus("COMPLETED", [r])
+    } else if (drive.status === "COMPLETED") {
+        for (const r of drive.rounds || []) if (r.status === "ACTIVE") r.status = "COMPLETED"
+    }
     if (activatingDraft && drive.enablePublicLink && !drive.publicLink) drive.publicLink = generatePublicLink()
     if (activatingDraft) {
         const firstRound = drive.rounds?.find((round) => round.roundNumber === 1)
@@ -1428,7 +1480,7 @@ export const updateDriveStatus = async (tenantId, driveId, status, ctx = {}) => 
 export const updateRoundStatus = async (tenantId, driveId, roundNumber, status, ctx = {}) => {
     if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
     requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
-    if (!['ACTIVE', 'COMPLETED', 'DRAFT', 'PENDING'].includes(status)) {
+    if (!['ACTIVE', 'COMPLETED', 'CLOSED', 'DRAFT', 'PENDING'].includes(status)) {
         throw new ApiError(400, "INVALID_STATUS", "Invalid round status.")
     }
 
@@ -1440,11 +1492,14 @@ export const updateRoundStatus = async (tenantId, driveId, roundNumber, status, 
 
     const activating = status === 'ACTIVE' && round.status !== 'ACTIVE'
     const previousRound = drive.rounds?.find((item) => item.roundNumber === Number(roundNumber) - 1)
-    const previousRoundReady = drive.status !== 'DRAFT' && previousRound && previousRound.status === 'COMPLETED'
+    const previousRoundReady = drive.status !== 'DRAFT' && previousRound && ['COMPLETED', 'CLOSED'].includes(previousRound.status)
     if (activating && previousRound && !previousRoundReady) {
         throw new ApiError(409, "PREVIOUS_ROUND_REQUIRED", `Complete Round ${previousRound.roundNumber} before activating Round ${round.roundNumber}.`)
     }
-    round.status = status
+    if (['COMPLETED', 'CLOSED'].includes(status) && round.status !== 'ACTIVE') {
+        throw new ApiError(409, "INVALID_TRANSITION", "Only a live round can be completed or closed.")
+    }
+    round.status = ['COMPLETED', 'CLOSED'].includes(status) ? resolveEndStatus(status, [round]) : status
     if (activating) {
         drive.currentRound = round.roundNumber
         if (drive.status === 'DRAFT') {
