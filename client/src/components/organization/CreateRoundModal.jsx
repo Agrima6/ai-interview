@@ -6,6 +6,7 @@ import CriteriaWeightageBuilder from './CriteriaWeightageBuilder'
 import QuestionSetBuilder from './QuestionSetBuilder'
 import CandidateImportModal from './CandidateImportModal'
 import { addRoundToInterviewDrive, updateRound, getQuestionBanks } from '../../api/organization/organizationApi'
+import { dateInputFromToday, dateInputFromStored } from '../../utils/dateOnly'
 
 const ROLE_CATEGORIES = [
   { value: 'SOFTWARE_ENGINEERING', label: 'Software Engineering (SDE / Fullstack)' },
@@ -44,7 +45,7 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
     roundType: 'Managerial Round',
     passingThreshold: '75',
     startDate: '',
-    expiryDate: new Date(Date.now() + 10 * 86400000).toISOString().split('T')[0],
+    expiryDate: dateInputFromToday(10),
     questionMode: 'PREBUILT',
     questionBankId: '',
   })
@@ -82,8 +83,8 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
       roundTitle: existingRound.title || `Round ${roundNumber}: Managerial & System Design Assessment`,
       roundType: existingRound.type || 'Managerial Round',
       passingThreshold: String(existingRound.passingThreshold ?? 75),
-      startDate: existingRound.startDate ? new Date(existingRound.startDate).toISOString().split('T')[0] : '',
-      expiryDate: existingRound.expiryDate ? new Date(existingRound.expiryDate).toISOString().split('T')[0] : new Date(Date.now() + 10 * 86400000).toISOString().split('T')[0],
+      startDate: dateInputFromStored(existingRound.startDate),
+      expiryDate: dateInputFromStored(existingRound.expiryDate) || dateInputFromToday(10),
       questionMode: existingRound.questionMode || 'PREBUILT',
       questionBankId: '',
     })
@@ -99,7 +100,7 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
 
   useEffect(() => {
     if (!open || !driveContext) return
-    const asDate = (value) => value ? new Date(value).toISOString().split('T')[0] : ''
+    const asDate = (value) => dateInputFromStored(value)
     setDriveFormData({
       title: driveContext.title || '',
       roleCategory: driveContext.roleCategory || '',

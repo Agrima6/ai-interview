@@ -4,11 +4,14 @@ import path from "path"
 import { InterviewDrive } from "../models/interviewDrive.model.js"
 import { NotificationTemplate } from "../models/notificationTemplate.model.js"
 import { TEMPLATE_VARIABLE_KEYS } from "../utils/defaultTemplates.js"
+import { ensureDefaultTemplates } from "./notificationTemplate.service.js"
+import { validatePersonName, normalizePhone } from "../utils/personInput.js"
+import { closingInstant, openingInstant, parseDateOnly, todayDateOnly } from "../utils/deadline.js"
 import { ApiError } from "../utils/response.js"
 import mongoose from "mongoose"
 import { resolveInterviewQuestions } from "../utils/interviewQuestions.js"
 import { ACTIVE_STATUSES, SKIP_MESSAGES, advanceStatus, mapServiceStatus, planDispatch } from "../utils/communicationPlan.js"
-import { bookSlot } from "./slotBooking.service.js"
+import { bookSlot, releaseSlot } from "./slotBooking.service.js"
 import { resolveAvailability, publicAvailability } from "../utils/slotPolicy.js"
 import { csvEscape } from "../utils/csv.js"
 import { requireValidObjectId } from "../utils/validateId.js"
@@ -69,6 +72,15 @@ const generatePublicLink = () => crypto.randomBytes(6).toString("hex")
 // "undefined/apply/..." link in a candidate invite email - fall back to
 // localhost (matches local dev) and always strip any trailing slash so a
 // value with or without one produces the same, correctly-formed URL.
+// When applications / interviews for a drive (or one of its rounds) stop, as a real instant: the END of the configured
+// "apply by" calendar day in the organization's timezone. Every deadline check goes through here.
+const driveTimezone = (drive) => resolveAvailability(drive).timezone
+const closingOf = (drive, round) => closingInstant(round?.expiryDate || drive.expiryDate, driveTimezone(drive))
+const openingOf = (drive, round) => openingInstant(round?.startDate || drive.startDate, driveTimezone(drive))
+
+// A "YYYY-MM-DD" string becomes the date-only value (00:00 UTC); anything else (an existing Date) passes through.
+const asDateOnly = (value) => (typeof value === "string" ? parseDateOnly(value.trim()) || value : value)
+
 const buildFrontendUrl = (path) => `${(process.env.FRONTEND_BASE_URL || "http://localhost:5173").replace(/\/$/, "")}${path}`
 
 const normalizeRoundType = (value) => {
@@ -80,19 +92,21 @@ const normalizeRoundType = (value) => {
 }
 
 const normalizeCandidate = (candidate, index = 0) => {
-    const name = String(candidate?.name || "").trim()
     const email = String(candidate?.email || "").trim().toLowerCase()
-    const phone = String(candidate?.phone || "").trim()
     const exp = String(candidate?.exp || "").trim()
-    if (!name || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        throw new ApiError(400, "INVALID_CANDIDATE", `Candidate ${index + 1} needs a valid name and email.`)
+    const label = `Candidate ${index + 1}`
+    const nameCheck = validatePersonName(candidate?.name)
+    if (!nameCheck.ok) throw new ApiError(400, "INVALID_NAME", `${label}: ${nameCheck.message}`, { name: nameCheck.message })
+    const name = nameCheck.value
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        throw new ApiError(400, "INVALID_CANDIDATE", `${label} needs a valid email.`, { email: "Enter a valid email address." })
     }
-    if (name.length > 100 || email.length > 254) {
-        throw new ApiError(400, "INVALID_CANDIDATE", `Candidate ${index + 1} has a name or email that is too long.`)
+    if (email.length > 254) {
+        throw new ApiError(400, "INVALID_CANDIDATE", `${label} has an email that is too long.`, { email: "Email is too long." })
     }
-    if (phone && !/^\d{10}$/.test(phone)) {
-        throw new ApiError(400, "INVALID_PHONE", `Candidate ${index + 1} phone must contain exactly 10 digits.`)
-    }
+    const phoneCheck = normalizePhone(candidate?.phone)
+    if (!phoneCheck.ok) throw new ApiError(400, "INVALID_PHONE", `${label}: ${phoneCheck.message}`, { phone: phoneCheck.message })
+    const phone = phoneCheck.value
     const experienceNumber = exp.match(/^\d+(?:\.\d+)?/)?.[0]
     if (exp && (!/^\d+(?:\.\d+)?(?:\s*(?:years?|yrs?))?$/.test(exp) || !experienceNumber || Number(experienceNumber) <= 0 || Number(experienceNumber) > 70)) {
         throw new ApiError(400, "INVALID_EXPERIENCE", `Candidate ${index + 1} experience must be greater than 0 and no more than 70 years.`)
@@ -244,6 +258,31 @@ export const roundWording = (drive, round) => {
     }
 }
 
+// Which of the organization's own templates an invitation uses (null = fall back to the platform's built-in email):
+//  - Round 2 and later: the active invitation template written for that round;
+//  - Round 1: the template the recruiter chose for this drive, else the text they customised, else the
+//    organization's default "Interview Invitation".
+export const resolveInvitationTemplate = async (tenantId, drive, round) => {
+    const roundNumber = Number(round?.roundNumber) || 1
+    await ensureDefaultTemplates(tenantId)       // an organization that never opened Templates still has its defaults
+    const active = { tenantId, type: "EMAIL", purpose: "INVITATION", status: { $ne: "INACTIVE" } }
+    if (roundNumber > 1) {
+        const template = await NotificationTemplate.findOne({ ...active, roundNumber }).lean()
+        return template ? { subject: template.subject, body: template.body } : null
+    }
+    const settings = drive.communicationSettings || {}
+    const chosenId = settings.invitationTemplateId
+    if (chosenId) {
+        const idClauses = [{ templateId: String(chosenId) }]
+        if (/^[0-9a-fA-F]{24}$/.test(String(chosenId))) idClauses.push({ _id: chosenId })
+        const chosen = await NotificationTemplate.findOne({ tenantId, type: "EMAIL", status: { $ne: "INACTIVE" }, $or: idClauses }).lean()
+        if (chosen) return { subject: chosen.subject, body: settings.invitationCustom && settings.invitationText ? settings.invitationText : chosen.body }
+    }
+    if (settings.invitationText) return { subject: null, body: settings.invitationText }
+    const fallback = await NotificationTemplate.findOne({ ...active, $or: [{ defaultKey: "EMAIL_INVITATION" }, { roundNumber: 1 }] }).sort({ createdAt: 1 }).lean()
+    return fallback ? { subject: fallback.subject, body: fallback.body } : null
+}
+
 const inviteCandidates = async (tenantId, drive, candidates, ctx, round = null) => {
     if (!candidates?.length) return { attempted: 0, failed: [] }
     if (!drive.publicLink) {
@@ -258,6 +297,10 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx, round = null) 
     const expiryDate = formatEmailDate(round?.expiryDate || drive.expiryDate)
     const loginUrl = buildFrontendUrl("/login")
     const wording = roundWording(drive, round)
+    const orgTemplate = await resolveInvitationTemplate(tenantId, drive, round).catch((err) => {
+        console.error("[client-service] invitation template lookup failed, using the built-in email:", err.message)
+        return null
+    })
 
     for (const candidate of candidates) {
         if (!candidate.email) continue
@@ -281,9 +324,29 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx, round = null) 
             ? buildFrontendUrl("/candidate/room")
             : buildFrontendUrl(`/apply/${drive.publicLink}?email=${encodeURIComponent(candidate.email)}&token=${token}`)
 
+        const templateVariables = {
+            candidate_name: candidate.name || "there",
+            drive_title: drive.title,
+            company_name: org?.name || "the hiring team",
+            interview_link: interviewLink,
+            expiry_date: expiryDate,
+            round_number: String(round?.roundNumber || 1),
+            round_title: round?.title || "Round 1",
+            interview_date: candidate.interviewSlot ? formatEmailDateTime(candidate.interviewSlot) : "to be scheduled",
+            login_url: loginUrl,
+            login_email: candidate.email,
+            temp_password: tempPassword,
+        }
+        // An organization template is rendered here and sent as final text; the built-in email is used only when the
+        // organization has none. Unknown placeholders are left out rather than shown to the candidate as raw {tags}.
+        const blankUnknown = (text) => renderTemplateText(text, templateVariables).replace(/\{\{?\s*\w+\s*\}?\}/g, "")
         const emailSend = communicationServiceClient.send({
             entityType: "CLIENT", entityId: tenantId, channel: "EMAIL",
             eventType: "CANDIDATE_INVITE", recipient: candidate.email,
+            ...(orgTemplate ? {
+                subject: blankUnknown(orgTemplate.subject || `You're invited to interview for {drive_title} at {company_name}`),
+                body: blankUnknown(orgTemplate.body),
+            } : {}),
             variables: {
                 candidate_name: candidate.name || "there",
                 drive_title: drive.title,
@@ -355,13 +418,18 @@ export const createDrive = async (tenantId, driveData, ctx) => {
     if (!isDraft && (!driveData.title || !driveData.roleCategory || !driveData.department || !driveData.roundType || !driveData.startDate || !driveData.expiryDate)) {
         throw new ApiError(400, "MISSING_FIELDS", "Title, role, department, interview type, start date, and expiry date are mandatory.")
     }
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const startDate = driveData.startDate ? new Date(`${driveData.startDate}T00:00:00`) : today
-    const expiryDate = driveData.expiryDate ? new Date(`${driveData.expiryDate}T00:00:00`) : new Date(today.getTime() + 14 * 86400000)
+    // Dates are calendar days (see utils/deadline.js): parsed strictly, stored at 00:00 UTC, and "today" is the
+    // organization's own calendar day - never the server's or UTC's.
+    const today = todayDateOnly(resolveAvailability(driveData).timezone)
+    const parsedStart = driveData.startDate ? parseDateOnly(driveData.startDate) : today
+    const parsedExpiry = driveData.expiryDate ? parseDateOnly(driveData.expiryDate) : new Date(today.getTime() + 14 * 86400000)
+    const startDate = parsedStart || today
+    const expiryDate = parsedExpiry || new Date(today.getTime() + 14 * 86400000)
+    if (!isDraft && !parsedStart) throw new ApiError(400, "INVALID_START_DATE", "Start date must be a valid date (YYYY-MM-DD).")
+    if (!isDraft && !parsedExpiry) throw new ApiError(400, "INVALID_EXPIRY_DATE", "Expiry date must be a valid date (YYYY-MM-DD).")
     const windowDays = (expiryDate - startDate) / 86400000
-    if (!isDraft && (Number.isNaN(startDate.getTime()) || startDate < today)) throw new ApiError(400, "INVALID_START_DATE", "Start date cannot be earlier than today.")
-    if (!isDraft && (Number.isNaN(expiryDate.getTime()) || expiryDate < startDate || windowDays > 50)) throw new ApiError(400, "INVALID_EXPIRY_DATE", "Expiry date must be within 50 days of the start date.")
+    if (!isDraft && startDate < today) throw new ApiError(400, "INVALID_START_DATE", "Start date cannot be earlier than today.")
+    if (!isDraft && (expiryDate < startDate || windowDays > 50)) throw new ApiError(400, "INVALID_EXPIRY_DATE", "Expiry date must be within 50 days of the start date.")
 
     const initialCandidates = normalizeCandidates(driveData.importedCandidateList || [])
     // The kind comes from who is creating the drive (a college is always exam-only), never from the request body.
@@ -504,10 +572,13 @@ export const getPublicDriveBySlug = async (link) => {
         roleCategory: drive.roleCategory,
         department: drive.department,
         experienceLevel: drive.experienceLevel,
-        startDate: drive.startDate || null,
-        expiryDate: drive.expiryDate,
+        // Candidate-facing dates are real instants: the window opens at the start of the first day and closes at the
+        // END of the "apply by" day in the organization's timezone.
+        startDate: openingOf(drive, round1)?.toISOString() || null,
+        expiryDate: closingOf(drive, round1)?.toISOString() || null,
+        timezone: driveTimezone(drive),
         companyName: org?.name || null,
-        expired: new Date(drive.expiryDate) < new Date(),
+        expired: closingOf(drive, round1) < new Date(),
         // A candidate who already applied (found by re-visiting the same
         // link, e.g. from the confirmation email) sees a "you're in" state
         // instead of the form again - matched by email would need the
@@ -553,14 +624,13 @@ export const getPublicApplicationPrefill = async (link, email, token) => {
 export const applyToPublicDrive = async (link, applicationData, resumeFile, ctx) => {
     const drive = await InterviewDrive.findOne({ publicLink: link, status: "ACTIVE" })
     if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "This interview link is invalid or no longer active.")
-    if (new Date(drive.expiryDate) < new Date()) throw new ApiError(410, "DRIVE_EXPIRED", "This interview invitation has expired.")
-
     const round = drive.rounds?.find((r) => r.roundNumber === 1)
+    if (closingOf(drive, round) < new Date()) throw new ApiError(410, "DRIVE_EXPIRED", "The application deadline for this interview has passed.")
     if (!round || round.status !== "ACTIVE") throw new ApiError(409, "ROUND_NOT_OPEN", "This drive isn't accepting applications right now.")
 
     if (!applicationData.interviewSlot) throw new ApiError(400, "SLOT_REQUIRED", "Please choose an interview slot.")
     const slot = new Date(applicationData.interviewSlot)
-    if (Number.isNaN(slot.getTime()) || slot < new Date() || slot > new Date(drive.expiryDate)) {
+    if (Number.isNaN(slot.getTime()) || slot < new Date() || slot > closingOf(drive, round)) {
         throw new ApiError(400, "INVALID_SLOT", "Please choose a valid upcoming slot before the application deadline.")
     }
 
@@ -605,6 +675,7 @@ export const applyToPublicDrive = async (link, applicationData, resumeFile, ctx)
         resumeOriginalName: resumeFile?.originalname || existing?.resumeOriginalName || null,
         preferredLanguage,
     })
+    recordSlotEvent(candidate, "BOOKED", { slot: booking.slot })
     if (!existing) round.candidates.push(candidate)
     drive.candidatesCount = drive.rounds.reduce((total, r) => total + r.candidates.length, 0)
     try {
@@ -656,8 +727,9 @@ const formatSlotForEmail = (slot, timeZone) =>
 export const completeCandidateApplication = async (tenantId, email, driveId, roundNumber, applicationData, resumeFile, ctx) => {
     const { drive, round, candidate } = await findOwnRosterEntry(tenantId, email, driveId, roundNumber)
 
-    if (new Date(drive.expiryDate) < new Date()) {
-        throw new ApiError(410, "DRIVE_EXPIRED", "This interview drive has expired.")
+    assertInterviewOpen(round, candidate)
+    if (closingOf(drive, round) < new Date()) {
+        throw new ApiError(410, "DRIVE_EXPIRED", "The deadline for this interview has passed.")
     }
     if (round.status !== "ACTIVE" && drive.status !== "ACTIVE") {
         throw new ApiError(409, "ROUND_NOT_OPEN", "This drive is not currently accepting applications.")
@@ -667,7 +739,7 @@ export const completeCandidateApplication = async (tenantId, email, driveId, rou
         throw new ApiError(400, "SLOT_REQUIRED", "Please choose an interview slot.")
     }
     const slot = new Date(applicationData.interviewSlot)
-    if (Number.isNaN(slot.getTime()) || slot < new Date() || slot > new Date(drive.expiryDate)) {
+    if (Number.isNaN(slot.getTime()) || slot < new Date() || slot > closingOf(drive, round)) {
         throw new ApiError(400, "INVALID_SLOT", "Please choose a valid upcoming slot before the application deadline.")
     }
 
@@ -695,6 +767,7 @@ export const completeCandidateApplication = async (tenantId, email, driveId, rou
 
     // Re-submitting the same slot is a no-op; a different one frees the old place (previousSlot).
     const booking = await bookSlot({ drive, round, email, requested: slot, previousSlot: candidate.interviewSlot })
+    recordSlotEvent(candidate, candidate.interviewSlot ? "RESCHEDULED" : "BOOKED", { slot: booking.slot, previousSlot: candidate.interviewSlot || undefined })
     candidate.interviewSlot = booking.slot
     if (resumeKey) {
         candidate.resumeFilename = resumeKey
@@ -781,8 +854,8 @@ export const getMyInterviews = async (tenantId, email) => {
                 roundTitle: round.title,
                 roundType: round.type,
                 roundStatus: round.status,
-                startDate: round.startDate || drive.startDate,
-                expiryDate: round.expiryDate || drive.expiryDate,
+                startDate: openingOf(drive, round)?.toISOString() || null,
+                expiryDate: closingOf(drive, round)?.toISOString() || null,
                 interviewSlot: candidate.interviewSlot,
                 candidateStatus: candidate.status,
                 attemptedDate: candidate.attemptedDate,
@@ -882,8 +955,11 @@ const gateDisabled = () => String(process.env.INTERVIEW_GATE_DISABLED || "").toL
 export const rescheduleCandidateSlot = async (tenantId, email, driveId, roundNumber, newSlot) => {
     const { drive, round, candidate } = await findOwnRosterEntry(tenantId, email, driveId, roundNumber)
 
-    if (new Date(round.expiryDate || drive.expiryDate) < new Date() || drive.status === "ARCHIVED") {
-        throw new ApiError(409, "DRIVE_EXPIRED", "This interview drive is no longer active.")
+    assertInterviewOpen(round, candidate)
+    // The scheduling window is the round's configured deadline - not the original slot's start time - and the server
+    // clock decides it, so refreshing the page or calling the API directly cannot extend it.
+    if (closingOf(drive, round) < new Date() || drive.status === "ARCHIVED") {
+        throw new ApiError(409, "SCHEDULING_WINDOW_CLOSED", "The scheduling deadline for this interview has passed, so it can no longer be rescheduled. Please contact the hiring team.")
     }
     if (["COMPLETED", "REJECTED"].includes(candidate.status)) {
         throw new ApiError(409, "NOT_RESCHEDULABLE", "This interview can no longer be rescheduled.")
@@ -911,6 +987,7 @@ export const rescheduleCandidateSlot = async (tenantId, email, driveId, roundNum
     const booking = await bookSlot({ drive, round, email, requested, previousSlot: previous })
     const slot = booking.slot
     candidate.interviewSlot = slot
+    recordSlotEvent(candidate, "RESCHEDULED", { slot, previousSlot: previous || undefined })
     if (candidate.status === "INVITED") candidate.status = "SCHEDULED"
     try {
         await drive.save()
@@ -985,6 +1062,8 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber)
     // time-window check below never applies to it.
     if (candidate.demoAlwaysLive && candidate.status === "COMPLETED") {
         Object.assign(candidate, { status: "SCHEDULED", agentInterviewId: null, agentReport: null, attemptedDate: null, malpracticeFlags: 0, violations: [] })
+    } else if (candidate.status === "CLOSED") {
+        throw new ApiError(409, "INTERVIEW_CLOSED", "This interview was closed when the round ended.")
     } else if (candidate.status === "REJECTED") {
         throw new ApiError(409, "APPLICATION_CLOSED", "This application is no longer active, so the interview can't be started.")
     } else if (candidate.status === "COMPLETED") {
@@ -1448,8 +1527,8 @@ export const addRoundToDrive = async (tenantId, driveId, roundData, ctx) => {
         title: roundData.title || `Round ${nextRoundNum}: Managerial & System Design`,
         type: roundData.type || "Managerial Round",
         status: "DRAFT",
-        startDate: roundData.startDate || drive.startDate,
-        expiryDate: roundData.expiryDate || drive.expiryDate,
+        startDate: asDateOnly(roundData.startDate) || drive.startDate,
+        expiryDate: asDateOnly(roundData.expiryDate) || drive.expiryDate,
         passingThreshold: roundData.passingThreshold || 75,
         interviewMode: normalizeInterviewMode(roundData.interviewMode),
         skillRubrics: roundData.skillRubrics || [],
@@ -1476,6 +1555,38 @@ export const addRoundToDrive = async (tenantId, driveId, roundData, ctx) => {
 // Candidates who have not finished their attempt in this round. Closing a round/drive with any of them
 // still outstanding is a CLOSE, not a successful completion.
 const PENDING_CANDIDATE_STATUSES = ["INVITED", "SCHEDULED"]
+// Append-only record of scheduling events on a candidate (see slotHistory in the model).
+const recordSlotEvent = (candidate, action, details = {}) => {
+    if (!Array.isArray(candidate.slotHistory)) candidate.slotHistory = []
+    candidate.slotHistory.push({ action, at: new Date(), ...details })
+}
+
+// The recruiter ended a round: every interview that has not been conducted is closed - whether it is scheduled for
+// later or was never scheduled - and its reserved slot is given back. Interviews already finished (completed,
+// shortlisted, rejected) are left exactly as they are. Returns the slots to release once the drive is saved.
+// The backend enforces this: closed candidates are refused by every candidate-facing action below.
+export const closePendingInterviews = (round, reason = "ROUND_ENDED", now = new Date()) => {
+    const slotsToRelease = []
+    for (const candidate of round?.candidates || []) {
+        if (!PENDING_CANDIDATE_STATUSES.includes(candidate.status) || candidate.demoAlwaysLive) continue
+        if (candidate.interviewSlot) slotsToRelease.push(candidate.interviewSlot)
+        recordSlotEvent(candidate, "CLOSED", { slot: candidate.interviewSlot || undefined, reason })
+        candidate.status = "CLOSED"
+        candidate.closedAt = now
+        candidate.closedReason = reason
+    }
+    return slotsToRelease
+}
+
+const assertInterviewOpen = (round, candidate) => {
+    if (["COMPLETED", "CLOSED"].includes(round.status)) {
+        throw new ApiError(409, "ROUND_CLOSED", "This round has ended, so this interview can no longer be joined or rescheduled.")
+    }
+    if (candidate?.status === "CLOSED") {
+        throw new ApiError(409, "INTERVIEW_CLOSED", "This interview was closed when the round ended.")
+    }
+}
+
 export const countUnfinishedCandidates = (round) =>
     (round?.candidates || []).filter((c) => PENDING_CANDIDATE_STATUSES.includes(c.status) && !c.demoAlwaysLive).length
 
@@ -1503,11 +1614,18 @@ export const updateDriveStatus = async (tenantId, driveId, status, ctx = {}) => 
     }
     const activatingDraft = drive.status === "DRAFT" && status === "ACTIVE"
     drive.status = ["COMPLETED", "CLOSED"].includes(status) ? resolveEndStatus(status, drive.rounds) : status
+    const slotsToRelease = []
     if (drive.status === "CLOSED") {
         // Closing the drive closes the rounds still open; nothing is silently "completed".
-        for (const r of drive.rounds || []) if (r.status === "ACTIVE") r.status = resolveEndStatus("COMPLETED", [r])
+        for (const r of drive.rounds || []) if (r.status === "ACTIVE") {
+            r.status = resolveEndStatus("COMPLETED", [r])
+            slotsToRelease.push(...closePendingInterviews(r))
+        }
     } else if (drive.status === "COMPLETED") {
-        for (const r of drive.rounds || []) if (r.status === "ACTIVE") r.status = "COMPLETED"
+        for (const r of drive.rounds || []) if (r.status === "ACTIVE") {
+            r.status = "COMPLETED"
+            slotsToRelease.push(...closePendingInterviews(r))
+        }
     }
     if (activatingDraft && drive.enablePublicLink && !drive.publicLink) drive.publicLink = generatePublicLink()
     if (activatingDraft) {
@@ -1515,6 +1633,7 @@ export const updateDriveStatus = async (tenantId, driveId, status, ctx = {}) => 
         if (firstRound) firstRound.status = "ACTIVE"
     }
     await drive.save()
+    await Promise.all(slotsToRelease.map((slot) => releaseSlot(tenantId, slot).catch(() => {})))
     if (activatingDraft) await inviteCandidates(tenantId, drive, drive.rounds?.[0]?.candidates || [], ctx)
     return drive
 }
@@ -1542,6 +1661,7 @@ export const updateRoundStatus = async (tenantId, driveId, roundNumber, status, 
         throw new ApiError(409, "INVALID_TRANSITION", "Only a live round can be completed or closed.")
     }
     round.status = ['COMPLETED', 'CLOSED'].includes(status) ? resolveEndStatus(status, [round]) : status
+    const slotsToRelease = ['COMPLETED', 'CLOSED'].includes(round.status) ? closePendingInterviews(round) : []
     if (activating) {
         drive.currentRound = round.roundNumber
         if (drive.status === 'DRAFT') {
@@ -1550,6 +1670,7 @@ export const updateRoundStatus = async (tenantId, driveId, roundNumber, status, 
         }
     }
     await drive.save()
+    await Promise.all(slotsToRelease.map((slot) => releaseSlot(tenantId, slot).catch(() => {})))
     if (activating) await inviteCandidates(tenantId, drive, round.candidates || [], ctx, round)
     return drive
 }
@@ -1572,9 +1693,9 @@ export const updateRound = async (tenantId, driveId, roundNumber, roundData) => 
         if (details.experienceLevel) drive.experienceLevel = String(details.experienceLevel).trim()
         if (details.roundType) drive.roundType = String(details.roundType).trim()
         if (details.totalRounds) drive.totalRounds = Math.min(Math.max(Number(details.totalRounds) || drive.totalRounds, drive.rounds.length), 4)
-        if (details.startDate) drive.startDate = new Date(`${details.startDate}T00:00:00`)
+        if (details.startDate) drive.startDate = parseDateOnly(details.startDate) || drive.startDate
         if (details.expiryDate) {
-            drive.expiryDate = new Date(`${details.expiryDate}T00:00:00`)
+            drive.expiryDate = parseDateOnly(details.expiryDate) || drive.expiryDate
             round.expiryDate = drive.expiryDate
         }
     }
@@ -1586,8 +1707,8 @@ export const updateRound = async (tenantId, driveId, roundNumber, roundData) => 
         buildRosterEntry(normalizeCandidate(candidate, index), round, drive))
     round.title = String(roundData.title || round.title).trim()
     round.type = String(roundData.type || round.type).trim()
-    round.startDate = roundData.startDate || round.startDate || drive.startDate
-    round.expiryDate = roundData.expiryDate || round.expiryDate
+    round.startDate = asDateOnly(roundData.startDate) || round.startDate || drive.startDate
+    round.expiryDate = asDateOnly(roundData.expiryDate) || round.expiryDate
     round.passingThreshold = Number(roundData.passingThreshold) || round.passingThreshold
     if (roundData.interviewMode !== undefined) round.interviewMode = normalizeInterviewMode(roundData.interviewMode)
     round.questionBankTitle = roundData.questionBankTitle || round.questionBankTitle

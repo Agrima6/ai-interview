@@ -17,9 +17,11 @@ export const fail = (res, status, code, message) => {
 }
 
 export class ApiError extends Error {
-    constructor(status, code, message) {
+    // `fields` ({ fieldName: message }) lets a form show each problem next to its own input.
+    constructor(status, code, message, fields) {
         super(message)
         this.status = status
         this.code = code
+        if (fields) this.fields = fields
     }
 }

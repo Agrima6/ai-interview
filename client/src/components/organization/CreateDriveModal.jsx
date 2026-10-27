@@ -6,6 +6,7 @@ import CriteriaWeightageBuilder from './CriteriaWeightageBuilder'
 import QuestionSetBuilder from './QuestionSetBuilder'
 import CandidateImportModal from './CandidateImportModal'
 import { createInterviewDrive, getQuestionBanks, getNotificationTemplates, getOrganizationProfile, updateRound } from '../../api/organization/organizationApi'
+import { dateInputFromToday, dateInputFromStored, addDaysToInput } from '../../utils/dateOnly'
 
 const ROLE_CATEGORIES = [
   { value: 'SOFTWARE_ENGINEERING', label: 'Software Engineering (SDE / Fullstack)' },
@@ -74,9 +75,9 @@ const sanitizePositiveExperience = (value) => {
   const number = Number(normalized)
   return number > 70 ? '70' : normalized
 }
-const formatDateInput = (date) => date.toISOString().split('T')[0]
-const todayInput = formatDateInput(new Date())
-const defaultExpiryInput = formatDateInput(new Date(Date.now() + 14 * 86400000))
+// "Today" is the user's own calendar day (utils/dateOnly.js) - the UTC date is still yesterday in the early hours in India.
+const todayInput = dateInputFromToday(0)
+const defaultExpiryInput = dateInputFromToday(14)
 
 function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
   const isEditing = Boolean(editDrive)
@@ -236,7 +237,7 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
       if (!val) return ''
       const parsed = new Date(val)
       if (Number.isNaN(parsed.getTime())) return ''
-      return parsed.toISOString().split('T')[0]
+      return dateInputFromStored(parsed)
     }
 
     setFormData({
@@ -668,7 +669,7 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
               <Input label="Start date *" type="date" min={todayInput} value={formData.startDate} onChange={(e) => handleChange('startDate', e.target.value)} />
-              <Input label="Expiry date *" type="date" min={formData.startDate || todayInput} max={formData.startDate ? formatDateInput(new Date(new Date(`${formData.startDate}T00:00:00`).getTime() + 50 * 86400000)) : undefined} value={formData.expiryDate} onChange={(e) => handleChange('expiryDate', e.target.value)} />
+              <Input label="Expiry date *" type="date" min={formData.startDate || todayInput} max={formData.startDate ? addDaysToInput(formData.startDate, 50) : undefined} value={formData.expiryDate} onChange={(e) => handleChange('expiryDate', e.target.value)} />
                 </div>
               </div>
             </div>

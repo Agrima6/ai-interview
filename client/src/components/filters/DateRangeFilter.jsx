@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
 import { Calendar } from 'lucide-react'
 import { Select } from '../ui'
+import { toDateInput } from '../../utils/dateOnly'
 
-const toDateOnly = (d) => d.toISOString().slice(0, 10)
+const toDateOnly = toDateInput
 
 const startOfDay = (d) => { const c = new Date(d); c.setHours(0, 0, 0, 0); return c }
 const endOfDay = (d) => { const c = new Date(d); c.setHours(23, 59, 59, 999); return c }

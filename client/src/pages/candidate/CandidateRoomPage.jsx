@@ -24,6 +24,7 @@ const STATUS_CONFIG = {
     SHORTLISTED: { variant: 'success', label: 'Shortlisted' },
     COMPLETED: { variant: 'info', label: 'Completed' },
     REJECTED: { variant: 'danger', label: 'Not Selected' },
+    CLOSED: { variant: 'neutral', label: 'Closed' },
 }
 
 const PAGE_SIZES = [10, 20, 50]
@@ -38,8 +39,10 @@ const isCompleted = (i) =>
     i.candidateStatus !== 'REJECTED' &&
     (i.candidateStatus === 'COMPLETED' || i.candidateStatus === 'SHORTLISTED' || Boolean(i.attemptedDate) || hasScore(i))
 const isNotSelected = (i) => i.candidateStatus === 'REJECTED'
-const isPending = (i) => i.isPendingApplication && !isCompleted(i) && !isNotSelected(i)
-const isUpcoming = (i) => !i.isPendingApplication && !isCompleted(i) && !isNotSelected(i)
+// The round ended before this interview was conducted: nothing can be started, booked or moved any more.
+const isClosed = (i) => i.candidateStatus === 'CLOSED' && !isCompleted(i)
+const isPending = (i) => i.isPendingApplication && !isCompleted(i) && !isNotSelected(i) && !isClosed(i)
+const isUpcoming = (i) => !i.isPendingApplication && !isCompleted(i) && !isNotSelected(i) && !isClosed(i)
 
 const TABS = [
     { id: 'ALL', label: 'All Drives', match: () => true },
@@ -159,6 +162,13 @@ export default function CandidateRoomPage() {
             </span>
         )
 
+        if (isClosed(interview)) {
+            return (
+                <span className='inline-flex items-center gap-1.5 text-[13px] font-semibold text-text-secondary bg-black/[0.04] dark:bg-white/[0.06] px-3 py-2 rounded-xl'>
+                    <Lock size={14} /> Interview closed - this round has ended
+                </span>
+            )
+        }
         if (isNotSelected(interview)) {
             return (
                 <span className='inline-flex items-center gap-1.5 text-[13px] font-semibold text-red-600 bg-red-50 px-3 py-2 rounded-xl'>

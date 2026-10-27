@@ -2,7 +2,7 @@
 import { ApiError } from "./response.js"
 
 const DAY = 24 * 60 * 60 * 1000
-const CANDIDATE_STATUSES = ["INVITED", "SCHEDULED", "SHORTLISTED", "COMPLETED", "REJECTED"]
+const CANDIDATE_STATUSES = ["INVITED", "SCHEDULED", "SHORTLISTED", "COMPLETED", "REJECTED", "CLOSED"]
 const AI_STATUSES = ["NOT_STARTED", "IN_PROGRESS", "COMPLETED"]
 const LANGUAGES = ["en", "hi", "hinglish"]
 

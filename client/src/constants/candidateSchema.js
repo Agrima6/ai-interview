@@ -7,6 +7,8 @@
 // Mirrors the backend's CandidateRosterSchema (services/client-service/
 // models/interviewDrive.model.js) field-for-field. `key` must match the
 // property name the backend candidate object actually uses.
+import { validatePersonName, validatePhone, validateExperience } from '../utils/personInput'
+
 export const CANDIDATE_FIELDS = [
   {
     key: 'name',
@@ -15,6 +17,9 @@ export const CANDIDATE_FIELDS = [
     required: true,
     sample: 'Aarav Sharma',
     importAliases: ['name', 'full name', 'candidate name'],
+    validate: (value) => validatePersonName(value) === null,
+    invalidMessage: 'Invalid name',
+    explain: validatePersonName,
   },
   {
     key: 'email',
@@ -33,11 +38,10 @@ export const CANDIDATE_FIELDS = [
     required: false,
     sample: '+91-9876543210',
     importAliases: ['phone', 'mobile', 'contact'],
-    // Loose on purpose - candidate phone numbers arrive in every country/
-    // formatting convention (spaces, dashes, parens, leading +). This only
-    // rejects things that clearly aren't a phone number (letters, too short).
-    validate: (value) => !value || /^\+?[\d\s\-()]{7,18}$/.test(value),
+    // Indian mobiles (+91, spaces, dashes allowed) or an explicit +country-code number; letters/URLs are rejected.
+    validate: (value) => validatePhone(value) === null,
     invalidMessage: 'Invalid phone number',
+    explain: validatePhone,
   },
   {
     key: 'exp',
@@ -46,11 +50,10 @@ export const CANDIDATE_FIELDS = [
     required: false,
     sample: '4',
     importAliases: ['exp', 'experience'],
-    // Accepts "4", "4.5", "4 years", "4yrs" etc. - whatever an admin's
-    // spreadsheet happens to use - but rejects free text that isn't a
-    // number at all (e.g. "Senior").
-    validate: (value) => !value || /^\d+(\.\d+)?\s*(yrs?|years?)?$/i.test(value),
+    // Years as a number ("4", "4.5", "4 yrs"): greater than 0 and at most 70 - the same rule the server enforces.
+    validate: (value) => validateExperience(value) === null,
     invalidMessage: 'Invalid experience value',
+    explain: validateExperience,
   },
 ]
 

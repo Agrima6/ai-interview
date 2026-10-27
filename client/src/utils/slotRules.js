@@ -4,8 +4,8 @@
 export const EARLY_ACCESS_MINUTES = 10       // the interview opens this long before the slot
 export const LATE_GRACE_MINUTES = 90         // ...and stays open this long after it
 export const RESCHEDULE_CUTOFF_MINUTES = 30  // rescheduling closes this long before the slot
-export const SLOT_START_HOUR = 9             // first bookable slot 09:00 (local time)
-export const SLOT_END_HOUR = 20              // last slot ends 20:00
+export const SLOT_START_HOUR = 0             // no fixed working hours: the whole day is offered unless the organization configures some
+export const SLOT_END_HOUR = 24
 export const SLOT_STEP_MINUTES = 30
 export const MIN_LEAD_MINUTES = 60           // "today" slots must be at least this far in the future
 
@@ -82,6 +82,9 @@ function zoneParts(date, timeZone) {
     return get('hour') * 60 + get('minute')
 }
 
+// Hours are only enforced when the organization configured them (the default is the whole day).
+const hoursRestricted = (availability) => availability.dayStart > 0 || availability.dayEnd < 24 * 60
+
 const hhmm = (minutes) => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
 
 /**
@@ -94,7 +97,7 @@ export function explainSlot(at, { minTime, maxTime, availability } = {}) {
     if (maxTime && at > maxTime) return "That time is after this drive's deadline."
     if (!availability) return null
     const local = zoneParts(at, availability.timezone)
-    if (local < availability.dayStart || local + availability.durationMinutes > availability.dayEnd) {
+    if (hoursRestricted(availability) && (local < availability.dayStart || local + availability.durationMinutes > availability.dayEnd)) {
         return `Interviews run ${hhmm(availability.dayStart)}-${hhmm(availability.dayEnd)} (${availability.timezone.replace(/_/g, ' ')}).`
     }
     if (availability.intervalMinutes > 1 && (local - availability.dayStart) % availability.intervalMinutes !== 0) {
@@ -132,7 +135,7 @@ export function slotsForDay(day, minTime, maxTime, availability) {
         if (at.getDate() !== base.getDate()) break                                   // a DST day is shorter/longer than 24h
         const orgMinute = zoneParts(at, availability.timezone) - availability.dayStart
         if (orgMinute < 0 || orgMinute % step !== 0) continue
-        if (zoneParts(at, availability.timezone) + availability.durationMinutes > availability.dayEnd) continue
+        if (hoursRestricted(availability) && zoneParts(at, availability.timezone) + availability.durationMinutes > availability.dayEnd) continue
         slots.push({ at, iso: at.toISOString(), available: explainSlot(at, { minTime, maxTime, availability }) === null })
     }
     return slots

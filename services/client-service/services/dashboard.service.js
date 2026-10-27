@@ -1,6 +1,7 @@
 // Hiring Control Center aggregates. Everything is computed by MongoDB ($match/$group), never by loading candidate
 // rows into the API process, and every query is scoped by tenantId first (the leading index key).
 // A metric the platform holds no data for is returned as { available: false, reason } - never a made-up number.
+import { closingInstant } from "../utils/deadline.js"
 import mongoose from "mongoose"
 import { InterviewDrive } from "../models/interviewDrive.model.js"
 import { ApiError } from "../utils/response.js"
@@ -273,7 +274,7 @@ export const getHiringHealth = async (tenantId, query) => {
             filters: meta(f),
             drives: rows.map((r) => {
                 const d = meta_.get(String(r._id))
-                const daysLeft = d?.expiryDate ? Math.ceil((new Date(d.expiryDate) - Date.now()) / 86400000) : null
+                const daysLeft = d?.expiryDate ? Math.ceil((closingInstant(d.expiryDate) - Date.now()) / 86400000) : null
                 return {
                     driveId: String(r._id), title: r.title, department: r.department, status: d?.status || null,
                     candidates: r.candidates, completed: r.completed, shortlisted: r.shortlisted, waiting: r.waiting,

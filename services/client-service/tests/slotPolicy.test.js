@@ -8,32 +8,44 @@ const avail = (own = {}) => resolveAvailability({ availability: { timezone: "Asi
 const NOW = Date.parse("2026-09-20T04:30:00Z")           // 10:00 IST
 const at = (iso) => new Date(iso)
 
-test("defaults are sane and everything is configurable", () => {
+test("defaults allow any time of day and any minute; everything is configurable", () => {
     const a = resolveAvailability({}, env)
-    assert.deepEqual([a.timezone, a.dayStart, a.dayEnd, a.intervalMinutes, a.durationMinutes], ["Asia/Kolkata", 540, 1200, 5, 30])
+    assert.deepEqual([a.timezone, a.dayStart, a.dayEnd, a.intervalMinutes, a.durationMinutes], ["Asia/Kolkata", 0, 1440, 1, 30])
     const custom = resolveAvailability({ availability: { dayStart: "08:30", dayEnd: "18:00", intervalMinutes: 15 } }, env)
     assert.deepEqual([custom.dayStart, custom.dayEnd, custom.intervalMinutes], [510, 1080, 15])
-    assert.equal(resolveAvailability({ availability: { dayStart: "nonsense", intervalMinutes: -3, timezone: "Mars/Base" } }, env).intervalMinutes, 5)
+    assert.equal(resolveAvailability({ availability: { dayStart: "nonsense", intervalMinutes: -3, timezone: "Mars/Base" } }, env).intervalMinutes, 1)
     assert.equal(resolveAvailability({ availability: { timezone: "Mars/Base" } }, env).timezone, "Asia/Kolkata")
-    assert.equal(resolveAvailability({ availability: { dayStart: "18:00", dayEnd: "09:00" } }, env).dayEnd, 1200)  // inverted window is repaired
+    assert.equal(resolveAvailability({ availability: { dayStart: "18:00", dayEnd: "09:00" } }, env).dayEnd, 1440)  // inverted window is repaired
     assert.equal(isValidTimezone("Asia/Kolkata"), true)
     assert.equal(isValidTimezone("nope"), false)
 })
 
-test("any minute is bookable on the interval - 10:07 style times need interval 1", () => {
-    // 22 Sep 15:35 IST = 10:05 UTC
-    assert.equal(validateSlot(at("2026-09-22T10:05:00Z"), { now: NOW, availability: avail() }).ok, true)
-    const off = validateSlot(at("2026-09-22T10:07:00Z"), { now: NOW, availability: avail() })
-    assert.equal(off.code, "SLOT_OFF_INTERVAL")
-    assert.equal(validateSlot(at("2026-09-22T10:07:00Z"), { now: NOW, availability: avail({ intervalMinutes: 1 }) }).ok, true)
+test("times that are not on a five-minute mark are valid (7:13, 11:42 pm, 2:07 am)", () => {
+    // IST = UTC+5:30. 07:13 IST = 01:43 UTC, 23:42 IST = 18:12 UTC, 02:07 IST = 20:37 UTC the day before
+    for (const iso of ["2026-09-22T01:43:00Z", "2026-09-22T18:12:00Z", "2026-09-21T20:37:00Z"]) {
+        assert.equal(validateSlot(at(iso), { now: NOW, availability: avail() }).ok, true, iso)
+    }
 })
 
-test("working hours are checked in the organization's timezone, not the server's or the candidate's", () => {
+test("every hour of the 24-hour day is bookable by default", () => {
+    for (let h = 0; h < 24; h += 1) {
+        const instant = new Date(Date.parse("2026-09-22T00:00:00Z") + h * 3600000 + 13 * 60000)
+        assert.equal(validateSlot(instant, { now: NOW, availability: avail() }).ok, true, `hour ${h}`)
+    }
+})
+
+test("an organization that configures a grid still gets it enforced", () => {
+    assert.equal(validateSlot(at("2026-09-22T10:07:00Z"), { now: NOW, availability: avail({ intervalMinutes: 30 }) }).code, "SLOT_OFF_INTERVAL")
+    assert.equal(validateSlot(at("2026-09-22T10:00:00Z"), { now: NOW, availability: avail({ intervalMinutes: 30 }) }).ok, true)
+})
+
+test("configured working hours are checked in the organization's timezone, not the server's or the candidate's", () => {
+    const hours = { dayStart: "09:00", dayEnd: "20:00" }
     // 08:30 IST = 03:00 UTC -> too early;  20:00 IST start would overrun the day
-    assert.equal(validateSlot(at("2026-09-22T03:00:00Z"), { now: NOW, availability: avail() }).code, "SLOT_OUTSIDE_HOURS")
-    assert.equal(validateSlot(at("2026-09-22T14:30:00Z"), { now: NOW, availability: avail() }).code, "SLOT_OUTSIDE_HOURS")   // 20:00 IST + 30m > 20:00
-    assert.equal(validateSlot(at("2026-09-22T14:00:00Z"), { now: NOW, availability: avail() }).ok, true)                   // 19:30 IST fits exactly
-    const utc = resolveAvailability({ availability: { timezone: "UTC" } }, env)
+    assert.equal(validateSlot(at("2026-09-22T03:00:00Z"), { now: NOW, availability: avail(hours) }).code, "SLOT_OUTSIDE_HOURS")
+    assert.equal(validateSlot(at("2026-09-22T14:30:00Z"), { now: NOW, availability: avail(hours) }).code, "SLOT_OUTSIDE_HOURS")   // 20:00 IST + 30m > 20:00
+    assert.equal(validateSlot(at("2026-09-22T14:00:00Z"), { now: NOW, availability: avail(hours) }).ok, true)                   // 19:30 IST fits exactly
+    const utc = resolveAvailability({ availability: { timezone: "UTC", ...hours } }, env)
     assert.equal(validateSlot(at("2026-09-22T03:00:00Z"), { now: NOW, availability: utc }).code, "SLOT_OUTSIDE_HOURS")     // 03:00 UTC is before 09:00 UTC
     assert.equal(validateSlot(at("2026-09-22T10:00:00Z"), { now: NOW, availability: utc }).ok, true)
 })

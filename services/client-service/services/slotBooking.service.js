@@ -1,3 +1,4 @@
+import { closingInstant, openingInstant } from "../utils/deadline.js"
 import { SlotBooking } from "../models/slotBooking.model.js"
 import { InterviewDrive } from "../models/interviewDrive.model.js"
 import { ApiError } from "../utils/response.js"
@@ -49,7 +50,7 @@ export const bookSlot = async ({ drive, round, email, requested, previousSlot = 
     const availability = resolveAvailability(drive)
     const check = validateSlot(requested, {
         now,
-        window: { start: round?.startDate || drive.startDate, end: round?.expiryDate || drive.expiryDate },
+        window: { start: openingInstant(round?.startDate || drive.startDate, availability.timezone), end: closingInstant(round?.expiryDate || drive.expiryDate, availability.timezone) },
         availability,
     })
     if (!check.ok) throw new ApiError(400, check.code, check.message)

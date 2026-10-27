@@ -4,9 +4,10 @@ import Modal from '../ui/Modal'
 import { Button, Input, Select } from '../ui'
 import { createInterviewDrive, getQuestionBanks } from '../../api/organization/organizationApi'
 import { EXAM_TOPIC_OPTIONS, BRANCH_OPTIONS, EXAM_TYPE_OPTIONS, PROCTORING_OPTIONS, DEFAULT_EXAM_RUBRIC } from '../../constants/collegeOptions'
+import { toDateInput } from '../../utils/dateOnly'
 
-const toInput = (d) => d.toISOString().slice(0, 10)
-const addDays = (d, n) => new Date(d.getTime() + n * 86400000)
+const toInput = toDateInput
+const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n)
 
 // A college exam is a single-round interview drive: pick the topic and the students' branch, a question set, the
 // window students can attempt it in and the pass mark. There is no shortlisting, ranking or next round.

@@ -15,7 +15,7 @@ export const errorHandler = (err, req, res, next) => {
     if (status >= 500) console.error(`[${process.env.SERVICE_NAME}] ${req.method} ${req.path}`, err)
     res.status(status).json({
         success: false,
-        error: { code, message: err.message || "Something went wrong." },
+        error: { code, message: err.message || "Something went wrong.", ...(err.fields ? { fields: err.fields } : {}) },
         meta: { requestId: req.requestId },
     })
 }
