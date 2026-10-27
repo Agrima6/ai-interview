@@ -1,61 +1,6 @@
 import { NotificationTemplate } from "../models/notificationTemplate.model.js"
 import { ApiError } from "../utils/response.js"
-
-const DEFAULT_TEMPLATES = [
-    {
-        templateId: "tmpl-1",
-        name: "Candidate AI Interview Invitation",
-        type: "EMAIL",
-        purpose: "INVITATION",
-        subject: "You have been invited to attempt the AI Interview for {drive_title} at {company_name}",
-        body: `Hello {candidate_name},\n\nWe are pleased to invite you to take the AI-powered video interview for the position of {drive_title} at {company_name}.\n\nPlease click the link below to start your interview attempt before {expiry_date}:\n\n{interview_link}\n\nBest regards,\nRecruitment Team`,
-    },
-    {
-        templateId: "tmpl-2",
-        name: "Interview Reminder Notification",
-        type: "EMAIL",
-        purpose: "REMINDER",
-        subject: "Reminder: Your AI Interview for {drive_title} expires soon",
-        body: `Hi {candidate_name},\n\nThis is a friendly reminder that your AI video interview for {drive_title} is scheduled to expire on {expiry_date}.\n\nAccess your interview room here: {interview_link}\n\nGood luck!`,
-    },
-    {
-        templateId: "tmpl-3",
-        name: "Shortlisted Candidate Next Round Email",
-        type: "EMAIL",
-        purpose: "CONGRATULATIONS",
-        subject: "You're moving forward with {company_name}",
-        body: `Hi {candidate_name},\n\nThank you for completing your interview for {drive_title}. We're pleased to let you know that our hiring team would like to take you to the next round.\n\nNext step: sign in to your candidate portal at {interview_link} and choose a time for your next interview. Your resume is already on file, so there is nothing to upload again. Your interview is not booked until you choose a time.\n\nBest regards,\n{company_name} Hiring Team`,
-    },
-    {
-        templateId: "tmpl-4",
-        name: "Application Not Progressing",
-        type: "EMAIL",
-        purpose: "REJECTION",
-        subject: "Update on Your Application",
-        body: `Hi {candidate_name},\n\nThank you for taking the time to participate in the hiring process for {drive_title} at {company_name}.\n\nAfter careful consideration, we regret to inform you that we will not be moving forward with your application at this time.\n\nWe appreciate your interest in {company_name} and the time and effort you invested in the process. We wish you all the best in your future endeavors.\n\nBest regards,\n{company_name} Hiring Team`,
-    },
-    {
-        templateId: "tmpl-5",
-        name: "WhatsApp Interview Invitation",
-        type: "WHATSAPP",
-        purpose: "INVITATION",
-        body: `Hi {candidate_name}! You've been invited to the AI interview for *{drive_title}* at {company_name}. Complete it before {expiry_date}: {interview_link}`,
-    },
-    {
-        templateId: "tmpl-6",
-        name: "WhatsApp Interview Reminder",
-        type: "WHATSAPP",
-        purpose: "REMINDER",
-        body: `Hi {candidate_name}, just a reminder - your AI interview for *{drive_title}* expires on {expiry_date}. Attempt it here: {interview_link}`,
-    },
-    {
-        templateId: "tmpl-7",
-        name: "Recruiter Follow-up Call Script",
-        type: "CALL",
-        purpose: "FOLLOW_UP",
-        body: `Greet {candidate_name} and confirm they're speaking with {company_name} regarding the {drive_title} role.\n\n1. Confirm they completed the AI interview.\n2. Ask if they have questions about the role or next steps.\n3. Share expected timeline for {drive_title} feedback.\n4. Thank them for their time and confirm best contact number/email.`,
-    },
-]
+import { DEFAULT_TEMPLATES, TEMPLATE_VARIABLE_KEYS } from "../utils/defaultTemplates.js"
 
 const renderText = (text, values) => (text || "").replace(/\{\{?\s*(\w+)\s*\}?\}/g, (match, key) =>
     Object.prototype.hasOwnProperty.call(values, key) ? values[key] : match
@@ -63,26 +8,64 @@ const renderText = (text, values) => (text || "").replace(/\{\{?\s*(\w+)\s*\}?\}
 
 import crypto from "crypto"
 
+// Placeholders a template uses that the sender has no value for. Refused on save as well as on send, so a typo such
+// as {{candidatename}} is caught while the admin is still editing, not when a candidate receives it.
+export const findUnknownPlaceholders = (...texts) => {
+    const unknown = new Set()
+    for (const text of texts) {
+        for (const match of String(text || "").matchAll(/\{\{?\s*(\w+)\s*\}?\}/g)) {
+            if (!TEMPLATE_VARIABLE_KEYS.includes(match[1])) unknown.add(match[1])
+        }
+    }
+    return [...unknown]
+}
+
+const assertPlaceholdersKnown = (...texts) => {
+    const unknown = findUnknownPlaceholders(...texts)
+    if (unknown.length) {
+        throw new ApiError(422, "TEMPLATE_PLACEHOLDERS", `Unknown placeholder${unknown.length === 1 ? "" : "s"}: ${unknown.map((k) => `{${k}}`).join(", ")}. Use only: ${TEMPLATE_VARIABLE_KEYS.map((k) => `{${k}}`).join(", ")}.`)
+    }
+}
+
+// Makes sure the organization has every default template, touching nothing it already has:
+//  - a default it already owns (matched by defaultKey) is left exactly as the admin edited it;
+//  - a template seeded by the older initializer (same name, no defaultKey) is adopted by stamping the key on it;
+//  - only genuinely missing defaults are inserted. The unique (tenantId, defaultKey) index makes two concurrent
+//    initializations safe: the loser's duplicate-key error just means the other one already inserted it.
+export const ensureDefaultTemplates = async (tenantId) => {
+    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+    const existing = await NotificationTemplate.find({ tenantId }, { defaultKey: 1, name: 1, type: 1 }).lean()
+    const haveKeys = new Set(existing.map((t) => t.defaultKey).filter(Boolean))
+
+    for (const def of DEFAULT_TEMPLATES) {
+        if (haveKeys.has(def.defaultKey)) continue
+        const { legacyName, ...fields } = def
+
+        const legacy = legacyName && existing.find((t) => !t.defaultKey && t.name === legacyName && t.type === def.type)
+        if (legacy) {
+            await NotificationTemplate.updateOne({ _id: legacy._id, defaultKey: { $exists: false } }, { $set: { defaultKey: def.defaultKey, ...(def.roundNumber ? { roundNumber: def.roundNumber } : {}) } })
+            continue
+        }
+
+        try {
+            await NotificationTemplate.create({ ...fields, tenantId, templateId: `tmpl-${crypto.randomBytes(4).toString("hex")}` })
+        } catch (err) {
+            if (err?.code !== 11000) throw err
+        }
+    }
+}
+
 export const listTemplates = async (tenantId) => {
     if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+    await ensureDefaultTemplates(tenantId)
     return await NotificationTemplate.find({ tenantId }).sort({ createdAt: 1 })
 }
 
-export const loadDefaultTemplates = async (tenantId) => {
-    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
-    const existing = await NotificationTemplate.find({ tenantId })
-    if (existing.length > 0) return existing
-    return await NotificationTemplate.insertMany(
-        DEFAULT_TEMPLATES.map((t) => ({
-            ...t,
-            templateId: `tmpl-${crypto.randomBytes(4).toString("hex")}`,
-            tenantId,
-        }))
-    )
-}
+export const loadDefaultTemplates = async (tenantId) => listTemplates(tenantId)
 
 export const updateTemplate = async (tenantId, templateId, { subject, body, name, type, purpose, status }) => {
     if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+    assertPlaceholdersKnown(subject, body)
 
     const fields = { lastUpdated: new Date() }
     if (subject !== undefined) fields.subject = subject
@@ -95,8 +78,9 @@ export const updateTemplate = async (tenantId, templateId, { subject, body, name
     const updated = await NotificationTemplate.findOneAndUpdate(
         { tenantId, templateId },
         { $set: fields },
-        { new: true, upsert: true }
+        { new: true }
     )
+    if (!updated) throw new ApiError(404, "TEMPLATE_NOT_FOUND", "Template not found.")
 
     return updated
 }
@@ -106,10 +90,11 @@ export const createTemplate = async (tenantId, { name, type, purpose, subject, b
     if (!name?.trim()) throw new ApiError(400, "MISSING_NAME", "Template name is required.")
     if (!body?.trim()) throw new ApiError(400, "MISSING_BODY", "Template body is required.")
     if (type === "EMAIL" && !subject?.trim()) throw new ApiError(400, "MISSING_SUBJECT", "Email templates require a subject line.")
+    assertPlaceholdersKnown(subject, body)
 
     const created = await NotificationTemplate.create({
         tenantId,
-        templateId: `tmpl-custom-${Date.now()}`,
+        templateId: `tmpl-custom-${Date.now()}-${crypto.randomBytes(2).toString("hex")}`,
         name: name.trim(),
         type: type || "EMAIL",
         purpose: purpose || "OTHER",
@@ -141,6 +126,9 @@ export const previewTemplate = async (tenantId, templateId, changes = {}) => {
         company_name: "Your Organization",
         interview_link: "https://workmateiq.com/interview/invite/preview",
         expiry_date: new Date(Date.now() + 14 * 86400000).toLocaleDateString(),
+        round_number: "2",
+        round_title: "Technical Interview",
+        interview_date: new Date(Date.now() + 3 * 86400000).toLocaleString(),
         ...(changes.values || {}),
     }
 
@@ -154,8 +142,12 @@ export const previewTemplate = async (tenantId, templateId, changes = {}) => {
 export const deleteTemplate = async (tenantId, templateId) => {
     if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
 
-    const deleted = await NotificationTemplate.findOneAndDelete({ tenantId, templateId })
-    if (!deleted) throw new ApiError(404, "TEMPLATE_NOT_FOUND", "Template not found.")
+    const target = await NotificationTemplate.findOne({ tenantId, templateId }, { defaultKey: 1 }).lean()
+    if (!target) throw new ApiError(404, "TEMPLATE_NOT_FOUND", "Template not found.")
+    if (target.defaultKey) {
+        throw new ApiError(409, "DEFAULT_TEMPLATE_PROTECTED", "Default templates can be edited or set to Inactive, but not deleted.")
+    }
+    await NotificationTemplate.deleteOne({ tenantId, templateId })
 
     return { deleted: true }
 }

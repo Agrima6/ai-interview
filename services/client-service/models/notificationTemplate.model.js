@@ -12,6 +12,11 @@ const NotificationTemplateSchema = new mongoose.Schema(
             default: "OTHER",
         },
         status: { type: String, enum: ["ACTIVE", "INACTIVE"], default: "ACTIVE" },
+        // Set on templates the platform provisioned (see utils/defaultTemplates.js). The key is the stable identity
+        // that keeps initialization idempotent; defaults can be edited or deactivated but not deleted.
+        defaultKey: { type: String },
+        // Round an INVITATION template is written for (1 = first round); unset means any round.
+        roundNumber: { type: Number, min: 1 },
         // Required for EMAIL, meaningless for WHATSAPP/CALL - not marked
         // schema-required so non-email templates don't need a placeholder.
         subject: { type: String },
@@ -22,5 +27,9 @@ const NotificationTemplateSchema = new mongoose.Schema(
 )
 
 NotificationTemplateSchema.index({ tenantId: 1, templateId: 1 }, { unique: true })
+NotificationTemplateSchema.index(
+    { tenantId: 1, defaultKey: 1 },
+    { unique: true, partialFilterExpression: { defaultKey: { $type: "string" } } }
+)
 
 export const NotificationTemplate = mongoose.model("NotificationTemplate", NotificationTemplateSchema)

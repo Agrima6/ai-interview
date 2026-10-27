@@ -1,6 +1,7 @@
 import * as clientRepo from "../repositories/client.repository.js"
 import { ApiError } from "../utils/response.js"
 import { trySignedFilePath } from "../utils/signedFileUrl.js"
+import { ensureDefaultTemplates } from "./notificationTemplate.service.js"
 
 const view = (c) => ({
     id: String(c._id),
@@ -28,6 +29,10 @@ export const upsertFromOnboarding = async (payload) => {
         subdomain: payload.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40),
         branding: payload.branding || {},
     })
+    // Every new organization starts with the default invitation / selection / rejection / round templates. Best-effort:
+    // listing templates provisions anything still missing, so a failure here must not block the approval.
+    await ensureDefaultTemplates(String(client._id)).catch((err) =>
+        console.error(`[client-service] default templates not provisioned for ${client._id}:`, err.message))
     return view(client)
 }
 

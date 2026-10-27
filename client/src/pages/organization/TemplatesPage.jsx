@@ -199,6 +199,9 @@ function TemplatesPage() {
               >
                 <div className="flex items-center justify-between mb-1 gap-2">
                   <span className="font-semibold text-[13.5px] text-ink truncate">{tmpl.name}</span>
+                  {tmpl.defaultKey ? (
+                    <Badge variant="neutral">Default</Badge>
+                  ) : (
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); setDeleteTarget(tmpl) }}
@@ -207,9 +210,10 @@ function TemplatesPage() {
                   >
                     <Trash2 size={13} />
                   </button>
+                  )}
                 </div>
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <Badge variant="brand">{formatEnumLabel(tmpl.purpose)}</Badge>
+                  <Badge variant="brand">{formatEnumLabel(tmpl.purpose)}{tmpl.purpose === 'INVITATION' && tmpl.roundNumber ? ` · Round ${tmpl.roundNumber}` : ''}</Badge>
                   <Badge variant={STATUS_BADGE[tmpl.status] || 'neutral'}>{formatEnumLabel(tmpl.status || 'ACTIVE')}</Badge>
                 </div>
                 <p className="text-[11.5px] text-text-secondary mt-1.5">
@@ -252,6 +256,12 @@ function TemplatesPage() {
                 value={activeTemplate.purpose || 'OTHER'}
                 onChange={(e) => handleUpdateActiveField('purpose', e.target.value)}
                 options={PURPOSE_OPTIONS}
+              />
+              <Select
+                label="Status"
+                value={activeTemplate.status || 'ACTIVE'}
+                onChange={(e) => handleUpdateActiveField('status', e.target.value)}
+                options={[{ value: 'ACTIVE', label: 'Active' }, { value: 'INACTIVE', label: 'Inactive (hidden from send dialogs)' }]}
               />
             </div>
 

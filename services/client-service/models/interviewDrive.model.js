@@ -92,7 +92,7 @@ const CandidateRosterSchema = new mongoose.Schema({
     // for congratulations/rejection communications sent from the drive
     // detail page - not every invite/reminder, just the round-outcome ones.
     communications: [{
-        purpose: { type: String, enum: ["CONGRATULATIONS", "REJECTION"], required: true },
+        purpose: { type: String, enum: ["INVITATION", "CONGRATULATIONS", "REJECTION"], required: true },
         channel: { type: String, enum: ["EMAIL", "WHATSAPP"], required: true },
         templateId: { type: String },
         // QUEUED -> SENT -> DELIVERED, or FAILED (see utils/communicationPlan.js). Legacy rows are SENT/FAILED.

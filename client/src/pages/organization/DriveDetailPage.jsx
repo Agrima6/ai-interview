@@ -34,7 +34,7 @@ function DriveDetailPage() {
   const [selectedCandidate, setSelectedCandidate] = useState(null)
   const [copiedLink, setCopiedLink] = useState(false)
   const [selectedIds, setSelectedIds] = useState([])
-  const [communicationModal, setCommunicationModal] = useState(null) // 'CONGRATULATIONS' | 'REJECTION' | null
+  const [communicationModal, setCommunicationModal] = useState(null) // 'INVITATION' | 'CONGRATULATIONS' | 'REJECTION' | null
 
   const basePath = location.pathname.startsWith('/college')
     ? '/college'
@@ -430,7 +430,10 @@ function DriveDetailPage() {
         {selectedIds.length > 0 && (
           <div className="flex items-center justify-between gap-3 mb-4 p-3 rounded-xl border border-accent/30 bg-accent/5 flex-wrap">
             <span className="text-[13px] font-semibold text-ink">{selectedIds.length} candidate{selectedIds.length === 1 ? '' : 's'} selected</span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button size="xs" variant="secondary" onClick={() => setCommunicationModal('INVITATION')}>
+                <Mail size={13} /> Send Invitation
+              </Button>
               <Button size="xs" onClick={() => setCommunicationModal('CONGRATULATIONS')}>
                 <PartyPopper size={13} /> Send Congratulations
               </Button>
