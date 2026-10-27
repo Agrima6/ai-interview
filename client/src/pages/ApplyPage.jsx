@@ -231,9 +231,11 @@ function ApplyPage() {
           <span className='inline-flex items-center gap-1.5'>
             <Briefcase size={14} /> {drive.department}
           </span>
-          <span className='inline-flex items-center gap-1.5'>
-            <Clock size={14} /> Apply by {new Date(drive.expiryDate).toLocaleDateString()}
-          </span>
+          {drive.expiryDate && !Number.isNaN(new Date(drive.expiryDate).getTime()) && (
+            <span className='inline-flex items-center gap-1.5'>
+              <Clock size={14} /> Apply by {new Date(drive.expiryDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' })}
+            </span>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className={isBlueCollar ? 'space-y-4' : 'grid sm:grid-cols-2 gap-4'}>

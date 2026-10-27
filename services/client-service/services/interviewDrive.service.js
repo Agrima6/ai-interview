@@ -214,7 +214,25 @@ const inviteWording = (drive) => (drive.driveKind === "EXAM"
 // of the failure living only in a server log. Up to INVITE_AWAIT_LIMIT candidates are awaited; a large import keeps
 // sending in the background and reports { pending: true }.
 const INVITE_AWAIT_LIMIT = 25
-const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
+
+// A later round is not a fresh application: the candidate already has an account and a resume on file, so the
+// message says they are moving forward and only asks them to confirm a slot, with THAT round's deadline.
+export const roundWording = (drive, round) => {
+    const base = inviteWording(drive)
+    if (!round || Number(round.roundNumber) <= 1) return base
+    const n = Number(round.roundNumber)
+    return {
+        ...base,
+        invite_phrase: `Round ${n} of the AI-powered interview for`,
+        subject_action: `Round ${n} of the interview for`,
+        invite_eyebrow: "You're moving forward",
+        invite_tagline: `You've been selected for Round ${n}.`,
+        deadline_label: "Complete by",
+        portal_help: "Sign in to your candidate portal. Your resume is already on file - you only need to confirm your interview slot.",
+    }
+}
+
+const inviteCandidates = async (tenantId, drive, candidates, ctx, round = null) => {
     if (!candidates?.length) return { attempted: 0, failed: [] }
     if (!drive.publicLink) {
         console.error(`[client-service] invites NOT sent for drive ${drive._id}: it has no public link (enablePublicLink=${drive.enablePublicLink})`)
@@ -223,9 +241,11 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
     const pending = []
     const failed = []
     const org = await clientRepo.findById(tenantId).catch(() => null)
-    const expiryDate = formatEmailDate(drive.expiryDate)
+    const laterRound = round && Number(round.roundNumber) > 1 ? round : null
+    // The deadline shown is the one configured for THIS round, falling back to the drive's only when the round has none.
+    const expiryDate = formatEmailDate(round?.expiryDate || drive.expiryDate)
     const loginUrl = buildFrontendUrl("/login")
-    const wording = inviteWording(drive)
+    const wording = roundWording(drive, round)
 
     for (const candidate of candidates) {
         if (!candidate.email) continue
@@ -244,7 +264,10 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
         const isExisting = credentials?.existingAccount === true
         const tempPassword = credentials?.password || "(Use your existing WorkmateIQ password)"
         const token = signPrefillToken(String(drive._id), candidate.email)
-        const interviewLink = buildFrontendUrl(`/apply/${drive.publicLink}?email=${encodeURIComponent(candidate.email)}&token=${token}`)
+        // The public apply link only ever opens Round 1. Later rounds are reached by signing in to the candidate room.
+        const interviewLink = laterRound
+            ? buildFrontendUrl("/candidate/room")
+            : buildFrontendUrl(`/apply/${drive.publicLink}?email=${encodeURIComponent(candidate.email)}&token=${token}`)
 
         const emailSend = communicationServiceClient.send({
             entityType: "CLIENT", entityId: tenantId, channel: "EMAIL",
@@ -262,7 +285,7 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
                 expiry_date: expiryDate,
                 supportEmail: process.env.SUPPORT_EMAIL || "support@workmateiq.com",
             },
-            metadata: { driveId: String(drive._id), candidateId: candidate.id },
+            metadata: { driveId: String(drive._id), candidateId: candidate.id, roundNumber: round?.roundNumber || 1 },
         }, ctx).catch((err) => {
             console.error(`[client-service] candidate-invite email failed for ${candidate.email} (${err.status || "no status"} ${err.code || ""}):`, err.message)
             failed.push({ email: candidate.email, reason: err.code || err.message })
@@ -306,8 +329,8 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx) => {
     const invitedIds = candidates.filter((c) => c.email).map((c) => c.id)
     await InterviewDrive.updateOne(
         { _id: drive._id },
-        { $set: { "rounds.$[].candidates.$[c].lastInviteAt": new Date() } },
-        { arrayFilters: [{ "c.id": { $in: invitedIds } }] }
+        { $set: { "rounds.$[r].candidates.$[c].lastInviteAt": new Date() } },
+        { arrayFilters: [{ "r.roundNumber": round?.roundNumber || 1 }, { "c.id": { $in: invitedIds } }] }
     ).catch((err) => console.error("[client-service] could not record invite time:", err.message))
     if (candidates.length > INVITE_AWAIT_LIMIT) return { attempted, failed: [], pending: true }
     await Promise.all(pending)
@@ -408,7 +431,7 @@ export const resendInvites = async (tenantId, driveId, roundNumber, candidateIds
     if (toInvite.length === 0) {
         throw new ApiError(409, "NOTHING_TO_SEND", skipped.length ? `Nobody was invited: ${skipped[0].reason}.` : "None of the chosen people were found on this drive.")
     }
-    const inviteSummary = await inviteCandidates(tenantId, drive, toInvite.map(plainEntry), ctx)
+    const inviteSummary = await inviteCandidates(tenantId, drive, toInvite.map(plainEntry), ctx, round)
     return { inviteSummary, sent: toInvite.length, skipped }
 }
 
@@ -450,7 +473,7 @@ export const addCandidatesToDrive = async (tenantId, driveId, candidates, ctx, r
     drive.candidatesCount = drive.rounds.reduce((total, item) => total + item.candidates.length, 0)
     await drive.save()
     drive.$locals.addSummary = { added: additions.length, skipped }
-    drive.$locals.inviteSummary = await inviteCandidates(tenantId, drive, additions, ctx)
+    drive.$locals.inviteSummary = await inviteCandidates(tenantId, drive, additions, ctx, round)
     return drive
 }
 
@@ -1427,7 +1450,7 @@ export const addRoundToDrive = async (tenantId, driveId, roundData, ctx) => {
     }
 
     await drive.save()
-    if (newRound.status === "ACTIVE") await inviteCandidates(tenantId, drive, candidates, ctx)
+    if (newRound.status === "ACTIVE") await inviteCandidates(tenantId, drive, candidates, ctx, newRound)
     return drive
 }
 
@@ -1508,7 +1531,7 @@ export const updateRoundStatus = async (tenantId, driveId, roundNumber, status, 
         }
     }
     await drive.save()
-    if (activating) await inviteCandidates(tenantId, drive, round.candidates || [], ctx)
+    if (activating) await inviteCandidates(tenantId, drive, round.candidates || [], ctx, round)
     return drive
 }
 
@@ -1841,7 +1864,11 @@ export const communicateWithCandidates = async (tenantId, driveId, roundNumber, 
     }
 
     const org = await clientRepo.findById(tenantId).catch(() => null)
-    const interviewLink = drive.publicLink ? buildFrontendUrl(`/apply/${drive.publicLink}`) : ""
+    // Selected candidates move on through their candidate portal (they already have an account and a resume on
+    // file); the public apply link only ever opens Round 1, so it is not what a selection message points to.
+    const interviewLink = purpose === "CONGRATULATIONS"
+        ? buildFrontendUrl("/candidate/room")
+        : (drive.publicLink ? buildFrontendUrl(`/apply/${drive.publicLink}`) : "")
     const expiryDate = formatEmailDate(round.expiryDate)
 
     const candidates = round.candidates.filter((c) => candidateIds.includes(c.id))

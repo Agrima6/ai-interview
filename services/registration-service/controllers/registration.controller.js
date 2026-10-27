@@ -8,7 +8,7 @@ export const getCaptcha = (req, res) => ok(res, generateChallenge())
 
 export const submit = async (req, res, next) => {
     try {
-        const result = await registrationService.submit(req.body, { requestId: req.requestId, correlationId: req.correlationId })
+        const result = await registrationService.submit(req.body, { requestId: req.requestId, correlationId: req.correlationId, ip: req.ip })
         ok(res, result)
     } catch (error) { next(error) }
 }
