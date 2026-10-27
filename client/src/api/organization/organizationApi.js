@@ -40,9 +40,23 @@ export const uploadInterviewRecording = (driveId, roundNumber, blob) => {
     formData.append('recording', blob, 'interview.webm')
     return apiPost(`/api/v1/candidate/me/interviews/${driveId}/rounds/${roundNumber}/recording`, formData)
 }
+// Chunked in-session recording: one slice, then finalize. The server de-duplicates by recordingId + index.
+export const uploadRecordingChunk = (driveId, roundNumber, { recordingId, index, blob, mimeType }) => {
+    const formData = new FormData()
+    formData.append('recordingId', recordingId)
+    formData.append('index', String(index))
+    formData.append('mimeType', mimeType)
+    formData.append('chunk', blob, `part-${index}.webm`)
+    return apiPost(`/api/v1/candidate/me/interviews/${driveId}/rounds/${roundNumber}/recording/chunk`, formData)
+}
+export const finalizeInterviewRecording = (driveId, roundNumber, payload) =>
+    apiPost(`/api/v1/candidate/me/interviews/${driveId}/rounds/${roundNumber}/recording/finalize`, payload)
+// Authenticated (HR) - what is actually stored for a candidate (overall state + each capture segment).
+export const getCandidateRecordingManifest = (driveId, roundNumber, candidateId) =>
+    apiGet(`/api/v1/drives/${driveId}/rounds/${roundNumber}/candidates/${candidateId}/recording/manifest`)
 // Authenticated (HR) - the candidate's full interview recording, played inline (not downloaded) via a blob URL, same auth pattern as downloadCandidateResume.
-export const getCandidateRecordingUrl = async (driveId, roundNumber, candidateId) => {
-    const response = await client.get(`/api/v1/drives/${driveId}/rounds/${roundNumber}/candidates/${candidateId}/recording`, { responseType: 'blob' })
+export const getCandidateRecordingUrl = async (driveId, roundNumber, candidateId, segmentId) => {
+    const response = await client.get(`/api/v1/drives/${driveId}/rounds/${roundNumber}/candidates/${candidateId}/recording`, { responseType: 'blob', params: segmentId ? { segment: segmentId } : undefined })
     return window.URL.createObjectURL(response.data)
 }
 // Authenticated (HR) - downloads the candidate's uploaded resume file. Uses

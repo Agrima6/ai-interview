@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3"
+import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3"
 
 // Object storage for candidate resumes/recordings (plan.md #11: "Store
 // recordings in object storage, not MongoDB/local disk"). Points at local
@@ -80,6 +80,20 @@ export const objectExists = async (bucket, key) => {
     } catch {
         return false
     }
+}
+
+// Size in bytes of a stored object, or null when it is not there. Used to confirm an upload really landed.
+export const objectSize = async (bucket, key) => {
+    try {
+        const head = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }))
+        return Number(head.ContentLength)
+    } catch {
+        return null
+    }
+}
+
+export const deleteObject = async (bucket, key) => {
+    await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }))
 }
 
 export default s3

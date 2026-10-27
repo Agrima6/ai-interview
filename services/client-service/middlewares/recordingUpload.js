@@ -19,3 +19,17 @@ export const uploadRecording = multer({
         cb(null, true)
     },
 })
+
+// One slice of an in-progress recording (see services/recording.service.js). Small, so memory buffering is fine.
+// The browser labels slices with the codec ("video/webm;codecs=vp8,opus"), so the base type is what is checked.
+export const uploadRecordingChunk = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 8 * 1024 * 1024, files: 1 },
+    fileFilter: (req, file, cb) => {
+        const base = String(file.mimetype || "").split(";")[0].trim().toLowerCase()
+        if (!ALLOWED_MIMETYPES.has(base) && !["audio/webm", "audio/mp4"].includes(base)) {
+            return cb(new Error("Only WebM or MP4 recordings are accepted."))
+        }
+        cb(null, true)
+    },
+})

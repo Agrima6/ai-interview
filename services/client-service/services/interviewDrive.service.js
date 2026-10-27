@@ -31,7 +31,7 @@ const tokensMatch = (given, expected) => {
     return a.length === b.length && crypto.timingSafeEqual(a, b)
 }
 
-const sanitizePathSegment = (str) => {
+export const sanitizePathSegment = (str) => {
     if (!str || typeof str !== "string") return "default"
     return str
         .toLowerCase()
@@ -809,7 +809,7 @@ export const getMyInterviews = async (tenantId, email) => {
 // candidate can only ever act on their OWN roster entry, matched by the
 // email on their access token (never a client-supplied candidateId), on a
 // drive that belongs to their own token's tenant.
-const findOwnRosterEntry = async (tenantId, email, driveId, roundNumber) => {
+export const findOwnRosterEntry = async (tenantId, email, driveId, roundNumber) => {
     if (!tenantId || !email) throw new ApiError(403, "FORBIDDEN", "Candidate context is missing.")
     requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
     const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
@@ -1253,12 +1253,19 @@ export const streamCandidateRecording = async (tenantId, driveId, roundNumber, c
     const round = drive.rounds?.find((r) => r.roundNumber === Number(roundNumber))
     if (!round) throw new ApiError(404, "ROUND_NOT_FOUND", "Round not found.")
     const candidate = round.candidates?.id(candidateId) || round.candidates?.find((c) => String(c._id) === candidateId || c.id === candidateId)
-    if (!candidate || !candidate.recordingFilename) throw new ApiError(404, "RECORDING_NOT_FOUND", "No recording on file for this candidate.")
+    // Which stored file: a chosen capture segment (?segment=<recordingId>), else the one on file for the candidate,
+    // else the first assembled segment. Only objects a finalize step verified are ever offered.
+    const wanted = typeof req?.query?.segment === "string" ? req.query.segment : null
+    const segmentKey = wanted && wanted !== "legacy"
+        ? candidate?.recordings?.find((s) => s.recordingId === wanted)?.key
+        : null
+    const recordingKey = segmentKey || (wanted ? null : (candidate?.recordingFilename || candidate?.recordings?.find((s) => s.key)?.key))
+    if (!candidate || !recordingKey) throw new ApiError(404, "RECORDING_NOT_FOUND", "No recording on file for this candidate.")
 
     const range = req?.headers?.range
     let object
     try {
-        object = await getObjectStream(RECORDINGS_BUCKET, candidate.recordingFilename, range)
+        object = await getObjectStream(RECORDINGS_BUCKET, recordingKey, range)
     } catch {
         throw new ApiError(404, "RECORDING_NOT_FOUND", "This recording file is no longer available.")
     }

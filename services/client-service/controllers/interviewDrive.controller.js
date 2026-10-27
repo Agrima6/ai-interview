@@ -1,4 +1,5 @@
 import * as driveService from "../services/interviewDrive.service.js"
+import * as recordingService from "../services/recording.service.js"
 import { ok, ApiError } from "../utils/response.js"
 import { candidateCompletionReceipt } from "../utils/candidateQuestions.js"
 
@@ -132,6 +133,35 @@ export const saveCandidateRecording = async (req, res, next) => {
         const { id, roundNumber } = req.params
         const result = await driveService.saveCandidateRecording(req.user.tenantId, req.user.email, id, roundNumber, req.file)
         ok(res, result)
+    } catch (error) {
+        next(error)
+    }
+}
+
+export const saveRecordingChunk = async (req, res, next) => {
+    try {
+        requireCandidate(req)
+        const { id, roundNumber } = req.params
+        ok(res, await recordingService.saveRecordingChunk(req.user.tenantId, req.user.email, id, roundNumber, req.body || {}, req.file))
+    } catch (error) {
+        next(error)
+    }
+}
+
+export const finalizeRecording = async (req, res, next) => {
+    try {
+        requireCandidate(req)
+        const { id, roundNumber } = req.params
+        ok(res, await recordingService.finalizeRecording(req.user.tenantId, req.user.email, id, roundNumber, req.body || {}))
+    } catch (error) {
+        next(error)
+    }
+}
+
+export const getRecordingManifest = async (req, res, next) => {
+    try {
+        const { id, roundNumber, candidateId } = req.params
+        ok(res, await recordingService.recordingManifest(req.user?.tenantId, id, roundNumber, candidateId))
     } catch (error) {
         next(error)
     }
