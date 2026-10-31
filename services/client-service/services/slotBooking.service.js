@@ -27,14 +27,25 @@ export const releaseSlot = async (tenantId, slot) => {
 }
 
 /** Every other interview time this candidate already holds in this organization. */
+// A booking only blocks the candidate's time while that interview can still happen. One that was already conducted
+// (completed, shortlisted, rejected, attempted), closed when its round ended, or belongs to a finished round or an archived
+// drive is history, and must not stop the same person booking something else.
+const BOOKING_ENDED_STATUSES = ["COMPLETED", "SHORTLISTED", "REJECTED", "CLOSED"]
+export const holdsTime = (drive, round, candidate) =>
+    Boolean(candidate?.interviewSlot)
+    && !BOOKING_ENDED_STATUSES.includes(candidate.status)
+    && !candidate.attemptedDate
+    && !["COMPLETED", "CLOSED"].includes(round?.status)
+    && !["ARCHIVED", "COMPLETED", "CLOSED"].includes(drive?.status)
+
 const otherSlotsFor = async (tenantId, email, { driveId, roundNumber }) => {
-    const drives = await InterviewDrive.find({ tenantId, "rounds.candidates.email": email }, { rounds: 1 }).lean()
+    const drives = await InterviewDrive.find({ tenantId, "rounds.candidates.email": email }, { rounds: 1, status: 1 }).lean()
     const slots = []
     for (const drive of drives) {
         for (const round of drive.rounds || []) {
             if (String(drive._id) === String(driveId) && round.roundNumber === Number(roundNumber)) continue
             for (const c of round.candidates || []) {
-                if (c.email === email && c.interviewSlot) slots.push(c.interviewSlot)
+                if (c.email === email && holdsTime(drive, round, c)) slots.push(c.interviewSlot)
             }
         }
     }
