@@ -7,7 +7,7 @@ export const RESCHEDULE_CUTOFF_MINUTES = 30  // rescheduling closes this long be
 export const SLOT_START_HOUR = 0             // no fixed working hours: the whole day is offered unless the organization configures some
 export const SLOT_END_HOUR = 24
 export const SLOT_STEP_MINUTES = 30
-export const MIN_LEAD_MINUTES = 60           // "today" slots must be at least this far in the future
+export const MIN_LEAD_MINUTES = 0            // no minimum notice: any time still in the future can be booked (the backend rule is configurable)
 
 // Local demos: VITE_DISABLE_START_GATE=true lets the button work outside the window (the backend has
 // a matching INTERVIEW_GATE_DISABLED switch).
