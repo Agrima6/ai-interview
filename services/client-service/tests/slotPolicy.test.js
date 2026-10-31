@@ -51,7 +51,11 @@ test("configured working hours are checked in the organization's timezone, not t
 })
 
 test("minimum notice, drive window and blocked periods", () => {
-    assert.equal(validateSlot(at("2026-09-20T05:00:00Z"), { now: NOW, availability: avail() }).code, "SLOT_TOO_SOON")       // 30 min away
+    // no minimum notice by default: a slot 30 minutes away is fine, a slot in the past is not
+    assert.equal(validateSlot(at("2026-09-20T05:00:00Z"), { now: NOW, availability: avail() }).ok, true)
+    assert.equal(validateSlot(at("2026-09-20T04:00:00Z"), { now: NOW, availability: avail() }).code, "SLOT_TOO_SOON")
+    // an organization can still configure a minimum notice
+    assert.equal(validateSlot(at("2026-09-20T05:00:00Z"), { now: NOW, availability: avail({ minNoticeMinutes: 60 }) }).code, "SLOT_TOO_SOON")
     const win = { start: "2026-09-21T00:00:00Z", end: "2026-09-25T00:00:00Z" }
     assert.equal(validateSlot(at("2026-09-27T10:00:00Z"), { now: NOW, window: win, availability: avail() }).code, "SLOT_OUTSIDE_WINDOW")
     const blocked = avail({ blockedPeriods: [{ start: "2026-09-22T09:30:00Z", end: "2026-09-22T11:00:00Z", reason: "Public holiday" }] })

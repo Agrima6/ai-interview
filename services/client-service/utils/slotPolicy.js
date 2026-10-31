@@ -9,7 +9,7 @@
 //   SLOT_INTERVAL_MINUTES           granularity of a bookable start time         (default 1: any minute; 30 = classic grid)
 //   SLOT_DURATION_MINUTES           length reserved for an interview             (default 30)
 //   SLOT_BUFFER_MINUTES             gap kept between one candidate's bookings    (default 10)
-//   SLOT_MIN_NOTICE_MINUTES         earliest a slot may be from now              (default 60)
+//   SLOT_MIN_NOTICE_MINUTES         earliest a slot may be from now              (default 0: any future time)
 //   SLOT_MAX_CONCURRENT             interviews allowed to start at the same time (default 0 = unlimited)
 //   DEFAULT_TIMEZONE                organization timezone if none is set         (default Asia/Kolkata)
 
@@ -48,7 +48,7 @@ export function resolveAvailability(drive = {}, env = process.env) {
         intervalMinutes: num(own.intervalMinutes ?? env.SLOT_INTERVAL_MINUTES, 1, { min: 1, max: 240 }),
         durationMinutes: num(own.durationMinutes ?? env.SLOT_DURATION_MINUTES, 30, { min: 5, max: 480 }),
         bufferMinutes: num(own.bufferMinutes ?? env.SLOT_BUFFER_MINUTES, 10, { min: 0, max: 240 }),
-        minNoticeMinutes: num(own.minNoticeMinutes ?? env.SLOT_MIN_NOTICE_MINUTES, 60, { min: 0, max: 60 * 24 * 30 }),
+        minNoticeMinutes: num(own.minNoticeMinutes ?? env.SLOT_MIN_NOTICE_MINUTES, 0, { min: 0, max: 60 * 24 * 30 }),
         maxConcurrent: num(own.maxConcurrent ?? env.SLOT_MAX_CONCURRENT, 0, { min: 0, max: 100000 }),
         blockedPeriods: (Array.isArray(own.blockedPeriods) ? own.blockedPeriods : [])
             .map((p) => ({ start: new Date(p?.start), end: new Date(p?.end), reason: String(p?.reason || "").slice(0, 120) }))
