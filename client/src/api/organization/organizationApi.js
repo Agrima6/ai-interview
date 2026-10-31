@@ -46,7 +46,9 @@ export const uploadRecordingChunk = (driveId, roundNumber, { recordingId, index,
     formData.append('recordingId', recordingId)
     formData.append('index', String(index))
     formData.append('mimeType', mimeType)
-    formData.append('chunk', blob, `part-${index}.webm`)
+    // Always label the slice with the recorder's own type: a slice that goes out as text/plain or untyped used to be rejected.
+    const baseType = String(mimeType || '').split(';')[0].trim() || 'video/webm'
+    formData.append('chunk', new Blob([blob], { type: baseType }), `part-${index}.${baseType.includes('mp4') ? 'mp4' : 'webm'}`)
     return apiPost(`/api/v1/candidate/me/interviews/${driveId}/rounds/${roundNumber}/recording/chunk`, formData)
 }
 export const finalizeInterviewRecording = (driveId, roundNumber, payload) =>

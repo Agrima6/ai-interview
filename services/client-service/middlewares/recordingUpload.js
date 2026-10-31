@@ -31,7 +31,7 @@ export const uploadRecordingChunk = multer({
         const partType = base(file.mimetype)
         // Some browsers send a slice with no usable type (empty / application/octet-stream) even though the recorder
         // declared one. The declared type (sent before the file) is then what is checked - never anything else.
-        const unlabelled = !partType || partType === "application/octet-stream"
+        const unlabelled = !partType || ["application/octet-stream", "text/plain"].includes(partType)
         if (allowed(partType) || (unlabelled && allowed(base(req.body?.mimeType)))) return cb(null, true)
         cb(new Error(`Only WebM or MP4 recordings are accepted (received "${partType || "no type"}").`))
     },
