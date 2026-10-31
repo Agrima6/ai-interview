@@ -1054,14 +1054,30 @@ const agentRoleNameFor = (drive) => {
 // from some other cause, which should surface normally rather than trigger a silent recreate.
 const isAgentIdNotFoundError = (err) => err?.status === 404
 
+// Starting an interview makes several slow calls to the agent (role, candidate, resume, plan generation) while OTHER
+// writers keep touching the same drive document - proctoring flags, recording chunks, the candidate's own actions.
+// Saving the whole document afterwards then fails with a VersionError ("Something went wrong", and the interviewer is
+// never sent in). So only the few fields this step owns are written, atomically, to exactly this candidate.
+const persistAgentFields = async (tenantId, drive, round, candidate, fields, { driveFields = {}, onlyIfInterviewIs } = {}) => {
+    const set = { ...driveFields }
+    for (const [key, value] of Object.entries(fields)) set[`rounds.$[r].candidates.$[c].${key}`] = value
+    if (!Object.keys(set).length) return { modifiedCount: 0, matchedCount: 0 }
+    const candidateFilter = { "c.id": candidate.id }
+    if (onlyIfInterviewIs !== undefined) candidateFilter["c.agentInterviewId"] = onlyIfInterviewIs     // null also matches "not set"
+    return InterviewDrive.updateOne({ _id: drive._id, tenantId }, { $set: set },
+        { arrayFilters: [{ "r.roundNumber": Number(round.roundNumber) }, candidateFilter], timestamps: false })
+}
+
 export const startAgentInterview = async (tenantId, email, driveId, roundNumber) => {
     const { drive, round, candidate } = await findOwnRosterEntry(tenantId, email, driveId, roundNumber)
 
     // A demo candidate (services/client-service/scripts/seed-demo-interview.js) is always presentable:
     // a finished run resets in place instead of locking the demo out until someone re-seeds it, and the
     // time-window check below never applies to it.
+    let demoReset = false
     if (candidate.demoAlwaysLive && candidate.status === "COMPLETED") {
         Object.assign(candidate, { status: "SCHEDULED", agentInterviewId: null, agentReport: null, attemptedDate: null, malpracticeFlags: 0, violations: [] })
+        demoReset = true
     } else if (candidate.status === "CLOSED") {
         throw new ApiError(409, "INTERVIEW_CLOSED", "This interview was closed when the round ended.")
     } else if (candidate.status === "REJECTED") {
@@ -1092,13 +1108,13 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber)
     if (!drive.agentRoleId) {
         const role = await agentServiceClient.createRole(agentRoleNameFor(drive))
         drive.agentRoleId = role.id
-        await drive.save()
+        await persistAgentFields(tenantId, drive, round, candidate, {}, { driveFields: { agentRoleId: role.id } })
     }
 
     if (!candidate.agentCandidateId) {
         const agentCandidate = await agentServiceClient.createCandidate(candidate.name, candidate.email)
         candidate.agentCandidateId = agentCandidate.id
-        await drive.save()
+        await persistAgentFields(tenantId, drive, round, candidate, { agentCandidateId: agentCandidate.id })
 
         if (candidate.resumeFilename) {
             try {
@@ -1113,6 +1129,7 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber)
     }
 
     let plan = null
+    const interviewIdOnLoad = candidate.agentInterviewId || null      // what the database held when this request began
     if (candidate.agentInterviewId) {
         // Resuming a room the candidate already started (e.g. they reloaded the page) - the
         // interview already exists, so fetch its plan rather than trying to create a duplicate.
@@ -1127,6 +1144,7 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber)
                 candidate.agentReport = null
                 candidate.attemptedDate = null
                 candidate.status = "SCHEDULED"
+                demoReset = true
             } else {
                 plan = existing.plan
             }
@@ -1161,12 +1179,26 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber)
             drive.agentRoleId = role.id
             const agentCandidate = await agentServiceClient.createCandidate(candidate.name, candidate.email)
             candidate.agentCandidateId = agentCandidate.id
-            await drive.save()
+            await persistAgentFields(tenantId, drive, round, candidate, { agentCandidateId: agentCandidate.id }, { driveFields: { agentRoleId: role.id } })
             interview = await agentServiceClient.createInterview(candidate.agentCandidateId, drive.agentRoleId, 30, questionsToSend, focusAreas)
         }
         candidate.agentInterviewId = interview.id
         plan = interview.plan
-        await drive.save()
+        // Claim the interview id only if nobody else has since (a double click, or two tabs, would otherwise create two
+        // interviews and send the candidate into one the other request replaced).
+        const claim = await persistAgentFields(tenantId, drive, round, candidate, {
+            agentInterviewId: interview.id,
+            ...(demoReset ? { status: candidate.status, agentReport: null, attemptedDate: null } : {}),
+        }, { onlyIfInterviewIs: interviewIdOnLoad })
+        if (claim.modifiedCount === 0) {
+            const fresh = await InterviewDrive.findOne({ _id: drive._id, tenantId })
+            const winner = fresh?.rounds?.find((r) => r.roundNumber === Number(round.roundNumber))?.candidates?.find((c) => c.id === candidate.id)
+            if (winner?.agentInterviewId && winner.agentInterviewId !== interview.id) {
+                console.warn(`[client-service] another request already started interview ${winner.agentInterviewId} for ${candidate.email}; using it`)
+                candidate.agentInterviewId = winner.agentInterviewId
+                plan = (await agentServiceClient.getInterview(winner.agentInterviewId)).plan
+            }
+        }
         if (candidate.preferredLanguage && candidate.preferredLanguage !== "en") {
             await agentServiceClient.setLanguage(candidate.agentInterviewId, candidate.preferredLanguage).catch((err) =>
                 console.error(`[client-service] agent language set failed for ${candidate.email}:`, err.message)

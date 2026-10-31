@@ -59,6 +59,12 @@ export const getCandidateRecordingUrl = async (driveId, roundNumber, candidateId
     const response = await client.get(`/api/v1/drives/${driveId}/rounds/${roundNumber}/candidates/${candidateId}/recording`, { responseType: 'blob', params: segmentId ? { segment: segmentId } : undefined })
     return window.URL.createObjectURL(response.data)
 }
+// Authenticated (HR) - a proctoring screenshot (camera or screen). The image endpoint needs the bearer token, which an <img src>
+// cannot send, so it is fetched as a blob and shown through an object URL.
+export const getViolationImageUrl = async (path) => {
+    const response = await client.get(String(path).replace(/^https?:\/\/[^/]+/, ''), { responseType: 'blob' })
+    return window.URL.createObjectURL(response.data)
+}
 // Authenticated (HR) - downloads the candidate's uploaded resume file. Uses
 // the shared axios client (not a bare <a href>) because auth is a bearer
 // token in memory, not a cookie a plain link request would carry.
