@@ -1,4 +1,4 @@
-import client, { apiGet, apiGetList, apiPost, apiPatch, apiPut, apiDelete } from "../client"
+import client, { apiGet, apiGetList, apiPost, apiPatch, apiPut, apiDelete, resolveAssetUrl } from "../client"
 
 export const getOrganizationProfile = () => apiGet("/api/v1/organizations/me")
 
@@ -57,6 +57,12 @@ export const finalizeInterviewRecording = (driveId, roundNumber, payload) =>
 export const getCandidateRecordingManifest = (driveId, roundNumber, candidateId) =>
     apiGet(`/api/v1/drives/${driveId}/rounds/${roundNumber}/candidates/${candidateId}/recording/manifest`)
 // Authenticated (HR) - the candidate's full interview recording, played inline (not downloaded) via a blob URL, same auth pattern as downloadCandidateResume.
+// Authenticated (HR) - a short-lived streaming link for a recording, so the <video> element can seek and start at once instead
+// of the whole file being downloaded first.
+export const getCandidateRecordingStreamUrl = async (driveId, roundNumber, candidateId, segmentId) => {
+    const { url } = await apiGet(`/api/v1/drives/${driveId}/rounds/${roundNumber}/candidates/${candidateId}/recording/link`, segmentId ? { segment: segmentId } : undefined)
+    return resolveAssetUrl(url)
+}
 export const getCandidateRecordingUrl = async (driveId, roundNumber, candidateId, segmentId) => {
     const response = await client.get(`/api/v1/drives/${driveId}/rounds/${roundNumber}/candidates/${candidateId}/recording`, { responseType: 'blob', params: segmentId ? { segment: segmentId } : undefined })
     return window.URL.createObjectURL(response.data)

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { Video, AlertTriangle, RefreshCw } from 'lucide-react'
 import { Button, Badge } from '../ui'
-import { getCandidateRecordingManifest, getCandidateRecordingUrl } from '../../api/organization/organizationApi'
+import { getCandidateRecordingManifest, getCandidateRecordingStreamUrl, getCandidateRecordingUrl } from '../../api/organization/organizationApi'
 
 // What HR sees for a candidate's recording is what the server has actually STORED (verified when it was assembled),
 // never an assumption. Each uninterrupted capture is a segment; a page reload mid-interview makes a second one.
@@ -35,12 +35,22 @@ function RecordingPanel({ driveId, roundNumber, candidateId, interviewDone }) {
   }, [driveId, roundNumber, candidateId])
 
   useEffect(() => { load() }, [load])
-  useEffect(() => () => { if (playing?.url) URL.revokeObjectURL(playing.url) }, [playing])
+  useEffect(() => () => { if (playing?.blob && playing?.url) URL.revokeObjectURL(playing.url) }, [playing])
 
   const play = async (segment) => {
     setLoadingId(segment.recordingId)
     try {
-      setPlaying({ id: segment.recordingId, url: await getCandidateRecordingUrl(driveId, roundNumber, candidateId, segment.recordingId) })
+      // Streamed from a signed link: playback starts straight away and can seek. Only if no link can be made is the whole file
+      // downloaded first (the old behaviour, slow for a large recording).
+      let url
+      let blob = false
+      try {
+        url = await getCandidateRecordingStreamUrl(driveId, roundNumber, candidateId, segment.recordingId)
+      } catch {
+        url = await getCandidateRecordingUrl(driveId, roundNumber, candidateId, segment.recordingId)
+        blob = true
+      }
+      setPlaying({ id: segment.recordingId, url, blob })
     } catch (err) {
       setError(err.message || 'Could not load the recording.')
     } finally {
@@ -90,7 +100,13 @@ function RecordingPanel({ driveId, roundNumber, candidateId, interviewDone }) {
             {segment.reason && segment.status !== 'COMPLETED' && (
               <p className="text-[12.5px] text-text-secondary mt-1.5">{segment.reason}</p>
             )}
-            {shown && <video src={playing.url} controls className="w-full rounded-xl border border-line bg-black max-h-[400px] mt-3" />}
+            {shown && (
+              <video
+                src={playing.url} controls autoPlay preload="metadata"
+                onError={() => setError('The recording could not be played. Try again in a moment, or download it again.')}
+                className="w-full rounded-xl border border-line bg-black max-h-[400px] mt-3"
+              />
+            )}
           </div>
         )
       })}

@@ -1358,6 +1358,20 @@ export const streamCandidateViolationSnapshot = async (tenantId, driveId, roundN
 // resume download above. Uses res.sendFile (not res.download) so the
 // browser's <video> element can play it inline with seek/scrub support
 // rather than triggering a file download.
+// HR is about to be given a streaming link: confirm the recording really is on file for this organization's candidate first.
+export const assertRecordingExists = async (tenantId, driveId, roundNumber, candidateId, segment) => {
+    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+    requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    const drive = await InterviewDrive.findOne({ _id: driveId, tenantId }, { rounds: 1 }).lean()
+    const round = drive?.rounds?.find((r) => r.roundNumber === Number(roundNumber))
+    const candidate = round?.candidates?.find((c) => String(c._id) === candidateId || c.id === candidateId)
+    if (!candidate) throw new ApiError(404, "CANDIDATE_NOT_FOUND", "Candidate not found.")
+    const hasFile = segment
+        ? candidate.recordings?.some((s) => s.recordingId === segment && s.key)
+        : Boolean(candidate.recordingFilename || candidate.recordings?.some((s) => s.key))
+    if (!hasFile) throw new ApiError(404, "RECORDING_NOT_FOUND", "No recording on file for this candidate.")
+}
+
 export const streamCandidateRecording = async (tenantId, driveId, roundNumber, candidateId, res, req = null) => {
     if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
     requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")

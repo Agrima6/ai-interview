@@ -37,6 +37,9 @@ router.post("/drives/:id/rounds/:roundNumber/communications/refresh", authentica
 router.get("/drives/:id/rounds/:roundNumber/candidates/:candidateId/transcript", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.getCandidateTranscript)
 router.get("/drives/:id/rounds/:roundNumber/candidates/:candidateId/resume", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.downloadCandidateResume)
 router.get("/drives/:id/rounds/:roundNumber/candidates/:candidateId/recording/manifest", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.getRecordingManifest)
+router.get("/drives/:id/rounds/:roundNumber/candidates/:candidateId/recording/link", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.getRecordingLink)
+// No bearer token here by design: the signed, expiring link is the credential (a <video> element cannot send headers).
+router.get("/drives/:id/rounds/:roundNumber/candidates/:candidateId/recording/view", driveController.viewRecording)
 router.get("/drives/:id/rounds/:roundNumber/candidates/:candidateId/recording", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.streamCandidateRecording)
 router.get("/drives/:id/rounds/:roundNumber/candidates/:candidateId/violations/:violationIndex/:type", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.streamCandidateViolationSnapshot)
 
