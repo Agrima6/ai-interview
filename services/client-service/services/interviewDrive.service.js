@@ -1222,16 +1222,54 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber)
 // finish or proctoring auto-termination). Best-effort: if the agent
 // service is unreachable, the interview still gets marked COMPLETED via
 // completeCandidateInterview above, it just won't have an AI score/report.
+// The agent builds its report in the background, so right after "complete" it is usually still PENDING/PROCESSING.
+// Only a finished report is stored (a placeholder would show as "Not Yet Evaluated" forever); an unfinished one is
+// picked up later by refreshPendingReports when HR opens the drive.
+const REPORT_FINAL_STATES = new Set(["READY", "FAILED"])
+const reportIsFinal = (report) => Boolean(report) && (REPORT_FINAL_STATES.has(report.report_status || report.status) || (report.final_score != null && report.content))
+
+const storeAgentReport = async (tenantId, drive, round, candidate, report) => {
+    if (!reportIsFinal(report) || (report.report_status || report.status) === "FAILED") return false
+    await persistAgentFields(tenantId, drive, round, candidate, {
+        agentReport: report, aiScore: Math.round(report.final_score || 0),
+    })
+    return true
+}
+
 export const completeAgentInterview = async (tenantId, email, driveId, roundNumber) => {
-    const { drive, candidate } = await findOwnRosterEntry(tenantId, email, driveId, roundNumber)
+    const { drive, round, candidate } = await findOwnRosterEntry(tenantId, email, driveId, roundNumber)
     if (!candidate.agentInterviewId) return null
 
     await agentServiceClient.completeInterview(candidate.agentInterviewId)
-    const report = await agentServiceClient.getReport(candidate.agentInterviewId)
-    candidate.agentReport = report
-    candidate.aiScore = Math.round(report.final_score || 0)
-    await drive.save()
+    let report = null
+    try { report = await agentServiceClient.getReport(candidate.agentInterviewId) } catch { /* not built yet - fetched later */ }
+    if (report) await storeAgentReport(tenantId, drive, round, candidate, report)
     return report
+}
+
+// HR opens a drive: fetch reports for finished interviews that do not have one stored yet. Bounded and best-effort -
+// the agent being slow or down must never break the drive page.
+const REFRESH_LIMIT = 8
+const refreshPendingReports = async (tenantId, drive) => {
+    const jobs = []
+    for (const round of drive.rounds || []) {
+        for (const candidate of round.candidates || []) {
+            if (jobs.length >= REFRESH_LIMIT) break
+            if (!candidate.agentInterviewId || candidate.agentReport || !["COMPLETED", "REJECTED", "SHORTLISTED"].includes(candidate.status)) continue
+            jobs.push({ round, candidate })
+        }
+    }
+    await Promise.all(jobs.map(async ({ round, candidate }) => {
+        try {
+            const report = await agentServiceClient.getReport(candidate.agentInterviewId)
+            if (await storeAgentReport(tenantId, drive, round, candidate, report)) {
+                candidate.agentReport = report
+                candidate.aiScore = Math.round(report.final_score || 0)
+            }
+        } catch (err) {
+            if (err?.status !== 404) console.warn("[client-service] report refresh failed:", err.message)
+        }
+    }))
 }
 
 // Candidate-scoped - stores the candidate's own camera/mic recording of
@@ -1505,6 +1543,7 @@ export const getDriveById = async (tenantId, driveId) => {
     const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
     if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
     const repaired = await repairRoundStatuses(drive)
+    await refreshPendingReports(tenantId, repaired).catch(() => {})
 
     // Best-effort invite-status enrichment (invite sent/opened, per
     // candidate) - communication-service being unreachable should never
