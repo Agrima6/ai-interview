@@ -1,6 +1,7 @@
 import * as driveService from "../services/interviewDrive.service.js"
 import * as recordingService from "../services/recording.service.js"
 import { ok, ApiError } from "../utils/response.js"
+import { signRecordingLink, verifyRecordingLink } from "../utils/recordingLink.js"
 import { candidateCompletionReceipt } from "../utils/candidateQuestions.js"
 
 export const createDrive = async (req, res, next) => {
@@ -171,6 +172,37 @@ export const streamCandidateRecording = async (req, res, next) => {
     try {
         const tenantId = req.user?.tenantId
         const { id, roundNumber, candidateId } = req.params
+        await driveService.streamCandidateRecording(tenantId, id, roundNumber, candidateId, res, req)
+    } catch (error) {
+        next(error)
+    }
+}
+
+// HR asks for a streaming link; the link itself carries the proof (see utils/recordingLink.js) because a <video> cannot send a bearer token.
+export const getRecordingLink = async (req, res, next) => {
+    try {
+        const tenantId = req.user?.tenantId
+        const { id, roundNumber, candidateId } = req.params
+        const segment = typeof req.query.segment === "string" ? req.query.segment.slice(0, 80) : ""
+        await driveService.assertRecordingExists(tenantId, id, roundNumber, candidateId, segment)
+        const parts = { tenantId, driveId: id, roundNumber: String(roundNumber), candidateId, segment }
+        const { exp, sig } = signRecordingLink(parts)
+        const query = new URLSearchParams({ t: tenantId, exp: String(exp), sig, ...(segment ? { segment } : {}) })
+        ok(res, { url: `/api/v1/drives/${id}/rounds/${roundNumber}/candidates/${candidateId}/recording/view?${query}` })
+    } catch (error) {
+        next(error)
+    }
+}
+
+export const viewRecording = async (req, res, next) => {
+    try {
+        const { id, roundNumber, candidateId } = req.params
+        const tenantId = typeof req.query.t === "string" ? req.query.t : ""
+        const segment = typeof req.query.segment === "string" ? req.query.segment.slice(0, 80) : ""
+        const parts = { tenantId, driveId: id, roundNumber: String(roundNumber), candidateId, segment }
+        if (!tenantId || !verifyRecordingLink(parts, req.query.exp, req.query.sig)) {
+            throw new ApiError(403, "LINK_INVALID", "This recording link is invalid or has expired.")
+        }
         await driveService.streamCandidateRecording(tenantId, id, roundNumber, candidateId, res, req)
     } catch (error) {
         next(error)

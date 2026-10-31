@@ -59,6 +59,7 @@ function InterviewRoomPage() {
     const [elapsedSeconds, setElapsedSeconds] = useState(0)
     const [showCaptions, setShowCaptions] = useState(true)
     const [recordingState, setRecordingState] = useState('idle')   // idle | recording | error
+    const [uploadProgress, setUploadProgress] = useState({ pending: 0, captured: 0 })   // slices still to upload (shown while finishing)
     const [networkIssue, setNetworkIssue] = useState(false)         // the live connection dropped and is being restored
     const [endConfirmOpen, setEndConfirmOpen] = useState(false)
     const [controlsOpen, setControlsOpen] = useState(false)         // compact mic / camera / CC controls (hover or tap)
@@ -341,7 +342,10 @@ function InterviewRoomPage() {
             hasVideo,
             uploadChunk: (chunk) => uploadRecordingChunk(driveId, roundNumber, chunk),
             finalize: (payload) => finalizeInterviewRecording(driveId, roundNumber, payload),
-            onState: ({ status }) => setRecordingState(status === 'recording' ? 'recording' : status === 'degraded' ? 'slow' : status === 'error' ? 'error' : 'idle'),
+            onState: ({ status, pending, captured }) => {
+                setRecordingState(status === 'recording' ? 'recording' : status === 'degraded' ? 'slow' : status === 'error' ? 'error' : 'idle')
+                setUploadProgress({ pending: Math.max(pending || 0, 0), captured: captured || 0 })
+            },
         })
         if (!recorder.start()) {
             console.error('Recording could not start in this browser.')
@@ -778,6 +782,14 @@ function InterviewRoomPage() {
         if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
     }
 
+    // While the last recording slices are still uploading, closing or reloading this page would lose them: ask the browser to confirm.
+    useEffect(() => {
+        if (endState !== 'ending' || uploadProgress.pending <= 0) return undefined
+        const warn = (event) => { event.preventDefault(); event.returnValue = '' }
+        window.addEventListener('beforeunload', warn)
+        return () => window.removeEventListener('beforeunload', warn)
+    }, [endState, uploadProgress.pending])
+
     const runCompletion = async () => {
         const steps = endStepsRef.current
         setEndState('ending')
@@ -787,7 +799,7 @@ function InterviewRoomPage() {
             stopSpeechAndCapture()
             // 1. Finish the recording and wait (bounded) for the upload to be accepted.
             if (!steps.recording) {
-                await withTimeout(stopAndUploadRecording(), 25000).catch((err) => console.warn('Recording finalize:', err.message))
+                await withTimeout(stopAndUploadRecording(), 135000).catch((err) => console.warn('Recording finalize:', err.message))
                 steps.recording = true
             }
             // 2. Tell the interviewer service the session is over (best effort: it may already have completed it).
@@ -1746,6 +1758,11 @@ function InterviewRoomPage() {
                                 <Loader2 size={34} className='mx-auto text-accent animate-spin' aria-hidden='true' />
                                 <h2 id='end-title' className='font-display text-[20px] font-bold text-ink mt-4'>Finishing your interview</h2>
                                 <p className='text-[13.5px] text-text-secondary mt-2'>Saving your recording and answers. Please keep this page open.</p>
+                                {uploadProgress.pending > 0 && (
+                                    <p className='text-[12.5px] text-text-secondary mt-2' role='status' aria-live='polite'>
+                                        Uploading your recording: {Math.max(uploadProgress.captured - uploadProgress.pending, 0)} of {uploadProgress.captured} parts saved. Closing this page now would lose the rest.
+                                    </p>
+                                )}
                             </>
                         )}
                         {endState === 'submitted' && (

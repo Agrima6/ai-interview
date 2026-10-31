@@ -7,9 +7,11 @@
 //  - stop() asks the server to finalize and returns what the SERVER reports (COMPLETED / INCOMPLETE / FAILED),
 //    or { status: 'PENDING' } if the server could not be reached in time. It never invents success.
 
-const TIMESLICE_MS = 2000
+// 4 s slices: each upload is a request to the server and storage, and with 2 s slices a normal home connection could not keep up
+// (the queue grew until the interview ended and the tail was lost). Fewer, larger slices keep the queue short.
+const TIMESLICE_MS = 4000
 const RETRY_DELAYS_MS = [1000, 2000, 4000, 8000, 15000]
-const DRAIN_TIMEOUT_MS = 20000
+const DRAIN_TIMEOUT_MS = 120000          // how long ending the interview waits for the remaining slices to upload (shown to the candidate)
 
 export const pickMimeType = (hasVideo = true) => {
     if (typeof MediaRecorder === 'undefined') return null
