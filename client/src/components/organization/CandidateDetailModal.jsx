@@ -8,6 +8,7 @@ import InterviewIntelligence from './InterviewIntelligence'
 import RecordingPanel from './RecordingPanel'
 import AuthImage from './AuthImage'
 import ReportQuestionCard from './ReportQuestionCard'
+import { openReportPdf } from '../../utils/reportPdf'
 
 // examMode: college exam drives record results only - the Shortlist / Reject decision buttons are not shown.
 function CandidateDetailModal({ open, onClose, candidate, onStatusChange, examMode = false, passMark = 0 }) {
@@ -16,6 +17,7 @@ function CandidateDetailModal({ open, onClose, candidate, onStatusChange, examMo
   const [transcript, setTranscript] = useState(null)          // null = not loaded yet
   const [loadingTranscript, setLoadingTranscript] = useState(false)
   const [transcriptError, setTranscriptError] = useState('')
+  const [preparingPdf, setPreparingPdf] = useState(false)
   const [enlarged, setEnlarged] = useState(null)             // { url, label } - a screenshot shown full size
   if (!candidate) return null
 
@@ -39,6 +41,19 @@ function CandidateDetailModal({ open, onClose, candidate, onStatusChange, examMo
       setTranscriptError(err.message || 'Failed to load the transcript.')
     } finally {
       setLoadingTranscript(false)
+    }
+  }
+
+  const handleDownloadPdf = async () => {
+    setPreparingPdf(true)
+    try {
+      let lines = transcript
+      if (lines === null) lines = await getCandidateTranscript(candidate.driveId, candidate.roundNumber, candidate.id).catch(() => [])
+      await openReportPdf(candidate, { transcript: lines || [] })
+    } catch (err) {
+      toast.error(err.message || 'Could not prepare the PDF.')
+    } finally {
+      setPreparingPdf(false)
     }
   }
 
@@ -107,6 +122,12 @@ function CandidateDetailModal({ open, onClose, candidate, onStatusChange, examMo
           </div>
         </div>
 
+        <div className="flex items-center gap-2 flex-wrap">
+        {!examMode && (candidate.agentReport || candidate.status === 'COMPLETED') && (
+          <Button size="sm" variant="secondary" onClick={handleDownloadPdf} disabled={preparingPdf}>
+            <Download size={14} /> {preparingPdf ? 'Preparing…' : 'Download PDF'}
+          </Button>
+        )}
         {candidate.aiScore > 0 ? (
           <div className={`px-4 py-2 rounded-2xl border flex items-center gap-2 ${getScoreColor(candidate.aiScore)}`}>
             <Sparkles size={18} />
@@ -118,6 +139,7 @@ function CandidateDetailModal({ open, onClose, candidate, onStatusChange, examMo
         ) : (
           <Badge variant="neutral">Not yet evaluated</Badge>
         )}
+        </div>
       </div>
 
       {/* Real candidate facts - phone/experience/attempted date/proctoring
