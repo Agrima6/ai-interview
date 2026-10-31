@@ -6,6 +6,8 @@ import { downloadCandidateResume, getCandidateTranscript } from '../../api/organ
 import { useToast } from '../ui/Toast'
 import InterviewIntelligence from './InterviewIntelligence'
 import RecordingPanel from './RecordingPanel'
+import AuthImage from './AuthImage'
+import ReportQuestionCard from './ReportQuestionCard'
 
 // examMode: college exam drives record results only - the Shortlist / Reject decision buttons are not shown.
 function CandidateDetailModal({ open, onClose, candidate, onStatusChange, examMode = false, passMark = 0 }) {
@@ -14,6 +16,7 @@ function CandidateDetailModal({ open, onClose, candidate, onStatusChange, examMo
   const [transcript, setTranscript] = useState(null)          // null = not loaded yet
   const [loadingTranscript, setLoadingTranscript] = useState(false)
   const [transcriptError, setTranscriptError] = useState('')
+  const [enlarged, setEnlarged] = useState(null)             // { url, label } - a screenshot shown full size
   if (!candidate) return null
 
   const handleDownloadResume = async () => {
@@ -165,26 +168,20 @@ function CandidateDetailModal({ open, onClose, candidate, onStatusChange, examMo
 
       {candidate.violations?.length > 0 && (
         <div className="mb-6">
-          <h3 className="text-[13px] font-semibold text-ink mb-2.5 flex items-center gap-1.5">
+          <h3 className="text-[13px] font-semibold text-ink mb-1 flex items-center gap-1.5">
             <ShieldAlert size={14} className="text-[var(--color-danger)]" /> Proctoring Violation Log
+            <span className="text-[12px] font-normal text-text-secondary">({candidate.violations.length})</span>
           </h3>
+          <p className="text-[12px] text-text-secondary mb-2.5">The camera and screen were captured at the moment each flag was raised. Click an image to enlarge it.</p>
           <div className="space-y-2">
             {candidate.violations.map((v, idx) => (
-              <div key={idx} className="flex items-center gap-3 p-3 rounded-xl border border-line bg-card">
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {v.snapshot ? (
-                    <img src={v.snapshot} alt="Webcam snapshot" title="Webcam" className="w-14 h-10 rounded-lg object-cover border border-line" />
-                  ) : (
-                    <div className="w-14 h-10 rounded-lg bg-black/[0.04] dark:bg-white/[0.06] flex items-center justify-center">
-                      <ShieldAlert size={14} className="text-text-secondary" />
-                    </div>
-                  )}
-                  {v.screenSnapshot && (
-                    <img src={v.screenSnapshot} alt="Screen snapshot" title="Screen at time of violation" className="w-14 h-10 rounded-lg object-cover border border-line" />
-                  )}
+              <div key={idx} className="flex items-center gap-3 p-3 rounded-xl border border-line bg-card flex-wrap sm:flex-nowrap">
+                <div className="flex items-center gap-2 shrink-0">
+                  <AuthImage src={v.snapshot} alt={`Camera at flag ${idx + 1}`} label="Camera" className="w-24 h-16" onOpen={(url, label) => setEnlarged({ url, label: `${label} - ${v.reason}` })} />
+                  <AuthImage src={v.screenSnapshot} alt={`Screen at flag ${idx + 1}`} label="Screen" className="w-24 h-16" onOpen={(url, label) => setEnlarged({ url, label: `${label} - ${v.reason}` })} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[13px] font-medium text-ink truncate">{v.reason}</p>
+                  <p className="text-[13px] font-medium text-ink">Flag {idx + 1}: {v.reason}</p>
                   <p className="text-[11.5px] text-text-secondary">{new Date(v.occurredAt).toLocaleString()}</p>
                 </div>
               </div>
@@ -207,9 +204,29 @@ function CandidateDetailModal({ open, onClose, candidate, onStatusChange, examMo
       )}
 
       {candidate.agentReport?.content?.overall?.summary && (
-        <div className="mb-6 p-4 rounded-xl border border-line bg-card">
-          <h3 className="text-[13px] font-semibold text-ink mb-1.5">AI Interviewer Summary</h3>
+        <div className="mb-6 p-4 rounded-xl border border-line bg-card space-y-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <h3 className="text-[13px] font-semibold text-ink">AI Interviewer Summary</h3>
+            {candidate.agentReport.content.overall.recommendation && (
+              <Badge variant={['strong_hire', 'hire'].includes(candidate.agentReport.content.overall.recommendation) ? 'success' : candidate.agentReport.content.overall.recommendation === 'no_hire' ? 'danger' : 'neutral'}>
+                {String(candidate.agentReport.content.overall.recommendation).replace(/_/g, ' ')}
+              </Badge>
+            )}
+          </div>
           <p className="text-[13px] text-text-secondary leading-relaxed">{candidate.agentReport.content.overall.summary}</p>
+          {candidate.agentReport.content.overall.recommendation_reason && (
+            <p className="text-[12.5px] text-ink"><span className="font-semibold">Why: </span>{candidate.agentReport.content.overall.recommendation_reason}</p>
+          )}
+          <div className="grid sm:grid-cols-2 gap-3">
+            {candidate.agentReport.content.overall.key_strengths?.length > 0 && (
+              <div><p className="text-[12px] font-semibold text-success mb-1">Key strengths</p>
+                <ul className="list-disc pl-5 space-y-0.5 text-[12.5px] text-ink">{candidate.agentReport.content.overall.key_strengths.map((x, i) => <li key={i}>{x}</li>)}</ul></div>
+            )}
+            {candidate.agentReport.content.overall.key_gaps?.length > 0 && (
+              <div><p className="text-[12px] font-semibold text-amber-600 mb-1">Gaps to probe</p>
+                <ul className="list-disc pl-5 space-y-0.5 text-[12.5px] text-ink">{candidate.agentReport.content.overall.key_gaps.map((x, i) => <li key={i}>{x}</li>)}</ul></div>
+            )}
+          </div>
         </div>
       )}
 
@@ -217,17 +234,13 @@ function CandidateDetailModal({ open, onClose, candidate, onStatusChange, examMo
 
       {candidate.agentReport?.content?.questions?.length > 0 && (
         <div className="mb-6">
-          <h3 className="text-[13px] font-semibold text-ink mb-2.5">Interview Q&amp;A</h3>
+          <h3 className="text-[13px] font-semibold text-ink mb-1">Questions, answers and AI review</h3>
+          <p className="text-[12px] text-text-secondary mb-2.5">
+            {candidate.agentReport.content.answered_questions ?? 0} answered of {candidate.agentReport.content.asked_questions ?? candidate.agentReport.content.questions.length} asked.
+            Scores are out of 100: 70+ strong, 50-69 adequate, below 50 weak.
+          </p>
           <div className="space-y-3">
-            {candidate.agentReport.content.questions.map((q, idx) => (
-              <div key={q.question_id || idx} className="p-3.5 rounded-xl border border-line bg-card">
-                <p className="text-[13px] font-medium text-ink mb-1">{q.question}</p>
-                <p className="text-[12.5px] text-text-secondary leading-relaxed mb-2">{q.candidate_answer}</p>
-                {q.content_score?.score != null && (
-                  <Badge variant="neutral">Score: {Math.round(q.content_score.score)}%</Badge>
-                )}
-              </div>
-            ))}
+            {candidate.agentReport.content.questions.map((q, idx) => <ReportQuestionCard key={q.question_id || idx} index={idx} q={q} />)}
           </div>
         </div>
       )}
@@ -272,6 +285,9 @@ function CandidateDetailModal({ open, onClose, candidate, onStatusChange, examMo
           </p>
         </div>
       )}
+      <Modal open={Boolean(enlarged)} onClose={() => setEnlarged(null)} title={enlarged?.label || 'Screenshot'} size="lg">
+        {enlarged && <img src={enlarged.url} alt={enlarged.label} className="w-full rounded-lg border border-line" />}
+      </Modal>
     </Modal>
   )
 }
