@@ -12,6 +12,8 @@ const QuestionBankSchema = new mongoose.Schema(
         tenantId: { type: String, index: true }, // null for default platform-wide question banks
         title: { type: String, required: true },
         category: { type: String, required: true },
+        // Drive roles this set is the natural choice for (built-in blue-collar sets); empty for every other set.
+        roleCategories: { type: [String], default: [] },
         questionCount: { type: Number, default: 5 },
         durationMinutes: { type: Number, default: 20 },
         isSystemDefault: { type: Boolean, default: false },
