@@ -18,6 +18,8 @@ export const applyToDrive = (link, formData) => apiPost(`/api/v1/drives/public/$
 export const getApplicationPrefill = (link, email, token) => apiGet(`/api/v1/drives/public/${link}/prefill`, { email, token })
 // Authenticated (CANDIDATE role) - the signed-in candidate's own scheduled interviews, across every drive/round they applied to.
 export const getMyInterviews = () => apiGet("/api/v1/candidate/me/interviews")
+// The interview languages the interviewer's voice can speak right now (candidates are only offered these).
+export const getInterviewLanguages = () => apiGet("/api/v1/candidate/me/interview-languages")
 // Authenticated (CANDIDATE role) - completes application (resume + slot) directly from the portal
 export const submitCandidateApplication = (driveId, roundNumber, formData) =>
     apiPost(`/api/v1/candidate/me/interviews/${driveId}/rounds/${roundNumber}/apply`, formData)
