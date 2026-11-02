@@ -6,7 +6,7 @@ import CriteriaWeightageBuilder from './CriteriaWeightageBuilder'
 import QuestionSetBuilder from './QuestionSetBuilder'
 import CandidateImportModal from './CandidateImportModal'
 import { createInterviewDrive, getQuestionBanks, getNotificationTemplates, getOrganizationProfile, updateRound } from '../../api/organization/organizationApi'
-import { BLUE_COLLAR_ROLES } from '../../constants/blueCollarRoles'
+import { BLUE_COLLAR_ROLES, questionBanksForRole } from '../../constants/blueCollarRoles'
 import { dateInputFromToday, dateInputFromStored, addDaysToInput } from '../../utils/dateOnly'
 
 const ROLE_CATEGORIES = [
@@ -185,12 +185,17 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
     loadProfile()
   }, [open])
 
+  // Only the question sets that fit the chosen role are offered (a watchman is not shown "design a URL shortener").
+  const visibleBanks = useMemo(() => questionBanksForRole(questionBanks, formData.roleCategory), [questionBanks, formData.roleCategory])
+
   useEffect(() => {
-    if (questionBanks.length && !formData.questionBankId) {
-      setFormData((prev) => ({ ...prev, questionBankId: questionBanks[0]._id || questionBanks[0].id }))
+    if (!visibleBanks.length) return
+    const idOf = (bank) => bank._id || bank.id
+    if (!formData.questionBankId || !visibleBanks.some((bank) => idOf(bank) === formData.questionBankId)) {
+      setFormData((prev) => ({ ...prev, questionBankId: idOf(visibleBanks[0]) }))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [questionBanks])
+  }, [visibleBanks])
 
   const mappedTemplates = useMemo(() => ({
     invitation: templates.filter((template) => /invite|interview|email/i.test(template.name || template.category || '')),
@@ -700,7 +705,7 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
             <QuestionSetBuilder
               questionMode={formData.questionMode}
               onQuestionModeChange={(mode) => handleChange('questionMode', mode)}
-              questionBanks={questionBanks.map((b) => ({ id: b._id || b.id, title: b.title, questions: b.questionCount ?? b.questions?.length ?? 0, questionList: Array.isArray(b.questions) ? b.questions : [], duration: b.durationMinutes ? `${b.durationMinutes} mins` : '' }))}
+              questionBanks={visibleBanks.map((b) => ({ id: b._id || b.id, title: b.title, questions: b.questionCount ?? b.questions?.length ?? 0, questionList: Array.isArray(b.questions) ? b.questions : [], duration: b.durationMinutes ? `${b.durationMinutes} mins` : '' }))}
               selectedBankId={formData.questionBankId}
               onSelectBankId={(id) => handleChange('questionBankId', id)}
               customQuestions={customQuestions}

@@ -1,9 +1,11 @@
 import { QuestionBank } from "../models/questionBank.model.js"
 import { ApiError } from "../utils/response.js"
 import crypto from "crypto"
+import { BLUE_COLLAR_QUESTION_BANKS } from "../utils/blueCollarBanks.js"
 import { requireValidObjectId } from "../utils/validateId.js"
 
 const DEFAULT_QUESTION_BANKS = [
+    ...BLUE_COLLAR_QUESTION_BANKS,
     {
         title: "SDE Core Engineering Assessment",
         category: "SOFTWARE_ENGINEERING",
@@ -37,7 +39,7 @@ const DEFAULT_QUESTION_BANKS = [
     },
 ]
 
-// The three built-in sets exist once, platform-wide. Seeding is an upsert keyed on the title, so two requests
+// The built-in sets exist once, platform-wide. Seeding is an upsert keyed on the title, so two requests
 // arriving together (or a restart) can never create duplicates.
 const ensureSystemDefaults = async () => {
     await QuestionBank.bulkWrite(DEFAULT_QUESTION_BANKS.map((bank) => ({

@@ -47,3 +47,14 @@ export const BLUE_COLLAR_ROLES = [
 
 export const isBlueCollarCategory = (roleCategory) =>
   roleCategory === 'BLUE_COLLAR' || BLUE_COLLAR_ROLES.some((role) => role.value === roleCategory)
+
+// The question sets worth offering for a drive's role: the built-in blue-collar sets (the one for that exact role first)
+// for a blue-collar drive, and none of those for any other kind of drive. Sets the organisation wrote itself always show.
+export const questionBanksForRole = (banks, roleCategory) => {
+  const list = banks || []
+  const builtInBlue = (bank) => bank.isSystemDefault && bank.category === 'BLUE_COLLAR'
+  if (!isBlueCollarCategory(roleCategory)) return list.filter((bank) => !builtInBlue(bank))
+  const mine = (bank) => (bank.roleCategories || []).includes(roleCategory)
+  const rank = (bank) => (mine(bank) ? 0 : builtInBlue(bank) ? 1 : 2)
+  return list.filter((bank) => builtInBlue(bank) || !bank.isSystemDefault).sort((a, b) => rank(a) - rank(b))
+}
