@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { motion, useReducedMotion } from 'motion/react'
 import OrganizationSidebar from './OrganizationSidebar'
 import OrganizationTopbar from './OrganizationTopbar'
 import { useAuth } from '../../hooks/useAuth.jsx'
@@ -20,6 +21,8 @@ function OrganizationLayout({ title, description, action, onSearch, children }) 
     const [mobileOpen, setMobileOpen] = useState(false)
     const { user } = useAuth()
     const navigate = useNavigate()
+    const location = useLocation()
+    const reduceMotion = useReducedMotion()
     const { data: profile, isLoading: profileLoading } = useOrganizationProfile()
     const themeStyle = useOrganizationThemeStyle(profile)
 
@@ -31,11 +34,19 @@ function OrganizationLayout({ title, description, action, onSearch, children }) 
     }, [user, navigate])
 
     return (
-        <div className='min-h-screen bg-bg flex' style={themeStyle}>
+        <div className='min-h-screen bg-bg flex relative isolate' style={themeStyle}>
+            <div aria-hidden='true' className='pointer-events-none absolute inset-x-0 top-0 h-[360px] -z-10 bg-[radial-gradient(ellipse_60%_100%_at_70%_0%,color-mix(in_srgb,var(--color-accent)_9%,transparent),transparent)]' />
             <OrganizationSidebar profile={profile} profileLoading={profileLoading} mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
             <main className='flex-1 min-w-0 p-4 sm:p-8 overflow-x-hidden'>
                 <OrganizationTopbar title={title} description={description} action={action} onSearch={onSearch} onMenuClick={() => setMobileOpen(true)} />
-                {children}
+                <motion.div
+                    key={location.pathname}
+                    initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+                >
+                    {children}
+                </motion.div>
             </main>
         </div>
     )
