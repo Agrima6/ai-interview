@@ -1,3 +1,4 @@
+import { INTERVIEW_LANGUAGE_CODES } from "../utils/interviewLanguages.js"
 import mongoose from "mongoose"
 
 const CustomQuestionSchema = new mongoose.Schema({
@@ -53,7 +54,7 @@ const CandidateRosterSchema = new mongoose.Schema({
     // roles where corporate English/formal Hindi isn't a safe default (see
     // workmate-iq-agent's PLAIN_LANGUAGE_ROLE_TYPES). Passed to the agent
     // once when the interview is created.
-    preferredLanguage: { type: String, enum: ["en", "hi", "hinglish"], default: "en" },
+    preferredLanguage: { type: String, enum: INTERVIEW_LANGUAGE_CODES, default: "en" },
     // Proctoring evidence captured client-side during the interview (tab
     // switch, fullscreen exit, etc). `malpracticeFlags` stays the quick
     // count HR already sees in the table; this is the detail behind it -

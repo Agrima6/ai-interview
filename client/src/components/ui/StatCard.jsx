@@ -1,6 +1,7 @@
 import React from 'react'
 import { motion } from 'motion/react'
 import Card from './Card'
+import { CountUp } from './motionKit'
 
 /**
  * Icon + big number + label, used across admin/candidate dashboards.
@@ -20,7 +21,7 @@ function StatCard({ icon: Icon, value, label, trend, helperText, accent = 'brand
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => (e.key === 'Enter' || e.key === ' ') && onClick(e) : undefined}
-      className={`p-6 ${onClick ? 'cursor-pointer transition-shadow hover:shadow-[var(--shadow-lift)] hover:ring-1 hover:ring-accent/20' : ''} ${className}`}
+      className={`relative overflow-hidden p-6 before:absolute before:inset-x-0 before:top-0 before:h-[3px] before:bg-gradient-to-r before:from-accent before:to-accent/0 before:opacity-70 ${onClick ? 'cursor-pointer transition-shadow hover:shadow-[var(--shadow-lift)] hover:ring-1 hover:ring-accent/20' : ''} ${className}`}
     >
       <div className='flex items-start justify-between mb-4'>
         {Icon && (
@@ -41,9 +42,9 @@ function StatCard({ icon: Icon, value, label, trend, helperText, accent = 'brand
       <motion.p
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
-        className='text-[28px] font-bold text-ink tracking-tight leading-none mb-1.5'
+        className='text-[28px] font-bold text-ink tracking-tight leading-none mb-1.5 tabular-nums'
       >
-        {value}
+        <CountUp value={value} />
       </motion.p>
       <p className='text-[13px] text-text-secondary'>{label}</p>
       {helperText && <p className='text-[11.5px] text-text-secondary/70 mt-1'>{helperText}</p>}

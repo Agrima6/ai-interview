@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { isBlueCollarCategory } from '../constants/blueCollarRoles'
+import { INTERVIEW_LANGUAGES } from '../constants/interviewLanguages'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { Building2, Briefcase, Clock, AlertCircle, CheckCircle2, UploadCloud, FileText, CalendarClock, Languages, Lock } from 'lucide-react'
 import { Card, Skeleton } from '../components/ui'
@@ -10,11 +12,7 @@ import { CANDIDATE_FIELDS } from '../constants/candidateSchema'
 
 const ALREADY_APPLIED_KEY = (link) => `hirepro_applied_${link}`
 
-const LANGUAGE_OPTIONS = [
-  { value: 'en', label: 'English' },
-  { value: 'hi', label: 'Hindi' },
-  { value: 'hinglish', label: 'Hinglish (mix of Hindi & English)' },
-]
+const LANGUAGE_OPTIONS = INTERVIEW_LANGUAGES.map((l) => ({ value: l.value, label: l.native === l.label ? l.label : `${l.label} (${l.native})` }))
 
 // A few minutes of buffer so the slot picker's min value never lands in
 // the past relative to "now" (the backend rejects a slot that isn't
@@ -73,7 +71,7 @@ function ApplyPage() {
       .catch(() => {}) // best-effort - a failed lookup just means the form starts blank, same as opening the link without ?email
   }, [link, emailFromInvite, tokenFromInvite])
 
-  const isBlueCollar = drive?.roleCategory === 'BLUE_COLLAR'
+  const isBlueCollar = isBlueCollarCategory(drive?.roleCategory)
 
   const slotBounds = useMemo(() => {
     if (!drive) return null

@@ -109,7 +109,7 @@ export const startAgentInterview = async (req, res, next) => {
     try {
         requireCandidate(req)
         const { id, roundNumber } = req.params
-        const session = await driveService.startAgentInterview(req.user.tenantId, req.user.email, id, roundNumber)
+        const session = await driveService.startAgentInterview(req.user.tenantId, req.user.email, id, roundNumber, req.body?.language)
         ok(res, session)
     } catch (error) {
         next(error)

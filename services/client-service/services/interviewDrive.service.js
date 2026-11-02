@@ -1,3 +1,5 @@
+import { isInterviewLanguage, normalizeInterviewLanguage } from "../utils/interviewLanguages.js"
+import { isBlueCollar, blueCollarLabel } from "../utils/blueCollar.js"
 import { permissionsForMode, resolveInterviewMode, normalizeInterviewMode } from "../utils/interviewMode.js"
 import crypto from "crypto"
 import path from "path"
@@ -588,7 +590,7 @@ export const getPublicDriveBySlug = async (link) => {
         roundOpen: round1?.status === "ACTIVE",
         // Blue-collar candidates frequently don't have a resume at all -
         // the frontend uses this to stop requiring one.
-        resumeOptional: drive.roleCategory === "BLUE_COLLAR",
+        resumeOptional: isBlueCollar(drive.roleCategory),
         // Lets the slot picker offer only times the server will accept (the server re-checks on booking).
         availability: publicAvailability(resolveAvailability(drive)),
     }
@@ -646,7 +648,7 @@ export const applyToPublicDrive = async (link, applicationData, resumeFile, ctx)
         throw new ApiError(409, "ALREADY_APPLIED", "An application with this email already exists for this drive.")
     }
 
-    const preferredLanguage = ["en", "hi", "hinglish"].includes(applicationData.preferredLanguage) ? applicationData.preferredLanguage : "en"
+    const preferredLanguage = normalizeInterviewLanguage(applicationData.preferredLanguage)
 
     const candidate = existing || { id: `candidate-${crypto.randomBytes(8).toString("hex")}` }
 
@@ -753,16 +755,14 @@ export const completeCandidateApplication = async (tenantId, email, driveId, rou
         const interviewFolder = sanitizePathSegment(candidate.id)
         resumeKey = `${companyFolder}/${roleFolder}/${interviewFolder}/resume/${Date.now()}-${uniqueKey}${safeExt}`
         await uploadBuffer(RESUMES_BUCKET, resumeKey, resumeFile.buffer, resumeFile.mimetype)
-    } else if (!candidate.resumeFilename && drive.roleCategory !== "BLUE_COLLAR") {
+    } else if (!candidate.resumeFilename && !isBlueCollar(drive.roleCategory)) {
         throw new ApiError(400, "RESUME_REQUIRED", "Please upload your resume to complete your application.")
     }
 
     if (applicationData.phone) candidate.phone = String(applicationData.phone).trim()
     if (applicationData.exp) candidate.exp = String(applicationData.exp).trim()
     if (applicationData.preferredLanguage) {
-        candidate.preferredLanguage = ["en", "hi", "hinglish"].includes(applicationData.preferredLanguage)
-            ? applicationData.preferredLanguage
-            : "en"
+        candidate.preferredLanguage = normalizeInterviewLanguage(applicationData.preferredLanguage)
     }
 
     // Re-submitting the same slot is a no-op; a different one frees the old place (previousSlot).
@@ -838,10 +838,10 @@ export const getMyInterviews = async (tenantId, email) => {
             const candidate = round.candidates?.find((c) => c.email?.toLowerCase() === normalizedEmail)
             if (!candidate) continue
 
-            const isBlueCollar = drive.roleCategory === "BLUE_COLLAR"
+            const blueCollarDrive = isBlueCollar(drive.roleCategory)
             const hasResume = Boolean(candidate.resumeFilename)
             const hasSlot = Boolean(candidate.interviewSlot)
-            const isPendingApplication = !hasSlot || (!hasResume && !isBlueCollar)
+            const isPendingApplication = !hasSlot || (!hasResume && !blueCollarDrive)
 
             results.push({
                 driveId: drive._id,
@@ -871,7 +871,8 @@ export const getMyInterviews = async (tenantId, email) => {
                 interviewMode: resolveInterviewMode(round, drive),
                 requiredPermissions: permissionsForMode(resolveInterviewMode(round, drive)),
                 isPendingApplication,
-                resumeOptional: isBlueCollar,
+                resumeOptional: blueCollarDrive,
+                preferredLanguage: candidate.preferredLanguage || "en",
                 availability: publicAvailability(resolveAvailability(drive)),
             })
         }
@@ -1043,6 +1044,7 @@ const agentRoleNameFor = (drive) => {
     // keyword (e.g. title is just "September Hiring Drive"), append a
     // guaranteed-matching phrase so the deliberate category choice
     // isn't silently lost to a "general" fallback.
+    if (blueCollarLabel(drive.roleCategory)) return blueCollarLabel(drive.roleCategory)      // a specific profile (Watchman, Plumber...) picked by HR
     return drive.roleCategory === "BLUE_COLLAR" && !/field worker|warehouse|driver|electrician|plumber|welder|mechanic|labourer|laborer/i.test(drive.title || "")
         ? `${drive.title || "Field Worker"} (field worker)`
         : drive.title || drive.roleCategory
@@ -1068,7 +1070,7 @@ const persistAgentFields = async (tenantId, drive, round, candidate, fields, { d
         { arrayFilters: [{ "r.roundNumber": Number(round.roundNumber) }, candidateFilter], timestamps: false })
 }
 
-export const startAgentInterview = async (tenantId, email, driveId, roundNumber) => {
+export const startAgentInterview = async (tenantId, email, driveId, roundNumber, chosenLanguage) => {
     const { drive, round, candidate } = await findOwnRosterEntry(tenantId, email, driveId, roundNumber)
 
     // A demo candidate (services/client-service/scripts/seed-demo-interview.js) is always presentable:
@@ -1206,6 +1208,19 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber)
         }
     }
 
+    // The candidate picked the interview language on the join screen: it applies to THIS interview, whatever they chose
+    // when they applied. Remembered for next time. The agent refuses a change once the interview is under way, which is
+    // fine - a candidate who is already talking changes language by asking the interviewer.
+    if (isInterviewLanguage(chosenLanguage) && candidate.agentInterviewId) {
+        await agentServiceClient.setLanguage(candidate.agentInterviewId, chosenLanguage).catch((err) =>
+            console.warn(`[client-service] agent language set failed for ${candidate.email}:`, err.message)
+        )
+        if (chosenLanguage !== candidate.preferredLanguage) {
+            await persistAgentFields(tenantId, drive, round, candidate, { preferredLanguage: chosenLanguage })
+            candidate.preferredLanguage = chosenLanguage
+        }
+    }
+
     const session = await agentServiceClient.getCandidateToken(candidate.agentInterviewId)
     // The agent API could not dispatch the interviewer to the room (bad LiveKit credentials, network...). A
     // token to an empty room looks like "connected" but nobody ever joins, so fail loudly and let the
@@ -1222,16 +1237,54 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber)
 // finish or proctoring auto-termination). Best-effort: if the agent
 // service is unreachable, the interview still gets marked COMPLETED via
 // completeCandidateInterview above, it just won't have an AI score/report.
+// The agent builds its report in the background, so right after "complete" it is usually still PENDING/PROCESSING.
+// Only a finished report is stored (a placeholder would show as "Not Yet Evaluated" forever); an unfinished one is
+// picked up later by refreshPendingReports when HR opens the drive.
+const REPORT_FINAL_STATES = new Set(["READY", "FAILED"])
+const reportIsFinal = (report) => Boolean(report) && (REPORT_FINAL_STATES.has(report.report_status || report.status) || (report.final_score != null && report.content))
+
+const storeAgentReport = async (tenantId, drive, round, candidate, report) => {
+    if (!reportIsFinal(report) || (report.report_status || report.status) === "FAILED") return false
+    await persistAgentFields(tenantId, drive, round, candidate, {
+        agentReport: report, aiScore: Math.round(report.final_score || 0),
+    })
+    return true
+}
+
 export const completeAgentInterview = async (tenantId, email, driveId, roundNumber) => {
-    const { drive, candidate } = await findOwnRosterEntry(tenantId, email, driveId, roundNumber)
+    const { drive, round, candidate } = await findOwnRosterEntry(tenantId, email, driveId, roundNumber)
     if (!candidate.agentInterviewId) return null
 
     await agentServiceClient.completeInterview(candidate.agentInterviewId)
-    const report = await agentServiceClient.getReport(candidate.agentInterviewId)
-    candidate.agentReport = report
-    candidate.aiScore = Math.round(report.final_score || 0)
-    await drive.save()
+    let report = null
+    try { report = await agentServiceClient.getReport(candidate.agentInterviewId) } catch { /* not built yet - fetched later */ }
+    if (report) await storeAgentReport(tenantId, drive, round, candidate, report)
     return report
+}
+
+// HR opens a drive: fetch reports for finished interviews that do not have one stored yet. Bounded and best-effort -
+// the agent being slow or down must never break the drive page.
+const REFRESH_LIMIT = 8
+const refreshPendingReports = async (tenantId, drive) => {
+    const jobs = []
+    for (const round of drive.rounds || []) {
+        for (const candidate of round.candidates || []) {
+            if (jobs.length >= REFRESH_LIMIT) break
+            if (!candidate.agentInterviewId || candidate.agentReport || !["COMPLETED", "REJECTED", "SHORTLISTED"].includes(candidate.status)) continue
+            jobs.push({ round, candidate })
+        }
+    }
+    await Promise.all(jobs.map(async ({ round, candidate }) => {
+        try {
+            const report = await agentServiceClient.getReport(candidate.agentInterviewId)
+            if (await storeAgentReport(tenantId, drive, round, candidate, report)) {
+                candidate.agentReport = report
+                candidate.aiScore = Math.round(report.final_score || 0)
+            }
+        } catch (err) {
+            if (err?.status !== 404) console.warn("[client-service] report refresh failed:", err.message)
+        }
+    }))
 }
 
 // Candidate-scoped - stores the candidate's own camera/mic recording of
@@ -1505,6 +1558,7 @@ export const getDriveById = async (tenantId, driveId) => {
     const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
     if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
     const repaired = await repairRoundStatuses(drive)
+    await refreshPendingReports(tenantId, repaired).catch(() => {})
 
     // Best-effort invite-status enrichment (invite sent/opened, per
     // candidate) - communication-service being unreachable should never

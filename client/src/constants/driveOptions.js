@@ -3,6 +3,8 @@
 // CreateDriveModal.jsx) so a drive created there is always filterable here -
 // duplicated rather than imported because CreateDriveModal is explicitly
 // out of scope to modify, even for a pure refactor.
+import { BLUE_COLLAR_ROLES } from './blueCollarRoles'
+
 export const ROLE_CATEGORY_OPTIONS = [
   { value: 'SOFTWARE_ENGINEERING', label: 'Software Engineering (SDE / Fullstack)' },
   { value: 'DATA_SCIENCE', label: 'Data Science & Machine Learning' },
@@ -13,6 +15,7 @@ export const ROLE_CATEGORY_OPTIONS = [
   { value: 'HR_OPERATIONS', label: 'Human Resources & Talent Acquisition' },
   { value: 'CAMPUS_PLACEMENT', label: 'Campus Placement / Graduate Trainee' },
   { value: 'BLUE_COLLAR', label: 'Blue Collar / Field & Skilled Trades' },
+  ...BLUE_COLLAR_ROLES,
 ]
 
 export const DEPARTMENT_OPTIONS = [

@@ -30,8 +30,8 @@ export const reportInterviewViolation = (driveId, roundNumber, reason, snapshot,
 export const completeInterview = (driveId, roundNumber) =>
     apiPost(`/api/v1/candidate/me/interviews/${driveId}/rounds/${roundNumber}/complete`)
 // Authenticated (CANDIDATE role) - bridges into the AI-interview agent: starts/resumes the agent-side interview and returns a LiveKit room + token to join directly.
-export const startAgentInterview = (driveId, roundNumber) =>
-    apiPost(`/api/v1/candidate/me/interviews/${driveId}/rounds/${roundNumber}/agent-session`)
+export const startAgentInterview = (driveId, roundNumber, language) =>
+    apiPost(`/api/v1/candidate/me/interviews/${driveId}/rounds/${roundNumber}/agent-session`, language ? { language } : undefined)
 export const completeAgentInterview = (driveId, roundNumber) =>
     apiPost(`/api/v1/candidate/me/interviews/${driveId}/rounds/${roundNumber}/agent-complete`)
 // Authenticated (CANDIDATE role) - uploads the candidate's own camera/mic recording of the session, captured client-side by MediaRecorder.

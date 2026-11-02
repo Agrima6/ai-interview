@@ -6,6 +6,7 @@ import {
 import { Modal, Button, Badge } from '../ui'
 import { submitCandidateApplication } from '../../api/organization/organizationApi'
 import CandidateCalendarPicker from './CandidateCalendarPicker'
+import { INTERVIEW_LANGUAGES } from '../../constants/interviewLanguages'
 
 export default function CompleteApplicationModal({ open, onClose, interview, onSuccess }) {
     if (!interview) return null
@@ -272,12 +273,8 @@ export default function CompleteApplicationModal({ open, onClose, interview, onS
                     <label className='block text-[12px] font-bold text-ink mb-1.5 flex items-center gap-1.5'>
                         <Globe size={14} className='text-accent' /> Preferred Spoken Language
                     </label>
-                    <div className='grid grid-cols-1 sm:grid-cols-3 gap-2.5'>
-                        {[
-                            { id: 'en', label: 'English', desc: 'Global technical standard' },
-                            { id: 'hinglish', label: 'Hinglish', desc: 'Natural Hindi + English mix' },
-                            { id: 'hi', label: 'Hindi (हिंदी)', desc: 'Full Hindi conversation' },
-                        ].map((lang) => (
+                    <div className='grid grid-cols-2 sm:grid-cols-3 gap-2.5'>
+                        {INTERVIEW_LANGUAGES.map((l) => ({ id: l.value, label: l.native === l.label ? l.label : `${l.label} (${l.native})`, desc: '' })).map((lang) => (
                             <button
                                 key={lang.id}
                                 type='button'
@@ -285,7 +282,7 @@ export default function CompleteApplicationModal({ open, onClose, interview, onS
                                 className={`p-3 rounded-xl border text-left transition-all ${preferredLanguage === lang.id ? 'border-accent bg-accent/5 ring-1 ring-accent' : 'border-line hover:border-accent/40 bg-card'}`}
                             >
                                 <p className='text-[13px] font-bold text-ink leading-tight'>{lang.label}</p>
-                                <p className='text-[11px] text-text-secondary mt-0.5'>{lang.desc}</p>
+                                
                             </button>
                         ))}
                     </div>

@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ListChecks, Users, CheckCircle2, Star, Plus, AlertCircle, ArrowRight } from 'lucide-react'
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
 import FunnelChart from '../../components/charts/FunnelChart'
 import AttentionPanel from '../../components/organization/AttentionPanel'
 import DashboardHeroIllustration from '../../components/organization/DashboardHeroIllustration'
 import ActivityFeed from '../../components/ActivityFeed'
+import { Reveal } from '../../components/ui/motionKit'
+import { motion } from 'motion/react'
 import { StatCard, Card, Button, Badge, Skeleton, SkeletonText, Tabs, EmptyState } from '../../components/ui'
 import { useOrganizationDashboard } from '../../hooks/organization/useOrganizationDashboard'
 import { listInterviewDrives } from '../../api/organization/organizationApi'
@@ -81,22 +83,25 @@ function ActiveDrivesTable({ basePath }) {
                     </tr>
                 </thead>
                 <tbody>
-                    {data.map((drive) => {
+                    {data.map((drive, rowIndex) => {
                         const id = drive._id || drive.id
                         return (
-                            <tr
+                            <motion.tr
                                 key={id}
+                                initial={{ opacity: 0, x: -8 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: rowIndex * 0.05, duration: 0.3 }}
                                 onClick={() => navigate(`${basePath}/drives/${id}`)}
                                 className='cursor-pointer border-t border-line hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition-colors'
                             >
                                 <td className='px-2 py-3 text-[13.5px] font-medium text-ink whitespace-nowrap'>{drive.title}</td>
                                 <td className='px-2 py-3 text-[13px] text-text-secondary whitespace-nowrap'>{formatEnumLabel(drive.roleCategory)}</td>
                                 <td className='px-2 py-3 text-[13px] text-text-secondary'>{drive.candidatesCount || drive.rounds?.[0]?.candidates?.length || 0}</td>
-                                <td className='px-2 py-3'><Badge variant={STATUS_BADGE[drive.status] || 'neutral'}>{drive.status}</Badge></td>
+                                <td className='px-2 py-3'><Badge dot variant={STATUS_BADGE[drive.status] || 'neutral'}>{drive.status}</Badge></td>
                                 <td className='px-2 py-3 text-[13px] text-text-secondary whitespace-nowrap'>
                                     {drive.createdAt ? new Date(drive.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—'}
                                 </td>
-                            </tr>
+                            </motion.tr>
                         )
                     })}
                 </tbody>
@@ -153,7 +158,7 @@ function OrganizationDashboard() {
             <Tabs tabs={sectionTabs} value='overview' onChange={handleTabChange} className='mb-6' />
 
             <div className='grid lg:grid-cols-[1.3fr_1fr] gap-6 mb-6'>
-                <Card className='p-6 flex items-center justify-between gap-6 overflow-hidden self-start'>
+                <Card className='relative p-6 flex items-center justify-between gap-6 overflow-hidden self-start bg-gradient-to-br from-accent/[0.07] via-card to-card'>
                     <div className='flex flex-col gap-4 min-w-0'>
                         <div>
                             <h2 className='text-[19px] font-bold text-ink mb-1.5'>Find the right talent, faster.</h2>
@@ -182,7 +187,7 @@ function OrganizationDashboard() {
                 </Card>
             </div>
 
-            <Card className='p-6 mb-6'>
+            <Reveal index={1}><Card className='p-6 mb-6'>
                 <div className='flex items-center justify-between mb-6 flex-wrap gap-3'>
                     <div>
                         <h3 className='text-[15px] font-semibold text-ink'>Hiring Overview</h3>
@@ -219,19 +224,25 @@ function OrganizationDashboard() {
                     {trends.isError ? <SectionError message='Unable to load interview activity.' onRetry={trends.refetch} />
                         : trends.isLoading ? <Skeleton className='w-full h-full' /> : (
                             <ResponsiveContainer width='100%' height='100%'>
-                                <LineChart data={trends.data.interviewTrend.map((d) => ({ date: d.date.slice(5), count: d.count }))}>
-                                    <CartesianGrid strokeDasharray='3 3' stroke='var(--color-line)' />
+                                <AreaChart data={trends.data.interviewTrend.map((d) => ({ date: d.date.slice(5), count: d.count }))}>
+                                    <defs>
+                                        <linearGradient id='interviewsFill' x1='0' y1='0' x2='0' y2='1'>
+                                            <stop offset='0%' stopColor='var(--color-accent)' stopOpacity={0.28} />
+                                            <stop offset='100%' stopColor='var(--color-accent)' stopOpacity={0} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray='3 3' stroke='var(--color-line)' vertical={false} />
                                     <XAxis dataKey='date' tick={axisTick} axisLine={{ stroke: 'var(--color-line)' }} tickLine={false} />
                                     <YAxis allowDecimals={false} tick={axisTick} axisLine={false} tickLine={false} />
-                                    <Tooltip contentStyle={chartTooltipStyle} />
-                                    <Line type='monotone' dataKey='count' name='Interviews' stroke='var(--color-accent)' strokeWidth={2} dot={false} />
-                                </LineChart>
+                                    <Tooltip contentStyle={chartTooltipStyle} cursor={{ stroke: 'var(--color-accent)', strokeOpacity: 0.25 }} />
+                                    <Area type='monotone' dataKey='count' name='Interviews' stroke='var(--color-accent)' strokeWidth={2.5} fill='url(#interviewsFill)' dot={false} activeDot={{ r: 5, strokeWidth: 2 }} animationDuration={900} />
+                                </AreaChart>
                             </ResponsiveContainer>
                         )}
                 </div>
-            </Card>
+            </Card></Reveal>
 
-            <Card className='p-6 mb-6'>
+            <Reveal index={1}><Card className='p-6 mb-6'>
                 <div className='flex items-center justify-between mb-4'>
                     <h3 className='text-[15px] font-semibold text-ink'>Active Interview Drives</h3>
                     <button onClick={() => navigate(`${basePath}/drives`)} className='text-[12.5px] font-medium text-accent flex items-center gap-1 hover:underline'>
@@ -239,9 +250,9 @@ function OrganizationDashboard() {
                     </button>
                 </div>
                 <ActiveDrivesTable basePath={basePath} />
-            </Card>
+            </Card></Reveal>
 
-            <div className='grid lg:grid-cols-3 gap-6 mb-6'>
+            <Reveal className='grid lg:grid-cols-3 gap-6 mb-6'>
                 <Card className='p-6'>
                     <h3 className='text-[15px] font-semibold text-ink mb-2'>Department Wise Hiring</h3>
                     {trends.isError ? <SectionError message='Unable to load department breakdown.' onRetry={trends.refetch} />
@@ -288,9 +299,9 @@ function OrganizationDashboard() {
                         : activity.isLoading ? <SkeletonText lines={5} />
                             : <ActivityFeed items={activity.data} />}
                 </Card>
-            </div>
+            </Reveal>
 
-            <Card className='p-6'>
+            <Reveal><Card className='p-6'>
                 <h3 className='text-[15px] font-semibold text-ink mb-6'>Score Distribution</h3>
                 <div className='h-56'>
                     {trends.isError ? <SectionError message='Unable to load score distribution.' onRetry={trends.refetch} />
@@ -301,12 +312,12 @@ function OrganizationDashboard() {
                                     <XAxis dataKey='bucket' tick={axisTick} axisLine={{ stroke: 'var(--color-line)' }} tickLine={false} />
                                     <YAxis allowDecimals={false} tick={axisTick} axisLine={false} tickLine={false} />
                                     <Tooltip contentStyle={chartTooltipStyle} />
-                                    <Bar dataKey='count' fill='var(--color-accent)' radius={[6, 6, 0, 0]} />
+                                    <Bar dataKey='count' fill='var(--color-accent)' radius={[8, 8, 0, 0]} animationDuration={800} />
                                 </BarChart>
                             </ResponsiveContainer>
                         )}
                 </div>
-            </Card>
+            </Card></Reveal>
         </OrganizationLayout>
     )
 }

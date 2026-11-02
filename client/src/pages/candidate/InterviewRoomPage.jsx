@@ -7,8 +7,9 @@ import {
     Maximize, AlertTriangle, ShieldAlert, Bot, Loader2, Mic, MicOff, Video, VideoOff,
     LogOut, Clock, Sparkles, Lightbulb, CheckCircle2, Circle, ScreenShare, ScreenShareOff,
     MessageSquare, Subtitles, Volume2, ShieldCheck, Copy, RefreshCw, User, Check,
-    AlertCircle, ArrowRight, Send, MoreHorizontal, Wifi
+    AlertCircle, ArrowRight, Send, MoreHorizontal, Wifi, Languages
 } from 'lucide-react'
+import { INTERVIEW_LANGUAGES } from '../../constants/interviewLanguages'
 import { Card } from '../../components/ui'
 import { reportInterviewViolation, completeInterview, startAgentInterview, completeAgentInterview, uploadRecordingChunk, finalizeInterviewRecording, getMyInterviews } from '../../api/organization/organizationApi'
 import {
@@ -37,6 +38,7 @@ function InterviewRoomPage() {
 
     // Session State
     const [started, setStarted] = useState(false)
+    const [interviewLanguage, setInterviewLanguage] = useState('en')     // chosen on the join screen; the candidate can still ask the interviewer to switch
     const [violationCount, setViolationCount] = useState(0)
     const [violationMessage, setViolationMessage] = useState('')
     const [terminated, setTerminated] = useState(false)
@@ -141,6 +143,7 @@ function InterviewRoomPage() {
                 const next = normalizeRequirements(item?.requiredPermissions)
                 requiredRef.current = next
                 setRequired(next)
+                if (item?.preferredLanguage) setInterviewLanguage(item.preferredLanguage)
             })
             .catch(() => { /* unreadable configuration: stay fail-closed (everything required) */ })
             .finally(() => { if (!cancelled) setRequirementsLoaded(true) })
@@ -428,7 +431,7 @@ function InterviewRoomPage() {
         setConnectState('connecting')
         setConnectError('')
         try {
-            const session = await startAgentInterview(driveId, roundNumber)
+            const session = await startAgentInterview(driveId, roundNumber, interviewLanguage)
             const isRealLiveKit = Boolean(session?.url && session?.token && !session?.isMock && !session?.url?.includes('demo.livekit.cloud'))
             let questionsList = session?.questions || []
             // Invented placeholder questions are only for the offline DEMO mode. In a real interview they would be
@@ -1317,6 +1320,27 @@ function InterviewRoomPage() {
 
                         {/* Right: Security & Proctoring Checklist */}
                         <div className='lg:col-span-6 flex flex-col justify-between gap-4'>
+                            <Card className='p-5 space-y-3'>
+                                <h3 className='text-[14px] font-bold text-ink flex items-center gap-2'>
+                                    <Languages size={16} className='text-accent' />
+                                    Interview language
+                                </h3>
+                                <div className='flex flex-wrap gap-2' role='radiogroup' aria-label='Interview language'>
+                                    {INTERVIEW_LANGUAGES.map((lang) => (
+                                        <button
+                                            key={lang.value}
+                                            type='button'
+                                            role='radio'
+                                            aria-checked={interviewLanguage === lang.value}
+                                            onClick={() => setInterviewLanguage(lang.value)}
+                                            className={`min-h-[40px] px-3.5 rounded-full border text-[13px] font-medium transition-all duration-150 active:scale-95 ${interviewLanguage === lang.value ? 'border-accent bg-accent text-white shadow-sm' : 'border-line bg-card text-ink hover:border-accent/50 hover:bg-accent/5'}`}
+                                        >
+                                            {lang.native === lang.label ? lang.label : `${lang.label} · ${lang.native}`}
+                                        </button>
+                                    ))}
+                                </div>
+                                <p className='text-[12px] text-text-secondary'>Your interviewer will speak and listen in this language. You can also ask them to switch at any time during the interview.</p>
+                            </Card>
                             <Card className='p-5 space-y-4'>
                                 <h3 className='text-[14px] font-bold text-ink flex items-center gap-2'>
                                     <ShieldCheck size={16} className='text-accent' />
