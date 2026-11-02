@@ -25,3 +25,17 @@ test("the interviewer agent supports every language offered (when its repo is ch
         assert.ok(text.includes(`"${value}"`), `agent has no language "${value}"`)
     }
 })
+
+test("candidates are offered only languages the active voice can speak, and everything if the agent is unreachable", async () => {
+    const { agentServiceClient } = await import("../config/agentServiceClient.js")
+    const { getAvailableInterviewLanguages } = await import("../services/voiceProvider.service.js")
+    const original = agentServiceClient.getVoiceProvider
+    try {
+        agentServiceClient.getVoiceProvider = async () => ({ supportedLanguages: ["en", "hi", "hinglish", "ta", "zz"] })
+        assert.deepEqual(await getAvailableInterviewLanguages(), ["en", "hi", "hinglish", "ta"])
+        agentServiceClient.getVoiceProvider = async () => { throw new Error("down") }
+        assert.equal((await getAvailableInterviewLanguages()).length, INTERVIEW_LANGUAGES.length)
+    } finally {
+        agentServiceClient.getVoiceProvider = original
+    }
+})

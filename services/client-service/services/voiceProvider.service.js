@@ -1,5 +1,6 @@
 import { agentServiceClient } from "../config/agentServiceClient.js"
 import { ApiError } from "../utils/response.js"
+import { INTERVIEW_LANGUAGE_CODES } from "../utils/interviewLanguages.js"
 
 // The two providers an administrator can choose between. The agent validates again; this is the first line.
 export const VOICE_PROVIDERS = ["sarvam", "elevenlabs"]
@@ -34,4 +35,15 @@ export const updateVoiceProviderSetting = async ({ provider, expectedVersion }, 
     } catch (err) {
         throw fromAgent(err)
     }
+}
+
+// The interview languages a candidate can be offered: the ones the ACTIVE voice can speak (the agent publishes them). If the
+// agent cannot be reached the full list is returned - the agent itself still falls back safely if a language is unavailable.
+export const getAvailableInterviewLanguages = async () => {
+    try {
+        const setting = await agentServiceClient.getVoiceProvider()
+        const spoken = Array.isArray(setting?.supportedLanguages) ? setting.supportedLanguages : null
+        if (spoken?.length) return INTERVIEW_LANGUAGE_CODES.filter((code) => spoken.includes(code))
+    } catch { /* fall through */ }
+    return [...INTERVIEW_LANGUAGE_CODES]
 }

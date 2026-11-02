@@ -1,3 +1,4 @@
+import { getAvailableInterviewLanguages } from "../services/voiceProvider.service.js"
 import * as driveService from "../services/interviewDrive.service.js"
 import * as recordingService from "../services/recording.service.js"
 import { ok, ApiError } from "../utils/response.js"
@@ -437,6 +438,15 @@ export const getDashboardMetric = async (req, res, next) => {
         const fn = DASHBOARD_METRICS[req.params.metric]
         if (!fn) return next(new ApiError(404, "UNKNOWN_METRIC", "Unknown dashboard metric."))
         ok(res, await dashboardService[fn](req.user?.tenantId, req.query))
+    } catch (error) {
+        next(error)
+    }
+}
+
+export const getInterviewLanguages = async (req, res, next) => {
+    try {
+        requireCandidate(req)
+        ok(res, { languages: await getAvailableInterviewLanguages() })
     } catch (error) {
         next(error)
     }

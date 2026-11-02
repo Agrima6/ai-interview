@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { INTERVIEW_LANGUAGES } from '../../constants/interviewLanguages'
 import { Card } from '../../components/ui'
-import { reportInterviewViolation, completeInterview, startAgentInterview, completeAgentInterview, uploadRecordingChunk, finalizeInterviewRecording, getMyInterviews } from '../../api/organization/organizationApi'
+import { reportInterviewViolation, completeInterview, startAgentInterview, completeAgentInterview, uploadRecordingChunk, finalizeInterviewRecording, getMyInterviews, getInterviewLanguages } from '../../api/organization/organizationApi'
 import {
     STATUS, FULL_REQUIREMENTS, WRONG_SURFACE_COPY, normalizeRequirements, classifyMediaError, isTrackLive, verifyStream, readiness, describeMissing,
 } from '../../utils/mediaPermissions'
@@ -38,6 +38,7 @@ function InterviewRoomPage() {
 
     // Session State
     const [started, setStarted] = useState(false)
+    const [availableLanguages, setAvailableLanguages] = useState(null)     // null until known: then only languages the voice can speak
     const [interviewLanguage, setInterviewLanguage] = useState('en')     // chosen on the join screen; the candidate can still ask the interviewer to switch
     const [violationCount, setViolationCount] = useState(0)
     const [violationMessage, setViolationMessage] = useState('')
@@ -132,6 +133,18 @@ function InterviewRoomPage() {
         (kind, status, message = '', recovery = '') => setPerm((prev) => ({ ...prev, [kind]: { status, message, recovery } })),
         [],
     )
+
+    useEffect(() => {
+        let cancelled = false
+        getInterviewLanguages()
+            .then((data) => {
+                if (cancelled || !Array.isArray(data?.languages) || !data.languages.length) return
+                setAvailableLanguages(data.languages)
+                setInterviewLanguage((current) => (data.languages.includes(current) ? current : (data.languages.includes('hinglish') ? 'hinglish' : data.languages[0])))
+            })
+            .catch(() => { /* unknown: offer everything, the interviewer falls back safely */ })
+        return () => { cancelled = true }
+    }, [])
 
     // Loads what this interview requires from its own configuration.
     useEffect(() => {
@@ -1326,7 +1339,7 @@ function InterviewRoomPage() {
                                     Interview language
                                 </h3>
                                 <div className='flex flex-wrap gap-2' role='radiogroup' aria-label='Interview language'>
-                                    {INTERVIEW_LANGUAGES.map((lang) => (
+                                    {INTERVIEW_LANGUAGES.filter((lang) => !availableLanguages || availableLanguages.includes(lang.value)).map((lang) => (
                                         <button
                                             key={lang.value}
                                             type='button'

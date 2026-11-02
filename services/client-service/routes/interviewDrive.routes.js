@@ -44,6 +44,7 @@ router.get("/drives/:id/rounds/:roundNumber/candidates/:candidateId/recording", 
 router.get("/drives/:id/rounds/:roundNumber/candidates/:candidateId/violations/:violationIndex/:type", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.streamCandidateViolationSnapshot)
 
 router.get("/candidate/me/interviews", authenticate, driveController.getMyInterviews)
+router.get("/candidate/me/interview-languages", authenticate, driveController.getInterviewLanguages)
 router.post("/candidate/me/interviews/:id/rounds/:roundNumber/apply", authenticate, uploadResume.single("resume"), driveController.completeCandidateApplication)
 router.patch("/candidate/me/interviews/:id/rounds/:roundNumber/reschedule", authenticate, driveController.rescheduleCandidateSlot)
 router.post("/candidate/me/interviews/:id/rounds/:roundNumber/violations", authenticate, driveController.recordCandidateViolation)
