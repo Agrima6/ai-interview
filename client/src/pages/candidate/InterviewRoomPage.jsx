@@ -10,6 +10,17 @@ import {
     AlertCircle, ArrowRight, Send, MoreHorizontal, Wifi, Languages
 } from 'lucide-react'
 import { INTERVIEW_LANGUAGES } from '../../constants/interviewLanguages'
+
+// The interview is a conversation, not a video call: the interviewer never looks at the video, and the screen share is only
+// kept for proctoring snapshots. Sending and decoding full-size, full-rate video made the page (and the recording) lag, so the
+// camera is published at a modest size with a single layer, and the shared screen is captured at a low frame rate.
+const SCREEN_CAPTURE_VIDEO = { displaySurface: 'monitor', frameRate: { ideal: 5, max: 8 }, width: { max: 1280 }, height: { max: 720 } }
+const ROOM_OPTIONS = {
+    videoCaptureDefaults: { resolution: { width: 640, height: 360, frameRate: 20 } },
+    publishDefaults: { simulcast: false, videoEncoding: { maxBitrate: 500_000, maxFramerate: 20 } },
+    adaptiveStream: true,
+    dynacast: true,
+}
 import { Card } from '../../components/ui'
 import { reportInterviewViolation, completeInterview, startAgentInterview, completeAgentInterview, uploadRecordingChunk, finalizeInterviewRecording, getMyInterviews, getInterviewLanguages } from '../../api/organization/organizationApi'
 import {
@@ -38,6 +49,7 @@ function InterviewRoomPage() {
 
     // Session State
     const [started, setStarted] = useState(false)
+    const cameraTrackRef = useRef(null)                                    // the published camera track, kept so the picture can be re-attached
     const [availableLanguages, setAvailableLanguages] = useState(null)     // null until known: then only languages the voice can speak
     const [interviewLanguage, setInterviewLanguage] = useState('en')     // chosen on the join screen; the candidate can still ask the interviewer to switch
     const [violationCount, setViolationCount] = useState(0)
@@ -319,7 +331,7 @@ function InterviewRoomPage() {
     const requestScreenPermission = useCallback(async () => {
         setPermStatus('screen', STATUS.REQUESTING)
         try {
-            const stream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: 'monitor' }, audio: false })
+            const stream = await navigator.mediaDevices.getDisplayMedia({ video: SCREEN_CAPTURE_VIDEO, audio: false })
             const check = verifyStream('screen', stream)
             if (!check.ok) {
                 stream.getTracks().forEach((t) => t.stop())
@@ -500,7 +512,7 @@ function InterviewRoomPage() {
             }
 
             try {
-                const room = new Room()
+                const room = new Room(ROOM_OPTIONS)
                 roomRef.current = room
 
                 // Audio track subscription from AI interviewer
@@ -605,6 +617,7 @@ function InterviewRoomPage() {
 
                 const camPub = [...room.localParticipant.videoTrackPublications.values()][0]
                 if (camPub?.track && videoRef.current) {
+                    cameraTrackRef.current = camPub.track
                     camPub.track.attach(videoRef.current)
                     startRoomRecording(room, camPub.track.mediaStreamTrack)
                 }
@@ -615,7 +628,7 @@ function InterviewRoomPage() {
                     const shared = screenStreamRef.current?.getVideoTracks().find(isTrackLive)
                     if (shared) {
                         try {
-                            await room.localParticipant.publishTrack(shared, { source: Track.Source.ScreenShare, name: 'screen' })
+                            await room.localParticipant.publishTrack(shared, { source: Track.Source.ScreenShare, name: 'screen', simulcast: false, videoEncoding: { maxBitrate: 400_000, maxFramerate: 5 } })
                             if (screenVideoRef.current) {
                                 screenVideoRef.current.srcObject = new MediaStream([shared])
                                 screenVideoRef.current.play?.().catch(() => {})
@@ -728,7 +741,7 @@ function InterviewRoomPage() {
 
     const requestScreenShare = async () => {
         try {
-            const stream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: 'monitor' }, audio: false })
+            const stream = await navigator.mediaDevices.getDisplayMedia({ video: SCREEN_CAPTURE_VIDEO, audio: false })
             const check = verifyStream('screen', stream)
             if (!check.ok) {
                 stream.getTracks().forEach((t) => t.stop())
@@ -921,6 +934,22 @@ function InterviewRoomPage() {
         if (timeLimitSeconds > 0 && elapsedSeconds >= timeLimitSeconds) endInterview('time_limit')
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [elapsedSeconds, timeLimitSeconds])
+
+    // If the camera <video> loses its picture (the element was re-created, or the browser paused it), attach the track again
+    // instead of leaving a frozen/black tile until the page is reloaded.
+    useEffect(() => {
+        if (connectState !== 'connected') return undefined
+        const heal = () => {
+            const video = videoRef.current
+            const track = cameraTrackRef.current
+            if (!video || !track || !cameraOn) return
+            if (!video.srcObject || video.paused || video.readyState < 2) {
+                try { track.attach(video); video.play?.().catch(() => {}) } catch { /* the track ended: the camera banner explains it */ }
+            }
+        }
+        const timer = setInterval(heal, 3000)
+        return () => clearInterval(timer)
+    }, [connectState, cameraOn])
 
     // Clock
     useEffect(() => {
