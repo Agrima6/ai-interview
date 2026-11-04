@@ -36,7 +36,7 @@ function Modal({ open, onClose, title, children, footer, size = 'md' }) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={onClose}
-              className='absolute inset-0 bg-black/50 backdrop-blur-sm'
+              className='absolute inset-0 bg-[#0d1233]/50 backdrop-blur-sm'
             />
           )}
           <motion.div
@@ -52,15 +52,15 @@ function Modal({ open, onClose, title, children, footer, size = 'md' }) {
             className={`relative ${
               isFull
                 ? 'w-full h-full min-h-screen bg-card flex flex-col overflow-hidden'
-                : `w-full ${widths[size]} bg-card border border-line rounded-2xl shadow-[var(--shadow-lift)] max-h-[calc(100dvh-2rem)] overflow-y-auto`
+                : `w-full ${widths[size]} bg-card border border-line rounded-[24px] shadow-[0_40px_80px_-30px_rgba(13,18,51,0.55)] max-h-[calc(100dvh-2rem)] overflow-y-auto`
             }`}
           >
             {(title || onClose) && (
-              <div className={`flex items-center justify-between border-b border-line sticky top-0 bg-card z-10 ${isFull ? 'px-4 py-4 sm:px-8 sm:py-5 shadow-sm' : 'px-4 py-4 sm:px-6 sm:py-5 rounded-t-2xl'}`}>
+              <div className={`flex items-center justify-between border-b border-line sticky top-0 bg-card z-10 ${isFull ? 'px-4 py-4 sm:px-8 sm:py-5 shadow-sm' : 'px-4 py-4 sm:px-6 sm:py-5 rounded-t-[24px]'}`}>
                 <div className={isFull ? 'max-w-6xl w-full mx-auto flex items-center justify-between' : 'flex items-center justify-between w-full'}>
-                  <h3 className={`font-semibold text-ink ${isFull ? 'text-[18px] font-bold' : 'text-[16px]'}`}>{title}</h3>
+                  <h3 className={`text-ink ${isFull ? 'text-[20px] font-extrabold' : 'text-[18px] font-extrabold'}`}>{title}</h3>
                   {onClose && (
-                    <button onClick={onClose} aria-label='Close' className='w-8 h-8 rounded-full flex items-center justify-center text-text-secondary hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition-colors'>
+                    <button onClick={onClose} aria-label='Close' className='w-9 h-9 rounded-xl flex items-center justify-center text-text-secondary hover:bg-accent/[0.08] hover:text-accent transition-colors'>
                       <X size={18} />
                     </button>
                   )}

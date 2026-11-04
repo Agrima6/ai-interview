@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Palette, Upload, Building2, Check, Sparkles, Mail } from 'lucide-react'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
-import { Card, Button, Input, Select, Skeleton, Tabs } from '../../components/ui'
+import { Card, Button, Input, Select, Skeleton } from '../../components/ui'
 import { getOrganizationProfile, updateOrganizationBranding } from '../../api/organization/organizationApi'
 import Avatar from '../../components/ui/Avatar'
 import { resolveAssetUrl } from '../../api/client'
@@ -17,8 +17,8 @@ const TYPOGRAPHY_OPTIONS = [
 ]
 
 const SETTINGS_TABS = [
-  { id: 'branding', label: 'Branding & Typography', icon: Palette },
-  { id: 'email', label: 'Email (SMTP)', icon: Mail },
+  { id: 'branding', label: 'Branding & Typography', sub: 'Logo, colours, font and contact', icon: Palette },
+  { id: 'email', label: 'Email (SMTP)', sub: 'Sender identity and delivery', icon: Mail },
 ]
 
 function SettingsPage() {
@@ -95,7 +95,7 @@ function SettingsPage() {
 
   if (loading) {
     return (
-      <OrganizationLayout title="Portal & Branding Settings" description="Customize portal organization details, email, branding logo, colors, and typography.">
+      <OrganizationLayout title="Settings" description="Your organization, branding, typography and email delivery.">
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6"><Skeleton className="h-64" /><Skeleton className="h-96" /></div>
           <Skeleton className="h-72" />
@@ -106,21 +106,42 @@ function SettingsPage() {
 
   return (
     <OrganizationLayout
-      title="Portal & Branding Settings"
-      description="Customize portal organization details, email, branding logo, colors, and typography."
+      title="Settings"
+      description="Your organization, branding, typography and email delivery."
     >
-      <Tabs tabs={SETTINGS_TABS} value={activeSection} onChange={setActiveSection} className="mb-6" />
+      <div className="grid lg:grid-cols-[260px_minmax(0,1fr)] gap-5 items-start">
+        <nav aria-label="Settings sections" className="ui-rise flex lg:flex-col gap-1.5 p-2 rounded-[20px] bg-card border border-line overflow-x-auto lg:sticky lg:top-6">
+          {SETTINGS_TABS.map((t) => {
+            const on = activeSection === t.id
+            return (
+              <button
+                key={t.id}
+                type="button"
+                aria-current={on ? 'page' : undefined}
+                onClick={() => setActiveSection(t.id)}
+                className={`flex items-center gap-3 text-left px-3.5 py-3 rounded-[14px] transition-all shrink-0 lg:shrink ${on ? 'bg-accent text-white shadow-[0_10px_22px_-12px_var(--color-accent)]' : 'text-[#3a4262] hover:bg-accent/[0.06]'}`}
+              >
+                <t.icon size={19} className="shrink-0" />
+                <span className="flex flex-col">
+                  <span className="font-bold text-[14px]">{t.label}</span>
+                  <span className={`hidden lg:block text-[12px] ${on ? 'text-white/80' : 'text-text-secondary'}`}>{t.sub}</span>
+                </span>
+              </button>
+            )
+          })}
+        </nav>
 
+        <div key={activeSection} className="ui-fade min-w-0">
       {activeSection === 'email' ? (
         <SmtpSettingsSection />
       ) : (
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid xl:grid-cols-[minmax(0,1fr)_300px] gap-6">
         {/* Main Settings Form */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="space-y-6">
           <form onSubmit={handleSaveSettings} className="space-y-6">
             {/* Organization Info Card */}
             <Card className="p-6">
-              <h2 className="font-display text-[16px] font-bold text-ink mb-4 flex items-center gap-2">
+              <h2 className="text-[18px] font-extrabold text-ink mb-4 flex items-center gap-2">
                 <Building2 size={18} className="text-accent" /> Organization & Account Details
               </h2>
               <div className="space-y-4">
@@ -131,7 +152,7 @@ function SettingsPage() {
                   placeholder="e.g. Acme Tech Corporation"
                   required
                 />
-                <div className="grid sm:grid-cols-2 gap-4">
+                <div className="grid gap-4">
                   <Input
                     label="Primary Contact Email Address *"
                     type="email"
@@ -140,18 +161,13 @@ function SettingsPage() {
                     placeholder="admin@acme.com"
                     required
                   />
-                  <Input
-                    label="Portal Domain Prefix"
-                    value={profile?.slug ? `${profile.slug}.workmateiq.com` : 'Not configured'}
-                    readOnly
-                  />
                 </div>
               </div>
             </Card>
 
             {/* Custom Branding & Typography Card */}
             <Card className="p-6 space-y-5">
-              <h2 className="font-display text-[16px] font-bold text-ink mb-4 flex items-center gap-2">
+              <h2 className="text-[18px] font-extrabold text-ink mb-4 flex items-center gap-2">
                 <Palette size={18} className="text-accent" /> Visual Branding & Typography
               </h2>
 
@@ -230,7 +246,7 @@ function SettingsPage() {
 
         {/* Live Preview Panel */}
         <div>
-          <Card className="p-6 sticky top-6">
+          <Card className="p-6 xl:sticky xl:top-6">
             <h3 className="text-[14px] font-bold text-ink mb-4 flex items-center gap-2">
               <Sparkles size={16} className="text-accent" /> Live Brand Preview
             </h3>
@@ -262,6 +278,8 @@ function SettingsPage() {
         </div>
       </div>
       )}
+        </div>
+      </div>
     </OrganizationLayout>
   )
 }

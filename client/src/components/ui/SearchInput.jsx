@@ -22,13 +22,13 @@ function SearchInput({ value = '', onChange, placeholder = 'Search...', debounce
 
     return (
         <div className={`relative ${className}`}>
-            <Search size={15} className='absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none' />
+            <Search size={17} className='absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none' />
             <input
                 value={local}
                 onChange={(e) => setLocal(e.target.value)}
                 placeholder={placeholder}
                 aria-label={placeholder}
-                className='w-full pl-9 pr-3.5 py-2.5 text-[13.5px] text-ink bg-card border border-line rounded-xl outline-none focus:border-accent/60 focus:ring-2 focus:ring-accent/15 transition-colors'
+                className='w-full pl-10 pr-3.5 h-12 text-[14px] text-ink bg-card border-[1.5px] border-line rounded-[14px] outline-none hover:border-accent/35 focus:border-accent focus:ring-4 focus:ring-accent/15 transition-all'
             />
         </div>
     )

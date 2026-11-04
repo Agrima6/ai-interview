@@ -148,12 +148,16 @@ function TemplatesPage() {
 
   return (
     <OrganizationLayout
-      title="Communication Templates"
-      description="Manage email, WhatsApp, and call templates used to invite, remind, and follow up with candidates."
+      title="Templates"
+      description="Emails, WhatsApp messages and call scripts sent to candidates — edit once, use everywhere."
       action={
-        <Button size="sm" onClick={() => { setNewTemplate((t) => ({ ...t, type: channelTab })); setCreateOpen(true) }}>
-          <Plus size={14} /> Create Template
-        </Button>
+        <button
+          type="button"
+          onClick={() => { setNewTemplate((t) => ({ ...t, type: channelTab })); setCreateOpen(true) }}
+          className="ui-shine inline-flex items-center gap-2 h-12 px-5 rounded-[14px] bg-accent text-white text-[14px] font-bold transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_28px_-10px_var(--color-accent)]"
+        >
+          <Plus size={17} /> New template
+        </button>
       }
     >
       <Tabs tabs={CHANNEL_TABS} value={channelTab} onChange={setChannelTab} className="mb-5" />
@@ -187,18 +191,24 @@ function TemplatesPage() {
           <SearchInput placeholder="Search templates..." value={search} onChange={setSearch} className="mb-1" />
           {channelTemplates.map((tmpl) => {
             const isActive = activeTemplateId === tmpl.id
+            const ChannelIcon = CHANNEL_TABS.find((c) => c.id === tmpl.type)?.icon
             return (
               <div
                 key={tmpl.id}
                 onClick={() => setActiveTemplateId(tmpl.id)}
-                className={`p-4 rounded-xl border cursor-pointer transition-all group ${
+                className={`ui-lift p-4 rounded-[18px] border-[1.5px] cursor-pointer group ${
                   isActive
-                    ? 'border-accent bg-accent/5 ring-1 ring-accent/30'
-                    : 'border-line bg-card hover:border-black/20 dark:hover:border-white/20'
+                    ? 'border-accent bg-accent/[0.05] shadow-[0_10px_26px_-16px_var(--color-accent)]'
+                    : 'border-line bg-card'
                 }`}
               >
-                <div className="flex items-center justify-between mb-1 gap-2">
-                  <span className="font-semibold text-[13.5px] text-ink truncate">{tmpl.name}</span>
+                <div className="flex items-center justify-between mb-2 gap-2">
+                  <span className="flex items-center gap-2.5 min-w-0">
+                    <span className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center ${isActive ? 'bg-accent text-white' : 'bg-[color-mix(in_srgb,var(--color-accent)_10%,white)] text-accent'}`}>
+                      {ChannelIcon && <ChannelIcon size={16} />}
+                    </span>
+                    <span className="font-bold text-[14px] text-ink truncate">{tmpl.name}</span>
+                  </span>
                   {tmpl.defaultKey ? (
                     <Badge variant="neutral">Default</Badge>
                   ) : (
@@ -229,10 +239,10 @@ function TemplatesPage() {
           {!activeTemplate ? (
             <Card className="p-12 text-center"><p className="text-[14px] text-text-secondary">Select a template to edit.</p></Card>
           ) : (
-          <Card className="p-6 space-y-5">
+          <Card className="p-6 space-y-5 ui-fade">
             <div className="flex items-center justify-between border-b border-line pb-4 flex-wrap gap-3">
               <div>
-                <h2 className="font-display text-[16px] font-bold text-ink">{activeTemplate.name}</h2>
+                <h2 className="text-[18px] font-extrabold text-ink">{activeTemplate.name}</h2>
                 <p className="text-[12.5px] text-text-secondary">Edit template text and dynamic variable tags below.</p>
               </div>
               <div className="flex items-center gap-2">

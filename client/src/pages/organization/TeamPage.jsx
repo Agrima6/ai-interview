@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { UserPlus, Shield, CheckCircle2, Clock, AlertCircle, Trash2 } from 'lucide-react'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
-import Modal from '../../components/ui/Modal'
-import { Card, Button, Badge, Input, Select, StatCard, Skeleton, ConfirmModal, useToast } from '../../components/ui'
+import { Card, Button, Badge, EmptyState, Skeleton, ConfirmModal, useToast } from '../../components/ui'
 import { getTeamMembers, inviteTeamMember as apiInviteTeamMember, removeTeamMember as apiRemoveTeamMember } from '../../api/organization/organizationApi'
 
 const ROLE_OPTIONS = [
@@ -24,7 +23,6 @@ function TeamPage() {
   const [team, setTeam] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [modalOpen, setModalOpen] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState('RECRUITER')
   const [submitting, setSubmitting] = useState(false)
@@ -61,7 +59,6 @@ function TeamPage() {
     try {
       await apiInviteTeamMember(payload)
       setInviteEmail('')
-      setModalOpen(false)
       fetchMembers()
     } catch (err) {
       // Surfaced in the modal, not silently treated as success - an admin
@@ -84,139 +81,129 @@ function TeamPage() {
     }
   }
 
+  const activeMembers = team.filter((m) => m.status !== 'PENDING')
+  const pendingMembers = team.filter((m) => m.status === 'PENDING')
+  const initialsOf = (name = '') => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?'
+
   return (
     <OrganizationLayout
-      title="Team & Access Control"
-      description="Manage organization team members, roles, and interviewer permissions."
-      action={
-        <Button size="sm" onClick={() => setModalOpen(true)}>
-          <UserPlus size={14} /> Invite Team Member
-        </Button>
-      }
+      title="Team"
+      description="People who create drives, review interviews and make hiring calls."
     >
-      {/* Top Stats */}
-      <div className="grid sm:grid-cols-3 gap-4 mb-6">
-        <StatCard icon={Shield} label="Total Members" value={team.length.toString()} />
-        <StatCard icon={CheckCircle2} label="Active Users" value={team.filter((t) => t.status === 'ACTIVE').length.toString()} />
-        <StatCard icon={Clock} label="Pending Invites" value={team.filter((t) => t.status === 'PENDING').length.toString()} />
-      </div>
-
-      {/* Team Table Card */}
-      <Card className="p-6">
-        {error ? (
-          <div className="py-12 text-center">
-            <AlertCircle size={20} className="text-red-500 mx-auto mb-3" />
-            <p className="text-[14px] text-ink font-medium mb-1">Couldn't load your team</p>
-            <p className="text-[13px] text-text-secondary mb-4">{error}</p>
-            <Button variant="secondary" onClick={fetchMembers}>Retry</Button>
+      <section className="ui-rise relative overflow-hidden rounded-[24px] bg-[var(--color-navy)] text-white p-6 sm:p-8 mb-6 flex flex-col gap-4">
+        <div aria-hidden="true" className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+        <div className="relative flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="text-[20px] font-extrabold">Invite a teammate</h2>
+            <p className="text-[14px] text-[#c3c9ee] mt-1">They’ll get an email invitation to join your organization on WorkmateIQ.</p>
           </div>
-        ) : loading ? (
-          <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14" />)}</div>
-        ) : team.length === 0 ? (
-          <div className="py-12 text-center space-y-3">
-            <div className="w-12 h-12 rounded-full bg-accent/10 text-accent flex items-center justify-center mx-auto">
-              <UserPlus size={22} />
-            </div>
-            <h3 className="text-[15px] font-bold text-ink">No team members yet</h3>
-            <p className="text-[13.5px] text-text-secondary max-w-sm mx-auto">
-              Invite recruiters, evaluators, and hiring managers to collaborate on interview drives.
-            </p>
-            <div className="pt-2">
-              <Button onClick={() => setModalOpen(true)}><UserPlus size={14} /> Invite Team Member</Button>
-            </div>
+          <div className="hidden sm:flex items-center gap-4 text-[13px] text-[#c3c9ee]">
+            <span className="inline-flex items-center gap-1.5"><Shield size={15} /> {team.length} members</span>
+            <span className="inline-flex items-center gap-1.5"><CheckCircle2 size={15} /> {team.filter((t) => t.status === 'ACTIVE').length} active</span>
+            <span className="inline-flex items-center gap-1.5"><Clock size={15} /> {pendingMembers.length} pending</span>
           </div>
-        ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-line text-[12px] font-semibold uppercase tracking-wider text-text-secondary">
-                <th className="pb-3 px-3">Member</th>
-                <th className="pb-3 px-3">Role</th>
-                <th className="pb-3 px-3">Status</th>
-                <th className="pb-3 px-3">Last Active</th>
-                <th className="pb-3 px-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line text-[13.5px]">
-              {team.map((member) => (
-                <tr key={member.id} className="hover:bg-black/[0.015] dark:hover:bg-white/[0.02] transition-colors">
-                  <td className="py-4 px-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full gradient-brand text-white flex items-center justify-center font-bold text-sm">
-                        {(member.name || 'M').charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <div className="font-semibold text-ink leading-tight">{member.name}</div>
-                        <div className="text-[12px] text-text-secondary">{member.email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-4 px-3 font-medium text-ink">
-                    <Badge variant={ROLE_BADGE[member.role] || 'neutral'}>{member.roleLabel || member.role}</Badge>
-                  </td>
-                  <td className="py-4 px-3">
-                    <Badge variant={member.status === 'ACTIVE' ? 'success' : 'neutral'}>{member.status}</Badge>
-                  </td>
-                  <td className="py-4 px-3 text-text-secondary text-[12.5px]">{member.lastActive}</td>
-                  <td className="py-4 px-3 text-right">
-                    {member.role !== 'CLIENT_ADMIN' && (
-                      <button
-                        title="Remove Access"
-                        aria-label={`Remove ${member.name}'s access`}
-                        onClick={() => setRemoveTarget(member)}
-                        className="p-1.5 text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
-        )}
-      </Card>
-
-      {/* Invite Modal */}
-      <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title="Invite New Team Member"
-        size="md"
-        footer={
-          <div className="flex items-center justify-end gap-2 w-full">
-            <Button type="button" variant="secondary" size="sm" onClick={() => setModalOpen(false)} disabled={submitting}>
-              Cancel
-            </Button>
-            <Button type="button" size="sm" onClick={handleInvite} disabled={!inviteEmail.trim() || submitting}>
-              {submitting ? 'Sending...' : 'Send Invite'}
-            </Button>
-          </div>
-        }
-      >
-        <form onSubmit={handleInvite} className="space-y-4">
-          {errorMessage && (
-            <div className="p-3 rounded-lg bg-[var(--color-danger-soft)] text-[var(--color-danger)] text-[13px] flex items-center gap-2">
-              <AlertCircle size={15} /> {errorMessage}
-            </div>
-          )}
-          <Input
-            label="Email Address"
-            type="email"
-            placeholder="colleague@workmateiq.com"
-            value={inviteEmail}
-            onChange={(e) => setInviteEmail(e.target.value)}
-            required
-          />
-          <Select
-            label="Assign Permission Role"
-            value={inviteRole}
-            onChange={(e) => setInviteRole(e.target.value)}
-            options={ROLE_OPTIONS}
-          />
+        <form onSubmit={handleInvite} className="relative flex flex-wrap gap-2.5">
+          <label className="flex-[999_1_280px] flex">
+            <span className="sr-only">Email address</span>
+            <input
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              placeholder="teammate@company.com"
+              required
+              className="ui-field w-full h-[52px] px-4 rounded-[14px] border-[1.5px] border-white/20 bg-white/10 text-white placeholder:text-white/50 outline-none"
+            />
+          </label>
+          <label className="flex-[1_1_220px] flex">
+            <span className="sr-only">Role</span>
+            <select
+              value={inviteRole}
+              onChange={(e) => setInviteRole(e.target.value)}
+              className="ui-field w-full h-[52px] px-3.5 rounded-[14px] border-[1.5px] border-white/20 bg-white/10 text-white outline-none"
+            >
+              {ROLE_OPTIONS.map((o) => <option key={o.value} value={o.value} className="text-ink">{o.label.split(' — ')[0]}</option>)}
+            </select>
+          </label>
+          <button
+            type="submit"
+            disabled={!inviteEmail.trim() || submitting}
+            className="ui-shine h-[52px] px-6 rounded-[14px] bg-accent text-white font-bold text-[15px] transition-transform hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
+          >
+            <span className="inline-flex items-center gap-2"><UserPlus size={17} /> {submitting ? 'Sending...' : 'Send invite'}</span>
+          </button>
         </form>
-      </Modal>
+        {errorMessage && (
+          <p role="alert" className="relative text-[13px] font-semibold text-[#ffb4a9] flex items-center gap-2"><AlertCircle size={15} /> {errorMessage}</p>
+        )}
+      </section>
+
+      {error ? (
+        <Card className="py-12 text-center">
+          <AlertCircle size={20} className="text-red-500 mx-auto mb-3" />
+          <p className="text-[14px] text-ink font-bold mb-1">Couldn't load your team</p>
+          <p className="text-[13px] text-text-secondary mb-4">{error}</p>
+          <Button variant="secondary" onClick={fetchMembers}>Retry</Button>
+        </Card>
+      ) : loading ? (
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-[190px] !rounded-[22px]" />)}</div>
+      ) : team.length === 0 ? (
+        <div className="rounded-[24px] border-[1.5px] border-dashed border-accent/30 bg-card">
+          <EmptyState icon={UserPlus} title="No team members yet" description="Invite recruiters, evaluators and hiring managers to collaborate on interview drives." />
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {pendingMembers.length > 0 && (
+            <section className="ui-rise rounded-[22px] bg-card border border-line p-5">
+              <h3 className="text-[16px] font-extrabold mb-2">Pending invites <span className="text-text-secondary font-semibold">({pendingMembers.length})</span></h3>
+              {pendingMembers.map((m) => (
+                <div key={m.id} className="ui-row flex flex-wrap items-center gap-3 p-3 rounded-xl">
+                  <span className="w-10 h-10 rounded-full bg-[var(--color-surface-muted)] text-text-secondary flex items-center justify-center"><Clock size={16} /></span>
+                  <div className="flex-[1_1_200px] min-w-0">
+                    <div className="font-bold text-[14px] truncate">{m.email}</div>
+                    <div className="text-[12px] text-text-secondary">{m.roleLabel || m.role}</div>
+                  </div>
+                  <Button size="xs" variant="secondary" onClick={() => setRemoveTarget(m)}>Cancel invite</Button>
+                </div>
+              ))}
+            </section>
+          )}
+
+          <section className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
+            {activeMembers.map((member, i) => (
+              <article key={member.id} style={{ animationDelay: `${Math.min(i, 8) * 60}ms` }} className="ui-rise ui-lift rounded-[22px] bg-card border border-line p-[22px] flex flex-col gap-4">
+                <div className="flex items-center gap-3.5">
+                  <span className="relative shrink-0 w-[52px] h-[52px] rounded-full bg-[color-mix(in_srgb,var(--color-accent)_12%,white)] text-accent-dark flex items-center justify-center font-extrabold text-[16px]">
+                    {initialsOf(member.name)}
+                    <span className="absolute right-0 bottom-0 w-3.5 h-3.5">
+                      {member.status === 'ACTIVE' && <span className="ui-ping absolute inset-0 rounded-full bg-[var(--color-success)]" />}
+                      <span className={`absolute inset-0 rounded-full border-2 border-white ${member.status === 'ACTIVE' ? 'bg-[var(--color-success)]' : 'bg-[var(--color-neutral)]'}`} />
+                    </span>
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-extrabold text-[15px] truncate">{member.name}</div>
+                    <div className="text-[12px] text-text-secondary truncate">{member.email}</div>
+                  </div>
+                  {member.role !== 'CLIENT_ADMIN' && (
+                    <button
+                      title="Remove access"
+                      aria-label={`Remove ${member.name}'s access`}
+                      onClick={() => setRemoveTarget(member)}
+                      className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-text-secondary hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] transition-colors"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center justify-between gap-2 p-3 rounded-2xl bg-[#fafbfe] border border-line/60">
+                  <Badge variant={ROLE_BADGE[member.role] || 'neutral'}>{member.roleLabel || member.role}</Badge>
+                  <span className="text-[12px] text-text-secondary font-semibold">Active {member.lastActive || '—'}</span>
+                </div>
+              </article>
+            ))}
+          </section>
+        </div>
+      )}
 
       <ConfirmModal
         open={Boolean(removeTarget)}

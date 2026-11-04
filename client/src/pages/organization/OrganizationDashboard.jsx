@@ -5,7 +5,7 @@ import { BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell, CartesianGrid, Res
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
 import FunnelChart from '../../components/charts/FunnelChart'
 import AttentionPanel from '../../components/organization/AttentionPanel'
-import DashboardHeroIllustration from '../../components/organization/DashboardHeroIllustration'
+import DashboardHero from '../../components/organization/DashboardHero'
 import ActivityFeed from '../../components/ActivityFeed'
 import { Reveal } from '../../components/ui/motionKit'
 import { motion } from 'motion/react'
@@ -71,15 +71,15 @@ function ActiveDrivesTable({ basePath }) {
     if (!data.length) return <EmptyState icon={ListChecks} title='No active drives yet' description='Create an interview drive to see it here.' />
 
     return (
-        <div className='overflow-x-auto -mx-2'>
+        <div className='overflow-x-auto -mx-1'>
             <table className='w-full text-left border-collapse'>
                 <thead>
-                    <tr className='text-[11.5px] uppercase tracking-wide text-text-secondary'>
-                        <th className='font-medium px-2 pb-3'>Drive</th>
-                        <th className='font-medium px-2 pb-3'>Role</th>
-                        <th className='font-medium px-2 pb-3'>Candidates</th>
-                        <th className='font-medium px-2 pb-3'>Status</th>
-                        <th className='font-medium px-2 pb-3'>Created</th>
+                    <tr className='text-[12px] font-bold tracking-[0.06em] uppercase text-text-secondary'>
+                        <th className='px-3 pb-3'>Drive</th>
+                        <th className='px-3 pb-3'>Role</th>
+                        <th className='px-3 pb-3'>Candidates</th>
+                        <th className='px-3 pb-3'>Status</th>
+                        <th className='px-3 pb-3'>Created</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -92,13 +92,18 @@ function ActiveDrivesTable({ basePath }) {
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: rowIndex * 0.05, duration: 0.3 }}
                                 onClick={() => navigate(`${basePath}/drives/${id}`)}
-                                className='cursor-pointer border-t border-line hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition-colors'
+                                className='ui-row cursor-pointer border-t border-line'
                             >
-                                <td className='px-2 py-3 text-[13.5px] font-medium text-ink whitespace-nowrap'>{drive.title}</td>
-                                <td className='px-2 py-3 text-[13px] text-text-secondary whitespace-nowrap'>{formatEnumLabel(drive.roleCategory)}</td>
-                                <td className='px-2 py-3 text-[13px] text-text-secondary'>{drive.candidatesCount || drive.rounds?.[0]?.candidates?.length || 0}</td>
-                                <td className='px-2 py-3'><Badge dot variant={STATUS_BADGE[drive.status] || 'neutral'}>{drive.status}</Badge></td>
-                                <td className='px-2 py-3 text-[13px] text-text-secondary whitespace-nowrap'>
+                                <td className='px-3 py-3.5 whitespace-nowrap'>
+                                    <span className='flex items-center gap-3'>
+                                        <span className='w-9 h-9 rounded-xl bg-[color-mix(in_srgb,var(--color-accent)_10%,white)] text-accent text-[12px] font-extrabold flex items-center justify-center'>{(drive.title || '?').split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}</span>
+                                        <span className='text-[14px] font-bold text-ink'>{drive.title}</span>
+                                    </span>
+                                </td>
+                                <td className='px-3 py-3.5 text-[13px] text-text-secondary whitespace-nowrap'>{formatEnumLabel(drive.roleCategory)}</td>
+                                <td className='px-3 py-3.5 text-[13px] text-text-secondary'>{drive.candidatesCount || drive.rounds?.[0]?.candidates?.length || 0}</td>
+                                <td className='px-3 py-3.5'><Badge dot variant={STATUS_BADGE[drive.status] || 'neutral'}>{drive.status}</Badge></td>
+                                <td className='px-3 py-3.5 text-[13px] text-text-secondary whitespace-nowrap'>
                                     {drive.createdAt ? new Date(drive.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—'}
                                 </td>
                             </motion.tr>
@@ -144,41 +149,37 @@ function OrganizationDashboard() {
     }
 
     const cards = [
-        [ListChecks, 'Active Drives', metrics.data?.activeDrives],
-        [Users, 'Candidates This Month', metrics.data?.candidatesThisMonth],
-        [CheckCircle2, 'Interviews Done', metrics.data?.interviewsDone],
-        [Star, 'Average Candidate Score', metrics.data?.averageScore],
+        [ListChecks, 'Active Drives', metrics.data?.activeDrives, 'brand'],
+        [Users, 'Candidates This Month', metrics.data?.candidatesThisMonth, 'cyan'],
+        [CheckCircle2, 'Interviews Done', metrics.data?.interviewsDone, 'success'],
+        [Star, 'Average Candidate Score', metrics.data?.averageScore, 'neutral'],
     ]
+
+    const greeting = (() => {
+        const hour = new Date().getHours()
+        return hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+    })()
 
     return (
         <OrganizationLayout
             title={title}
             description={description}
+            eyebrow={greeting}
+            onSearch={(q) => navigate(`${basePath}/drives?search=${encodeURIComponent(q)}`)}
         >
             <Tabs tabs={sectionTabs} value='overview' onChange={handleTabChange} className='mb-6' />
 
-            <div className='grid lg:grid-cols-[1.3fr_1fr] gap-6 mb-6'>
-                <Card className='relative p-6 flex items-center justify-between gap-6 overflow-hidden self-start bg-gradient-to-br from-accent/[0.07] via-card to-card'>
-                    <div className='flex flex-col gap-4 min-w-0'>
-                        <div>
-                            <h2 className='text-[19px] font-bold text-ink mb-1.5'>Find the right talent, faster.</h2>
-                            <p className='text-[13.5px] text-text-secondary leading-relaxed max-w-md'>
-                                Create interview drives, assess candidates, and make data-driven hiring decisions — all in one place.
-                            </p>
-                        </div>
-                        <div className='flex items-center gap-2.5'>
-                            <Button size='sm' onClick={() => navigate(`${basePath}/drives`)}><Plus size={14} /> Create Interview Drive</Button>
-                            <Button size='sm' variant='secondary' onClick={() => navigate(`${basePath}/drives`)}>View All Drives</Button>
-                        </div>
-                    </div>
-                    <DashboardHeroIllustration className='hidden sm:block w-[150px] h-[110px] shrink-0' />
-                </Card>
+            <div className='grid xl:grid-cols-[1.6fr_1fr] gap-6 mb-6'>
+                <DashboardHero onCreate={() => navigate(`${basePath}/drives`)} onViewAll={() => navigate(`${basePath}/drives`)} />
 
-                <Card className='p-6'>
+                <Card className='ui-rise p-6' style={{ animationDelay: '120ms' }}>
                     <div className='flex items-center justify-between mb-4'>
-                        <h3 className='text-[15px] font-semibold text-ink'>Your Tasks</h3>
-                        <button onClick={() => navigate(`${basePath}/drives`)} className='text-[12.5px] font-medium text-accent flex items-center gap-1 hover:underline'>
-                            View All <ArrowRight size={12} />
+                        <div>
+                            <h3 className='text-[18px] font-extrabold text-ink'>Needs your attention</h3>
+                            <p className='text-[13px] text-text-secondary'>Items waiting on you today</p>
+                        </div>
+                        <button onClick={() => navigate(`${basePath}/drives`)} className='text-[13px] font-bold text-accent flex items-center gap-1 hover:underline'>
+                            View all <ArrowRight size={13} />
                         </button>
                     </div>
                     {attention.isError ? <SectionError message='Unable to load your tasks.' onRetry={attention.refetch} />
@@ -190,15 +191,16 @@ function OrganizationDashboard() {
             <Reveal index={1}><Card className='p-6 mb-6'>
                 <div className='flex items-center justify-between mb-6 flex-wrap gap-3'>
                     <div>
-                        <h3 className='text-[15px] font-semibold text-ink'>Hiring Overview</h3>
-                        <p className='text-[12.5px] text-text-secondary'>Track your interview pipeline at a glance.</p>
+                        <h3 className='text-[18px] font-extrabold text-ink'>Hiring Overview</h3>
+                        <p className='text-[13px] text-text-secondary'>Track your interview pipeline at a glance.</p>
                     </div>
-                    <div className='flex items-center gap-1 bg-black/[0.03] dark:bg-white/[0.05] rounded-full p-1'>
+                    <div role='group' aria-label='Date range' className='flex items-center gap-1 bg-[var(--color-navy)] rounded-[14px] p-[5px]'>
                         {RANGE_OPTIONS.map((opt) => (
                             <button
                                 key={opt.value}
                                 onClick={() => setRange(opt.value)}
-                                className={`px-3 py-1.5 text-[12.5px] font-medium rounded-full transition-colors ${range === opt.value ? 'bg-card text-ink shadow-sm' : 'text-text-secondary hover:text-ink'}`}
+                                aria-pressed={range === opt.value}
+                                className={`h-9 px-4 text-[13px] font-bold rounded-[10px] transition-all ${range === opt.value ? 'bg-accent text-white shadow-md' : 'text-[#c3c9ee] hover:text-white'}`}
                             >
                                 {opt.label}
                             </button>
@@ -211,11 +213,11 @@ function OrganizationDashboard() {
                         <div className='sm:col-span-2 lg:col-span-4'>
                             <SectionError message='Unable to load your KPI cards.' onRetry={metrics.refetch} />
                         </div>
-                    ) : cards.map(([Icon, label, metric]) => (
+                    ) : cards.map(([Icon, label, metric, accent]) => (
                         metrics.isLoading || !metric ? (
-                            <Skeleton key={label} className='h-[110px]' />
+                            <Skeleton key={label} className='h-[130px] !rounded-[20px]' />
                         ) : (
-                            <StatCard key={label} icon={Icon} label={label} value={metric.value.toLocaleString()} trend={metric.trend} />
+                            <StatCard key={label} icon={Icon} accent={accent} label={label} value={metric.value.toLocaleString()} trend={metric.trend} />
                         )
                     ))}
                 </div>
@@ -235,7 +237,7 @@ function OrganizationDashboard() {
                                     <XAxis dataKey='date' tick={axisTick} axisLine={{ stroke: 'var(--color-line)' }} tickLine={false} />
                                     <YAxis allowDecimals={false} tick={axisTick} axisLine={false} tickLine={false} />
                                     <Tooltip contentStyle={chartTooltipStyle} cursor={{ stroke: 'var(--color-accent)', strokeOpacity: 0.25 }} />
-                                    <Area type='monotone' dataKey='count' name='Interviews' stroke='var(--color-accent)' strokeWidth={2.5} fill='url(#interviewsFill)' dot={false} activeDot={{ r: 5, strokeWidth: 2 }} animationDuration={900} />
+                                    <Area type='monotone' dataKey='count' name='Interviews' stroke='var(--color-accent)' strokeWidth={3} fill='url(#interviewsFill)' dot={false} activeDot={{ r: 6, strokeWidth: 3, stroke: '#fff' }} animationDuration={1100} />
                                 </AreaChart>
                             </ResponsiveContainer>
                         )}
@@ -244,9 +246,12 @@ function OrganizationDashboard() {
 
             <Reveal index={1}><Card className='p-6 mb-6'>
                 <div className='flex items-center justify-between mb-4'>
-                    <h3 className='text-[15px] font-semibold text-ink'>Active Interview Drives</h3>
-                    <button onClick={() => navigate(`${basePath}/drives`)} className='text-[12.5px] font-medium text-accent flex items-center gap-1 hover:underline'>
-                        View All <ArrowRight size={12} />
+                    <div>
+                        <h3 className='text-[18px] font-extrabold text-ink'>Active interview drives</h3>
+                        <p className='text-[13px] text-text-secondary'>Your most recent live drives.</p>
+                    </div>
+                    <button onClick={() => navigate(`${basePath}/drives`)} className='text-[13px] font-bold text-accent flex items-center gap-1 hover:underline'>
+                        View all <ArrowRight size={13} />
                     </button>
                 </div>
                 <ActiveDrivesTable basePath={basePath} />
@@ -254,11 +259,11 @@ function OrganizationDashboard() {
 
             <Reveal className='grid lg:grid-cols-3 gap-6 mb-6'>
                 <Card className='p-6'>
-                    <h3 className='text-[15px] font-semibold text-ink mb-2'>Department Wise Hiring</h3>
+                    <h3 className='text-[16px] font-extrabold text-ink mb-3'>Department wise hiring</h3>
                     {trends.isError ? <SectionError message='Unable to load department breakdown.' onRetry={trends.refetch} />
                         : trends.isLoading ? <Skeleton className='h-48 w-full' />
                         : !trends.data.departmentBreakdown?.length ? (
-                            <p className='text-[13px] text-text-secondary py-10 text-center'>No candidate data yet.</p>
+                            <EmptyState compact icon={Users} title='No candidate data yet' description='Department mix appears once candidates are added.' />
                         ) : (
                             <div className='flex items-center gap-4'>
                                 <div className='w-28 h-28 shrink-0'>
@@ -278,7 +283,7 @@ function OrganizationDashboard() {
                                                 <span className='w-2 h-2 rounded-full shrink-0' style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
                                                 <span className='text-ink truncate'>{d.department}</span>
                                             </span>
-                                            <span className='text-text-secondary font-medium shrink-0'>{d.percentage}%</span>
+                                            <span className='text-text-secondary font-bold shrink-0'>{d.percentage}%</span>
                                         </div>
                                     ))}
                                 </div>
@@ -287,14 +292,14 @@ function OrganizationDashboard() {
                 </Card>
 
                 <Card className='p-6'>
-                    <h3 className='text-[15px] font-semibold text-ink mb-6'>Interview Funnel</h3>
+                    <h3 className='text-[16px] font-extrabold text-ink mb-6'>Interview funnel</h3>
                     {trends.isError ? <SectionError message='Unable to load the pipeline.' onRetry={trends.refetch} />
                         : trends.isLoading ? <SkeletonText lines={5} />
                             : <FunnelChart stages={trends.data.pipeline} />}
                 </Card>
 
                 <Card className='p-6'>
-                    <h3 className='text-[15px] font-semibold text-ink mb-5'>Recent Activity</h3>
+                    <h3 className='text-[16px] font-extrabold text-ink mb-5'>Recent activity</h3>
                     {activity.isError ? <SectionError message='Unable to load recent activity.' onRetry={activity.refetch} />
                         : activity.isLoading ? <SkeletonText lines={5} />
                             : <ActivityFeed items={activity.data} />}
@@ -302,17 +307,17 @@ function OrganizationDashboard() {
             </Reveal>
 
             <Reveal><Card className='p-6'>
-                <h3 className='text-[15px] font-semibold text-ink mb-6'>Score Distribution</h3>
+                <h3 className='text-[16px] font-extrabold text-ink mb-6'>Score distribution</h3>
                 <div className='h-56'>
                     {trends.isError ? <SectionError message='Unable to load score distribution.' onRetry={trends.refetch} />
                         : trends.isLoading ? <Skeleton className='w-full h-full' /> : (
                             <ResponsiveContainer width='100%' height='100%'>
                                 <BarChart data={trends.data.scoreDistribution}>
-                                    <CartesianGrid strokeDasharray='3 3' stroke='var(--color-line)' />
+                                    <CartesianGrid strokeDasharray='3 3' stroke='var(--color-line)' vertical={false} />
                                     <XAxis dataKey='bucket' tick={axisTick} axisLine={{ stroke: 'var(--color-line)' }} tickLine={false} />
                                     <YAxis allowDecimals={false} tick={axisTick} axisLine={false} tickLine={false} />
-                                    <Tooltip contentStyle={chartTooltipStyle} />
-                                    <Bar dataKey='count' fill='var(--color-accent)' radius={[8, 8, 0, 0]} animationDuration={800} />
+                                    <Tooltip contentStyle={chartTooltipStyle} cursor={{ fill: 'var(--color-accent)', fillOpacity: 0.06 }} />
+                                    <Bar dataKey='count' fill='var(--color-accent)' radius={[10, 10, 0, 0]} animationDuration={900} />
                                 </BarChart>
                             </ResponsiveContainer>
                         )}

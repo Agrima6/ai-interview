@@ -1439,3 +1439,71 @@ body {
     padding: 0.5rem !important;
   }
 }
+
+/* ------------------------------------------------------------------
+   Organization workspace theme. Applied to <html> by OrganizationLayout
+   while an organization page is mounted, so portalled modals/drawers/toasts
+   (which render under <body>) pick the same tokens as the page itself.
+   An organization's own brand colour/font (set inline on the shell) still
+   wins over these defaults.
+   ------------------------------------------------------------------ */
+html.org-theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --color-ink: #0d1233;
+  --color-accent: #3451f5;
+  --color-accent-dark: #2238c9;
+  --color-accent-cyan: #ff7a3d;
+  --color-accent-soft: #eef1ff;
+  --color-bg: #f4f5fb;
+  --color-line: #e6e8f2;
+  --color-text-secondary: #586079;
+  --color-border: #e6e8f2;
+  --color-surface-muted: #f1f2f9;
+  --color-navy: #0b1240;
+  --shadow-soft: 0 1px 2px rgba(13, 18, 51, 0.04), 0 8px 24px -12px rgba(13, 18, 51, 0.1);
+  --shadow-lift: 0 18px 40px -18px rgba(22, 34, 110, 0.35);
+  --btn-radius: 14px;
+  font-family: var(--font-sans);
+}
+html.org-theme body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* Shared motion vocabulary for the organization pages. */
+@keyframes ui-rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@keyframes ui-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ui-pop { 0% { transform: scale(0.6); opacity: 0; } 70% { transform: scale(1.06); } 100% { transform: scale(1); opacity: 1; } }
+@keyframes ui-ping { 0% { transform: scale(1); opacity: 0.7; } 100% { transform: scale(2.4); opacity: 0; } }
+@keyframes ui-shine { from { transform: translateX(-120%); } to { transform: translateX(220%); } }
+@keyframes ui-down { from { opacity: 0; transform: translateY(-8px) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes ui-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+.ui-rise { animation: ui-rise 0.6s cubic-bezier(0.2, 0.75, 0.2, 1) both; }
+.ui-fade { animation: ui-fade 0.4s ease both; }
+.ui-pop { animation: ui-pop 0.4s cubic-bezier(0.2, 0.8, 0.3, 1.2) both; }
+.ui-down { animation: ui-down 0.25s ease both; }
+.ui-float { animation: ui-float 5s ease-in-out infinite; }
+.ui-ping { animation: ui-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite; }
+.ui-lift { transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease; }
+.ui-lift:hover { transform: translateY(-4px); box-shadow: var(--shadow-lift); border-color: color-mix(in srgb, var(--color-accent) 30%, white); }
+.ui-row { transition: background 0.2s ease; }
+.ui-row:hover { background: color-mix(in srgb, var(--color-accent) 4%, white); }
+.ui-shine { position: relative; overflow: hidden; }
+.ui-shine::after {
+  content: ""; position: absolute; top: 0; left: 0; width: 40%; height: 100%; pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  animation: ui-shine 3.2s ease-in-out infinite;
+}
+.ui-field { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+.ui-field:hover { border-color: color-mix(in srgb, var(--color-accent) 35%, white); }
+.ui-field:focus, .ui-field:focus-within {
+  outline: none; border-color: var(--color-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 14%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ui-rise, .ui-fade, .ui-pop, .ui-down, .ui-float, .ui-ping, .ui-shine::after { animation: none !important; }
+  .ui-lift, .ui-row, .ui-field { transition: none !important; }
+}
+@keyframes wave { 0%, 100% { transform: scaleY(0.35); } 50% { transform: scaleY(1); } }

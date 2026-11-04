@@ -624,7 +624,7 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
           </div>
         )}
 
-        <div className="mx-auto mb-5 w-full max-w-6xl overflow-x-auto rounded-2xl border border-line bg-card px-4 py-3 shadow-(--shadow-soft)">
+        <div className="mx-auto mb-6 w-full max-w-6xl overflow-x-auto rounded-[20px] border border-line bg-card px-5 py-4 shadow-(--shadow-soft)">
           <div className="flex min-w-[760px] items-center justify-between">
           {[
             { num: 1, label: 'Interview / Drive Details' },
@@ -636,13 +636,13 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
           ].map((s) => (
             <div key={s.num} className="relative flex items-center gap-2.5 shrink-0 px-2">
               <div
-                className={`relative z-[1] flex h-7 w-7 items-center justify-center rounded-full border text-[11px] font-bold transition-colors ${
-                  step === s.num ? 'border-accent bg-accent text-white shadow-(--shadow-soft)' : step > s.num ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-[#dbe2ef] bg-[#f2f5fa] text-text-secondary'
+                className={`relative z-[1] flex h-8 w-8 items-center justify-center rounded-[11px] border-[1.5px] text-[12px] font-extrabold transition-all duration-300 ${
+                  step === s.num ? 'border-accent bg-accent text-white shadow-[0_8px_18px_-8px_var(--color-accent)] scale-110' : step > s.num ? 'border-[var(--color-success)] bg-[var(--color-success)] text-white' : 'border-line bg-[var(--color-surface-muted)] text-text-secondary'
                 }`}
               >
                 {step > s.num ? <Check size={15} /> : s.num}
               </div>
-              <span className={`text-[10.5px] font-semibold whitespace-nowrap ${step === s.num ? 'text-ink' : 'text-text-secondary'}`}>
+              <span className={`text-[12px] font-bold whitespace-nowrap ${step === s.num ? 'text-ink' : 'text-text-secondary'}`}>
                 {s.label}
               </span>
             </div>

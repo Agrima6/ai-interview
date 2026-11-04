@@ -85,6 +85,11 @@ function ReportsPage() {
     <OrganizationLayout
       title="Reports"
       description="Hiring analytics and a filterable, exportable candidate report across every drive."
+      action={
+        <Button variant="secondary" onClick={handleExport} disabled={exporting} className="h-12">
+          <Download size={15} /> {exporting ? 'Exporting...' : 'Export CSV'}
+        </Button>
+      }
     >
       {reportError ? (
         <Card className="p-10 text-center mb-6">
@@ -96,28 +101,28 @@ function ReportsPage() {
       ) : loadingReport ? (
         <div className="space-y-6 mb-6">
           <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-[110px]" />)}
+            {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-[130px] !rounded-[20px]" />)}
           </div>
           <div className="grid lg:grid-cols-2 gap-6"><Skeleton className="h-64" /><Skeleton className="h-64" /></div>
         </div>
       ) : (
         <div className="space-y-6 mb-6">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            <StatTile icon={ListChecks} label="Total Drives" value={summary?.totalDrives?.value} />
-            <StatTile icon={Sparkles} label="Active Drives" value={summary?.activeDrives?.value} />
-            <StatTile icon={Users} label="Total Candidates" value={summary?.totalCandidates?.value} />
-            <StatTile icon={CheckCircle2} label="Interviews Done" value={summary?.interviewsDone?.value} />
-            <StatTile icon={Star} label="Average Score" value={summary?.averageScore?.value != null ? `${summary.averageScore.value}%` : '—'} />
+          <div className="ui-rise grid grid-cols-2 lg:grid-cols-5 gap-px overflow-hidden rounded-[22px] bg-white/10 bg-[var(--color-navy)]">
+            <StatTile icon={ListChecks} label="Total drives" value={summary?.totalDrives?.value} />
+            <StatTile icon={Sparkles} label="Active drives" value={summary?.activeDrives?.value} />
+            <StatTile icon={Users} label="Total candidates" value={summary?.totalCandidates?.value} />
+            <StatTile icon={CheckCircle2} label="Interviews done" value={summary?.interviewsDone?.value} />
+            <StatTile icon={Star} label="Average score" value={summary?.averageScore?.value != null ? `${summary.averageScore.value}%` : '—'} />
           </div>
 
           <div className="grid lg:grid-cols-2 gap-6">
             <Card className="p-6">
-              <h3 className="text-[15px] font-semibold text-ink mb-6">Interview Funnel</h3>
+              <h3 className="text-[18px] font-extrabold text-ink mb-6">Interview funnel</h3>
               <FunnelChart stages={trends?.pipeline || []} />
             </Card>
 
             <Card className="p-6">
-              <h3 className="text-[15px] font-semibold text-ink mb-2">Department Wise Hiring</h3>
+              <h3 className="text-[18px] font-extrabold text-ink mb-2">Department wise hiring</h3>
               {!trends?.departmentBreakdown?.length ? (
                 <p className="text-[13.5px] text-text-secondary py-10 text-center">No candidate data yet.</p>
               ) : (
@@ -149,18 +154,18 @@ function ReportsPage() {
           </div>
 
           <Card className="p-6">
-            <h3 className="text-[15px] font-semibold text-ink mb-6">Score Distribution</h3>
+            <h3 className="text-[18px] font-extrabold text-ink mb-6">Score distribution</h3>
             <div className="h-56">
               {!trends?.scoreDistribution?.length ? (
                 <p className="text-[13.5px] text-text-secondary text-center pt-16">No scored candidates yet.</p>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={trends.scoreDistribution}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-line)" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-line)" vertical={false} />
                     <XAxis dataKey="bucket" tick={axisTick} axisLine={{ stroke: 'var(--color-line)' }} tickLine={false} />
                     <YAxis allowDecimals={false} tick={axisTick} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={chartTooltipStyle} />
-                    <Bar dataKey="count" fill="var(--color-accent)" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="count" fill="var(--color-accent)" radius={[10, 10, 0, 0]} animationDuration={900} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -170,14 +175,9 @@ function ReportsPage() {
       )}
 
       <Card className="p-6">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-6">
-          <div>
-            <h3 className="text-[15px] font-semibold text-ink">Candidate Report</h3>
-            <p className="text-[12.5px] text-text-secondary">Filter and export exactly the candidates you're looking at.</p>
-          </div>
-          <Button size="sm" variant="secondary" onClick={handleExport} disabled={exporting}>
-            <Download size={14} /> {exporting ? 'Exporting...' : 'Export CSV'}
-          </Button>
+        <div className="mb-6">
+          <h3 className="text-[18px] font-extrabold text-ink">Candidate report</h3>
+          <p className="text-[13px] text-text-secondary">Filter, then use Export CSV above to download exactly the candidates you're looking at.</p>
         </div>
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-5">
@@ -201,7 +201,7 @@ function ReportsPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-line text-[12px] font-semibold uppercase tracking-wider text-text-secondary">
+                <tr className="border-b border-line text-[12px] font-bold uppercase tracking-[0.06em] text-text-secondary">
                   <th className="pb-3 px-3">Candidate</th>
                   <th className="pb-3 px-3">Drive / Round</th>
                   <th className="pb-3 px-3">Attempted</th>
@@ -211,9 +211,9 @@ function ReportsPage() {
               </thead>
               <tbody className="divide-y divide-line text-[13.5px]">
                 {rows.map((row) => (
-                  <tr key={row.candidate.id} className="hover:bg-black/[0.015] dark:hover:bg-white/[0.02] transition-colors">
+                  <tr key={row.candidate.id} className="ui-row">
                     <td className="py-3.5 px-3">
-                      <div className="font-semibold text-ink leading-tight">{row.candidate.name}</div>
+                      <div className="font-bold text-ink leading-tight">{row.candidate.name}</div>
                       <div className="text-[12px] text-text-secondary">{row.candidate.email}</div>
                     </td>
                     <td className="py-3.5 px-3 text-ink max-w-[240px] truncate">{row.driveTitle} • {row.roundTitle}</td>
@@ -234,15 +234,15 @@ function ReportsPage() {
 
 function StatTile({ icon: Icon, label, value }) {
   return (
-    <Card className="p-4 flex items-center gap-3">
-      <div className="w-10 h-10 rounded-xl bg-accent/10 text-accent flex items-center justify-center shrink-0">
-        <Icon size={18} strokeWidth={1.75} />
+    <div className="bg-[var(--color-navy)] p-5 flex flex-col gap-3 text-white">
+      <span className="w-10 h-10 rounded-[12px] bg-white/10 text-[#aab6ff] flex items-center justify-center">
+        <Icon size={18} strokeWidth={1.8} />
+      </span>
+      <div>
+        <p className="text-[28px] font-extrabold tracking-[-0.02em] leading-none tabular-nums">{value ?? '—'}</p>
+        <p className="text-[12.5px] font-semibold text-[#c3c9ee] mt-1.5">{label}</p>
       </div>
-      <div className="min-w-0">
-        <p className="text-[20px] font-bold text-ink leading-none">{value ?? '—'}</p>
-        <p className="text-[12px] text-text-secondary mt-1 truncate">{label}</p>
-      </div>
-    </Card>
+    </div>
   )
 }
 
