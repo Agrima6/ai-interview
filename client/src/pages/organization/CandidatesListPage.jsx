@@ -228,7 +228,7 @@ function CandidatesListPage() {
         <div className="ui-pop fixed left-1/2 -translate-x-1/2 bottom-6 z-[var(--z-popover)] flex flex-wrap items-center justify-center gap-2.5 pl-5 pr-2.5 py-2.5 rounded-[18px] bg-[var(--color-navy)] text-white shadow-[0_24px_50px_-20px_rgba(11,18,64,0.8)] max-w-[calc(100%-32px)]">
           <span className="font-bold text-[14px]">{selected.size} selected</span>
           <button type="button" disabled={bulkBusy} onClick={() => runBulk('SHORTLISTED')} className="h-[42px] px-4 rounded-xl bg-accent text-[13px] font-bold disabled:opacity-50">Shortlist</button>
-          <button type="button" disabled={bulkBusy} onClick={() => setRejectOpen(true)} className="h-[42px] px-4 rounded-xl border border-white/25 text-[#adb9fb] text-[13px] font-bold disabled:opacity-50">Reject</button>
+          <button type="button" disabled={bulkBusy} onClick={() => setRejectOpen(true)} className="h-[42px] px-4 rounded-xl border border-white/25 text-[#ffb4a9] text-[13px] font-bold disabled:opacity-50">Reject</button>
           <button type="button" aria-label="Clear selection" onClick={() => setSelected(new Set())} className="w-[42px] h-[42px] rounded-xl bg-white/10 flex items-center justify-center"><X size={16} /></button>
         </div>
       )}

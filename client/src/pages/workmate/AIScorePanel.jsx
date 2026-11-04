@@ -11,7 +11,7 @@ const SKILLS = [
 
 function scoreColor(score) {
     const band = getScoreBand(score)
-    if (band === 'low') return '#8b9bf5'
+    if (band === 'low') return '#f58b91'
     if (band === 'mid') return 'var(--color-accent-cyan)'
     return 'var(--color-success)'
 }
@@ -77,7 +77,7 @@ function AIScorePanel({ onOverallScoreChange }) {
                     </div>
 
                     <div className='type-caption mt-3 flex flex-wrap gap-x-2 gap-y-1 border-t border-line pt-2 text-text-secondary md:mt-4 md:gap-x-3 md:gap-y-2 md:pt-3 lg:mt-5'>
-                        <span className='inline-flex items-center gap-1.5'><i className='h-2 w-2 rounded-full bg-[#8b9bf5]' aria-hidden='true' />70% and below</span>
+                        <span className='inline-flex items-center gap-1.5'><i className='h-2 w-2 rounded-full bg-[#f58b91]' aria-hidden='true' />70% and below</span>
                         <span className='inline-flex items-center gap-1.5'><i className='h-2 w-2 rounded-full bg-accent-cyan' aria-hidden='true' />71–89%</span>
                         <span className='inline-flex items-center gap-1.5'><i className='h-2 w-2 rounded-full bg-success' aria-hidden='true' />90%+</span>
                     </div>
@@ -89,7 +89,7 @@ function AIScorePanel({ onOverallScoreChange }) {
 
                     <div className='score-gauge relative col-start-1 row-start-3 mt-2 self-start md:mx-auto md:mt-3' aria-label={`Overall Fit ${overallScore}%`} role='img'>
                         <svg viewBox='0 0 180 116' className='h-auto w-full' aria-hidden='true'>
-                            <path d='M 18 92 A 72 72 0 0 1 162 92' fill='none' stroke='#dfe2f1' strokeWidth='19' strokeLinecap='round' />
+                            <path d='M 18 92 A 72 72 0 0 1 162 92' fill='none' stroke='#f1dfe0' strokeWidth='19' strokeLinecap='round' />
                             <path
                                 className='score-ring'
                                 d='M 18 92 A 72 72 0 0 1 162 92'

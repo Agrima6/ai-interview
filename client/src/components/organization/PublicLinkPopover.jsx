@@ -76,7 +76,7 @@ function PublicLinkPopover({ publicLink }) {
             exit={{ opacity: 0, y: -4, scale: 0.97 }}
             transition={{ duration: 0.15 }}
             style={{ position: 'fixed', top: coords.top, left: coords.left, zIndex: 'var(--z-popover)' }}
-            className="w-[300px] bg-card border border-line rounded-2xl shadow-[var(--shadow-lift)] p-4"
+            className="w-[300px] bg-card border border-line rounded-xl shadow-[var(--shadow-lift)] p-4"
             onClick={(e) => e.stopPropagation()}
           >
             <p className="text-[12px] font-semibold text-ink mb-1.5">Public Candidate Link</p>

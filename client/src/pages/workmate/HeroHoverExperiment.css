@@ -13,7 +13,7 @@
     content: '';
     pointer-events: none;
     opacity: 0;
-    background: radial-gradient(circle 310px at var(--hover-x) var(--hover-y), rgba(27, 57, 224, 0.13), transparent 72%);
+    background: radial-gradient(circle 310px at var(--hover-x) var(--hover-y), rgba(224, 39, 27, 0.13), transparent 72%);
     filter: blur(28px);
     transition: opacity 450ms ease;
 }
@@ -25,7 +25,7 @@
     content: '';
     pointer-events: none;
     opacity: 0.9;
-    background: radial-gradient(ellipse 60% 70% at calc(50% + var(--background-shift-x)) 35%, rgba(52, 81, 245, 0.055), transparent 70%);
+    background: radial-gradient(ellipse 60% 70% at calc(50% + var(--background-shift-x)) 35%, rgba(196, 22, 31, 0.055), transparent 70%);
     filter: blur(26px);
     transition: background-position 700ms cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -48,7 +48,7 @@
     width: 620px;
     height: 560px;
     opacity: 0.14;
-    background: radial-gradient(closest-side, #3451f5, transparent);
+    background: radial-gradient(closest-side, #c4161f, transparent);
 }
 
 .hero-hover-ambient-right {
@@ -57,7 +57,7 @@
     width: 380px;
     height: 380px;
     opacity: 0.07;
-    background: radial-gradient(closest-side, #1b39e0, transparent);
+    background: radial-gradient(closest-side, #e0271b, transparent);
 }
 
 .hero-hover-entrance {
@@ -91,15 +91,15 @@
 
 .hero-hover-image-shell {
     transform: translate3d(var(--image-x, 0px), var(--image-y, 0px), 0);
-    box-shadow: 0 30px 80px -24px rgba(10, 13, 30, 0.25);
+    box-shadow: 0 30px 80px -24px rgba(30, 10, 12, 0.25);
     transition: transform 320ms cubic-bezier(0.16, 1, 0.3, 1), border-color 280ms ease, box-shadow 320ms ease;
     will-change: transform;
 }
 
 .hero-hover-image-shell:hover {
     transform: translate3d(var(--image-x, 0px), var(--image-y, 0px), 0) translateY(-6px) scale(1.01);
-    border-color: rgba(52, 81, 245, 0.4);
-    box-shadow: 0 38px 96px -20px rgba(52, 81, 245, 0.36);
+    border-color: rgba(196, 22, 31, 0.4);
+    box-shadow: 0 38px 96px -20px rgba(196, 22, 31, 0.36);
 }
 
 .hero-hover-neutral-word {
@@ -156,7 +156,7 @@
 
 .hero-hover-primary:hover {
     transform: translateY(-3px);
-    box-shadow: 0 14px 30px -6px rgba(34, 56, 201, 0.62);
+    box-shadow: 0 14px 30px -6px rgba(139, 14, 22, 0.62);
 }
 
 .hero-hover-primary::before {
@@ -180,8 +180,8 @@
 
 .hero-hover-secondary:hover {
     transform: translateY(-2px);
-    border-color: rgba(52, 81, 245, 0.3);
-    background-color: rgba(52, 81, 245, 0.065);
+    border-color: rgba(196, 22, 31, 0.3);
+    background-color: rgba(196, 22, 31, 0.065);
     color: var(--color-ink);
 }
 

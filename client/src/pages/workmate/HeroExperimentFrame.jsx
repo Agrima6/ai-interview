@@ -17,9 +17,9 @@ function HeroExperimentFrame({ children, visualClassName = '' }) {
     return (
         <section id='home' className='relative isolate overflow-hidden scroll-mt-20'>
             <div className='pointer-events-none absolute top-[-160px] left-[8%] h-[560px] w-[620px] rounded-full opacity-[0.11] blur-3xl'
-                style={{ background: 'radial-gradient(closest-side, #3451f5, transparent)' }} />
+                style={{ background: 'radial-gradient(closest-side, #c4161f, transparent)' }} />
             <div className='pointer-events-none absolute top-[60px] right-[-160px] h-[380px] w-[380px] rounded-full opacity-[0.10] blur-3xl'
-                style={{ background: 'radial-gradient(closest-side, #1b39e0, transparent)' }} />
+                style={{ background: 'radial-gradient(closest-side, #e0271b, transparent)' }} />
 
             <div className='relative mx-auto grid max-w-[1280px] items-center gap-10 px-6 pb-14 pt-28 sm:gap-14 sm:pb-20 sm:pt-32 lg:grid-cols-[1fr_1.05fr] lg:px-8'>
                 <div>

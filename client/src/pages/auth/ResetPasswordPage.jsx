@@ -15,7 +15,7 @@ const RULES = [
     { label: 'A symbol', test: (p) => /[^A-Za-z0-9]/.test(p) },
 ]
 const STRENGTH = [
-    { label: '—', color: 'bg-[#c4c7d9]', text: 'text-text-secondary' },
+    { label: '—', color: 'bg-[#D9C4C9]', text: 'text-text-secondary' },
     { label: 'Weak', color: 'bg-orange-700', text: 'text-orange-700' },
     { label: 'Fair', color: 'bg-amber-600', text: 'text-amber-600' },
     { label: 'Good', color: 'bg-emerald-600', text: 'text-emerald-600' },
@@ -66,7 +66,7 @@ function ResetPasswordPage() {
 
     return (
         <div className="min-h-screen bg-[#FBF6F4] text-ink font-sans flex flex-col relative overflow-hidden">
-            <div aria-hidden="true" className="absolute -top-44 -right-28 w-[520px] h-[520px] rounded-full bg-[#e5e9fe]" />
+            <div aria-hidden="true" className="absolute -top-44 -right-28 w-[520px] h-[520px] rounded-full bg-[#FFE4E8]" />
             <header className="relative max-w-[1240px] w-full mx-auto px-6 py-[18px] flex items-center justify-between">
                 <Link to="/" className="flex items-center gap-2.5 text-ink no-underline min-h-[44px]">
                     <img src={logo} alt="" className="w-[38px] h-[38px] rounded-full" />
@@ -78,7 +78,7 @@ function ResetPasswordPage() {
             </header>
 
             <main className="relative flex-1 flex items-center justify-center px-5 pt-10 pb-20">
-                <div className="w-full max-w-[480px] bg-white border border-[#d7daea] rounded-[32px] px-8 sm:px-10 py-11 shadow-[0_50px_100px_-60px_rgba(9, 13, 35,0.5)]">
+                <div className="w-full max-w-[480px] bg-white border border-[#EAD7DB] rounded-[32px] px-8 sm:px-10 py-11 shadow-[0_50px_100px_-60px_rgba(35,9,15,0.5)]">
                     {showLinkProblem ? (
                         <div className="text-center space-y-4">
                             <span className="mx-auto w-[88px] h-[88px] rounded-[26px] bg-red-50 flex items-center justify-center border border-red-100/60">
@@ -125,7 +125,7 @@ function ResetPasswordPage() {
                                 <div>
                                     <div className="grid grid-cols-4 gap-1.5" aria-hidden="true">
                                         {[0, 1, 2, 3].map((i) => (
-                                            <span key={i} className={`h-1.5 rounded-full transition-colors ${i < score ? STRENGTH[score].color : 'bg-[#e3e5ef]'}`} />
+                                            <span key={i} className={`h-1.5 rounded-full transition-colors ${i < score ? STRENGTH[score].color : 'bg-[#EFE3E6]'}`} />
                                         ))}
                                     </div>
                                     <div className="flex justify-between mt-2 text-[13px]" aria-live="polite">
@@ -137,7 +137,7 @@ function ResetPasswordPage() {
                                 <ul className="grid grid-cols-2 gap-2 text-[13px]">
                                     {checks.map((c) => (
                                         <li key={c.label} className={`flex items-center gap-2 ${c.ok ? 'text-[#1F7A4D]' : 'text-text-secondary'}`}>
-                                            <span className={`w-[18px] h-[18px] rounded-full inline-flex items-center justify-center ${c.ok ? 'bg-[#1F7A4D] text-white' : 'bg-[#c4c7d9] text-white'}`} aria-hidden="true">
+                                            <span className={`w-[18px] h-[18px] rounded-full inline-flex items-center justify-center ${c.ok ? 'bg-[#1F7A4D] text-white' : 'bg-[#D9C4C9] text-white'}`} aria-hidden="true">
                                                 <Check size={11} strokeWidth={3} />
                                             </span>
                                             {c.label}

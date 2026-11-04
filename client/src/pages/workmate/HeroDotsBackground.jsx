@@ -89,10 +89,10 @@ function HeroDotsBackground({ pointerRef }) {
 
             if (pointer.intensity > 0.001 && pointer.x > -100) {
                 const spotlight = ctx.createRadialGradient(pointer.x, pointer.y, 0, pointer.x, pointer.y, spotlightRadius)
-                spotlight.addColorStop(0, `rgba(143, 158, 240, ${(0.085 * pointer.intensity).toFixed(3)})`)
-                spotlight.addColorStop(0.32, `rgba(52, 81, 245, ${(0.035 * pointer.intensity).toFixed(3)})`)
-                spotlight.addColorStop(0.72, 'rgba(143, 158, 240, 0.012)')
-                spotlight.addColorStop(1, 'rgba(143, 158, 240, 0)')
+                spotlight.addColorStop(0, `rgba(240, 147, 143, ${(0.085 * pointer.intensity).toFixed(3)})`)
+                spotlight.addColorStop(0.32, `rgba(196, 22, 31, ${(0.035 * pointer.intensity).toFixed(3)})`)
+                spotlight.addColorStop(0.72, 'rgba(240, 147, 143, 0.012)')
+                spotlight.addColorStop(1, 'rgba(240, 147, 143, 0)')
                 ctx.fillStyle = spotlight
                 ctx.fillRect(0, 0, width, height)
             }
@@ -119,7 +119,7 @@ function HeroDotsBackground({ pointerRef }) {
                 if (active > 0.08) {
                     ctx.beginPath()
                     ctx.arc(dot.x, dot.y, 2.2 + active * 1.2, 0, TAU)
-                    ctx.fillStyle = `rgba(52, 81, 245, ${(active * 0.045).toFixed(3)})`
+                    ctx.fillStyle = `rgba(196, 22, 31, ${(active * 0.045).toFixed(3)})`
                     ctx.fill()
                 }
 

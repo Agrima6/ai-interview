@@ -34,8 +34,8 @@ export default function InterviewerAvatar({ state = 'listening', size = 220 }) {
                         <stop offset='1' stopColor='#0e1320' />
                     </linearGradient>
                     <radialGradient id='wmBotGlow' cx='50%' cy='50%' r='50%'>
-                        <stop offset='0' stopColor='var(--color-accent, #3451f5)' stopOpacity='0.35' />
-                        <stop offset='1' stopColor='var(--color-accent, #3451f5)' stopOpacity='0' />
+                        <stop offset='0' stopColor='var(--color-accent, #c4161f)' stopOpacity='0.35' />
+                        <stop offset='1' stopColor='var(--color-accent, #c4161f)' stopOpacity='0' />
                     </radialGradient>
                 </defs>
 
@@ -43,7 +43,7 @@ export default function InterviewerAvatar({ state = 'listening', size = 220 }) {
                 <circle className='wm-bot__glow' cx='120' cy='128' r='108' fill='url(#wmBotGlow)' />
 
                 {/* sound arcs - visible only while speaking */}
-                <g className='wm-bot__arcs' fill='none' stroke='var(--color-accent, #3451f5)' strokeLinecap='round' strokeWidth='5'>
+                <g className='wm-bot__arcs' fill='none' stroke='var(--color-accent, #c4161f)' strokeLinecap='round' strokeWidth='5'>
                     <path className='wm-bot__arc wm-bot__arc--1' d='M 30 112 Q 18 128 30 144' />
                     <path className='wm-bot__arc wm-bot__arc--2' d='M 16 100 Q -4 128 16 156' />
                     <path className='wm-bot__arc wm-bot__arc--1' d='M 210 112 Q 222 128 210 144' />
@@ -55,26 +55,26 @@ export default function InterviewerAvatar({ state = 'listening', size = 220 }) {
                     {/* shoulders */}
                     <path d='M 62 232 Q 62 190 120 186 Q 178 190 178 232 Z' fill='#e3e8f1' />
                     <rect x='104' y='176' width='32' height='16' rx='6' fill='#b9c2d3' />
-                    <circle cx='120' cy='214' r='7' fill='var(--color-accent, #3451f5)' className='wm-bot__badge' />
+                    <circle cx='120' cy='214' r='7' fill='var(--color-accent, #c4161f)' className='wm-bot__badge' />
 
                     <g className='wm-bot__head'>
                         {/* antenna */}
                         <line x1='120' y1='44' x2='120' y2='64' stroke='#9aa5b8' strokeWidth='5' strokeLinecap='round' />
-                        <circle className='wm-bot__antenna' cx='120' cy='38' r='9' fill='var(--color-accent, #3451f5)' />
+                        <circle className='wm-bot__antenna' cx='120' cy='38' r='9' fill='var(--color-accent, #c4161f)' />
 
                         {/* ears */}
                         <rect className='wm-bot__ear' x='36' y='104' width='20' height='44' rx='10' fill='#b9c2d3' />
                         <rect className='wm-bot__ear' x='184' y='104' width='20' height='44' rx='10' fill='#b9c2d3' />
-                        <rect className='wm-bot__ear-light' x='42' y='116' width='8' height='20' rx='4' fill='var(--color-accent, #3451f5)' />
-                        <rect className='wm-bot__ear-light' x='190' y='116' width='8' height='20' rx='4' fill='var(--color-accent, #3451f5)' />
+                        <rect className='wm-bot__ear-light' x='42' y='116' width='8' height='20' rx='4' fill='var(--color-accent, #c4161f)' />
+                        <rect className='wm-bot__ear-light' x='190' y='116' width='8' height='20' rx='4' fill='var(--color-accent, #c4161f)' />
 
                         {/* head + screen face */}
                         <rect x='52' y='62' width='136' height='116' rx='38' fill='url(#wmBotHead)' />
                         <rect x='66' y='78' width='108' height='84' rx='26' fill='url(#wmBotFace)' />
 
                         {/* cheeks */}
-                        <ellipse cx='84' cy='132' rx='9' ry='5.5' fill='var(--color-accent, #3451f5)' opacity='0.35' />
-                        <ellipse cx='156' cy='132' rx='9' ry='5.5' fill='var(--color-accent, #3451f5)' opacity='0.35' />
+                        <ellipse cx='84' cy='132' rx='9' ry='5.5' fill='var(--color-accent, #c4161f)' opacity='0.35' />
+                        <ellipse cx='156' cy='132' rx='9' ry='5.5' fill='var(--color-accent, #c4161f)' opacity='0.35' />
 
                         {/* eyes */}
                         <g className='wm-bot__eyes'>

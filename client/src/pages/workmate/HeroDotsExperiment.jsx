@@ -64,9 +64,9 @@ function HeroDotsExperiment() {
         <section ref={heroRef} id='home' className='relative isolate overflow-hidden scroll-mt-20'>
             <HeroDotsBackground pointerRef={pointerRef} />
             <div className='pointer-events-none absolute top-[-160px] left-[8%] h-[560px] w-[620px] rounded-full opacity-[0.11] blur-3xl'
-                style={{ background: 'radial-gradient(closest-side, #3451f5, transparent)' }} />
+                style={{ background: 'radial-gradient(closest-side, #c4161f, transparent)' }} />
             <div className='pointer-events-none absolute top-[60px] right-[-160px] h-[380px] w-[380px] rounded-full opacity-[0.09] blur-3xl'
-                style={{ background: 'radial-gradient(closest-side, #1b39e0, transparent)' }} />
+                style={{ background: 'radial-gradient(closest-side, #e0271b, transparent)' }} />
 
             <div className='relative mx-auto grid max-w-[1280px] items-center gap-14 px-6 pb-24 pt-32 sm:pt-36 lg:grid-cols-[1fr_1.05fr] lg:px-8'>
                 <div>
@@ -91,9 +91,9 @@ function HeroDotsExperiment() {
 
                 <div className='relative'>
                     <div ref={glowRef} className='pointer-events-none absolute -inset-10 rounded-full opacity-25 blur-3xl transition-opacity duration-500'
-                        style={{ background: 'radial-gradient(closest-side, rgba(52, 81, 245,0.34), transparent 72%)' }} />
+                        style={{ background: 'radial-gradient(closest-side, rgba(196,22,31,0.34), transparent 72%)' }} />
                     <div ref={imageRef} className='hero-dots-image relative' style={{ perspective: '1200px', transformStyle: 'preserve-3d', willChange: 'transform' }}>
-                        <div className='group cursor-pointer overflow-hidden rounded-[28px] border border-line bg-card shadow-[0_30px_80px_-24px_rgba(10, 13, 30,0.25)] transition-all duration-500 hover:scale-[1.04] hover:border-accent/60 hover:shadow-[0_30px_90px_-10px_rgba(52, 81, 245,0.55)]'>
+                        <div className='group cursor-pointer overflow-hidden rounded-[28px] border border-line bg-card shadow-[0_30px_80px_-24px_rgba(30,10,12,0.25)] transition-all duration-500 hover:scale-[1.04] hover:border-accent/60 hover:shadow-[0_30px_90px_-10px_rgba(196,22,31,0.55)]'>
                             <img src={heroWorkmate} alt='Organizations, colleges and candidates connected through WorkmateIQ' className='w-full h-auto transition-transform duration-500 group-hover:scale-[1.01]' />
                         </div>
                     </div>

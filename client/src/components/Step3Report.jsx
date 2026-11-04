@@ -10,8 +10,8 @@ import autoTable from "jspdf-autotable"
 import { ServerUrl } from '../App'
 import logo from '../assets/logo.png'
 
-const BRAND_RED = "#3451f5"
-const BRAND_RED_DARK = "#2238c9"
+const BRAND_RED = "#c4161f"
+const BRAND_RED_DARK = "#8b0e16"
 
 const scoreTone = (v) => (v >= 7.5 ? "text-success" : v >= 5 ? "text-amber-500" : "text-red-500")
 const scoreBg = (v) => (v >= 7.5 ? "bg-success/10" : v >= 5 ? "bg-amber-500/10" : "bg-red-500/10")
@@ -461,7 +461,7 @@ function Step3Report({ report }) {
             className='mt-1 w-11 h-11 shrink-0 rounded-full bg-card border border-line shadow-[var(--shadow-soft)] flex items-center justify-center hover:border-black/20 dark:hover:border-white/20 transition-colors'><ArrowLeft size={16} className='text-text-secondary' /></button>
 
           <div className='flex items-center gap-3'>
-            <img src={logo} alt="WorkMate IQ" className='w-11 h-11 rounded-full shadow-[0_4px_12px_-4px_rgba(52, 81, 245,0.5)]' />
+            <img src={logo} alt="WorkMate IQ" className='w-11 h-11 rounded-full shadow-[0_4px_12px_-4px_rgba(196,22,31,0.5)]' />
             <div>
               <div className='flex items-center gap-3 flex-wrap mb-1'>
                 <p className='text-[12.5px] font-bold text-accent tracking-wide uppercase'>WorkMate IQ</p>

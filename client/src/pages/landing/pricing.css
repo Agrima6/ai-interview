@@ -1,16 +1,16 @@
 /* Redesigned pricing page. Scoped to .wiq-pricing; keyframes prefixed wp-. */
 
 .wiq-pricing{margin:0;background:#FBF6F4}
-.wiq-pricing a{color:#11131c}.wiq-pricing a:hover{color:#1228a3}
+.wiq-pricing a{color:#1C1114}.wiq-pricing a:hover{color:#A3123A}
 .wiq-pricing, .wiq-pricing *{box-sizing:border-box}
 .wiq-pricing .navlinks{display:flex;gap:30px}
 .wiq-pricing .navlinks a{text-decoration:none;padding:12px 0}
-.wiq-pricing .pricing-menu-button{display:none;align-items:center;justify-content:center;width:42px;height:42px;border:1px solid #d7daea;border-radius:12px;background:#FFFFFF;cursor:pointer}
+.wiq-pricing .pricing-menu-button{display:none;align-items:center;justify-content:center;width:42px;height:42px;border:1px solid #EAD7DB;border-radius:12px;background:#FFFFFF;cursor:pointer}
 .wiq-pricing .pricing-mobile-menu{display:none}
 .wiq-pricing .btn{transition:transform .25s ease, box-shadow .25s ease}
-.wiq-pricing .btn:hover{transform:translateY(-2px);box-shadow:0 10px 24px -10px rgba(18, 42, 176,.55)}
+.wiq-pricing .btn:hover{transform:translateY(-2px);box-shadow:0 10px 24px -10px rgba(176,18,63,.55)}
 .wiq-pricing .plan{transition:transform .45s cubic-bezier(.2,.8,.2,1), box-shadow .45s ease}
-.wiq-pricing .plan:hover{transform:translateY(-10px);box-shadow:0 40px 70px -40px rgba(9, 13, 35,.5)}
+.wiq-pricing .plan:hover{transform:translateY(-10px);box-shadow:0 40px 70px -40px rgba(35,9,15,.5)}
 .wiq-pricing .in{opacity:0;animation:wp-in .7s cubic-bezier(.2,.8,.2,1) forwards}
 .wiq-pricing .i1{animation-delay:.1s}.wiq-pricing .i2{animation-delay:.25s}.wiq-pricing .i3{animation-delay:.4s}
 @keyframes wp-in{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:none}}
@@ -28,8 +28,8 @@
   .wiq-pricing .navlinks{display:none}
   .wiq-pricing .pricing-menu-button{display:inline-flex}
   .wiq-pricing .pricing-header-actions > a{display:none !important}
-  .wiq-pricing .pricing-mobile-menu{display:flex;flex-direction:column;padding:8px 20px 16px;border-top:1px solid rgba(18, 42, 176,.12);background:rgba(251,246,244,.98)}
-  .wiq-pricing .pricing-mobile-menu a{color:#11131c;text-decoration:none;font-weight:500;font-size:16px;padding:13px 4px;min-height:48px;border-bottom:1px solid #e4e6f1}
+  .wiq-pricing .pricing-mobile-menu{display:flex;flex-direction:column;padding:8px 20px 16px;border-top:1px solid rgba(176,18,63,.12);background:rgba(251,246,244,.98)}
+  .wiq-pricing .pricing-mobile-menu a{color:#1C1114;text-decoration:none;font-weight:500;font-size:16px;padding:13px 4px;min-height:48px;border-bottom:1px solid #F1E4E7}
   .wiq-pricing .pricing-header .pad{padding-top:8px !important;padding-bottom:8px !important}
   .wiq-pricing .h1{font-size:46px !important}
   .wiq-pricing .pad{padding-left:20px !important;padding-right:20px !important}
@@ -63,4 +63,4 @@
   .wiq-pricing .pricing-compare h2{font-size:30px !important;margin-bottom:22px !important}
 }
 
-.wiq-pricing a:focus-visible, .wiq-pricing button:focus-visible{outline:3px solid #4b63e9;outline-offset:3px}
+.wiq-pricing a:focus-visible, .wiq-pricing button:focus-visible{outline:3px solid #E94B6A;outline-offset:3px}

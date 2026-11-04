@@ -16,7 +16,7 @@ const STYLES = `
   .review{background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:8px 10px;margin-top:8px} ul{margin:3px 0 0 18px;padding:0}
   .flag{display:flex;gap:10px;align-items:center;border:1px solid #e5e7eb;border-radius:8px;padding:8px;margin-bottom:8px;break-inside:avoid}
   .flag img{width:150px;height:96px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb} .cap{font-size:10px;color:#6b7280;text-align:center}
-  .you{color:#1d4ed8} .bot{color:#12279f} footer{margin-top:24px;font-size:10.5px;color:#6b7280}
+  .you{color:#1d4ed8} .bot{color:#9f1239} footer{margin-top:24px;font-size:10.5px;color:#6b7280}
   @media print{body{margin:14mm}}
 `
 
