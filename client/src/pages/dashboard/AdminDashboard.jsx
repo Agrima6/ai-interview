@@ -18,7 +18,7 @@ const RANGE_OPTIONS = [
     { value: '90d', label: '90 days' },
 ]
 
-const TYPE_COLORS = { ORGANIZATION: '#c4161f', COLLEGE: '#f59e0b', CANDIDATE: '#3b82f6' }
+const TYPE_COLORS = { ORGANIZATION: '#3451f5', COLLEGE: '#f59e0b', CANDIDATE: '#3b82f6' }
 const TYPE_LABELS = { ORGANIZATION: 'Organization', COLLEGE: 'College', CANDIDATE: 'Candidate' }
 
 const ACTIVITY_STATUS_VARIANT = {
@@ -240,7 +240,7 @@ function AdminDashboard() {
                                         <YAxis allowDecimals={false} tick={axisTick} axisLine={false} tickLine={false} />
                                         <Tooltip contentStyle={chartTooltipStyle} />
                                         <Legend wrapperStyle={{ fontSize: 12.5 }} />
-                                        <Line type='monotone' dataKey='registrations' name='Registrations' stroke='#c4161f' strokeWidth={2} dot={false} />
+                                        <Line type='monotone' dataKey='registrations' name='Registrations' stroke='#3451f5' strokeWidth={2} dot={false} />
                                         <Line type='monotone' dataKey='enquiries' name='Enquiries' stroke='#3b82f6' strokeWidth={2} dot={false} />
                                     </LineChart>
                                 </ResponsiveContainer>
@@ -284,7 +284,7 @@ function AdminDashboard() {
                                             <XAxis type='number' allowDecimals={false} tick={axisTick} axisLine={false} tickLine={false} />
                                             <YAxis type='category' dataKey='stage' tick={axisTick} axisLine={{ stroke: 'var(--color-line)' }} tickLine={false} width={90} />
                                             <Tooltip contentStyle={chartTooltipStyle} />
-                                            <Bar dataKey='count' fill='#c4161f' radius={[0, 6, 6, 0]} />
+                                            <Bar dataKey='count' fill='#3451f5' radius={[0, 6, 6, 0]} />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 )}

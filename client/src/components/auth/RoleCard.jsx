@@ -26,12 +26,12 @@ function RoleCard({ roleKey, label, selected, onClick }) {
             onClick={onClick}
             className={`w-full flex items-center gap-4 px-5 py-4 min-h-[84px] rounded-[20px] border-[1.5px] text-left transition-all duration-200 select-none group focus:outline-none focus-visible:ring-4 focus-visible:ring-accent/15 hover:-translate-y-0.5 ${
                 selected
-                    ? 'border-accent bg-[#FFF6F7]'
-                    : 'border-[#EFE3E7] bg-white hover:border-[#E3CDD3] hover:shadow-[0_18px_40px_-28px_rgba(90,20,40,0.45)]'
+                    ? 'border-accent bg-[#f6f8ff]'
+                    : 'border-[#e3e5ef] bg-white hover:border-[#cdd0e3] hover:shadow-[0_18px_40px_-28px_rgba(20, 30, 90,0.45)]'
             }`}
         >
             <span className={`w-[50px] h-[50px] rounded-[14px] flex items-center justify-center shrink-0 transition-colors duration-200 ${
-                selected ? 'bg-accent text-white' : 'bg-[#FFF1F3] text-accent'
+                selected ? 'bg-accent text-white' : 'bg-[#f2f4fe] text-accent'
             }`}>
                 <Icon size={24} strokeWidth={1.7} aria-hidden='true' />
             </span>
@@ -42,7 +42,7 @@ function RoleCard({ roleKey, label, selected, onClick }) {
             </span>
 
             <span className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors duration-200 ${
-                selected ? 'border-accent bg-accent text-white' : 'border-[#D9C6CC] bg-white text-transparent'
+                selected ? 'border-accent bg-accent text-white' : 'border-[#c6c9d9] bg-white text-transparent'
             }`} aria-hidden='true'>
                 <Check size={12} className="stroke-[3]" />
             </span>

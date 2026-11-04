@@ -31,7 +31,7 @@ function CursorSpotlight() {
             ref={ref}
             className='fixed inset-0 -z-[5] pointer-events-none transition-[mask-position] duration-100'
             style={{
-                backgroundImage: 'radial-gradient(circle, rgba(196,22,31,0.55) 1px, transparent 1.4px)',
+                backgroundImage: 'radial-gradient(circle, rgba(52, 81, 245,0.55) 1px, transparent 1.4px)',
                 backgroundSize: '26px 26px',
                 maskImage: 'radial-gradient(320px circle at var(--sx, 50%) var(--sy, 30%), black 0%, transparent 75%)',
                 WebkitMaskImage: 'radial-gradient(320px circle at var(--sx, 50%) var(--sy, 30%), black 0%, transparent 75%)',

@@ -147,9 +147,9 @@ function AuthPage() {
                                 We've sent your onboarding link to the email address you provided. Check the delivery status below.
                             </p>
 
-                            <div className="mt-6 text-left bg-[#FBF8F8] border border-[#F1E6E9] rounded-2xl p-4">
+                            <div className="mt-6 text-left bg-[#f8f8fb] border border-[#e6e8f1] rounded-2xl p-4">
                                 <div className="flex items-center gap-3">
-                                    <span className="w-10 h-10 rounded-xl bg-white border border-[#F3DDE3] text-accent flex items-center justify-center shrink-0">
+                                    <span className="w-10 h-10 rounded-xl bg-white border border-[#dde0f3] text-accent flex items-center justify-center shrink-0">
                                         <Mail size={18} aria-hidden="true" />
                                     </span>
                                     <div className="min-w-0">

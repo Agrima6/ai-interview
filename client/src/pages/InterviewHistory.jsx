@@ -114,7 +114,7 @@ function InterviewHistory() {
                                                 <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'var(--color-text-secondary)' }} axisLine={{ stroke: 'var(--color-line)' }} tickLine={false} />
                                                 <YAxis domain={[0, 10]} tick={{ fontSize: 12, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
                                                 <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid var(--color-line)', fontSize: 13, background: 'var(--color-card)', color: 'var(--color-ink)' }} />
-                                                <Line type="monotone" dataKey="score" stroke="#c4161f" strokeWidth={2.5} dot={{ r: 4, fill: "#c4161f" }} />
+                                                <Line type="monotone" dataKey="score" stroke="#3451f5" strokeWidth={2.5} dot={{ r: 4, fill: "#3451f5" }} />
                                             </LineChart>
                                         </ResponsiveContainer>
                                     </div>

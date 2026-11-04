@@ -13,11 +13,11 @@ function AuthBrandPanel({ mode }) {
     const illustrationSrc = isLogin ? '/login.png' : '/img1.png'
 
     return (
-        <div className="w-full lg:w-[48%] lg:h-full lg:overflow-hidden bg-gradient-to-br from-[#FFF5F2] to-white p-8 md:p-12 lg:px-16 lg:py-8 flex flex-col justify-center border-r border-[#F3E8EB]">
+        <div className="w-full lg:w-[48%] lg:h-full lg:overflow-hidden bg-gradient-to-br from-[#f3f4fe] to-white p-8 md:p-12 lg:px-16 lg:py-8 flex flex-col justify-center border-r border-[#e8eaf3]">
             <div className="max-w-[520px] w-full mx-auto space-y-6 lg:space-y-5">
                 <div className="space-y-4">
                     {!isLogin && (
-                        <span className="inline-flex px-3.5 py-1.5 rounded-full bg-white border border-[#F3DDE3] text-[13px] font-medium text-accent">
+                        <span className="inline-flex px-3.5 py-1.5 rounded-full bg-white border border-[#dde0f3] text-[13px] font-medium text-accent">
                             Free to get started
                         </span>
                     )}
@@ -37,7 +37,7 @@ function AuthBrandPanel({ mode }) {
                         const { title, description } = feature
                         return (
                         <li key={title} className="flex gap-4 items-start">
-                            <span className="w-[42px] h-[42px] rounded-xl bg-white border border-[#F3DDE3] flex items-center justify-center shrink-0 text-accent">
+                            <span className="w-[42px] h-[42px] rounded-xl bg-white border border-[#dde0f3] flex items-center justify-center shrink-0 text-accent">
                                 <Icon size={20} strokeWidth={1.7} aria-hidden="true" />
                             </span>
                             <span>
@@ -52,7 +52,7 @@ function AuthBrandPanel({ mode }) {
                 <img
                     src={illustrationSrc}
                     alt=""
-                    className="w-full max-w-[460px] max-h-[22vh] h-auto object-contain rounded-[26px] border border-white bg-white/60 p-2.5 shadow-[0_40px_70px_-44px_rgba(90,20,40,0.5)]"
+                    className="w-full max-w-[460px] max-h-[22vh] h-auto object-contain rounded-[26px] border border-white bg-white/60 p-2.5 shadow-[0_40px_70px_-44px_rgba(20, 30, 90,0.5)]"
                 />
             </div>
         </div>
