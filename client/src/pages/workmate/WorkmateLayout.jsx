@@ -195,7 +195,7 @@ function WorkmateFooter() {
                             rel='noopener noreferrer'
                             aria-label='Instagram'
                             title='Instagram'
-                            className='workmate-footer__social-button flex h-[52px] w-[52px] items-center justify-center rounded-full bg-[#fafbff] text-accent transition-all duration-200 hover:scale-105 hover:bg-[#f2f4fe] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bg/70'
+                            className='workmate-footer__social-button flex h-[52px] w-[52px] items-center justify-center rounded-full bg-[#fffafa] text-accent transition-all duration-200 hover:scale-105 hover:bg-[#fff1f2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bg/70'
                         >
                             <FaInstagram size={22} aria-hidden='true' />
                         </a>
@@ -205,7 +205,7 @@ function WorkmateFooter() {
                             rel='noopener noreferrer'
                             aria-label='WhatsApp'
                             title='WhatsApp'
-                            className='workmate-footer__social-button flex h-[52px] w-[52px] items-center justify-center rounded-full bg-[#fafbff] text-accent transition-all duration-200 hover:scale-105 hover:bg-[#f2f4fe] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bg/70'
+                            className='workmate-footer__social-button flex h-[52px] w-[52px] items-center justify-center rounded-full bg-[#fffafa] text-accent transition-all duration-200 hover:scale-105 hover:bg-[#fff1f2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bg/70'
                         >
                             <FaWhatsapp size={22} aria-hidden='true' />
                         </a>
@@ -215,7 +215,7 @@ function WorkmateFooter() {
                             rel='noopener noreferrer'
                             aria-label='Gmail'
                             title='Gmail'
-                            className='workmate-footer__social-button flex h-[52px] w-[52px] items-center justify-center rounded-full bg-[#fafbff] text-accent transition-all duration-200 hover:scale-105 hover:bg-[#f2f4fe] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bg/70'
+                            className='workmate-footer__social-button flex h-[52px] w-[52px] items-center justify-center rounded-full bg-[#fffafa] text-accent transition-all duration-200 hover:scale-105 hover:bg-[#fff1f2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bg/70'
                         >
                             <SiGmail size={22} aria-hidden='true' />
                         </a>

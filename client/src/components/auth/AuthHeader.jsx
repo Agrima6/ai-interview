@@ -17,10 +17,10 @@ function AuthHeader({ onSwitchMode }) {
     const close = () => setMenuOpen(false)
 
     return (
-        <div className="wiq-landing" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", color: '#14161f', position: 'sticky', top: 0, zIndex: 60 }}>
-            <header style={{ background: 'rgba(255,255,255,0.82)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', borderBottom: '1px solid #e8eaf3' }}>
+        <div className="wiq-landing" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", color: '#1F1417', position: 'sticky', top: 0, zIndex: 60 }}>
+            <header style={{ background: 'rgba(255,255,255,0.82)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', borderBottom: '1px solid #F3E8EB' }}>
                 <div className="pad" style={{ maxWidth: 1320, margin: '0 auto', padding: '12px 40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}>
-                    <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: '#14161f', minHeight: 44 }}>
+                    <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: '#1F1417', minHeight: 44 }}>
                         <img src={logo} alt="" style={{ width: 38, height: 38, borderRadius: '50%' }} />
                         <span style={{ fontWeight: 500, fontSize: 20, letterSpacing: '-0.02em' }}>WorkmateIQ</span>
                     </Link>
@@ -32,7 +32,7 @@ function AuthHeader({ onSwitchMode }) {
 
                     <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                         <button type="button" className="hidesm" onClick={() => onSwitchMode('login')}
-                            style={{ background: 'none', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 15, fontWeight: 500, color: '#14161f', padding: '11px 14px', minHeight: 44, display: 'inline-flex', alignItems: 'center' }}>
+                            style={{ background: 'none', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 15, fontWeight: 500, color: '#1F1417', padding: '11px 14px', minHeight: 44, display: 'inline-flex', alignItems: 'center' }}>
                             Log in
                         </button>
                         <button type="button" className="btn gb" onClick={() => onSwitchMode('register')}
@@ -41,7 +41,7 @@ function AuthHeader({ onSwitchMode }) {
                         </button>
                         <button type="button" className="mbtn" aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen}
                             aria-controls="wl-auth-mobile-menu" onClick={() => setMenuOpen((o) => !o)}>
-                            <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#14161f" strokeWidth="2" strokeLinecap="round">
+                            <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1F1417" strokeWidth="2" strokeLinecap="round">
                                 {menuOpen ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
                             </svg>
                         </button>

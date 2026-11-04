@@ -75,8 +75,8 @@ export default function AravTile({ state = 'listening', className = '' }) {
                 .wm-arav--thinking .wm-arav__dots circle:nth-child(3), .wm-arav--followup .wm-arav__dots circle:nth-child(3) { animation-delay:.36s; }
                 .wm-arav--thinking .wm-arav__eyes, .wm-arav--followup .wm-arav__eyes { transform-box:fill-box; animation: wmAravLook 2.8s ease-in-out infinite; }
 
-                .wm-arav--speaking { border-color:rgba(52, 81, 245,.65); box-shadow:0 0 0 2px rgba(52, 81, 245,.25), 0 8px 28px rgba(52, 81, 245,.35); }
-                .wm-arav--speaking .wm-arav__ring { background:rgba(52, 81, 245,.8); box-shadow:0 0 16px rgba(52, 81, 245,.6); }
+                .wm-arav--speaking { border-color:rgba(196,22,31,.65); box-shadow:0 0 0 2px rgba(196,22,31,.25), 0 8px 28px rgba(196,22,31,.35); }
+                .wm-arav--speaking .wm-arav__ring { background:rgba(196,22,31,.8); box-shadow:0 0 16px rgba(196,22,31,.6); }
                 .wm-arav--speaking .wm-arav__smile { opacity:0; }
                 .wm-arav--speaking .wm-arav__talk { opacity:1; transform-box:fill-box; transform-origin:50% 30%; animation: wmAravTalk .42s ease-in-out infinite; }
                 .wm-arav--speaking .wm-arav__head { animation: wmAravBob .85s ease-in-out infinite; }

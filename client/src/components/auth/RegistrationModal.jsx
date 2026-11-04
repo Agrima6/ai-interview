@@ -109,7 +109,7 @@ function RegistrationModal({ open, role, onClose, onSubmitSuccess, inline = fals
                         <div className="flex gap-1.5 justify-center mb-6" aria-hidden="true">
                             <span className="h-1.5 w-2.5 rounded-full bg-accent" />
                             <span className="h-1.5 w-[34px] rounded-full bg-accent" />
-                            <span className="h-1.5 w-2.5 rounded-full bg-[#d9dcea]" />
+                            <span className="h-1.5 w-2.5 rounded-full bg-[#EAD9DE]" />
                         </div>
                         <button
                             type="button"

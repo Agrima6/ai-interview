@@ -319,8 +319,8 @@ function TemplatesPage() {
             Rendered with sample data (candidate/drive names are placeholders) - your organization name below is real.
           </p>
           {activeTemplate.type === 'EMAIL' ? (
-            <div style={{ background: '#f5f5f7', padding: '24px 16px', fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif', borderRadius: 12 }}>
-              <div style={{ maxWidth: 420, margin: '0 auto', background: '#fff', borderRadius: 16, border: '1px solid #e6e7ee', overflow: 'hidden' }}>
+            <div style={{ background: '#f7f5f5', padding: '24px 16px', fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif', borderRadius: 12 }}>
+              <div style={{ maxWidth: 420, margin: '0 auto', background: '#fff', borderRadius: 16, border: '1px solid #eee6e6', overflow: 'hidden' }}>
                 <div style={{ padding: '24px 24px 8px', textAlign: 'center' }}>
                   <img src={logo} alt="" width={28} height={28} style={{ borderRadius: '50%', verticalAlign: 'middle' }} />
                   <span style={{ fontSize: 15, fontWeight: 700, color: '#1a1215', verticalAlign: 'middle', marginLeft: 8 }}>WorkmateIQ</span>
@@ -334,9 +334,9 @@ function TemplatesPage() {
                     {renderWithSamples(activeTemplate.body, { ...TEMPLATE_SAMPLE_VALUES, company_name: orgName })}
                   </div>
                 </div>
-                <div style={{ padding: '16px 24px 20px', borderTop: '1px solid #eaebf1', textAlign: 'center' }}>
+                <div style={{ padding: '16px 24px 20px', borderTop: '1px solid #f1eaea', textAlign: 'center' }}>
                   <p style={{ margin: '0 0 4px', fontSize: 12, color: '#6b6570' }}>We appreciate your time and look forward to working with you.</p>
-                  <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#3451f5' }}>{orgName} via WorkmateIQ</p>
+                  <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#c4161f' }}>{orgName} via WorkmateIQ</p>
                 </div>
               </div>
             </div>

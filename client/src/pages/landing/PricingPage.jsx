@@ -7,9 +7,9 @@ import { IMG } from './landingAssets'
 // The redesigned public pricing page (design export "WorkmateIQ Redesign" > Pricing). The credit packs and prices are
 // the same ones the signed-in purchase page sells (pages/Pricing.jsx); buying a pack still happens there, behind login.
 
-const accent = '#1228a3'
-const LIGHT = { bg: '#FFFFFF', fg: '#11131c', bd: '#d7daea', sub: '#4f515e', chip: '#e5e9fe', tick: accent, btnBg: '#11131c', btnFg: '#FFFFFF' }
-const DARK = { bg: accent, fg: '#FFFFFF', bd: 'rgba(255,255,255,0.22)', sub: '#e3e7fb', chip: 'rgba(255,255,255,0.14)', tick: '#FFFFFF', btnBg: '#FFFFFF', btnFg: '#1F0712' }
+const accent = '#A3123A'
+const LIGHT = { bg: '#FFFFFF', fg: '#1C1114', bd: '#EAD7DB', sub: '#5E4F53', chip: '#FFE4E8', tick: accent, btnBg: '#1C1114', btnFg: '#FFFFFF' }
+const DARK = { bg: accent, fg: '#FFFFFF', bd: 'rgba(255,255,255,0.22)', sub: '#FBE3E8', chip: 'rgba(255,255,255,0.14)', tick: '#FFFFFF', btnBg: '#FFFFFF', btnFg: '#1F0712' }
 
 const PLANS = [
     { ...LIGHT, name: 'Free', price: '₹0', credits: 100, desc: 'Perfect for beginners starting interview preparation.',
@@ -51,10 +51,10 @@ export default function PricingPage() {
 
     return (
 
-<div className="wiq-pricing" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", color: "#11131c", background: "#FBF6F4", width: "100%", fontSize: "16px", lineHeight: "1.55", overflowX: "clip" }}>
-<header className="pricing-header" style={{ position: "sticky", top: "0", zIndex: "50", background: "rgba(251,246,244,0.85)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderBottom: "1px solid rgba(18, 42, 176,0.12)" }}>
+<div className="wiq-pricing" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", color: "#1C1114", background: "#FBF6F4", width: "100%", fontSize: "16px", lineHeight: "1.55", overflowX: "clip" }}>
+<header className="pricing-header" style={{ position: "sticky", top: "0", zIndex: "50", background: "rgba(251,246,244,0.85)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderBottom: "1px solid rgba(176,18,63,0.12)" }}>
 <div className="pad" style={{ maxWidth: "1320px", margin: "0 auto", padding: "12px 40px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "24px" }}>
-<Link to="/" style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none", color: "#11131c", minHeight: "44px" }}>
+<Link to="/" style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none", color: "#1C1114", minHeight: "44px" }}>
 <img src={IMG.logo} alt="" style={{ width: "38px", height: "38px", borderRadius: "50%" }} />
 <span style={{ fontWeight: "600", fontSize: "21px", letterSpacing: "-0.02em" }}>{"WorkmateIQ"}</span>
 </Link>
@@ -76,7 +76,7 @@ export default function PricingPage() {
 
 <Link to="/register" className="btn" style={{ textDecoration: "none", fontSize: "15px", fontWeight: "600", padding: "11px 18px", minHeight: "44px", display: "inline-flex", alignItems: "center", background: accent, color: "#fff", borderRadius: "999px" }}>{"Join now"}</Link>
 <button type="button" className="pricing-menu-button" aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen} aria-controls="pricing-mobile-menu" onClick={() => setMenuOpen((open) => !open)}>
-<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#11131c" strokeWidth="2" strokeLinecap="round">{menuOpen ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}</svg>
+<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1C1114" strokeWidth="2" strokeLinecap="round">{menuOpen ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}</svg>
 </button>
 </div>
 </div>
@@ -91,19 +91,19 @@ export default function PricingPage() {
 </header>
 
 <section className="pad pricing-intro" style={{ maxWidth: "1320px", margin: "0 auto", padding: "64px 40px 20px", textAlign: "center" }}>
-<p className="in" style={{ margin: "0", display: "inline-flex", padding: "7px 14px", borderRadius: "999px", background: "#e5e9fe", color: "#0e218a", fontSize: "13px", fontWeight: "600", letterSpacing: "0.04em" }}>{"PRICING"}</p>
+<p className="in" style={{ margin: "0", display: "inline-flex", padding: "7px 14px", borderRadius: "999px", background: "#FFE4E8", color: "#8A0E33", fontSize: "13px", fontWeight: "600", letterSpacing: "0.04em" }}>{"PRICING"}</p>
 
 <h1 className="h1 in i1" style={{ margin: "22px auto 0", fontWeight: "600", fontSize: "68px", lineHeight: "1.02", letterSpacing: "-0.04em", maxWidth: "880px" }}>{"Practice more. Pay only for "}
 <span style={{ color: accent }}>{"the interviews you take."}</span>
 </h1>
 
-<p className="in i2" style={{ margin: "22px auto 0", fontSize: "18px", color: "#3b3d4a", maxWidth: "600px" }}>{"Interview credits for candidates, with no subscription. Organizations and colleges get a plan built around their drives."}</p>
+<p className="in i2" style={{ margin: "22px auto 0", fontSize: "18px", color: "#4A3B3F", maxWidth: "600px" }}>{"Interview credits for candidates, with no subscription. Organizations and colleges get a plan built around their drives."}</p>
 </section>
 
 <section className="pad pricing-plans" style={{ maxWidth: "1320px", margin: "0 auto", padding: "20px 40px 80px" }}>
 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "24px", alignItems: "stretch" }}>{(plans).map((p, __i1) => (<Fragment key={__i1}>
 <article className="plan in" style={{ position: "relative", borderRadius: "28px", padding: "36px", display: "flex", flexDirection: "column", gap: "18px", background: p.bg, color: p.fg, border: `1px solid ${p.bd}` }}>{(p.badge) && (<>
-<span className="shine" style={{ position: "absolute", top: "24px", right: "24px", background: "#768af8", color: "#1F0712", fontSize: "12px", fontWeight: "600", padding: "6px 12px", borderRadius: "999px" }}>{"Best value"}</span>
+<span className="shine" style={{ position: "absolute", top: "24px", right: "24px", background: "#FF6F91", color: "#1F0712", fontSize: "12px", fontWeight: "600", padding: "6px 12px", borderRadius: "999px" }}>{"Best value"}</span>
 </>)}
 <div style={{ fontSize: "15px", fontWeight: "600", color: p.sub }}>{p.name}</div>
 
@@ -135,11 +135,11 @@ export default function PricingPage() {
 <section className="pad rv pricing-org-band" style={{ maxWidth: "1320px", margin: "0 auto", padding: "0 40px 110px" }}>
 <div style={{ borderRadius: "32px", overflow: "hidden", display: "flex", flexWrap: "wrap", background: "#1F0712", color: "#FFFFFF" }}>
 <div style={{ flex: "1 1 520px", minWidth: "0", padding: "56px", display: "flex", flexDirection: "column", gap: "18px", justifyContent: "center" }}>
-<p style={{ margin: "0", fontSize: "13px", fontWeight: "600", letterSpacing: "0.08em", color: "#768af8" }}>{"ORGANIZATIONS "}{"&"}{" COLLEGES"}</p>
+<p style={{ margin: "0", fontSize: "13px", fontWeight: "600", letterSpacing: "0.08em", color: "#FF6F91" }}>{"ORGANIZATIONS "}{"&"}{" COLLEGES"}</p>
 
 <h2 style={{ margin: "0", fontSize: "46px", fontWeight: "600", lineHeight: "1.05", letterSpacing: "-0.035em" }}>{"Running drives at scale? Let's size a plan together."}</h2>
 
-<p style={{ margin: "0", color: "#c9cee8", fontSize: "17px" }}>{"Templates, bulk invites, proctoring, benchmarks, team seats and branded candidate links — priced by drive volume."}</p>
+<p style={{ margin: "0", color: "#E8C9CF", fontSize: "17px" }}>{"Templates, bulk invites, proctoring, benchmarks, team seats and branded candidate links — priced by drive volume."}</p>
 
 <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "10px" }}>
 <a href="/#contact" className="btn" style={{ textDecoration: "none", background: "#FFFFFF", color: "#1F0712", fontWeight: "600", padding: "15px 24px", borderRadius: "999px", minHeight: "52px", display: "inline-flex", alignItems: "center" }}>{"Talk to sales"}</a>
@@ -158,11 +158,11 @@ export default function PricingPage() {
 <section className="pad rv pricing-compare" style={{ maxWidth: "1100px", margin: "0 auto", padding: "0 40px 110px" }}>
 <h2 style={{ margin: "0 0 32px", fontSize: "40px", fontWeight: "600", letterSpacing: "-0.03em", textAlign: "center" }}>{"Compare packs"}</h2>
 
-<div style={{ overflowX: "auto", background: "#FFFFFF", border: "1px solid #d7daea", borderRadius: "24px" }}>
+<div style={{ overflowX: "auto", background: "#FFFFFF", border: "1px solid #EAD7DB", borderRadius: "24px" }}>
 <table style={{ width: "100%", minWidth: "640px", borderCollapse: "collapse", fontSize: "15px" }}>
 <thead>
 <tr style={{ textAlign: "left" }}>
-<th style={{ padding: "20px 24px", fontWeight: "600", color: "#4f515e" }}>{"Feature"}</th>
+<th style={{ padding: "20px 24px", fontWeight: "600", color: "#5E4F53" }}>{"Feature"}</th>
 
 <th style={{ padding: "20px 12px", fontWeight: "600" }}>{"Free"}</th>
 
@@ -173,12 +173,12 @@ export default function PricingPage() {
 </thead>
 
 <tbody>{(compare).map((r, __i1) => (<Fragment key={__i1}>
-<tr style={{ borderTop: "1px solid #e4e6f1" }}>
+<tr style={{ borderTop: "1px solid #F1E4E7" }}>
 <td style={{ padding: "16px 24px", fontWeight: "600" }}>{r.f}</td>
 
-<td style={{ padding: "16px 12px", color: "#3b3d4a" }}>{r.a}</td>
+<td style={{ padding: "16px 12px", color: "#4A3B3F" }}>{r.a}</td>
 
-<td style={{ padding: "16px 12px", color: "#3b3d4a" }}>{r.b}</td>
+<td style={{ padding: "16px 12px", color: "#4A3B3F" }}>{r.b}</td>
 
 <td style={{ padding: "16px 24px 16px 12px", fontWeight: "600" }}>{r.c}</td>
 </tr>
@@ -193,17 +193,17 @@ export default function PricingPage() {
 <h2 className="rv" style={{ margin: "0 0 28px", fontSize: "40px", fontWeight: "600", letterSpacing: "-0.03em", textAlign: "center" }}>{"Questions, answered"}</h2>
 
 <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>{(faqs).map((q, __i1) => (<Fragment key={__i1}>
-<div className="rv" style={{ background: "#FFFFFF", border: "1px solid #d7daea", borderRadius: "18px", overflow: "hidden" }}>
-<button type="button" onClick={q.toggle} aria-expanded={q.open} style={{ width: "100%", fontFamily: "inherit", fontSize: "17px", fontWeight: "600", color: "#11131c", background: "transparent", border: "0", padding: "22px 24px", minHeight: "64px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", cursor: "pointer", textAlign: "left" }}>{q.q}
-<span style={{ flex: "none", width: "32px", height: "32px", borderRadius: "50%", background: "#e5e9fe", color: "#1228a3", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "20px", transition: "transform .3s ease", transform: q.rot }}>{"+"}</span>
+<div className="rv" style={{ background: "#FFFFFF", border: "1px solid #EAD7DB", borderRadius: "18px", overflow: "hidden" }}>
+<button type="button" onClick={q.toggle} aria-expanded={q.open} style={{ width: "100%", fontFamily: "inherit", fontSize: "17px", fontWeight: "600", color: "#1C1114", background: "transparent", border: "0", padding: "22px 24px", minHeight: "64px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", cursor: "pointer", textAlign: "left" }}>{q.q}
+<span style={{ flex: "none", width: "32px", height: "32px", borderRadius: "50%", background: "#FFE4E8", color: "#A3123A", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "20px", transition: "transform .3s ease", transform: q.rot }}>{"+"}</span>
 </button>
 {(q.isOpen) && (<>
-<p className="in" style={{ margin: "0", padding: "0 24px 22px", color: "#3b3d4a" }}>{q.a}</p>
+<p className="in" style={{ margin: "0", padding: "0 24px 22px", color: "#4A3B3F" }}>{q.a}</p>
 </>)}</div>
 </Fragment>))}</div>
 </section>
 
-<footer style={{ background: "#1F0712", color: "#d9ddf3" }}>
+<footer style={{ background: "#1F0712", color: "#F3D9DE" }}>
 <div className="pad" style={{ maxWidth: "1320px", margin: "0 auto", padding: "40px", display: "flex", flexWrap: "wrap", gap: "16px", justifyContent: "space-between", alignItems: "center", fontSize: "14px" }}>
 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
 <img src={IMG.logo} alt="" style={{ width: "32px", height: "32px", borderRadius: "50%" }} />

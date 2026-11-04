@@ -134,7 +134,7 @@ function TeamPage() {
           </button>
         </form>
         {errorMessage && (
-          <p role="alert" className="relative text-[13px] font-semibold text-[#adb9fb] flex items-center gap-2"><AlertCircle size={15} /> {errorMessage}</p>
+          <p role="alert" className="relative text-[13px] font-semibold text-[#ffb4a9] flex items-center gap-2"><AlertCircle size={15} /> {errorMessage}</p>
         )}
       </section>
 

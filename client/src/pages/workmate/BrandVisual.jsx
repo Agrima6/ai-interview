@@ -16,12 +16,12 @@ export function NetworkVisual({ className = '' }) {
     return (
         <div className={`relative rounded-3xl border border-line bg-card overflow-hidden ${className}`}>
             <svg viewBox='0 0 100 100' className='w-full h-full'>
-                <line x1='18' y1='22' x2='50' y2='50' stroke='#3451f5' strokeWidth='0.4' strokeDasharray='1.5 1.5' opacity='0.4' />
-                <line x1='82' y1='22' x2='50' y2='50' stroke='#3451f5' strokeWidth='0.4' strokeDasharray='1.5 1.5' opacity='0.4' />
-                <line x1='50' y1='82' x2='50' y2='50' stroke='#3451f5' strokeWidth='0.4' strokeDasharray='1.5 1.5' opacity='0.4' />
-                <circle cx='50' cy='50' r='9' fill='#3451f5' />
+                <line x1='18' y1='22' x2='50' y2='50' stroke='#c4161f' strokeWidth='0.4' strokeDasharray='1.5 1.5' opacity='0.4' />
+                <line x1='82' y1='22' x2='50' y2='50' stroke='#c4161f' strokeWidth='0.4' strokeDasharray='1.5 1.5' opacity='0.4' />
+                <line x1='50' y1='82' x2='50' y2='50' stroke='#c4161f' strokeWidth='0.4' strokeDasharray='1.5 1.5' opacity='0.4' />
+                <circle cx='50' cy='50' r='9' fill='#c4161f' />
                 {nodes.map((n) => (
-                    <circle key={n.label} cx={n.x} cy={n.y} r='7' fill='white' stroke='#3451f5' strokeWidth='0.6' />
+                    <circle key={n.label} cx={n.x} cy={n.y} r='7' fill='white' stroke='#c4161f' strokeWidth='0.6' />
                 ))}
             </svg>
             <div className='absolute inset-0'>
@@ -45,7 +45,7 @@ export function JourneyVisual({ className = '' }) {
     return (
         <div className={`relative rounded-3xl border border-line bg-card p-8 flex flex-col justify-center ${className}`}>
             <svg viewBox='0 0 300 40' className='w-full mb-6' preserveAspectRatio='none'>
-                <path d='M10,20 Q80,-10 150,20 T290,20' fill='none' stroke='#3451f5' strokeWidth='1.2' opacity='0.5' />
+                <path d='M10,20 Q80,-10 150,20 T290,20' fill='none' stroke='#c4161f' strokeWidth='1.2' opacity='0.5' />
             </svg>
             <div className='flex justify-between'>
                 {stops.map((s, i) => (

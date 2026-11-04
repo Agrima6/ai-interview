@@ -160,9 +160,9 @@ function Step1SetUp({ onStart }) {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.6 }}
-                    className='relative bg-[#0f0f12] p-10 md:p-12 flex flex-col justify-center text-white bg-noise'>
+                    className='relative bg-[#120f10] p-10 md:p-12 flex flex-col justify-center text-white bg-noise'>
 
-                    <div className='absolute top-[-80px] right-[-80px] w-[280px] h-[280px] rounded-full bg-[radial-gradient(closest-side,rgba(27, 57, 224,0.3),transparent)] blur-2xl' />
+                    <div className='absolute top-[-80px] right-[-80px] w-[280px] h-[280px] rounded-full bg-[radial-gradient(closest-side,rgba(224,39,27,0.3),transparent)] blur-2xl' />
 
                     <div className='relative inline-flex items-center gap-2 bg-white/10 text-[12.5px] px-3.5 py-1.5 rounded-full mb-7 w-fit'>
                         <Sparkles size={12} className='text-accent' />
