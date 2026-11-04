@@ -9,7 +9,7 @@ import { resolveAssetUrl } from '../../api/client'
  * The mark is a navy tile with the logo (or the organization's initial) and
  * an accent corner dot; `subtitle` is the small line under the name.
  */
-function OrganizationBrand({ profile, loading, showName = true, subtitle = 'WorkmateIQ workspace', className = '' }) {
+function OrganizationBrand({ profile, loading, showName = true, subtitle = 'WorkmateIQ', className = '' }) {
     if (loading) {
         return (
             <div className={`flex items-center gap-3 ${className}`}>
