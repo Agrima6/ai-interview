@@ -830,7 +830,7 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
 
                   <div className="space-y-3">
                     <Select label="Template" value={communication.invitationTemplateId} onChange={(e) => setCommunication((prev) => ({ ...prev, invitationTemplateId: e.target.value, invitationCustom: false }))} options={templates.length ? templates.map((template) => ({ value: template.id, label: template.name })) : [{ value: '', label: 'No templates available' }]} />
-                    <div className="rounded-2xl border border-line bg-[#f9f6f6] p-4">
+                    <div className="rounded-2xl border border-line bg-[#fafbfe] p-4">
                       <div className="flex items-center justify-between mb-3">
                         <div>
                           <p className="text-[11px] uppercase tracking-[0.12em] text-text-secondary">Preview</p>
@@ -842,7 +842,7 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
                           </Button>
                         </div>
                       </div>
-                      <div className="rounded-xl border border-[#f0e7e7] bg-white p-4 text-[13px] leading-relaxed text-ink whitespace-pre-wrap min-h-[160px]">
+                      <div className="rounded-xl border border-line bg-white p-4 text-[13px] leading-relaxed text-ink whitespace-pre-wrap min-h-[160px]">
                         {replaceTemplateVariables(communication.invitationCustom ? communication.invitationText : invitationTemplate?.body || communication.invitationText)}
                       </div>
                     </div>
@@ -918,7 +918,7 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
                             <span className="text-[10px] uppercase tracking-[0.12em] text-text-secondary">Now</span>
                           </div>
                         </div>
-                        <div className="rounded-2xl bg-[#f3f2f1] p-3 text-[13px] leading-relaxed text-ink whitespace-pre-wrap">
+                        <div className="rounded-2xl bg-[var(--color-surface-muted)] p-3 text-[13px] leading-relaxed text-ink whitespace-pre-wrap">
                           {replaceTemplateVariables(communication.whatsappCustom ? communication.whatsappText : whatsappTemplate?.body || communication.whatsappText)}
                         </div>
                       </div>
@@ -965,7 +965,7 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
                           <div className={`w-3 h-3 rounded-full ${item.active ? 'bg-accent' : 'bg-black/10'}`} />
                           {index < timelineItems.length - 1 && <div className="w-px h-10 bg-line mt-2" />}
                         </div>
-                        <div className="flex-1 rounded-xl border border-line bg-[#faf7f7] p-3">
+                        <div className="flex-1 rounded-xl border border-line bg-[#fafbfe] p-3">
                           <div className="flex items-center justify-between gap-3">
                             <span className="font-semibold text-[13px] text-ink">{item.title}</span>
                             <span className="text-[11px] uppercase tracking-[0.08em] text-text-secondary">{item.time}</span>
@@ -1052,9 +1052,9 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
                 <button type="button" onClick={() => setStep(5)} className="inline-flex items-center gap-1 text-[11px] font-bold text-accent hover:text-accent-dark"><Pencil size={12} /> Edit</button>
               </div>
               <div className="grid md:grid-cols-3 gap-4 text-[13px] text-text-secondary">
-                <div className="rounded-xl border border-line bg-[#faf7f7] p-3"><span className="block text-[11px] uppercase tracking-[0.12em] mb-1">Invitation</span><span className="font-medium text-ink">{invitationTemplate?.name || 'Standard'}</span></div>
-                <div className="rounded-xl border border-line bg-[#faf7f7] p-3"><span className="block text-[11px] uppercase tracking-[0.12em] mb-1">WhatsApp</span><span className="font-medium text-ink">{whatsappTemplate?.name || 'Not configured'}</span></div>
-                <div className="rounded-xl border border-line bg-[#faf7f7] p-3"><span className="block text-[11px] uppercase tracking-[0.12em] mb-1">Reminder</span><span className="font-medium text-ink">{reminderTemplate?.name || 'Interview Reminder'}</span></div>
+                <div className="rounded-xl border border-line bg-[#fafbfe] p-3"><span className="block text-[11px] uppercase tracking-[0.12em] mb-1">Invitation</span><span className="font-medium text-ink">{invitationTemplate?.name || 'Standard'}</span></div>
+                <div className="rounded-xl border border-line bg-[#fafbfe] p-3"><span className="block text-[11px] uppercase tracking-[0.12em] mb-1">WhatsApp</span><span className="font-medium text-ink">{whatsappTemplate?.name || 'Not configured'}</span></div>
+                <div className="rounded-xl border border-line bg-[#fafbfe] p-3"><span className="block text-[11px] uppercase tracking-[0.12em] mb-1">Reminder</span><span className="font-medium text-ink">{reminderTemplate?.name || 'Interview Reminder'}</span></div>
               </div>
             </div>
 
