@@ -183,7 +183,7 @@ function CandidatesListPage() {
                       </td>
                       <td className="py-3 px-3">
                         <div className="flex items-center gap-3 min-w-0">
-                          <span className="shrink-0 w-10 h-10 rounded-full bg-[color-mix(in_srgb,var(--color-accent)_10%,white)] text-accent-dark flex items-center justify-center font-extrabold text-[13px]">{initialsOf(cand.name)}</span>
+                          <span className="shrink-0 w-10 h-10 rounded-full bg-[color-mix(in_srgb,var(--color-accent)_10%,white)] text-accent-dark flex items-center justify-center font-bold text-[13px]">{initialsOf(cand.name)}</span>
                           <div className="min-w-0">
                             <div className="font-bold text-[14px] text-ink leading-tight">{cand.name}</div>
                             <div className="text-[12px] text-text-secondary truncate max-w-[200px]">{cand.email}</div>
@@ -198,7 +198,7 @@ function CandidatesListPage() {
                       <td className="py-3 px-3">
                         {cand.aiScore > 0 ? (
                           <div className="flex items-center gap-2.5">
-                            <span className="font-extrabold text-[14px] min-w-[34px] tabular-nums">{cand.aiScore}%</span>
+                            <span className="font-bold text-[14px] min-w-[34px] tabular-nums">{cand.aiScore}%</span>
                             <span className="w-16 h-2 rounded-md bg-[var(--color-surface-muted)] overflow-hidden"><span className="block h-full rounded-md" style={{ width: `${Math.min(cand.aiScore, 100)}%`, background: scoreTone(cand.aiScore) }} /></span>
                           </div>
                         ) : (

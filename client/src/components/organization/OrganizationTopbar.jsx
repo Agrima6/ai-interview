@@ -27,8 +27,8 @@ function OrganizationTopbar({ title, description, eyebrow, action, onMenuClick, 
                                 <span className='w-2 h-2 rounded-full bg-[var(--color-success)]' />{eyebrow}
                             </p>
                         )}
-                        <h1 className='text-[26px] sm:text-[32px] font-extrabold tracking-[-0.02em] leading-tight text-ink [overflow-wrap:anywhere]'>{title}</h1>
-                        {description && <p className='mt-1.5 text-text-secondary text-[15px] [overflow-wrap:anywhere]'>{description}</p>}
+                        <h1 className='text-[22px] sm:text-[26px] font-bold tracking-[-0.02em] leading-tight text-ink [overflow-wrap:anywhere]'>{title}</h1>
+                        {description && <p className='mt-1 text-text-secondary text-[14px] [overflow-wrap:anywhere]'>{description}</p>}
                     </div>
                 </div>
             </div>

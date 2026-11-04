@@ -117,7 +117,7 @@ function CandidateDetailModal({ open, onClose, candidate, onStatusChange, examMo
             {candidate.name.charAt(0)}
           </div>
           <div>
-            <h2 className="font-display text-[18px] font-bold text-ink">{candidate.name}</h2>
+            <h2 className="font-display text-[16px] font-bold text-ink">{candidate.name}</h2>
             <p className="text-[13px] text-text-secondary">{candidate.email} • Applied for {candidate.driveTitle}</p>
           </div>
         </div>
@@ -133,7 +133,7 @@ function CandidateDetailModal({ open, onClose, candidate, onStatusChange, examMo
             <Sparkles size={18} />
             <div>
               <div className="text-[11px] font-bold uppercase tracking-wider">AI Overall Score</div>
-              <div className="text-[20px] font-extrabold leading-none">{candidate.aiScore}%</div>
+              <div className="text-[18px] font-bold leading-none">{candidate.aiScore}%</div>
             </div>
           </div>
         ) : (

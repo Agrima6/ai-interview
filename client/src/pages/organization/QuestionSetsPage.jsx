@@ -100,7 +100,7 @@ function QuestionSetsPage() {
         <button
           type="button"
           onClick={() => setModalOpen(true)}
-          className="ui-shine inline-flex items-center gap-2 h-12 px-5 rounded-[14px] bg-accent text-white text-[14px] font-bold transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_28px_-10px_var(--color-accent)]"
+          className="ui-shine inline-flex items-center gap-2 h-11 px-5 rounded-[14px] bg-accent text-white text-[14px] font-bold transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_28px_-10px_var(--color-accent)]"
         >
           <Plus size={17} /> New question set
         </button>
@@ -132,7 +132,7 @@ function QuestionSetsPage() {
           <Button variant="secondary" onClick={fetchSets}>Retry</Button>
         </Card>
       ) : loading ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,340px),1fr))] gap-[18px]">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-[260px] !rounded-[22px]" />)}</div>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,340px),1fr))] gap-4">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-[260px] !rounded-[22px]" />)}</div>
       ) : questionSets.length === 0 ? (
         <div className="rounded-[24px] border-[1.5px] border-dashed border-accent/30 bg-card">
           <EmptyState
@@ -146,7 +146,7 @@ function QuestionSetsPage() {
       ) : filteredSets.length === 0 ? (
         <div className="rounded-[24px] border-[1.5px] border-dashed border-accent/30 bg-card"><EmptyState icon={FileQuestion} title="No question sets match" description="Try another category or search term." /></div>
       ) : (
-        <section className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,340px),1fr))] gap-[18px] items-start">
+        <section className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,340px),1fr))] gap-4 items-start">
           {filteredSets.map((set, i) => {
             const setId = set._id || set.id
             const topics = [...new Set((set.questions || []).map((q) => q.topic).filter(Boolean))].slice(0, 3)
@@ -154,15 +154,15 @@ function QuestionSetsPage() {
               <article
                 key={setId}
                 style={{ animationDelay: `${60 + Math.min(i, 8) * 55}ms` }}
-                className="ui-rise ui-lift flex flex-col gap-4 p-[22px] rounded-[22px] bg-card border border-line"
+                className="ui-rise ui-lift flex flex-col gap-4 p-5 rounded-[22px] bg-card border border-line"
               >
                 <div className="flex items-start gap-3.5">
-                  <span className="shrink-0 w-[46px] h-[46px] rounded-[14px] bg-[color-mix(in_srgb,var(--color-accent)_10%,white)] text-accent-dark flex items-center justify-center font-extrabold text-[13px]">
+                  <span className="shrink-0 w-[46px] h-[46px] rounded-[14px] bg-[color-mix(in_srgb,var(--color-accent)_10%,white)] text-accent-dark flex items-center justify-center font-bold text-[13px]">
                     {(set.title || '?').split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-[16px] font-extrabold leading-snug text-ink">{set.title}</h3>
+                      <h3 className="text-[15px] font-bold leading-snug text-ink">{set.title}</h3>
                     </div>
                     <p className="text-[13px] text-text-secondary mt-1">
                       {formatEnumLabel(set.category)} · {set.createdAt ? new Date(set.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Built-in'}
@@ -182,8 +182,8 @@ function QuestionSetsPage() {
                 )}
 
                 <div className="grid grid-cols-3 gap-2.5 p-3.5 rounded-2xl bg-[#fafbfe] border border-line/60">
-                  <div><div className="text-[12px] font-semibold text-text-secondary">Questions</div><div className="text-[20px] font-extrabold tabular-nums">{set.questionCount}</div></div>
-                  <div><div className="text-[12px] font-semibold text-text-secondary">Duration</div><div className="text-[20px] font-extrabold tabular-nums">{set.durationMinutes}<span className="text-[12px] text-text-secondary font-semibold"> min</span></div></div>
+                  <div><div className="text-[12px] font-semibold text-text-secondary">Questions</div><div className="text-[18px] font-bold tabular-nums">{set.questionCount}</div></div>
+                  <div><div className="text-[12px] font-semibold text-text-secondary">Duration</div><div className="text-[18px] font-bold tabular-nums">{set.durationMinutes}<span className="text-[12px] text-text-secondary font-semibold"> min</span></div></div>
                   <div><div className="text-[12px] font-semibold text-text-secondary">Type</div><div className="pt-1.5"><Badge variant={set.isSystemDefault ? 'neutral' : 'info'}>{set.isSystemDefault ? 'Predefined' : 'Custom'}</Badge></div></div>
                 </div>
 

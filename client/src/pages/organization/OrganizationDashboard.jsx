@@ -96,7 +96,7 @@ function ActiveDrivesTable({ basePath }) {
                             >
                                 <td className='px-3 py-3.5 whitespace-nowrap'>
                                     <span className='flex items-center gap-3'>
-                                        <span className='w-9 h-9 rounded-xl bg-[color-mix(in_srgb,var(--color-accent)_10%,white)] text-accent text-[12px] font-extrabold flex items-center justify-center'>{(drive.title || '?').split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}</span>
+                                        <span className='w-9 h-9 rounded-xl bg-[color-mix(in_srgb,var(--color-accent)_10%,white)] text-accent text-[12px] font-bold flex items-center justify-center'>{(drive.title || '?').split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}</span>
                                         <span className='text-[14px] font-bold text-ink'>{drive.title}</span>
                                     </span>
                                 </td>
@@ -175,7 +175,7 @@ function OrganizationDashboard() {
                 <Card className='ui-rise p-6' style={{ animationDelay: '120ms' }}>
                     <div className='flex items-center justify-between mb-4'>
                         <div>
-                            <h3 className='text-[18px] font-extrabold text-ink'>Needs your attention</h3>
+                            <h3 className='text-[16px] font-bold text-ink'>Needs your attention</h3>
                             <p className='text-[13px] text-text-secondary'>Items waiting on you today</p>
                         </div>
                         <button onClick={() => navigate(`${basePath}/drives`)} className='text-[13px] font-bold text-accent flex items-center gap-1 hover:underline'>
@@ -191,7 +191,7 @@ function OrganizationDashboard() {
             <Reveal index={1}><Card className='p-6 mb-6'>
                 <div className='flex items-center justify-between mb-6 flex-wrap gap-3'>
                     <div>
-                        <h3 className='text-[18px] font-extrabold text-ink'>Hiring Overview</h3>
+                        <h3 className='text-[16px] font-bold text-ink'>Hiring Overview</h3>
                         <p className='text-[13px] text-text-secondary'>Track your interview pipeline at a glance.</p>
                     </div>
                     <div role='group' aria-label='Date range' className='flex items-center gap-1 bg-[var(--color-navy)] rounded-[14px] p-[5px]'>
@@ -247,7 +247,7 @@ function OrganizationDashboard() {
             <Reveal index={1}><Card className='p-6 mb-6'>
                 <div className='flex items-center justify-between mb-4'>
                     <div>
-                        <h3 className='text-[18px] font-extrabold text-ink'>Active interview drives</h3>
+                        <h3 className='text-[16px] font-bold text-ink'>Active interview drives</h3>
                         <p className='text-[13px] text-text-secondary'>Your most recent live drives.</p>
                     </div>
                     <button onClick={() => navigate(`${basePath}/drives`)} className='text-[13px] font-bold text-accent flex items-center gap-1 hover:underline'>
@@ -259,7 +259,7 @@ function OrganizationDashboard() {
 
             <Reveal className='grid lg:grid-cols-3 gap-6 mb-6'>
                 <Card className='p-6'>
-                    <h3 className='text-[16px] font-extrabold text-ink mb-3'>Department wise hiring</h3>
+                    <h3 className='text-[16px] font-bold text-ink mb-3'>Department wise hiring</h3>
                     {trends.isError ? <SectionError message='Unable to load department breakdown.' onRetry={trends.refetch} />
                         : trends.isLoading ? <Skeleton className='h-48 w-full' />
                         : !trends.data.departmentBreakdown?.length ? (
@@ -292,14 +292,14 @@ function OrganizationDashboard() {
                 </Card>
 
                 <Card className='p-6'>
-                    <h3 className='text-[16px] font-extrabold text-ink mb-6'>Interview funnel</h3>
+                    <h3 className='text-[16px] font-bold text-ink mb-6'>Interview funnel</h3>
                     {trends.isError ? <SectionError message='Unable to load the pipeline.' onRetry={trends.refetch} />
                         : trends.isLoading ? <SkeletonText lines={5} />
                             : <FunnelChart stages={trends.data.pipeline} />}
                 </Card>
 
                 <Card className='p-6'>
-                    <h3 className='text-[16px] font-extrabold text-ink mb-5'>Recent activity</h3>
+                    <h3 className='text-[16px] font-bold text-ink mb-5'>Recent activity</h3>
                     {activity.isError ? <SectionError message='Unable to load recent activity.' onRetry={activity.refetch} />
                         : activity.isLoading ? <SkeletonText lines={5} />
                             : <ActivityFeed items={activity.data} />}
@@ -307,7 +307,7 @@ function OrganizationDashboard() {
             </Reveal>
 
             <Reveal><Card className='p-6'>
-                <h3 className='text-[16px] font-extrabold text-ink mb-6'>Score distribution</h3>
+                <h3 className='text-[16px] font-bold text-ink mb-6'>Score distribution</h3>
                 <div className='h-56'>
                     {trends.isError ? <SectionError message='Unable to load score distribution.' onRetry={trends.refetch} />
                         : trends.isLoading ? <Skeleton className='w-full h-full' /> : (

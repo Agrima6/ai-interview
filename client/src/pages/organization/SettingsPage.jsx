@@ -141,7 +141,7 @@ function SettingsPage() {
           <form onSubmit={handleSaveSettings} className="space-y-6">
             {/* Organization Info Card */}
             <Card className="p-6">
-              <h2 className="text-[18px] font-extrabold text-ink mb-4 flex items-center gap-2">
+              <h2 className="text-[16px] font-bold text-ink mb-4 flex items-center gap-2">
                 <Building2 size={18} className="text-accent" /> Organization & Account Details
               </h2>
               <div className="space-y-4">
@@ -167,7 +167,7 @@ function SettingsPage() {
 
             {/* Custom Branding & Typography Card */}
             <Card className="p-6 space-y-5">
-              <h2 className="text-[18px] font-extrabold text-ink mb-4 flex items-center gap-2">
+              <h2 className="text-[16px] font-bold text-ink mb-4 flex items-center gap-2">
                 <Palette size={18} className="text-accent" /> Visual Branding & Typography
               </h2>
 

@@ -158,7 +158,7 @@ function DrivesListPage() {
         <button
           type="button"
           onClick={() => setModalOpen(true)}
-          className="ui-shine inline-flex items-center gap-2.5 h-[50px] px-[22px] rounded-[14px] bg-accent text-white text-[15px] font-bold transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_28px_-10px_var(--color-accent)]"
+          className="ui-shine inline-flex items-center gap-2.5 h-11 px-5 rounded-[14px] bg-accent text-white text-[14px] font-bold transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_28px_-10px_var(--color-accent)]"
         >
           <Plus size={18} /> Create Interview Drive
         </button>
@@ -176,11 +176,11 @@ function DrivesListPage() {
               type="button"
               onClick={() => (m.nav ? navigate(m.nav) : setActiveTab(m.tab))}
               style={{ animationDelay: `${i * 70}ms` }}
-              className={`ui-rise ui-lift text-left flex items-center gap-4 p-[18px] rounded-[20px] bg-card border-[1.5px] ${m.tab && activeTab === m.tab ? 'border-accent' : 'border-line'}`}
+              className={`ui-rise ui-lift text-left flex items-center gap-4 p-4 rounded-[20px] bg-card border-[1.5px] ${m.tab && activeTab === m.tab ? 'border-accent' : 'border-line'}`}
             >
               <span className={`w-[46px] h-[46px] rounded-[14px] flex items-center justify-center ${m.tint}`}><m.icon size={20} strokeWidth={1.8} /></span>
               <span className="flex flex-col">
-                <span className="text-[28px] font-extrabold tracking-[-0.02em] tabular-nums leading-none">{m.value}</span>
+                <span className="text-[28px] font-bold tracking-[-0.02em] tabular-nums leading-none">{m.value}</span>
                 <span className="text-[13px] font-semibold text-text-secondary mt-1">{m.label}</span>
               </span>
             </button>
@@ -251,7 +251,7 @@ function DrivesListPage() {
             <Button variant="secondary" onClick={fetchDrives}>Retry</Button>
           </Card>
         ) : loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-[18px]">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-[250px] !rounded-[22px]" />)}
           </div>
         ) : drives.length === 0 ? (
@@ -267,7 +267,7 @@ function DrivesListPage() {
         ) : (
           <>
           {view === 'grid' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-[18px]">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {drives.map((drive, i) => {
               const driveId = drive._id || drive.id
               const tone = STATUS_BADGE[drive.status] || 'neutral'
@@ -276,14 +276,14 @@ function DrivesListPage() {
                   key={driveId}
                   onClick={() => navigate(`${basePath}/drives/${driveId}`)}
                   style={{ animationDelay: `${80 + Math.min(i, 8) * 60}ms` }}
-                  className="ui-rise ui-lift group cursor-pointer flex flex-col gap-[18px] p-[22px] rounded-[22px] bg-card border border-line"
+                  className="ui-rise ui-lift group cursor-pointer flex flex-col gap-4 p-5 rounded-[22px] bg-card border border-line"
                 >
                   <div className="flex items-start gap-3">
-                    <span className="shrink-0 w-[46px] h-[46px] rounded-[14px] bg-[color-mix(in_srgb,var(--color-accent)_10%,white)] text-accent-dark flex items-center justify-center font-extrabold text-[14px]">
+                    <span className="shrink-0 w-[46px] h-[46px] rounded-[14px] bg-[color-mix(in_srgb,var(--color-accent)_10%,white)] text-accent-dark flex items-center justify-center font-bold text-[14px]">
                       {initialsOf(drive.title)}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-[16px] font-extrabold leading-snug text-ink line-clamp-2 group-hover:text-accent transition-colors">{drive.title}</h3>
+                      <h3 className="text-[15px] font-bold leading-snug text-ink line-clamp-2 group-hover:text-accent transition-colors">{drive.title}</h3>
                       <p className="text-[13px] text-text-secondary mt-0.5 line-clamp-1">
                         {formatEnumLabel(drive.department)} · {formatEnumLabel(drive.roleCategory)}
                       </p>
@@ -302,8 +302,8 @@ function DrivesListPage() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-x-4 gap-y-3.5">
-                    <div><div className="text-[12px] font-semibold text-text-secondary">Candidates</div><div className="text-[20px] font-extrabold tabular-nums">{drive.candidatesCount}</div></div>
-                    <div><div className="text-[12px] font-semibold text-text-secondary">Passing score</div><div className="text-[20px] font-extrabold tabular-nums text-[var(--color-success)]">{drive.passingThreshold}%</div></div>
+                    <div><div className="text-[12px] font-semibold text-text-secondary">Candidates</div><div className="text-[18px] font-bold tabular-nums">{drive.candidatesCount}</div></div>
+                    <div><div className="text-[12px] font-semibold text-text-secondary">Passing score</div><div className="text-[18px] font-bold tabular-nums text-[var(--color-success)]">{drive.passingThreshold}%</div></div>
                     <div><div className="text-[12px] font-semibold text-text-secondary">Target level</div><div className="text-[14px] font-bold pt-1">{drive.experienceLevel || '—'}</div></div>
                     <div>
                       <div className="text-[12px] font-semibold text-text-secondary">Created</div>
@@ -337,7 +337,7 @@ function DrivesListPage() {
                     <tr key={driveId} onClick={() => navigate(`${basePath}/drives/${driveId}`)} className="ui-row cursor-pointer border-t border-line">
                       <td className="px-3.5 py-3.5">
                         <span className="flex items-center gap-3 min-w-0">
-                          <span className="shrink-0 w-[38px] h-[38px] rounded-xl bg-[color-mix(in_srgb,var(--color-accent)_10%,white)] text-accent-dark flex items-center justify-center font-extrabold text-[12px]">{initialsOf(drive.title)}</span>
+                          <span className="shrink-0 w-[38px] h-[38px] rounded-xl bg-[color-mix(in_srgb,var(--color-accent)_10%,white)] text-accent-dark flex items-center justify-center font-bold text-[12px]">{initialsOf(drive.title)}</span>
                           <span className="min-w-0">
                             <span className="block font-bold text-[14px] truncate max-w-[280px]">{drive.title}</span>
                             <span className="text-[12px] text-text-secondary">{formatEnumLabel(drive.department)} · {formatEnumLabel(drive.roleCategory)}</span>
@@ -345,7 +345,7 @@ function DrivesListPage() {
                         </span>
                       </td>
                       <td className="px-3.5 py-3.5"><Badge variant={STATUS_BADGE[drive.status] || 'neutral'} dot>{formatEnumLabel(drive.status)}</Badge></td>
-                      <td className="px-3.5 py-3.5 font-extrabold tabular-nums">{drive.candidatesCount}</td>
+                      <td className="px-3.5 py-3.5 font-bold tabular-nums">{drive.candidatesCount}</td>
                       <td className="px-3.5 py-3.5 font-bold">{drive.passingThreshold}%</td>
                       <td className="px-3.5 py-3.5 text-[13px] text-text-secondary whitespace-nowrap">{formatDate(drive.createdAt)}</td>
                       <td className="px-3.5 py-3.5" onClick={(e) => e.stopPropagation()}><PublicLinkPopover publicLink={drive.publicLink} /></td>
