@@ -12,7 +12,7 @@ function Card({ as = 'div', hover = false, className = '', children, ...props })
     : {}
   return (
     <Component
-      className={`bg-card border border-line rounded-2xl shadow-[var(--shadow-soft)] ${hover ? 'transition-shadow duration-300 hover:shadow-[var(--shadow-lift)] hover:border-black/20 dark:hover:border-white/20' : ''} ${className}`}
+      className={`bg-card border border-line rounded-[20px] shadow-[var(--shadow-soft)] ${hover ? 'transition-shadow duration-300 hover:shadow-[var(--shadow-lift)] hover:border-accent/30' : ''} ${className}`}
       {...hoverProps}
       {...props}
     >

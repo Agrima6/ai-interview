@@ -11,7 +11,7 @@ function Tabs({ tabs, value, onChange, className = '' }) {
   const setActive = onChange ?? setInternal
 
   return (
-    <div className={`inline-flex items-center gap-1 bg-black/[0.04] dark:bg-white/[0.06] p-1 rounded-full ${className}`}>
+    <div className={`inline-flex items-center gap-1.5 bg-[#e9ebf6] p-[5px] rounded-[14px] max-w-full overflow-x-auto ${className}`}>
       {tabs.map((tab) => {
         const isActive = tab.id === active
         const Icon = tab.icon
@@ -19,13 +19,13 @@ function Tabs({ tabs, value, onChange, className = '' }) {
           <button
             key={tab.id}
             onClick={() => setActive(tab.id)}
-            className='relative px-4 py-2 text-[13.5px] font-medium rounded-full transition-colors flex items-center gap-1.5'
+            className='relative h-[38px] px-4 text-[13px] font-bold rounded-[10px] transition-colors flex items-center gap-1.5 whitespace-nowrap'
           >
             {isActive && (
               <motion.span
                 layoutId='tabs-pill'
                 transition={{ type: 'spring', duration: 0.4, bounce: 0.2 }}
-                className='absolute inset-0 bg-card rounded-full shadow-[var(--shadow-soft)]'
+                className='absolute inset-0 bg-card rounded-[10px] shadow-[0_4px_12px_-6px_rgba(13,18,51,0.35)]'
               />
             )}
             <span className={`relative flex items-center gap-1.5 ${isActive ? 'text-ink' : 'text-text-secondary'}`}>

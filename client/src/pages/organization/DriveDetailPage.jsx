@@ -254,7 +254,7 @@ function DriveDetailPage() {
   return (
     <OrganizationLayout
       title={drive.title}
-      description={`${drive.roleCategory} • ${drive.department} • Selected Round: Round ${currentRound?.roundNumber || activeRoundNumber} • ${currentRoundStatus}`}
+      description={`${formatEnumLabel(drive.roleCategory)} • ${formatEnumLabel(drive.department)} • Selected Round: Round ${currentRound?.roundNumber || activeRoundNumber} • ${currentRoundStatus}`}
       action={
         <div className="interview-actions flex items-center gap-2 flex-wrap">
           <Button variant="secondary" size="sm" onClick={() => navigate(`${basePath}/drives`)}>
@@ -286,7 +286,7 @@ function DriveDetailPage() {
           {drive.status !== 'ARCHIVED' && <Button variant="secondary" size="sm" onClick={() => setCandidateImportOpen(true)} disabled={candidateImporting || drive.status === 'DRAFT' || currentRound?.status !== 'ACTIVE'}>
             <Upload size={14} /> Add Candidates
           </Button>}
-          {drive.status !== 'ARCHIVED' && <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white" onClick={() => setCreateRoundModalOpen(true)} disabled={rounds.length >= Math.min(Number(drive.totalRounds) || 1, 4)}>
+          {drive.status !== 'ARCHIVED' && <Button size="sm" onClick={() => setCreateRoundModalOpen(true)} disabled={rounds.length >= Math.min(Number(drive.totalRounds) || 1, 4)}>
             <Plus size={14} /> Create Round {rounds.length + 1}
           </Button>}
         </div>

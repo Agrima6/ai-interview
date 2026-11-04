@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { FileQuestion, Plus, Clock, Check, Trash2, Sparkles, Layers, AlertCircle, ListChecks } from 'lucide-react'
+import { FileQuestion, Plus, Clock, Check, Trash2, Sparkles, Layers, AlertCircle, ListChecks, ArrowRight } from 'lucide-react'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
 import Modal from '../../components/ui/Modal'
-import { Card, Button, Badge, Input, Select, Textarea, SearchInput, StatCard, Skeleton, EmptyState, useToast } from '../../components/ui'
+import { Card, Button, Badge, Input, Select, Textarea, SearchInput, StatCard, Skeleton, EmptyState, Tabs, useToast } from '../../components/ui'
 import ConfirmModal from '../../components/ui/ConfirmModal'
 import { getQuestionBanks, createQuestionBank, deleteQuestionBank } from '../../api/organization/organizationApi'
 import { formatEnumLabel } from '../../utils/formatEnumLabel'
@@ -61,6 +61,8 @@ function QuestionSetsPage() {
     })
   }, [questionSets, search, categoryFilter])
 
+  const categoryTabs = useMemo(() => [...new Set(questionSets.map((s) => s.category).filter(Boolean))], [questionSets])
+
   const handleAddQuestion = () => setQuestions((prev) => [...prev, { text: '', topic: '', timeLimit: 120 }])
   const handleRemoveQuestion = (idx) => setQuestions((prev) => prev.filter((_, i) => i !== idx))
   const handleQuestionChange = (idx, field, value) =>
@@ -92,42 +94,47 @@ function QuestionSetsPage() {
 
   return (
     <OrganizationLayout
-      title="Question Sets & Skill Rubrics"
-      description="Create custom question banks and reuse pre-built assessment sets across your interview drives."
+      title="Question Sets"
+      description="Reusable question banks your AI interviewer draws from."
       action={
-        <Button size="sm" onClick={() => setModalOpen(true)}>
-          <Plus size={14} /> Create Custom Question Set
-        </Button>
+        <button
+          type="button"
+          onClick={() => setModalOpen(true)}
+          className="ui-shine inline-flex items-center gap-2 h-12 px-5 rounded-[14px] bg-accent text-white text-[14px] font-bold transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_28px_-10px_var(--color-accent)]"
+        >
+          <Plus size={17} /> New question set
+        </button>
       }
     >
       <div className="grid sm:grid-cols-3 gap-4 mb-6">
-        <StatCard icon={FileQuestion} label="Available Question Sets" value={questionSets.length} />
-        <StatCard icon={Layers} label="Pre-built Sets" value={questionSets.filter((s) => s.isSystemDefault).length} />
-        <StatCard icon={Sparkles} label="Custom Sets Created" value={questionSets.filter((s) => !s.isSystemDefault).length} />
+        <StatCard icon={FileQuestion} accent="brand" label="Available question sets" value={questionSets.length} />
+        <StatCard icon={Layers} accent="cyan" label="Pre-built sets" value={questionSets.filter((s) => s.isSystemDefault).length} />
+        <StatCard icon={Sparkles} accent="success" label="Custom sets created" value={questionSets.filter((s) => !s.isSystemDefault).length} />
       </div>
 
-      <Card className="p-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-5">
-          <SearchInput placeholder="Search question sets..." value={search} onChange={setSearch} className="w-full sm:w-[280px]" />
-          <Select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            placeholder="All categories"
-            options={CATEGORY_OPTIONS}
-            wrapperClassName="w-full sm:w-[220px]"
-          />
+      <div className="ui-rise flex flex-wrap items-center gap-3 mb-6" style={{ animationDelay: '120ms' }}>
+        <div className="flex-[999_1_280px] min-w-0">
+          <SearchInput placeholder="Search question sets…" value={search} onChange={setSearch} />
         </div>
+        <Tabs
+          tabs={[{ id: '', label: 'All' }, ...categoryTabs.map((c) => ({ id: c, label: formatEnumLabel(c) }))]}
+          value={categoryFilter}
+          onChange={setCategoryFilter}
+          className="max-w-full"
+        />
+      </div>
 
-        {error ? (
-          <div className="py-12 text-center">
-            <AlertCircle size={20} className="text-red-500 mx-auto mb-3" />
-            <p className="text-[14px] text-ink font-medium mb-1">Couldn't load question sets</p>
-            <p className="text-[13px] text-text-secondary mb-4">{error}</p>
-            <Button variant="secondary" onClick={fetchSets}>Retry</Button>
-          </div>
-        ) : loading ? (
-          <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14" />)}</div>
-        ) : questionSets.length === 0 ? (
+      {error ? (
+        <Card className="py-12 text-center">
+          <AlertCircle size={20} className="text-red-500 mx-auto mb-3" />
+          <p className="text-[14px] text-ink font-bold mb-1">Couldn't load question sets</p>
+          <p className="text-[13px] text-text-secondary mb-4">{error}</p>
+          <Button variant="secondary" onClick={fetchSets}>Retry</Button>
+        </Card>
+      ) : loading ? (
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,340px),1fr))] gap-[18px]">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-[260px] !rounded-[22px]" />)}</div>
+      ) : questionSets.length === 0 ? (
+        <div className="rounded-[24px] border-[1.5px] border-dashed border-accent/30 bg-card">
           <EmptyState
             icon={FileQuestion}
             title="No question sets yet"
@@ -135,57 +142,64 @@ function QuestionSetsPage() {
             actionLabel="Create Question Set"
             onAction={() => setModalOpen(true)}
           />
-        ) : filteredSets.length === 0 ? (
-          <EmptyState icon={FileQuestion} title="No question sets match your filters" />
-        ) : (
-          <div className="overflow-x-auto -mx-2">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-line text-[12px] font-semibold uppercase tracking-wider text-text-secondary">
-                  <th className="pb-3 px-3">Name</th>
-                  <th className="pb-3 px-3">Category</th>
-                  <th className="pb-3 px-3">Questions</th>
-                  <th className="pb-3 px-3">Duration</th>
-                  <th className="pb-3 px-3">Type</th>
-                  <th className="pb-3 px-3">Created</th>
-                  <th className="pb-3 px-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line text-[13.5px]">
-                {filteredSets.map((set) => {
-                  const setId = set._id || set.id
-                  return (
-                    <tr key={setId} className="hover:bg-black/[0.015] dark:hover:bg-white/[0.02] transition-colors">
-                      <td className="py-4 px-3 font-semibold text-ink max-w-[280px] truncate">{set.title}</td>
-                      <td className="py-4 px-3 text-text-secondary whitespace-nowrap">{formatEnumLabel(set.category)}</td>
-                      <td className="py-4 px-3 text-text-secondary">{set.questionCount}</td>
-                      <td className="py-4 px-3 text-text-secondary whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1"><Clock size={12} /> {set.durationMinutes} min</span>
-                      </td>
-                      <td className="py-4 px-3">
-                        <Badge variant={set.isSystemDefault ? 'neutral' : 'info'}>{set.isSystemDefault ? 'Predefined' : 'Custom'}</Badge>
-                      </td>
-                      <td className="py-4 px-3 text-text-secondary whitespace-nowrap">
-                        {set.createdAt ? new Date(set.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
-                      </td>
-                      <td className="py-4 px-3 text-right whitespace-nowrap">
-                        <Button size="xs" variant="secondary" onClick={() => setPreviewSet(set)}>
-                          <ListChecks size={13} /> View Questions
-                        </Button>
-                        {!set.isSystemDefault && (
-                          <Button size="xs" variant="secondary" className="ml-2" aria-label={`Delete ${set.title}`} onClick={() => setDeleteTarget(set)}>
-                            <Trash2 size={13} />
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+        </div>
+      ) : filteredSets.length === 0 ? (
+        <div className="rounded-[24px] border-[1.5px] border-dashed border-accent/30 bg-card"><EmptyState icon={FileQuestion} title="No question sets match" description="Try another category or search term." /></div>
+      ) : (
+        <section className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,340px),1fr))] gap-[18px] items-start">
+          {filteredSets.map((set, i) => {
+            const setId = set._id || set.id
+            const topics = [...new Set((set.questions || []).map((q) => q.topic).filter(Boolean))].slice(0, 3)
+            return (
+              <article
+                key={setId}
+                style={{ animationDelay: `${60 + Math.min(i, 8) * 55}ms` }}
+                className="ui-rise ui-lift flex flex-col gap-4 p-[22px] rounded-[22px] bg-card border border-line"
+              >
+                <div className="flex items-start gap-3.5">
+                  <span className="shrink-0 w-[46px] h-[46px] rounded-[14px] bg-[color-mix(in_srgb,var(--color-accent)_10%,white)] text-accent-dark flex items-center justify-center font-extrabold text-[13px]">
+                    {(set.title || '?').split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-[16px] font-extrabold leading-snug text-ink">{set.title}</h3>
+                    </div>
+                    <p className="text-[13px] text-text-secondary mt-1">
+                      {formatEnumLabel(set.category)} · {set.createdAt ? new Date(set.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Built-in'}
+                    </p>
+                  </div>
+                  {!set.isSystemDefault && (
+                    <button type="button" aria-label={`Delete ${set.title}`} onClick={() => setDeleteTarget(set)} className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-text-secondary hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] transition-colors">
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
+
+                {topics.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {topics.map((t) => <span key={t} className="px-2.5 py-1 rounded-[10px] bg-[var(--color-surface-muted)] text-[12px] font-bold text-[#3a4262]">{t}</span>)}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-3 gap-2.5 p-3.5 rounded-2xl bg-[#fafbfe] border border-line/60">
+                  <div><div className="text-[12px] font-semibold text-text-secondary">Questions</div><div className="text-[20px] font-extrabold tabular-nums">{set.questionCount}</div></div>
+                  <div><div className="text-[12px] font-semibold text-text-secondary">Duration</div><div className="text-[20px] font-extrabold tabular-nums">{set.durationMinutes}<span className="text-[12px] text-text-secondary font-semibold"> min</span></div></div>
+                  <div><div className="text-[12px] font-semibold text-text-secondary">Type</div><div className="pt-1.5"><Badge variant={set.isSystemDefault ? 'neutral' : 'info'}>{set.isSystemDefault ? 'Predefined' : 'Custom'}</Badge></div></div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setPreviewSet(set)}
+                  className="flex items-center justify-between h-11 px-3.5 rounded-xl border border-line bg-card text-[14px] font-bold text-ink transition-colors hover:bg-accent/[0.06] hover:border-accent"
+                >
+                  <span className="inline-flex items-center gap-2"><ListChecks size={16} className="text-accent" /> View questions</span>
+                  <ArrowRight size={15} />
+                </button>
+              </article>
+            )
+          })}
+        </section>
+      )}
 
       <ConfirmModal
         open={Boolean(deleteTarget)}

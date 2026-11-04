@@ -1,6 +1,6 @@
 import React, { forwardRef } from 'react'
 
-const fieldBase = 'w-full bg-card border border-line rounded-xl px-4 py-3 text-[14px] text-ink placeholder:text-text-secondary/70 outline-none transition-all focus:border-accent/60 focus:ring-2 focus:ring-accent/15 disabled:opacity-50 disabled:cursor-not-allowed'
+const fieldBase = 'w-full bg-card border-[1.5px] border-line rounded-[14px] px-4 py-3 text-[14px] text-ink placeholder:text-text-secondary/70 outline-none transition-all hover:border-accent/35 focus:border-accent focus:ring-4 focus:ring-accent/15 disabled:opacity-50 disabled:cursor-not-allowed'
 
 function Field({ label, error, hint, id, className = '', children }) {
   return (

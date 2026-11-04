@@ -17,7 +17,7 @@ import { useOrganizationThemeStyle } from '../../hooks/organization/useOrganizat
  *   ...page content...
  * </OrganizationLayout>
  */
-function OrganizationLayout({ title, description, action, onSearch, children }) {
+function OrganizationLayout({ title, description, eyebrow, action, onSearch, children }) {
     const [mobileOpen, setMobileOpen] = useState(false)
     const { user } = useAuth()
     const navigate = useNavigate()
@@ -33,12 +33,18 @@ function OrganizationLayout({ title, description, action, onSearch, children }) 
         if (user?.mustChangePassword) navigate('/platform/client/change-password', { replace: true })
     }, [user, navigate])
 
+    // Scope the workspace design tokens to <html> while an organization page
+    // is on screen so portalled modals/drawers/toasts share them.
+    useEffect(() => {
+        document.documentElement.classList.add('org-theme')
+        return () => document.documentElement.classList.remove('org-theme')
+    }, [])
+
     return (
         <div className='min-h-screen bg-bg flex relative isolate' style={themeStyle}>
-            <div aria-hidden='true' className='pointer-events-none absolute inset-x-0 top-0 h-[360px] -z-10 bg-[radial-gradient(ellipse_60%_100%_at_70%_0%,color-mix(in_srgb,var(--color-accent)_9%,transparent),transparent)]' />
             <OrganizationSidebar profile={profile} profileLoading={profileLoading} mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
-            <main className='flex-1 min-w-0 p-4 sm:p-8 overflow-x-hidden'>
-                <OrganizationTopbar title={title} description={description} action={action} onSearch={onSearch} onMenuClick={() => setMobileOpen(true)} />
+            <main className='flex-1 min-w-0 px-4 py-6 sm:px-[clamp(16px,3vw,44px)] sm:pt-7 pb-16 overflow-x-hidden'>
+                <OrganizationTopbar title={title} description={description} eyebrow={eyebrow} action={action} onSearch={onSearch} onMenuClick={() => setMobileOpen(true)} />
                 <motion.div
                     key={location.pathname}
                     initial={reduceMotion ? false : { opacity: 0, y: 10 }}

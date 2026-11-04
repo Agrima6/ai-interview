@@ -335,13 +335,13 @@ export default function CandidateRoomPage() {
                     <div className='flex flex-col sm:flex-row gap-2.5'>
                         <label className='relative flex-1 min-w-0'>
                             <span className='sr-only'>Search interviews</span>
-                            <Search size={15} className='absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none' />
+                            <Search size={17} className='absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none' />
                             <input
                                 type='search'
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder='Search by job title, department or company...'
-                                className='w-full h-10 pl-9 pr-3 rounded-xl border border-line bg-card text-[13px] text-ink placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent/30'
+                                className='ui-field w-full h-[52px] pl-11 pr-3 rounded-2xl border-[1.5px] border-line bg-card text-[14px] text-ink placeholder:text-text-secondary'
                             />
                         </label>
                         <label className='sm:w-60'>
@@ -349,7 +349,7 @@ export default function CandidateRoomPage() {
                             <select
                                 value={sortBy}
                                 onChange={(e) => setSortBy(e.target.value)}
-                                className='w-full h-10 px-3 rounded-xl border border-line bg-card text-[13px] text-ink focus:outline-none focus:ring-2 focus:ring-accent/30'
+                                className='ui-field w-full h-[52px] px-3.5 rounded-2xl border-[1.5px] border-line bg-card text-[14px] text-ink'
                             >
                                 {SORTS.map((sort) => <option key={sort.id} value={sort.id}>{sort.label}</option>)}
                             </select>
@@ -364,7 +364,7 @@ export default function CandidateRoomPage() {
                                     role='tab'
                                     aria-selected={activeFilter === tab.id}
                                     onClick={() => setActiveFilter(tab.id)}
-                                    className={`shrink-0 px-3.5 py-1.5 rounded-full text-[12.5px] font-semibold transition-all inline-flex items-center gap-1.5 ${activeFilter === tab.id ? 'bg-ink text-bg shadow-xs' : 'bg-card border border-line text-text-secondary hover:text-ink'}`}
+                                    className={`shrink-0 h-11 px-4 rounded-[14px] text-[13px] font-bold transition-all inline-flex items-center gap-2.5 ${activeFilter === tab.id ? 'bg-ink text-bg shadow-xs' : 'bg-card border border-line text-text-secondary hover:text-ink'}`}
                                 >
                                     <span>{tab.label}</span>
                                     <span className={`px-1.5 text-[11px] rounded-full ${activeFilter === tab.id ? 'bg-bg text-ink' : 'bg-black/[0.05] dark:bg-white/[0.08]'}`}>{counts[tab.id]}</span>
@@ -414,10 +414,10 @@ export default function CandidateRoomPage() {
                                 const inProgressWindow = isUpcoming(interview) && interview.roundStatus === 'ACTIVE'
                                 return (
                                     <li key={`${interview.driveId}-${interview.roundNumber}`}>
-                                        <Card className={`p-4 sm:p-5 border transition-colors ${pending ? 'border-amber-300 bg-amber-50/20 dark:bg-amber-950/10' : 'border-line hover:border-line-hover bg-card'}`}>
+                                        <Card className={`ui-rise ui-lift p-4 sm:p-6 border ${pending ? 'border-amber-300 bg-amber-50/20 dark:bg-amber-950/10' : 'border-line hover:border-line-hover bg-card'}`}>
                                             <div className='flex flex-col gap-4'>
                                                 <div className='flex items-start gap-3 sm:gap-4 min-w-0'>
-                                                    <div className='w-11 h-11 rounded-xl bg-accent/10 text-accent font-display font-bold text-[16px] flex items-center justify-center shrink-0' aria-hidden='true'>
+                                                    <div className='w-[52px] h-[52px] rounded-2xl bg-accent/10 text-accent font-display font-extrabold text-[17px] flex items-center justify-center shrink-0' aria-hidden='true'>
                                                         {initialsOf(interview.companyName || interview.driveTitle)}
                                                     </div>
                                                     <div className='min-w-0 flex-1 space-y-2.5'>
