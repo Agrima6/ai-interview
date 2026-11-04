@@ -330,9 +330,9 @@ body {
 
 /* Interview drive workspace */
 .interview-page {
-  --interview-ink: #24191a;
-  --interview-muted: #78696a;
-  --interview-line: rgba(67, 39, 39, 0.12);
+  --interview-ink: var(--color-ink);
+  --interview-muted: var(--color-text-secondary);
+  --interview-line: var(--color-line);
 }
 
 .interview-page .interview-summary-grid > * {
@@ -353,8 +353,9 @@ body {
   min-width: 126px;
   flex-direction: column;
   gap: 2px;
-  border-bottom: 2px solid transparent;
-  padding: 0.35rem 0.8rem 0.65rem;
+  border-bottom: 3px solid transparent;
+  border-radius: 10px 10px 0 0;
+  padding: 0.4rem 0.9rem 0.7rem;
   color: var(--interview-muted);
   font-size: 0.84rem;
   font-weight: 700;
@@ -406,7 +407,7 @@ body {
 
 .interview-round-select-wrap select:focus {
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px rgba(196, 22, 31, 0.1);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 14%, transparent);
 }
 
 .interview-panel {

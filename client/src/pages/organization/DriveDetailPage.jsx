@@ -10,6 +10,7 @@ import SendRoundCommunicationModal from '../../components/organization/SendRound
 import { Card, Button, Badge, SearchInput, StatCard, Skeleton, useToast } from '../../components/ui'
 import { getInterviewDriveById, updateDriveStatus, updateRoundStatus, updateCandidateStatus, addCandidatesToDrive } from '../../api/organization/organizationApi'
 import { buildPublicApplyUrl } from '../../utils/publicAppUrl'
+import { formatEnumLabel } from '../../utils/formatEnumLabel'
 
 function DriveDetailPage() {
   const { id } = useParams()

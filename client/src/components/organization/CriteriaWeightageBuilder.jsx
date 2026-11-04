@@ -2,7 +2,7 @@ import React from 'react'
 import { Plus, Sliders, Trash2 } from 'lucide-react'
 import { Button } from '../ui'
 
-const CHART_COLORS = ['#c4161f', '#ef6a70', '#f59e0b', '#16a34a', '#7c3aed', '#0f766e']
+const CHART_COLORS = ['#3451f5', '#ff7a3d', '#16a34a', '#8b5cf6', '#0ea5e9', '#f59e0b']
 
 function CriteriaWeightageBuilder({
   skillWeightages,
