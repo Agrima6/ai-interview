@@ -50,7 +50,7 @@ function FeatureShowcase({ images }) {
                         className={`grid lg:grid-cols-2 gap-12 lg:gap-20 items-center ${reversed ? 'lg:[&>*:first-child]:order-2' : ''}`}
                     >
                         <div className='relative'>
-                            <div className='absolute -inset-6 bg-[radial-gradient(closest-side,rgba(196,22,31,0.10),transparent)] -z-10' />
+                            <div className='absolute -inset-6 bg-[radial-gradient(closest-side,rgba(52, 81, 245,0.10),transparent)] -z-10' />
                             <img src={images[f.image]} alt={f.title}
                                 className='w-full aspect-[4/3] object-cover rounded-2xl border border-line shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-lift)] transition-shadow duration-300' />
                         </div>

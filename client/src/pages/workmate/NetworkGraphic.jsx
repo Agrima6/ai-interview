@@ -27,10 +27,10 @@ function NetworkGraphic({ className = '' }) {
     return (
         <svg ref={ref} viewBox='0 0 360 280' className={className} fill='none'>
             {EDGES.map(([a, b], i) => (
-                <line key={i} x1={NODES[a][0]} y1={NODES[a][1]} x2={NODES[b][0]} y2={NODES[b][1]} stroke='#c4161f' strokeOpacity='0.15' strokeWidth='1' strokeDasharray='4 4' />
+                <line key={i} x1={NODES[a][0]} y1={NODES[a][1]} x2={NODES[b][0]} y2={NODES[b][1]} stroke='#3451f5' strokeOpacity='0.15' strokeWidth='1' strokeDasharray='4 4' />
             ))}
             {NODES.map(([x, y], i) => (
-                <circle key={i} className='net-dot' cx={x} cy={y} r={i === 1 ? 5 : 3} fill='#c4161f' fillOpacity={i === 1 ? 0.35 : 0.2} />
+                <circle key={i} className='net-dot' cx={x} cy={y} r={i === 1 ? 5 : 3} fill='#3451f5' fillOpacity={i === 1 ? 0.35 : 0.2} />
             ))}
         </svg>
     )

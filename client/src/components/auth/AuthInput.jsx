@@ -25,7 +25,7 @@ const AuthInput = forwardRef(function AuthInput(
                 <input
                     ref={ref}
                     id={id}
-                    className={`w-full bg-white border border-[#D9C4C9] rounded-[14px] min-h-[52px] py-3 px-4 text-[15px] font-normal text-gray-900 placeholder:text-gray-400/80 outline-none transition-all duration-200 focus:border-accent focus:ring-4 focus:ring-accent/10 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    className={`w-full bg-white border border-[#c4c7d9] rounded-[14px] min-h-[52px] py-3 px-4 text-[15px] font-normal text-gray-900 placeholder:text-gray-400/80 outline-none transition-all duration-200 focus:border-accent focus:ring-4 focus:ring-accent/10 disabled:opacity-50 disabled:cursor-not-allowed ${
                         Icon ? 'pl-11' : ''
                     } ${rightElement ? 'pr-11' : ''} ${error ? '!border-red-500 focus:!ring-red-500/10' : ''} ${className}`}
                     {...props}

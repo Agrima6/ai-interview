@@ -422,8 +422,8 @@ function OnboardingFlow() {
             { title: 'Login details and temporary password by email' },
         ]
         return (
-            <div className='min-h-screen bg-[#FBF7F6] flex items-center justify-center px-6 py-12'>
-                <div className='w-full max-w-[560px] bg-white border border-[#F1E6E9] rounded-[30px] p-8 sm:p-11 text-center shadow-[0_40px_80px_-50px_rgba(90,20,40,0.45)]'>
+            <div className='min-h-screen bg-[#f6f7fb] flex items-center justify-center px-6 py-12'>
+                <div className='w-full max-w-[560px] bg-white border border-[#e6e8f1] rounded-[30px] p-8 sm:p-11 text-center shadow-[0_40px_80px_-50px_rgba(20, 30, 90,0.45)]'>
                     <span className='mx-auto w-24 h-24 rounded-full bg-[#E3F6EE] flex items-center justify-center' aria-hidden='true'>
                         <CheckCircle2 size={44} strokeWidth={2} className='text-[#0F8A6B]' />
                     </span>
@@ -433,9 +433,9 @@ function OnboardingFlow() {
 
                     <ol className='mt-6 space-y-2.5 text-left'>
                         {nextSteps.map((step, i) => (
-                            <li key={step.title} className={`flex gap-3 items-center px-3.5 py-3 rounded-[14px] ${step.done ? 'bg-[#F3FBF7]' : step.active ? 'bg-[#FFF7F5]' : 'bg-[#FBF8F8]'}`}>
+                            <li key={step.title} className={`flex gap-3 items-center px-3.5 py-3 rounded-[14px] ${step.done ? 'bg-[#F3FBF7]' : step.active ? 'bg-[#f6f7fe]' : 'bg-[#f8f8fb]'}`}>
                                 <span className={`w-7 h-7 rounded-full inline-flex items-center justify-center text-[13px] font-medium shrink-0 ${
-                                    step.done ? 'bg-[#0F8A6B] text-white' : step.active ? 'border-2 border-accent text-accent' : 'border-2 border-[#D9C6CC] text-[#8A7880]'
+                                    step.done ? 'bg-[#0F8A6B] text-white' : step.active ? 'border-2 border-accent text-accent' : 'border-2 border-[#c6c9d9] text-[#8A7880]'
                                 }`}>{step.done ? '✓' : i + 1}</span>
                                 <span>
                                     <span className={`block text-[14.5px] font-medium ${step.done || step.active ? 'text-ink' : 'text-text-secondary'}`}>{step.title}</span>
@@ -466,10 +466,10 @@ function OnboardingFlow() {
 
     if (phase === 'welcome') {
         return (
-            <div className='min-h-screen bg-[#FBF7F6] flex items-center justify-center px-6 py-12'>
-                <div className='w-full max-w-[640px] bg-white border border-[#F1E6E9] rounded-[30px] p-8 sm:p-10 shadow-[0_30px_70px_-50px_rgba(90,20,40,0.4)]'>
+            <div className='min-h-screen bg-[#f6f7fb] flex items-center justify-center px-6 py-12'>
+                <div className='w-full max-w-[640px] bg-white border border-[#e6e8f1] rounded-[30px] p-8 sm:p-10 shadow-[0_30px_70px_-50px_rgba(20, 30, 90,0.4)]'>
                     <div className='flex items-center gap-3'>
-                        <span className='w-[46px] h-[46px] rounded-[14px] bg-[#FFF4F5] border border-[#F3DDE3] inline-flex items-center justify-center'>
+                        <span className='w-[46px] h-[46px] rounded-[14px] bg-[#f5f6fe] border border-[#dde0f3] inline-flex items-center justify-center'>
                             <img src={logo} alt='Workmate.IQ' className='w-8 h-8 rounded-full' />
                         </span>
                         <span className='text-[12px] text-text-secondary tracking-[0.08em]'>WORKMATEIQ</span>
@@ -483,14 +483,14 @@ function OnboardingFlow() {
 
                     <ol className='grid sm:grid-cols-2 gap-3 mt-6'>
                         {[...(schema?.sections || []).map((sec) => sec.title), 'Review & Submit'].map((title, i) => (
-                            <li key={title} className='border border-[#F1E6E9] rounded-[18px] p-4 bg-[#FFFCFB]'>
-                                <span className='w-[34px] h-[34px] rounded-[11px] bg-[#FFF1F3] text-accent inline-flex items-center justify-center text-[14px] font-medium'>{i + 1}</span>
+                            <li key={title} className='border border-[#e6e8f1] rounded-[18px] p-4 bg-[#fbfcff]'>
+                                <span className='w-[34px] h-[34px] rounded-[11px] bg-[#f2f4fe] text-accent inline-flex items-center justify-center text-[14px] font-medium'>{i + 1}</span>
                                 <p className='mt-2.5 text-[15px] font-medium text-ink'>{title}</p>
                             </li>
                         ))}
                     </ol>
 
-                    <div className='flex items-center gap-2.5 text-[13.5px] text-text-secondary mt-5 bg-[#FFF7F5] rounded-[14px] px-4 py-3'>
+                    <div className='flex items-center gap-2.5 text-[13.5px] text-text-secondary mt-5 bg-[#f6f7fe] rounded-[14px] px-4 py-3'>
                         <ShieldCheck size={18} className='text-accent shrink-0' aria-hidden='true' />
                         <span>Your information is encrypted and transmitted securely.</span>
                     </div>
@@ -631,7 +631,7 @@ function OnboardingFlow() {
             </div>
 
             {/* Scrollable body content */}
-            <div className="flex-1 overflow-y-auto bg-[#FBF7F6]">
+            <div className="flex-1 overflow-y-auto bg-[#f6f7fb]">
                 <div className="max-w-[1180px] mx-auto w-full px-6 sm:px-10 py-8 flex flex-wrap gap-7 items-start">
                   <div className="flex-[2_1_560px] min-w-0">
                     {error && (
@@ -680,7 +680,7 @@ function OnboardingFlow() {
                                 )}
                             </div>
 
-                            <div className="grid sm:grid-cols-2 gap-6 bg-white border border-[#F1E6E9] rounded-[22px] p-6 mt-5">
+                            <div className="grid sm:grid-cols-2 gap-6 bg-white border border-[#e6e8f1] rounded-[22px] p-6 mt-5">
                                 {activeSection.fields.map((field) => {
                                     if (!isFieldVisible(field, formData)) return null
                                     const locked = Boolean(field.readOnly && onboarding?.data?.[field.key])
@@ -1091,10 +1091,10 @@ function OnboardingFlow() {
 
                   {/* Sidebar: progress, why we ask, support */}
                   <aside className="flex-[1_1_280px] min-w-0 lg:sticky lg:top-6 space-y-3.5">
-                      <div className="bg-white border border-[#F1E6E9] rounded-[22px] p-5 flex gap-4 items-center">
+                      <div className="bg-white border border-[#e6e8f1] rounded-[22px] p-5 flex gap-4 items-center">
                           <div
                               className="w-[76px] h-[76px] rounded-full flex items-center justify-center shrink-0"
-                              style={{ background: `conic-gradient(var(--color-accent, #A3123A) ${completionPct * 3.6}deg, #F5E9EC 0)` }}
+                              style={{ background: `conic-gradient(var(--color-accent, #1228a3) ${completionPct * 3.6}deg, #e9ebf5 0)` }}
                               role="img"
                               aria-label={`${completionPct}% of required details completed`}
                           >
@@ -1109,11 +1109,11 @@ function OnboardingFlow() {
                               </p>
                           </div>
                       </div>
-                      <div className="rounded-[22px] border border-[#F8E0DE] p-5 bg-gradient-to-br from-[#FFF1F3] to-[#FFF6EE]">
+                      <div className="rounded-[22px] border border-[#dee2f8] p-5 bg-gradient-to-br from-[#f2f4fe] to-[#FFF6EE]">
                           <p className="text-[12px] font-medium tracking-[0.08em] text-accent">WHY WE ASK</p>
                           <p className="text-[14px] text-[#4A3A41] mt-2">Registration and tax details are used only to verify your organization. They are never shown to candidates.</p>
                       </div>
-                      <div className="bg-white border border-[#F1E6E9] rounded-[22px] p-4 text-[13.5px]">
+                      <div className="bg-white border border-[#e6e8f1] rounded-[22px] p-4 text-[13.5px]">
                           <p className="font-medium text-ink">Stuck on something?</p>
                           <a href={`mailto:${SUPPORT_EMAIL}`} className="text-accent hover:underline">{SUPPORT_EMAIL}</a>
                       </div>
@@ -1122,7 +1122,7 @@ function OnboardingFlow() {
             </div>
 
             {/* Bottom navigation bar */}
-            <div className="px-6 sm:px-10 py-3.5 border-t border-[#F1E6E9] bg-white/95 backdrop-blur-sm shrink-0 z-10">
+            <div className="px-6 sm:px-10 py-3.5 border-t border-[#e6e8f1] bg-white/95 backdrop-blur-sm shrink-0 z-10">
                 <div className="max-w-[1180px] mx-auto w-full flex items-center justify-between">
                     <Button
                         variant="secondary"

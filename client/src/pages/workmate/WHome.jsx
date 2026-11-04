@@ -54,7 +54,7 @@ function HeroFeatureIcon({ type }) {
     }
 
     return (
-        <svg width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.9' strokeLinecap='round' strokeLinejoin='round' className='shrink-0 text-[#ab2323]' aria-hidden='true'>
+        <svg width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.9' strokeLinecap='round' strokeLinejoin='round' className='shrink-0 text-[#2337ab]' aria-hidden='true'>
             {type === 'smart' && (
                 <>
                     <path d='m12 3 1.4 4.1a2 2 0 0 0 1.2 1.2L18.7 9.7l-4.1 1.4a2 2 0 0 0-1.2 1.2L12 16.4l-1.4-4.1a2 2 0 0 0-1.2-1.2L5.3 9.7l4.1-1.4a2 2 0 0 0 1.2-1.2L12 3Z' />
@@ -70,7 +70,7 @@ function AboutPointer({ icon: IconComponent, children }) {
 
     return (
         <div className='about-pointer group flex min-h-[82px] items-start gap-3 transition-transform duration-300 hover:-translate-y-0.5'>
-            <span className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/[0.07] text-accent transition-all duration-300 group-hover:bg-accent/[0.12] group-hover:shadow-[0_8px_18px_-12px_rgba(196,22,31,0.5)]'>
+            <span className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/[0.07] text-accent transition-all duration-300 group-hover:bg-accent/[0.12] group-hover:shadow-[0_8px_18px_-12px_rgba(52, 81, 245,0.5)]'>
                 <PointerIcon size={19} strokeWidth={1.8} aria-hidden='true' />
             </span>
             <p className='type-body-small pt-0.5 leading-relaxed text-ink'>{children}</p>
@@ -125,9 +125,9 @@ function Hero({ jump, experimental = false }) {
         <section ref={heroAreaRef} id='home' className='workmate-hero scroll-mt-20 relative overflow-hidden'>
             {experimental && <HeroThreadsBackground />}
             <div className={`absolute top-[-160px] left-[8%] w-[620px] h-[560px] rounded-full ${experimental ? 'opacity-[0.08]' : 'opacity-[0.14]'} blur-3xl pointer-events-none`}
-                style={{ background: 'radial-gradient(closest-side, #c4161f, transparent)' }} />
+                style={{ background: 'radial-gradient(closest-side, #3451f5, transparent)' }} />
             <div className={`absolute top-[60px] right-[-160px] w-[380px] h-[380px] rounded-full ${experimental ? 'opacity-[0.12]' : 'opacity-[0.07]'} blur-3xl pointer-events-none`}
-                style={{ background: 'radial-gradient(closest-side, #e0271b, transparent)' }} />
+                style={{ background: 'radial-gradient(closest-side, #1b39e0, transparent)' }} />
 
             <div className='workmate-shell workmate-hero__shell relative grid items-center gap-14 pb-16 pt-24 sm:pt-28 lg:grid-cols-[1fr_1.05fr] lg:pb-20 lg:pt-32 xl:gap-16'>
                 <div ref={heroRef} className='workmate-hero__content'>
@@ -155,7 +155,7 @@ function Hero({ jump, experimental = false }) {
                     </div>
                     <div className='reveal workmate-hero__actions flex flex-wrap gap-3'>
                         <CTAButton size='lg' className='workmate-hero__action lg:!px-10 lg:!py-[17px]' onClick={jump('contact')}>Send an Enquiry</CTAButton>
-                        <Button size='lg' variant='secondary' className='workmate-hero__action !duration-200 hover:!border-accent hover:!bg-accent/[0.08] hover:!text-accent hover:!shadow-[0_8px_20px_-12px_rgba(196,22,31,0.24)] hover:-translate-y-0.5 lg:!px-10 lg:!py-[17px]' onClick={() => navigate('/platform/register')}>Register</Button>
+                        <Button size='lg' variant='secondary' className='workmate-hero__action !duration-200 hover:!border-accent hover:!bg-accent/[0.08] hover:!text-accent hover:!shadow-[0_8px_20px_-12px_rgba(52, 81, 245,0.24)] hover:-translate-y-0.5 lg:!px-10 lg:!py-[17px]' onClick={() => navigate('/platform/register')}>Register</Button>
                         <Button size='lg' variant='secondary' className='workmate-hero__action !border-accent/15 !bg-accent/[0.025] !duration-200 backdrop-blur-sm hover:!border-accent/30 hover:!bg-accent/[0.06] lg:!px-10 lg:!py-[17px]' onClick={jump('how-it-works')}>Explore WorkmateIQ</Button>
                     </div>
                 </div>
@@ -174,7 +174,7 @@ function QuoteStrip() {
     const ref = useReveal('.quote-reveal', { blur: true, y: 14 })
     return (
         <section ref={ref} className='workmate-shell relative py-4 sm:py-6 lg:py-8'>
-            <div className='quote-reveal max-w-[820px] mx-auto rounded-2xl border border-accent/40 bg-accent/[0.03] px-7 py-6 sm:px-10 sm:py-8 text-center shadow-[0_0_35px_rgba(196,22,31,0.18),inset_0_0_15px_rgba(196,22,31,0.05)] transition-all duration-300 hover:scale-[1.015] hover:border-accent/80 hover:shadow-[0_0_55px_rgba(196,22,31,0.42),inset_0_0_20px_rgba(196,22,31,0.12)] group cursor-default'>
+            <div className='quote-reveal max-w-[820px] mx-auto rounded-2xl border border-accent/40 bg-accent/[0.03] px-7 py-6 sm:px-10 sm:py-8 text-center shadow-[0_0_35px_rgba(52, 81, 245,0.18),inset_0_0_15px_rgba(52, 81, 245,0.05)] transition-all duration-300 hover:scale-[1.015] hover:border-accent/80 hover:shadow-[0_0_55px_rgba(52, 81, 245,0.42),inset_0_0_20px_rgba(52, 81, 245,0.12)] group cursor-default'>
                 <blockquote className='type-h3 text-ink text-balance'>
                     &ldquo;Success is where preparation and opportunity meet.&rdquo;
                 </blockquote>
@@ -199,7 +199,7 @@ function About() {
 
     return (
         <section id='about' ref={ref} className='workmate-shell scroll-mt-20 pb-12 pt-8 sm:pb-16 lg:pb-20 lg:pt-10'>
-            <div className='about-reveal rounded-[28px] border border-accent/[0.08] bg-white/55 px-6 py-9 shadow-[0_24px_70px_-52px_rgba(125,39,49,0.35)] sm:px-10 sm:py-12 lg:px-14 lg:py-14'>
+            <div className='about-reveal rounded-[28px] border border-accent/[0.08] bg-white/55 px-6 py-9 shadow-[0_24px_70px_-52px_rgba(39, 52, 125,0.35)] sm:px-10 sm:py-12 lg:px-14 lg:py-14'>
                 <p className={EYEBROW}>About Us</p>
                 <h2 className={`${H2} mb-6`}>One hub for every side of hiring.</h2>
                 <p className='type-body max-w-none text-ink'>
@@ -275,7 +275,7 @@ function EnterpriseAI() {
                                 whileHover={!REDUCE_MOTION ? { y: -8, scale: 1.015 } : undefined}
                                 exit={{ opacity: 0, y: -18, scale: 0.98 }}
                                 transition={{ duration: REDUCE_MOTION ? 0 : 0.28, ease: [0.16, 1, 0.3, 1] }}
-                                className='capability-card group absolute inset-x-0 top-0 isolate mx-auto grid min-h-[150px] w-full max-w-[520px] grid-cols-[64px_minmax(0,1fr)] grid-rows-[auto_auto] items-center gap-x-3 overflow-hidden rounded-2xl border border-line bg-bg p-4 shadow-[0_24px_70px_-35px_rgba(125,39,49,0.38)] transition-[border-color,background-color,box-shadow] duration-300 ease-out hover:border-accent/35 hover:bg-white hover:shadow-[0_34px_78px_-28px_rgba(125,39,49,0.46),0_10px_28px_-18px_rgba(196,22,31,0.24)] md:flex md:min-h-[144px] md:max-w-[480px] md:flex-col md:gap-0 md:p-5 lg:min-h-[160px] lg:max-w-[520px] lg:p-6'
+                                className='capability-card group absolute inset-x-0 top-0 isolate mx-auto grid min-h-[150px] w-full max-w-[520px] grid-cols-[64px_minmax(0,1fr)] grid-rows-[auto_auto] items-center gap-x-3 overflow-hidden rounded-2xl border border-line bg-bg p-4 shadow-[0_24px_70px_-35px_rgba(39, 52, 125,0.38)] transition-[border-color,background-color,box-shadow] duration-300 ease-out hover:border-accent/35 hover:bg-white hover:shadow-[0_34px_78px_-28px_rgba(39, 52, 125,0.46),0_10px_28px_-18px_rgba(52, 81, 245,0.24)] md:flex md:min-h-[144px] md:max-w-[480px] md:flex-col md:gap-0 md:p-5 lg:min-h-[160px] lg:max-w-[520px] lg:p-6'
                                 aria-live='polite'
                             >
                                 <span className='pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-accent/[0.1] opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-100' aria-hidden='true' />
@@ -413,7 +413,7 @@ function SolutionPanel({ p, i }) {
                     border
                     border-line/80
                     p-6
-                    shadow-[0_24px_70px_-42px_rgba(125,39,49,0.48)]
+                    shadow-[0_24px_70px_-42px_rgba(39, 52, 125,0.48)]
                     sm:p-8
                     lg:p-10
                     xl:p-12
@@ -556,7 +556,7 @@ function SolutionPanel({ p, i }) {
                             justify-center
                             overflow-hidden
                             rounded-[22px]
-                            bg-[#fff8f8]
+                            bg-[#f8f9ff]
 
                             md:flex
                             md:min-h-[300px]
@@ -595,9 +595,9 @@ function SolutionPanel({ p, i }) {
                                         items-center
                                         justify-center
                                         rounded-full
-                                        bg-[#8b0e16]
-                                        text-[#fff8f8]
-                                        shadow-[0_8px_18px_-12px_rgba(30,8,12,0.65)]
+                                        bg-[#2238c9]
+                                        text-[#f8f9ff]
+                                        shadow-[0_8px_18px_-12px_rgba(8, 11, 30,0.65)]
 
                                         xl:h-20
                                         xl:w-20
@@ -765,7 +765,7 @@ function WHome() {
 
     const panels = [
         {
-            id: 'colleges', eyebrow: 'For education', surface: 'bg-[#fff8f8]', label: 'For Colleges & Institutions',
+            id: 'colleges', eyebrow: 'For education', surface: 'bg-[#f8f9ff]', label: 'For Colleges & Institutions',
             statement: 'Prepare students for real interview success.', image: institutionImage, imageAlt: 'Institution recruitment and candidate screening illustration', category: 'college',
             features: [
                 'Identify interview-ready students through structured AI scores and reports',
@@ -776,7 +776,7 @@ function WHome() {
             ],
         },
         {
-            id: 'candidates', eyebrow: 'For people building what is next', surface: 'bg-[#fffafa]', label: 'For Candidates',
+            id: 'candidates', eyebrow: 'For people building what is next', surface: 'bg-[#fafbff]', label: 'For Candidates',
             statement: 'Practice with purpose. Improve with clarity.', image: audienceCandidatesImage, imageAlt: 'Candidate in a maroon hoodie reviewing business analytics beside a profile card', category: 'candidate',
             features: [
                 'Practice role- and experience-specific AI interviews using resume-informed questions',
@@ -787,7 +787,7 @@ function WHome() {
             ],
         },
         {
-            id: 'organizations', eyebrow: 'For teams that move talent forward', surface: 'bg-[#fbf7f7]', label: 'For Organizations',
+            id: 'organizations', eyebrow: 'For teams that move talent forward', surface: 'bg-[#f7f8fb]', label: 'For Organizations',
             statement: 'Evaluate the right talent, faster.', image: organizationRecruitmentImage, imageAlt: 'Professional reviewing candidate resumes on a laptop', category: 'organization',
             features: [
                 'Build role-specific interview templates with structured rounds and question sources',
@@ -957,7 +957,7 @@ function WHome() {
             {/* ============ CONTACT ============ */}
             <section id='contact' aria-labelledby='contact-heading' tabIndex={-1} className='relative scroll-mt-20 overflow-hidden pt-10 pb-12 outline-none md:pt-20 md:pb-24'>
                 <div className='absolute -top-32 left-1/2 -translate-x-1/2 w-[700px] h-[460px] rounded-full opacity-[0.10] blur-3xl pointer-events-none'
-                    style={{ background: 'radial-gradient(closest-side, #c4161f, transparent)' }} />
+                    style={{ background: 'radial-gradient(closest-side, #3451f5, transparent)' }} />
                 <NetworkGraphic className='absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[420px] opacity-60 pointer-events-none' />
                 <div className='relative max-w-[900px] mx-auto px-6 text-center mb-10'>
                     <p className={`${EYEBROW} justify-center flex`}>Contact</p>

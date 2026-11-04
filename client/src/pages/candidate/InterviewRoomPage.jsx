@@ -1543,7 +1543,7 @@ function InterviewRoomPage() {
                             </span>
                         ) : (
                             <span role='timer' aria-label={`Interview time ${formatElapsed(elapsedSeconds)}`}
-                                className='inline-flex items-center gap-2 bg-[#5E0A22] text-white text-[12.5px] font-bold px-3.5 py-2 rounded-full tabular-nums'>
+                                className='inline-flex items-center gap-2 bg-[#0a175e] text-white text-[12.5px] font-bold px-3.5 py-2 rounded-full tabular-nums'>
                                 {recordingState === 'recording' && <span className='wm-rec-dot w-2 h-2 rounded-full bg-red-400' style={{ animation: 'wmRecPulse 1.6s ease-in-out infinite' }} aria-hidden='true' />}
                                 {recordingState === 'recording' ? 'REC' : <Clock size={13} aria-hidden='true' />} {formatElapsed(elapsedSeconds)}
                             </span>
@@ -1555,7 +1555,7 @@ function InterviewRoomPage() {
                     <div className='flex gap-1.5 px-4 sm:px-6 pb-3' role='progressbar' aria-label='Interview progress' aria-valuemin={0} aria-valuemax={questions.length} aria-valuenow={currentQuestionIndex}>
                         {questions.map((q, idx) => (
                             <span key={q.id || idx} className={`h-1.5 flex-1 rounded-full transition-colors duration-500 ${
-                                idx < currentQuestionIndex ? 'bg-accent/60' : idx === currentQuestionIndex ? 'bg-[#5E0A22]' : 'bg-neutral-soft'
+                                idx < currentQuestionIndex ? 'bg-accent/60' : idx === currentQuestionIndex ? 'bg-[#0a175e]' : 'bg-neutral-soft'
                             }`} />
                         ))}
                     </div>
@@ -1579,7 +1579,7 @@ function InterviewRoomPage() {
                         )}
 
                         {/* Whose turn it is */}
-                        <span role='status' className='absolute top-3 left-3 inline-flex items-center gap-2 bg-[#5E0A22]/85 backdrop-blur-sm text-white text-[12.5px] font-semibold pl-2 pr-3.5 py-1.5 rounded-full pointer-events-none'>
+                        <span role='status' className='absolute top-3 left-3 inline-flex items-center gap-2 bg-[#0a175e]/85 backdrop-blur-sm text-white text-[12.5px] font-semibold pl-2 pr-3.5 py-1.5 rounded-full pointer-events-none'>
                             <span className='w-7 h-7 rounded-full bg-accent flex items-center justify-center'>
                                 {aravState === 'speaking' ? <Volume2 size={14} aria-hidden='true' /> : aravState === 'listening' ? <Mic size={14} aria-hidden='true' /> : <Loader2 size={14} className='animate-spin' aria-hidden='true' />}
                             </span>
@@ -1647,7 +1647,7 @@ function InterviewRoomPage() {
                     </div>
 
                     {/* Current question with its countdown */}
-                    <div className='rounded-2xl border border-[#F6D9E0] bg-gradient-to-r from-[#FFF3F5] to-white px-4 sm:px-5 py-4'>
+                    <div className='rounded-2xl border border-[#d9ddf6] bg-gradient-to-r from-[#f4f5fe] to-white px-4 sm:px-5 py-4'>
                         {currentQuestion ? (
                             <div key={currentQuestion.id || currentQuestionIndex} className='wm-question flex items-center gap-4 sm:gap-5' style={{ animation: 'wmQuestionIn .3s ease-out both' }}>
                                 <div role='timer' aria-label={`Time left on this question ${formatElapsed(Math.max(questionLeft, 0))}`} className='relative w-[72px] h-[72px] shrink-0'>
@@ -1656,7 +1656,7 @@ function InterviewRoomPage() {
                                         <circle cx='36' cy='36' r='30' fill='none' strokeWidth='6' strokeLinecap='round'
                                             strokeDasharray={2 * Math.PI * 30}
                                             strokeDashoffset={2 * Math.PI * 30 * (1 - Math.min(1, Math.max(0, questionLeft / questionLimit)))}
-                                            className={`transition-all duration-1000 ${timerTone === 'over' || timerTone === 'critical' ? 'stroke-red-600' : timerTone === 'near' ? 'stroke-amber-500' : 'stroke-[#5E0A22]'}`} />
+                                            className={`transition-all duration-1000 ${timerTone === 'over' || timerTone === 'critical' ? 'stroke-red-600' : timerTone === 'near' ? 'stroke-amber-500' : 'stroke-[#0a175e]'}`} />
                                     </svg>
                                     <div className='absolute inset-0 flex flex-col items-center justify-center leading-none'>
                                         <span className='text-[15px] font-bold text-ink tabular-nums'>{formatElapsed(Math.max(questionLeft, 0))}</span>
@@ -1758,7 +1758,7 @@ function InterviewRoomPage() {
                                                 <span className='w-7 h-7 rounded-full bg-accent text-white flex items-center justify-center shrink-0' aria-hidden='true'><Bot size={14} /></span>
                                             )}
                                             <div className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-[13px] leading-relaxed ${
-                                                t.sender === 'agent' ? 'bg-gradient-to-br from-[#E94B6A] to-accent text-white rounded-bl-sm' : 'bg-neutral-soft text-ink rounded-br-sm'
+                                                t.sender === 'agent' ? 'bg-gradient-to-br from-[#4b63e9] to-accent text-white rounded-bl-sm' : 'bg-neutral-soft text-ink rounded-br-sm'
                                             }`}>
                                                 <p className={`text-[10.5px] font-semibold mb-0.5 ${t.sender === 'agent' ? 'text-white/80' : 'text-text-secondary'}`}>
                                                     {t.sender === 'agent' ? 'AI interviewer' : 'You'} · {t.time}

@@ -32,8 +32,8 @@ const POWERFUL_FEATURES = [
 export default function PowerfulFeatures() {
     return (
         <section className='workmate-shell relative py-10 md:py-10 lg:py-16' aria-labelledby='powerful-features-title'>
-            <div className='relative overflow-visible rounded-[28px] border border-line/80 bg-card px-4 pb-5 pt-9 shadow-[0_20px_60px_-42px_rgba(125,39,49,0.45)] md:px-5 md:pb-6 md:pt-10 lg:px-8 lg:pb-9 lg:pt-12'>
-                <div className='absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent px-5 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-white shadow-[0_8px_18px_-12px_rgba(125,39,49,0.7)] sm:px-6 sm:text-xs' id='powerful-features-title'>
+            <div className='relative overflow-visible rounded-[28px] border border-line/80 bg-card px-4 pb-5 pt-9 shadow-[0_20px_60px_-42px_rgba(39, 52, 125,0.45)] md:px-5 md:pb-6 md:pt-10 lg:px-8 lg:pb-9 lg:pt-12'>
+                <div className='absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent px-5 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-white shadow-[0_8px_18px_-12px_rgba(39, 52, 125,0.7)] sm:px-6 sm:text-xs' id='powerful-features-title'>
                     Powerful Features
                 </div>
 

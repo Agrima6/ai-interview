@@ -212,13 +212,15 @@ function ApplyPage() {
   // card - there's more supporting context worth showing and no reason to
   // cram it into a narrow column.
   return (
-    <div className='min-h-screen bg-bg flex items-center justify-center p-6'>
-      <Card className={`w-full p-8 ${isBlueCollar ? 'max-w-lg' : 'max-w-2xl'}`}>
+    <div className='relative min-h-screen bg-bg flex items-center justify-center p-4 sm:p-6 overflow-hidden'>
+      <div aria-hidden='true' className='absolute -top-32 -right-24 w-[420px] h-[420px] rounded-full bg-accent/10 blur-3xl' />
+      <div aria-hidden='true' className='absolute -bottom-32 -left-24 w-[380px] h-[380px] rounded-full bg-[var(--color-accent-cyan)]/10 blur-3xl' />
+      <Card className={`ui-rise relative w-full p-6 sm:p-9 rounded-[24px] ${isBlueCollar ? 'max-w-lg' : 'max-w-2xl'}`}>
         <div className='flex items-center gap-3 mb-6'>
-          <img src={logo} alt='' className='w-9 h-9 rounded-lg' />
+          <img src={logo} alt='' className='w-11 h-11 rounded-[14px]' />
           <div>
             <p className='text-[12px] font-semibold uppercase tracking-wide text-accent'>You're invited to interview</p>
-            <h1 className='text-lg font-bold text-ink'>{drive.title}</h1>
+            <h1 className='text-[20px] font-extrabold text-ink'>{drive.title}</h1>
           </div>
         </div>
 
