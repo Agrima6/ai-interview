@@ -36,7 +36,7 @@ function OrganizationSidebar({ profile, profileLoading, mobileOpen, onClose }) {
             </AnimatePresence>
             <aside
                 className={`
-                    fixed inset-y-0 left-0 z-[var(--z-drawer)] w-[264px] shrink-0 border-r border-line bg-card flex flex-col
+                    fixed inset-y-0 left-0 z-[var(--z-drawer)] w-[240px] shrink-0 border-r border-line bg-card flex flex-col
                     transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
                     lg:sticky lg:top-0 lg:h-screen lg:translate-x-0
                     ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -57,7 +57,7 @@ function OrganizationSidebar({ profile, profileLoading, mobileOpen, onClose }) {
                                 to={item.path}
                                 onClick={onClose}
                                 className={({ isActive }) =>
-                                    `group relative flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-semibold transition-all duration-200 ${isActive ? 'text-white' : 'text-[#3a4262] hover:bg-accent/[0.06] hover:text-accent hover:translate-x-[3px]'}`
+                                    `group relative flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[14px] font-medium transition-all duration-200 ${isActive ? 'text-white' : 'text-[#3a4262] hover:bg-accent/[0.06] hover:text-accent hover:translate-x-[3px]'}`
                                 }
                             >
                                 {({ isActive }) => (
@@ -69,7 +69,7 @@ function OrganizationSidebar({ profile, profileLoading, mobileOpen, onClose }) {
                                                 transition={{ type: 'spring', stiffness: 420, damping: 34 }}
                                             />
                                         )}
-                                        <item.icon size={20} strokeWidth={1.8} className='relative' />
+                                        <item.icon size={18} strokeWidth={1.8} className='relative' />
                                         <span className='relative'>{item.label}</span>
                                     </>
                                 )}

@@ -154,7 +154,7 @@ function TemplatesPage() {
         <button
           type="button"
           onClick={() => { setNewTemplate((t) => ({ ...t, type: channelTab })); setCreateOpen(true) }}
-          className="ui-shine inline-flex items-center gap-2 h-12 px-5 rounded-[14px] bg-accent text-white text-[14px] font-bold transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_28px_-10px_var(--color-accent)]"
+          className="ui-shine inline-flex items-center gap-2 h-11 px-5 rounded-[14px] bg-accent text-white text-[14px] font-bold transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_28px_-10px_var(--color-accent)]"
         >
           <Plus size={17} /> New template
         </button>
@@ -242,7 +242,7 @@ function TemplatesPage() {
           <Card className="p-6 space-y-5 ui-fade">
             <div className="flex items-center justify-between border-b border-line pb-4 flex-wrap gap-3">
               <div>
-                <h2 className="text-[18px] font-extrabold text-ink">{activeTemplate.name}</h2>
+                <h2 className="text-[16px] font-bold text-ink">{activeTemplate.name}</h2>
                 <p className="text-[12.5px] text-text-secondary">Edit template text and dynamic variable tags below.</p>
               </div>
               <div className="flex items-center gap-2">

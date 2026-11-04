@@ -117,12 +117,12 @@ function ReportsPage() {
 
           <div className="grid lg:grid-cols-2 gap-6">
             <Card className="p-6">
-              <h3 className="text-[18px] font-extrabold text-ink mb-6">Interview funnel</h3>
+              <h3 className="text-[16px] font-bold text-ink mb-6">Interview funnel</h3>
               <FunnelChart stages={trends?.pipeline || []} />
             </Card>
 
             <Card className="p-6">
-              <h3 className="text-[18px] font-extrabold text-ink mb-2">Department wise hiring</h3>
+              <h3 className="text-[16px] font-bold text-ink mb-2">Department wise hiring</h3>
               {!trends?.departmentBreakdown?.length ? (
                 <p className="text-[13.5px] text-text-secondary py-10 text-center">No candidate data yet.</p>
               ) : (
@@ -154,7 +154,7 @@ function ReportsPage() {
           </div>
 
           <Card className="p-6">
-            <h3 className="text-[18px] font-extrabold text-ink mb-6">Score distribution</h3>
+            <h3 className="text-[16px] font-bold text-ink mb-6">Score distribution</h3>
             <div className="h-56">
               {!trends?.scoreDistribution?.length ? (
                 <p className="text-[13.5px] text-text-secondary text-center pt-16">No scored candidates yet.</p>
@@ -176,7 +176,7 @@ function ReportsPage() {
 
       <Card className="p-6">
         <div className="mb-6">
-          <h3 className="text-[18px] font-extrabold text-ink">Candidate report</h3>
+          <h3 className="text-[16px] font-bold text-ink">Candidate report</h3>
           <p className="text-[13px] text-text-secondary">Filter, then use Export CSV above to download exactly the candidates you're looking at.</p>
         </div>
 
@@ -239,7 +239,7 @@ function StatTile({ icon: Icon, label, value }) {
         <Icon size={18} strokeWidth={1.8} />
       </span>
       <div>
-        <p className="text-[28px] font-extrabold tracking-[-0.02em] leading-none tabular-nums">{value ?? '—'}</p>
+        <p className="text-[24px] font-bold tracking-[-0.02em] leading-none tabular-nums">{value ?? '—'}</p>
         <p className="text-[12.5px] font-semibold text-[#c3c9ee] mt-1.5">{label}</p>
       </div>
     </div>

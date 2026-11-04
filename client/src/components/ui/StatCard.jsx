@@ -42,7 +42,7 @@ function StatCard({ icon: Icon, value, label, trend, helperText, accent = 'brand
         )}
       </div>
       <div>
-        <p className='text-[30px] font-extrabold text-ink tracking-[-0.02em] leading-none tabular-nums'><CountUp value={value} /></p>
+        <p className='text-[26px] font-bold text-ink tracking-[-0.02em] leading-none tabular-nums'><CountUp value={value} /></p>
         <p className='text-[13px] font-semibold text-text-secondary mt-1.5'>{label}</p>
         {helperText && <p className='text-[11.5px] text-text-secondary/70 mt-1'>{helperText}</p>}
       </div>

@@ -58,7 +58,7 @@ function Modal({ open, onClose, title, children, footer, size = 'md' }) {
             {(title || onClose) && (
               <div className={`flex items-center justify-between border-b border-line sticky top-0 bg-card z-10 ${isFull ? 'px-4 py-4 sm:px-8 sm:py-5 shadow-sm' : 'px-4 py-4 sm:px-6 sm:py-5 rounded-t-[24px]'}`}>
                 <div className={isFull ? 'max-w-6xl w-full mx-auto flex items-center justify-between' : 'flex items-center justify-between w-full'}>
-                  <h3 className={`text-ink ${isFull ? 'text-[20px] font-extrabold' : 'text-[18px] font-extrabold'}`}>{title}</h3>
+                  <h3 className={`text-ink ${isFull ? 'text-[18px] font-bold' : 'text-[16px] font-bold'}`}>{title}</h3>
                   {onClose && (
                     <button onClick={onClose} aria-label='Close' className='w-9 h-9 rounded-xl flex items-center justify-center text-text-secondary hover:bg-accent/[0.08] hover:text-accent transition-colors'>
                       <X size={18} />

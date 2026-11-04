@@ -94,7 +94,7 @@ function TeamPage() {
         <div aria-hidden="true" className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
         <div className="relative flex items-center justify-between gap-4 flex-wrap">
           <div>
-            <h2 className="text-[20px] font-extrabold">Invite a teammate</h2>
+            <h2 className="text-[18px] font-bold">Invite a teammate</h2>
             <p className="text-[14px] text-[#c3c9ee] mt-1">They’ll get an email invitation to join your organization on WorkmateIQ.</p>
           </div>
           <div className="hidden sm:flex items-center gap-4 text-[13px] text-[#c3c9ee]">
@@ -155,7 +155,7 @@ function TeamPage() {
         <div className="space-y-6">
           {pendingMembers.length > 0 && (
             <section className="ui-rise rounded-[22px] bg-card border border-line p-5">
-              <h3 className="text-[16px] font-extrabold mb-2">Pending invites <span className="text-text-secondary font-semibold">({pendingMembers.length})</span></h3>
+              <h3 className="text-[16px] font-bold mb-2">Pending invites <span className="text-text-secondary font-semibold">({pendingMembers.length})</span></h3>
               {pendingMembers.map((m) => (
                 <div key={m.id} className="ui-row flex flex-wrap items-center gap-3 p-3 rounded-xl">
                   <span className="w-10 h-10 rounded-full bg-[var(--color-surface-muted)] text-text-secondary flex items-center justify-center"><Clock size={16} /></span>
@@ -171,9 +171,9 @@ function TeamPage() {
 
           <section className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
             {activeMembers.map((member, i) => (
-              <article key={member.id} style={{ animationDelay: `${Math.min(i, 8) * 60}ms` }} className="ui-rise ui-lift rounded-[22px] bg-card border border-line p-[22px] flex flex-col gap-4">
+              <article key={member.id} style={{ animationDelay: `${Math.min(i, 8) * 60}ms` }} className="ui-rise ui-lift rounded-[22px] bg-card border border-line p-5 flex flex-col gap-4">
                 <div className="flex items-center gap-3.5">
-                  <span className="relative shrink-0 w-[52px] h-[52px] rounded-full bg-[color-mix(in_srgb,var(--color-accent)_12%,white)] text-accent-dark flex items-center justify-center font-extrabold text-[16px]">
+                  <span className="relative shrink-0 w-[52px] h-[52px] rounded-full bg-[color-mix(in_srgb,var(--color-accent)_12%,white)] text-accent-dark flex items-center justify-center font-bold text-[16px]">
                     {initialsOf(member.name)}
                     <span className="absolute right-0 bottom-0 w-3.5 h-3.5">
                       {member.status === 'ACTIVE' && <span className="ui-ping absolute inset-0 rounded-full bg-[var(--color-success)]" />}
@@ -181,7 +181,7 @@ function TeamPage() {
                     </span>
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="font-extrabold text-[15px] truncate">{member.name}</div>
+                    <div className="font-bold text-[15px] truncate">{member.name}</div>
                     <div className="text-[12px] text-text-secondary truncate">{member.email}</div>
                   </div>
                   {member.role !== 'CLIENT_ADMIN' && (

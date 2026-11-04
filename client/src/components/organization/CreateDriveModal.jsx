@@ -636,7 +636,7 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
           ].map((s) => (
             <div key={s.num} className="relative flex items-center gap-2.5 shrink-0 px-2">
               <div
-                className={`relative z-[1] flex h-8 w-8 items-center justify-center rounded-[11px] border-[1.5px] text-[12px] font-extrabold transition-all duration-300 ${
+                className={`relative z-[1] flex h-8 w-8 items-center justify-center rounded-[11px] border-[1.5px] text-[12px] font-bold transition-all duration-300 ${
                   step === s.num ? 'border-accent bg-accent text-white shadow-[0_8px_18px_-8px_var(--color-accent)] scale-110' : step > s.num ? 'border-[var(--color-success)] bg-[var(--color-success)] text-white' : 'border-line bg-[var(--color-surface-muted)] text-text-secondary'
                 }`}
               >
@@ -656,7 +656,7 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
               <div className="mb-4 flex items-start gap-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent"><CalendarDays size={18} /></div>
                 <div>
-                  <h3 className="text-[18px] font-bold text-ink">Interview / Drive Details</h3>
+                  <h3 className="text-[16px] font-bold text-ink">Interview / Drive Details</h3>
                   <p className="mt-1 text-[12px] text-text-secondary">Provide the basic information for this interview drive.</p>
                 </div>
               </div>
@@ -722,7 +722,7 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
             <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
               <div className="flex items-start gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent"><Users size={20} /></div>
-                <div><h3 className="text-[20px] font-bold text-ink">Candidate Details</h3><p className="mt-1 text-[12px] text-text-secondary">Add students and choose how they will access this interview drive.</p></div>
+                <div><h3 className="text-[18px] font-bold text-ink">Candidate Details</h3><p className="mt-1 text-[12px] text-text-secondary">Add students and choose how they will access this interview drive.</p></div>
               </div>
               <div className="rounded-xl border border-accent/15 bg-accent/5 px-3 py-2 text-[11px] font-semibold text-accent"><Users size={14} className="mr-1.5 inline" />{importedCandidates.length} candidates added</div>
             </div>

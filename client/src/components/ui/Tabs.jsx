@@ -19,7 +19,7 @@ function Tabs({ tabs, value, onChange, className = '' }) {
           <button
             key={tab.id}
             onClick={() => setActive(tab.id)}
-            className='relative h-[38px] px-4 text-[13px] font-bold rounded-[10px] transition-colors flex items-center gap-1.5 whitespace-nowrap'
+            className='relative h-[38px] px-4 text-[13px] font-semibold rounded-[10px] transition-colors flex items-center gap-1.5 whitespace-nowrap'
           >
             {isActive && (
               <motion.span

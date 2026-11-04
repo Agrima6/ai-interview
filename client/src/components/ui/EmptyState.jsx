@@ -21,7 +21,7 @@ function EmptyState({ icon: Icon = Inbox, title, description, actionLabel, onAct
         </span>
         <span className='absolute bottom-3 left-0 w-3.5 h-3.5 rounded-full bg-accent/70' />
       </div>
-      <h3 className='text-[17px] font-extrabold text-ink mb-1.5'>{title}</h3>
+      <h3 className='text-[17px] font-bold text-ink mb-1.5'>{title}</h3>
       {description && <p className='text-[14px] text-text-secondary max-w-sm leading-relaxed mb-6'>{description}</p>}
       {actionLabel && (
         <Button size='md' onClick={onAction}>

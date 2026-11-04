@@ -475,7 +475,7 @@ function DriveDetailPage() {
                     <p className="mt-0.5 text-[12px] text-text-secondary">{cand.exp} experience</p>
                   </div>
                 </div>
-                <span className={`text-[17px] font-extrabold ${cand.aiScore >= 80 ? 'text-emerald-600' : cand.aiScore >= 70 ? 'text-amber-600' : 'text-red-600'}`}>
+                <span className={`text-[17px] font-bold ${cand.aiScore >= 80 ? 'text-emerald-600' : cand.aiScore >= 70 ? 'text-amber-600' : 'text-red-600'}`}>
                   {cand.aiScore}%
                 </span>
               </div>
@@ -554,7 +554,7 @@ function DriveDetailPage() {
                         {cand.interviewSlot ? new Date(cand.interviewSlot).toLocaleString() : 'Not scheduled'}
                       </div>
                     </td>
-                    <td className="py-4 px-3 font-extrabold text-[15px]">
+                    <td className="py-4 px-3 font-bold text-[15px]">
                       <span className={cand.aiScore >= 80 ? 'text-emerald-600' : cand.aiScore >= 70 ? 'text-amber-600' : 'text-red-600'}>
                         {cand.aiScore}%
                       </span>
