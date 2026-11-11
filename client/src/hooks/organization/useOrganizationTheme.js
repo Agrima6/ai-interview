@@ -22,9 +22,18 @@ export function useOrganizationThemeStyle(profile) {
     const fontFamily = typeof profile.fontFamily === 'string' && profile.fontFamily.trim() ? profile.fontFamily : null
     if (!primary && !secondary && !fontFamily) return undefined
 
+    // Hover/soft tints are derived from the primary so a custom brand colour
+    // re-themes buttons, badges and highlights as one set. The secondary only
+    // drives the secondary accent - it used to also replace the hover shade,
+    // which made every button flip to the secondary colour on hover.
     return {
-        ...(primary ? { '--color-accent': primary } : {}),
-        ...(secondary ? { '--color-accent-cyan': secondary, '--color-accent-dark': secondary } : {}),
-        ...(fontFamily ? { fontFamily } : {}),
+        ...(primary ? {
+            '--color-accent': primary,
+            '--color-accent-dark': `color-mix(in srgb, ${primary} 78%, black)`,
+            '--color-accent-soft': `color-mix(in srgb, ${primary} 10%, white)`,
+            '--shadow-lift': `0 18px 40px -18px color-mix(in srgb, ${primary} 45%, transparent)`,
+        } : {}),
+        ...(secondary ? { '--color-accent-cyan': secondary } : {}),
+        ...(fontFamily ? { '--font-sans': fontFamily, '--font-display': fontFamily, fontFamily } : {}),
     }
 }

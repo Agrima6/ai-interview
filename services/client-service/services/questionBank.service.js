@@ -2,10 +2,12 @@ import { QuestionBank } from "../models/questionBank.model.js"
 import { ApiError } from "../utils/response.js"
 import crypto from "crypto"
 import { BLUE_COLLAR_QUESTION_BANKS } from "../utils/blueCollarBanks.js"
+import { PROFESSIONAL_QUESTION_BANKS } from "../utils/professionalBanks.js"
 import { requireValidObjectId } from "../utils/validateId.js"
 
 const DEFAULT_QUESTION_BANKS = [
     ...BLUE_COLLAR_QUESTION_BANKS,
+    ...PROFESSIONAL_QUESTION_BANKS,
     {
         title: "SDE Core Engineering Assessment",
         category: "SOFTWARE_ENGINEERING",

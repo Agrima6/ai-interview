@@ -40,6 +40,19 @@ function OrganizationLayout({ title, description, eyebrow, action, onSearch, chi
         return () => document.documentElement.classList.remove('org-theme')
     }, [])
 
+    // The org's own colours/font are mirrored onto <html> as well, because
+    // portalled modals, drawers and toasts render outside this wrapper and
+    // would otherwise show the default palette next to a branded page.
+    const themeKey = themeStyle ? JSON.stringify(themeStyle) : ''
+    useEffect(() => {
+        if (!themeStyle) return undefined
+        const root = document.documentElement
+        const entries = Object.entries(themeStyle).filter(([key]) => key.startsWith('--'))
+        entries.forEach(([key, value]) => root.style.setProperty(key, value))
+        return () => entries.forEach(([key]) => root.style.removeProperty(key))
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [themeKey])
+
     return (
         <div className='min-h-screen bg-bg flex relative isolate' style={themeStyle}>
             <OrganizationSidebar profile={profile} profileLoading={profileLoading} mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />

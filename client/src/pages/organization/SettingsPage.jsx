@@ -6,6 +6,7 @@ import { Card, Button, Input, Select, Skeleton } from '../../components/ui'
 import { getOrganizationProfile, updateOrganizationBranding } from '../../api/organization/organizationApi'
 import Avatar from '../../components/ui/Avatar'
 import { resolveAssetUrl } from '../../api/client'
+import { useAuth } from '../../hooks/useAuth.jsx'
 import SmtpSettingsSection from '../../components/organization/SmtpSettingsSection'
 
 const TYPOGRAPHY_OPTIONS = [
@@ -16,6 +17,13 @@ const TYPOGRAPHY_OPTIONS = [
   { value: '"DM Sans", sans-serif', label: 'DM Sans (Editorial & Friendly)' },
 ]
 
+const DEFAULT_PRIMARY = '#C4161F'
+const DEFAULT_SECONDARY = '#D97706'
+const HEX_COLOR = /^#[0-9a-f]{6}$/i
+
+// <input type="color"> only accepts 6-digit hex; the API also stores #abc.
+const expandHex = (c) => (/^#[0-9a-f]{3}$/i.test(c) ? `#${c[1]}${c[1]}${c[2]}${c[2]}${c[3]}${c[3]}` : c)
+
 const SETTINGS_TABS = [
   { id: 'branding', label: 'Branding & Typography', sub: 'Logo, colours, font and contact', icon: Palette },
   { id: 'email', label: 'Email (SMTP)', sub: 'Sender identity and delivery', icon: Mail },
@@ -23,6 +31,7 @@ const SETTINGS_TABS = [
 
 function SettingsPage() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
   const [activeSection, setActiveSection] = useState('branding')
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -33,20 +42,29 @@ function SettingsPage() {
   // Form states
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
-  const [primaryColor, setPrimaryColor] = useState('#2563EB')
-  const [secondaryColor, setSecondaryColor] = useState('#06B6D4')
+  const [primaryColor, setPrimaryColor] = useState(DEFAULT_PRIMARY)
+  const [secondaryColor, setSecondaryColor] = useState(DEFAULT_SECONDARY)
   const [fontFamily, setFontFamily] = useState('Inter, sans-serif')
   const [logoPreview, setLogoPreview] = useState('')
+  const [logoChanged, setLogoChanged] = useState(false)
 
   useEffect(() => {
     getOrganizationProfile()
       .then((data) => {
         setProfile(data)
         if (data?.name) setName(data.name)
-        if (data?.primaryContact?.email) setEmail(data.primaryContact.email)
-        if (data?.branding?.primaryColor) setPrimaryColor(data.branding.primaryColor)
-        if (data?.branding?.secondaryColor) setSecondaryColor(data.branding.secondaryColor)
-        if (data?.branding?.fontFamily) setFontFamily(data.branding.fontFamily)
+        // GET /organizations/me returns branding as flat fields (primaryColor,
+        // fontFamily, ...), not nested under `branding` - reading the nested
+        // shape left every field at its default, so a save overwrote the real
+        // colours. The contact email defaults to the signed-in account.
+        const contactEmail = data?.primaryContact?.email || data?.email || user?.email
+        if (contactEmail) setEmail(contactEmail)
+        const savedPrimary = data?.primaryColor || data?.branding?.primaryColor
+        const savedSecondary = data?.secondaryColor || data?.branding?.secondaryColor
+        const savedFont = data?.fontFamily || data?.branding?.fontFamily
+        if (savedPrimary) setPrimaryColor(expandHex(savedPrimary))
+        if (savedSecondary) setSecondaryColor(expandHex(savedSecondary))
+        if (savedFont) setFontFamily(savedFont)
         if (data?.logoUrl || data?.branding?.logoUrl) setLogoPreview(resolveAssetUrl(data.logoUrl || data.branding?.logoUrl))
       })
       .catch((err) => setError(err.message))
@@ -57,24 +75,32 @@ function SettingsPage() {
     const file = e.target.files?.[0]
     if (file) {
       const reader = new FileReader()
-      reader.onload = (event) => setLogoPreview(event.target?.result || '')
+      reader.onload = (event) => { setLogoPreview(event.target?.result || ''); setLogoChanged(true) }
       reader.readAsDataURL(file)
     }
   }
 
   const handleSaveSettings = async (e) => {
     e.preventDefault()
-    setSaving(true)
     setError('')
+    if (!HEX_COLOR.test(primaryColor) || !HEX_COLOR.test(secondaryColor)) {
+      setError('Colours must be 6-digit hex values like #C4161F.')
+      return
+    }
+    setSaving(true)
     try {
+      // The logo is only sent when a new file was picked: the preview of an
+      // existing one is a resolved/signed URL, and echoing it back would
+      // overwrite the stored logo (or clear it when the preview is empty).
       await updateOrganizationBranding({
         name,
-        email,
+        ...(email ? { email } : {}),
         primaryColor,
         secondaryColor,
         fontFamily,
-        logoUrl: logoPreview,
+        ...(logoChanged ? { logoUrl: logoPreview } : {}),
       })
+      setLogoChanged(false)
 
       // The Organization shell (OrganizationLayout) reads branding through
       // its own useOrganizationProfile() query and re-themes automatically
@@ -92,6 +118,14 @@ function SettingsPage() {
       setSaving(false)
     }
   }
+
+  // A font saved earlier that is no longer in the preset list still has to
+  // show as selected, otherwise the dropdown looks empty and saving swaps it.
+  const fontOptions = TYPOGRAPHY_OPTIONS.some((f) => f.value === fontFamily)
+    ? TYPOGRAPHY_OPTIONS
+    : [{ value: fontFamily, label: fontFamily.split(',')[0].replace(/"/g, '') }, ...TYPOGRAPHY_OPTIONS]
+
+  const resetColors = () => { setPrimaryColor(DEFAULT_PRIMARY); setSecondaryColor(DEFAULT_SECONDARY) }
 
   if (loading) {
     return (
@@ -192,7 +226,7 @@ function SettingsPage() {
                   label="Portal Typography / Font Style"
                   value={fontFamily}
                   onChange={(e) => setFontFamily(e.target.value)}
-                  options={TYPOGRAPHY_OPTIONS}
+                  options={fontOptions}
                 />
               </div>
 
@@ -203,14 +237,14 @@ function SettingsPage() {
                   <div className="flex items-center gap-2">
                     <input
                       type="color"
-                      value={primaryColor}
+                      value={HEX_COLOR.test(primaryColor) ? primaryColor : DEFAULT_PRIMARY}
                       onChange={(e) => setPrimaryColor(e.target.value)}
                       className="w-10 h-10 rounded-lg border border-line cursor-pointer p-0.5"
                     />
                     <Input
                       value={primaryColor}
                       onChange={(e) => setPrimaryColor(e.target.value)}
-                      placeholder="#2563EB"
+                      placeholder="#C4161F" maxLength={7}
                     />
                   </div>
                 </div>
@@ -220,18 +254,20 @@ function SettingsPage() {
                   <div className="flex items-center gap-2">
                     <input
                       type="color"
-                      value={secondaryColor}
+                      value={HEX_COLOR.test(secondaryColor) ? secondaryColor : DEFAULT_SECONDARY}
                       onChange={(e) => setSecondaryColor(e.target.value)}
                       className="w-10 h-10 rounded-lg border border-line cursor-pointer p-0.5"
                     />
                     <Input
                       value={secondaryColor}
                       onChange={(e) => setSecondaryColor(e.target.value)}
-                      placeholder="#06B6D4"
+                      placeholder="#D97706" maxLength={7}
                     />
                   </div>
                 </div>
               </div>
+
+              <button type="button" onClick={resetColors} className="text-[13px] font-semibold text-accent hover:underline">Reset colours to default</button>
 
               {error && <p className="text-[13px] text-red-500 font-medium">{error}</p>}
 
@@ -271,7 +307,7 @@ function SettingsPage() {
 
               <div className="p-3 rounded-lg border border-line bg-card text-[12.5px] text-ink">
                 <span className="font-bold block mb-1">Selected Font Style:</span>
-                <span className="text-text-secondary">{TYPOGRAPHY_OPTIONS.find((f) => f.value === fontFamily)?.label}</span>
+                <span className="text-text-secondary">{fontOptions.find((f) => f.value === fontFamily)?.label}</span>
               </div>
             </div>
           </Card>
