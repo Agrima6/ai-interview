@@ -30,7 +30,7 @@ function OrganizationSidebar({ profile, profileLoading, mobileOpen, onClose }) {
                 {mobileOpen && (
                     <motion.div
                         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
-                        className='fixed inset-0 z-[var(--z-drawer)] bg-[#0d1233]/45 backdrop-blur-[2px] lg:hidden' onClick={onClose} aria-hidden='true'
+                        className='fixed inset-0 z-[var(--z-drawer)] bg-[#1a1215]/45 backdrop-blur-[2px] lg:hidden' onClick={onClose} aria-hidden='true'
                     />
                 )}
             </AnimatePresence>

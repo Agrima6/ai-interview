@@ -7,6 +7,7 @@ import QuestionSetBuilder from './QuestionSetBuilder'
 import CandidateImportModal from './CandidateImportModal'
 import { createInterviewDrive, getQuestionBanks, getNotificationTemplates, getOrganizationProfile, updateRound } from '../../api/organization/organizationApi'
 import { BLUE_COLLAR_ROLES, questionBanksForRole } from '../../constants/blueCollarRoles'
+import { PROFESSIONAL_ROLES } from '../../constants/professionalRoles'
 import { dateInputFromToday, dateInputFromStored, addDaysToInput } from '../../utils/dateOnly'
 
 const ROLE_CATEGORIES = [
@@ -19,6 +20,7 @@ const ROLE_CATEGORIES = [
   { value: 'HR_OPERATIONS', label: 'Human Resources & Talent Acquisition' },
   { value: 'CAMPUS_PLACEMENT', label: 'Campus Placement / Graduate Trainee' },
   { value: 'BLUE_COLLAR', label: 'Blue Collar / Field & Skilled Trades' },
+  ...PROFESSIONAL_ROLES,
   ...BLUE_COLLAR_ROLES,
 ]
 

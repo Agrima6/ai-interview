@@ -14,6 +14,8 @@ const CATEGORY_OPTIONS = [
   { value: 'SALES_MARKETING', label: 'Sales & Marketing' },
   { value: 'HR_OPERATIONS', label: 'HR & Operations' },
   { value: 'CAMPUS_PLACEMENT', label: 'Campus Placement / Graduate' },
+  { value: 'CHARTERED_ACCOUNTANT', label: 'Chartered Accountant / Finance' },
+  { value: 'LEGAL', label: 'Legal & Law' },
 ]
 
 function QuestionSetsPage() {

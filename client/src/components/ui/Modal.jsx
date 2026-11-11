@@ -36,7 +36,7 @@ function Modal({ open, onClose, title, children, footer, size = 'md' }) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={onClose}
-              className='absolute inset-0 bg-[#0d1233]/50 backdrop-blur-sm'
+              className='absolute inset-0 bg-[#1a1215]/50 backdrop-blur-sm'
             />
           )}
           <motion.div

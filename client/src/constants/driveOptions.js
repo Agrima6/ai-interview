@@ -4,6 +4,7 @@
 // duplicated rather than imported because CreateDriveModal is explicitly
 // out of scope to modify, even for a pure refactor.
 import { BLUE_COLLAR_ROLES } from './blueCollarRoles'
+import { PROFESSIONAL_ROLES } from './professionalRoles'
 
 export const ROLE_CATEGORY_OPTIONS = [
   { value: 'SOFTWARE_ENGINEERING', label: 'Software Engineering (SDE / Fullstack)' },
@@ -15,6 +16,7 @@ export const ROLE_CATEGORY_OPTIONS = [
   { value: 'HR_OPERATIONS', label: 'Human Resources & Talent Acquisition' },
   { value: 'CAMPUS_PLACEMENT', label: 'Campus Placement / Graduate Trainee' },
   { value: 'BLUE_COLLAR', label: 'Blue Collar / Field & Skilled Trades' },
+  ...PROFESSIONAL_ROLES,
   ...BLUE_COLLAR_ROLES,
 ]
 
