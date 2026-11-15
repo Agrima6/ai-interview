@@ -89,6 +89,7 @@ router.put("/oa/assessments/:id/attempts/:attemptId/decision", ...admin, handle(
 
 // ---- student ----
 router.get("/oa/exam/session", ...student, handle((req) => exam.session(req.oa)))
+router.put("/oa/exam/slot", ...student, handle((req) => exam.bookSlot(req.oa, req.body || {})))
 router.post("/oa/exam/start", ...student, handle((req) => exam.start(req.oa, req.body || {}, { ip: clientIp(req) })))
 router.get("/oa/exam/paper", ...student, handle((req) => exam.getPaper(req.oa)))
 router.put("/oa/exam/answers", ...student, handle((req) => exam.saveAnswers(req.oa, req.body)))

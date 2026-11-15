@@ -4,6 +4,7 @@ import {
     EMAIL_RE, OA_ROLES, clearRateLimit, hashPassword, normalizeEmail, passwordProblem, rateLimit, signOaToken, verifyPassword,
 } from "../utils/oaSecurity.js"
 import { decisionEmail, sendOaEmail } from "./oaMail.js"
+import { LIMITS, nameProblem, normalizePhone, phoneProblem } from "../utils/oaValidate.js"
 
 const ADMIN_TOKEN_SECONDS = 12 * 60 * 60
 
@@ -24,17 +25,20 @@ export const register = async (input) => {
     const contactName = String(input?.contactName || "").trim()
     const email = String(input?.email || "").trim()
     const phone = String(input?.phone || "").trim()
-    if (orgName.length < 2) fields.orgName = "Enter your organization, college or company name."
-    if (contactName.length < 2) fields.contactName = "Enter the contact person's name."
-    if (!EMAIL_RE.test(email)) fields.email = "Enter a valid email address."
-    if (phone && !/^[0-9+()\-\s]{7,20}$/.test(phone)) fields.phone = "Enter a valid phone number."
+    if (orgName.length < LIMITS.orgName.min || orgName.length > LIMITS.orgName.max) fields.orgName = `Organization name must be ${LIMITS.orgName.min} to ${LIMITS.orgName.max} characters.`
+    const contactProblem = nameProblem(contactName, { ...LIMITS.personName, label: "Your name" })
+    if (contactProblem) fields.contactName = contactProblem
+    if (email.length > 200 || !EMAIL_RE.test(email)) fields.email = "Enter a valid email address."
+    const phoneIssue = phoneProblem(phone)
+    if (phoneIssue) fields.phone = phoneIssue
+    if (String(input?.purpose || "").length > 500) fields.purpose = "Keep this to 500 characters or fewer."
     const problem = passwordProblem(input?.password)
     if (problem) fields.password = problem
     if (Object.keys(fields).length) throw new ApiError(400, "VALIDATION_ERROR", Object.values(fields)[0], fields)
 
     const emailNormalized = normalizeEmail(email)
     const existing = await OaAccount.findOne({ emailNormalized }).select("+passwordHash")
-    const details = { orgName, contactName, email, phone: phone || null, purpose: String(input?.purpose || "").trim().slice(0, 500) }
+    const details = { orgName, contactName, email, phone: normalizePhone(phone) || null, purpose: String(input?.purpose || "").trim().slice(0, 500) }
 
     // A rejected or "changes requested" application can be corrected and resubmitted by the same applicant.
     if (existing && ["REJECTED", "CHANGES_REQUESTED"].includes(existing.status)) {

@@ -33,6 +33,19 @@ export const inviteEmail = ({ assessment, student, code, orgName }) => {
     const { schedule } = assessment
     const link = oaUrl(`/oa/exam?a=${assessment._id}&e=${encodeURIComponent(student.email)}`)
     const tz = schedule.timezone || "Asia/Kolkata"
+    const slotted = schedule.mode === "SLOTS"
+    const when = slotted
+        ? [
+            "Pick your own time. These start times are available:",
+            ...[...schedule.slots].sort((a, b) => new Date(a.startAt) - new Date(b.startAt)).map((slot) => `  - ${dateFormat(slot.startAt, tz)} (${tz})`),
+            `Duration: ${schedule.durationMinutes} minutes`,
+            "You choose one after you sign in, and can change it until 30 minutes before it starts.",
+        ]
+        : [
+            `Starts: ${dateFormat(schedule.startAt, tz)} (${tz})`,
+            `Duration: ${schedule.durationMinutes} minutes`,
+            `Closes: ${dateFormat(schedule.endAt, tz)} (${tz})`,
+        ]
     return {
         subject: `You're invited: ${assessment.title}`,
         body: [
@@ -40,13 +53,12 @@ export const inviteEmail = ({ assessment, student, code, orgName }) => {
             "",
             `${orgName} has invited you to take an online assessment: ${assessment.title}.`,
             "",
-            `Starts: ${dateFormat(schedule.startAt, tz)} (${tz})`,
-            `Duration: ${schedule.durationMinutes} minutes`,
-            `Closes: ${dateFormat(schedule.endAt, tz)} (${tz})`,
+            ...when,
             "",
             "To sit the test:",
             `1. Open ${link}`,
             `2. Sign in with this email address and your access code: ${code}`,
+            ...(slotted ? ["3. Choose your time slot."] : []),
             "",
             "Before the test, please:",
             "- Use a laptop or desktop with a working webcam, in the latest Chrome or Edge.",

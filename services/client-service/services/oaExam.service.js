@@ -3,7 +3,7 @@ import { OaAssessment, OaAttempt, OaEvent, OaStudent } from "../models/oa.model.
 import { ApiError } from "../utils/response.js"
 import { OA_ROLES, clearRateLimit, codesMatch, normalizeEmail, rateLimit, signOaToken } from "../utils/oaSecurity.js"
 import { studentQuestionView } from "../utils/oaQuestions.js"
-import { attemptDeadline, buildPaperOrder, gradeAttempt, inWaitingRoom, schedulePhase } from "../utils/oaExam.js"
+import { SLOT_CHANGE_CUTOFF_MINUTES, attemptDeadline, buildPaperOrder, effectiveSchedule, gradeAttempt, inWaitingRoom, schedulePhase, slotChangeDeadline } from "../utils/oaExam.js"
 
 const GRACE_MS = 10 * 1000          // network slack when the last autosave lands just after the deadline
 const SNAPSHOT_MAX_CHARS = 120000
@@ -95,19 +95,42 @@ const resultView = (assessment, attempt) => {
     return shown ? { score: attempt.score, maxScore: attempt.maxScore, percent: attempt.percent, passed: attempt.percent >= assessment.settings.passPercent } : null
 }
 
+const isSlotted = (assessment) => assessment.schedule?.mode === "SLOTS"
+
+// The slots a student can pick from, with how many seats are left. `bookable` already accounts for the booking cut-off.
+const slotChoices = async (assessment, student) => {
+    const counts = await OaStudent.aggregate([{ $match: { assessmentId: assessment._id, slotId: { $ne: null } } }, { $group: { _id: "$slotId", n: { $sum: 1 } } }])
+    const used = new Map(counts.map((c) => [c._id, c.n]))
+    const now = Date.now()
+    return assessment.schedule.slots.map((slot) => {
+        const taken = used.get(slot.id) || 0
+        const mine = student.slotId === slot.id
+        const remaining = slot.capacity ? Math.max(slot.capacity - taken, 0) : null
+        const open = now <= slotChangeDeadline(slot).getTime()
+        return { id: slot.id, startAt: slot.startAt, capacity: slot.capacity || null, remaining, mine, bookable: open && (mine || remaining === null || remaining > 0), full: remaining === 0 && !mine, closed: !open }
+    })
+}
+
 export const session = async (ctx) => {
     const { assessment, student, attempt } = await loadContext(ctx)
     if (attempt) await settleIfExpired(attempt).catch((e) => { if (e.code !== "TIME_UP") throw e })
     const fresh = attempt ? await OaAttempt.findById(attempt._id) : null
-    const phase = schedulePhase(assessment.schedule)
+    const slotted = isSlotted(assessment)
+    const sched = effectiveSchedule(assessment.schedule, student.slotId)
+    const slots = slotted ? await slotChoices(assessment, student) : undefined
+    // A slotted test with no booking has no start time of its own yet: the student is either choosing, or too late to.
+    const phase = sched ? schedulePhase(sched) : slots.some((x) => x.bookable) ? "CHOOSE_SLOT" : "NO_SLOT"
     const finished = fresh && fresh.status !== "IN_PROGRESS"
+    const { durationMinutes, lateEntryMinutes, timezone } = assessment.schedule
     return {
         serverNow: new Date(),
         student: { name: student.name, email: student.email },
         assessment: {
             id: String(assessment._id), title: assessment.title, description: assessment.description, instructions: assessment.instructions,
-            schedule: assessment.schedule, phase, waitingRoom: inWaitingRoom(assessment.schedule),
-            questionCount: assessment.questions.length, totalMarks: assessment.questions.reduce((s, q) => s + q.marks, 0),
+            schedule: sched ? { mode: assessment.schedule.mode, startAt: sched.startAt, endAt: sched.endAt, durationMinutes, lateEntryMinutes, timezone } : { mode: "SLOTS", startAt: null, endAt: null, durationMinutes, lateEntryMinutes, timezone },
+            phase, waitingRoom: sched ? inWaitingRoom(sched) : false,
+            slots, slotCutoffMinutes: slotted ? SLOT_CHANGE_CUTOFF_MINUTES : undefined,
+            questionCount: assessment.questions.length, totalMarks: assessment.questions.reduce((sum, q) => sum + q.marks, 0),
             sectionCount: assessment.sections.length, allowBackNavigation: assessment.settings.allowBackNavigation,
             proctoring: proctoringView(assessment.proctoring),
         },
@@ -115,6 +138,36 @@ export const session = async (ctx) => {
         canStart: !finished && (fresh ? fresh.status === "IN_PROGRESS" : phase === "OPEN"),
         result: resultView(assessment, fresh),
     }
+}
+
+/** A student books, or changes to, one of the offered start times. Seats are never oversold. */
+export const bookSlot = async (ctx, { slotId } = {}) => {
+    const { assessment, student, attempt } = await loadContext(ctx)
+    if (!isSlotted(assessment)) throw new ApiError(409, "NO_SLOTS", "This test has one start time for everyone, so there is nothing to choose.")
+    if (attempt) throw new ApiError(409, "ALREADY_STARTED", "You have already started this test, so your slot cannot change.")
+    const slots = assessment.schedule.slots
+    const slot = slots.find((x) => x.id === String(slotId))
+    if (!slot) throw new ApiError(400, "VALIDATION_ERROR", "That time slot does not exist.", { slotId: "Choose one of the listed times." })
+    if (student.slotId === slot.id) return { slotId: slot.id }
+
+    const now = Date.now()
+    if (now > slotChangeDeadline(slot).getTime()) throw new ApiError(409, "SLOT_CLOSED", `Booking for this slot closed ${SLOT_CHANGE_CUTOFF_MINUTES} minutes before it starts. Choose another time.`)
+    const current = slots.find((x) => x.id === student.slotId)
+    if (current && now > slotChangeDeadline(current).getTime()) throw new ApiError(409, "SLOT_LOCKED", `Your slot starts in under ${SLOT_CHANGE_CUTOFF_MINUTES} minutes, so it can no longer be changed.`)
+
+    const previous = { slotId: student.slotId ?? null, slotBookedAt: student.slotBookedAt ?? null }
+    const claimed = await OaStudent.findOneAndUpdate({ _id: student._id, slotId: previous.slotId }, { $set: { slotId: slot.id, slotBookedAt: new Date() } }, { new: true })
+    if (!claimed) throw new ApiError(409, "CONFLICT", "Your booking changed in another window. Reload and try again.")
+    if (slot.capacity) {
+        // Book first, then count: if the slot overflowed, undo this booking. Two people racing for the last seat may both
+        // be told to retry, but the slot is never over capacity.
+        const taken = await OaStudent.countDocuments({ assessmentId: assessment._id, slotId: slot.id })
+        if (taken > slot.capacity) {
+            await OaStudent.updateOne({ _id: student._id, slotId: slot.id }, { $set: previous })
+            throw new ApiError(409, "SLOT_FULL", "That slot just filled up. Please choose another time.")
+        }
+    }
+    return { slotId: slot.id }
 }
 
 const paperPayload = (assessment, attempt) => {
@@ -147,14 +200,16 @@ const NOT_OPEN = {
 }
 
 export const start = async (ctx, { environment } = {}, { ip } = {}) => {
-    const { assessment, attempt } = await loadContext(ctx)
+    const { assessment, student, attempt } = await loadContext(ctx)
     if (attempt) {
         if (attempt.status !== "IN_PROGRESS") throw new ApiError(409, "ALREADY_FINISHED", "You have already finished this test.")
         await settleIfExpired(attempt)
         await OaEvent.create({ attemptId: attempt._id, assessmentId: assessment._id, kind: "INFO", type: "RESUMED", detail: "Re-entered the test" })
         return paperPayload(assessment, attempt)
     }
-    const phase = schedulePhase(assessment.schedule)
+    const sched = effectiveSchedule(assessment.schedule, student.slotId)
+    if (!sched) throw new ApiError(409, "SLOT_REQUIRED", "Choose your time slot before you start.")
+    const phase = schedulePhase(sched)
     if (phase !== "OPEN") throw new ApiError(409, "NOT_OPEN", NOT_OPEN[phase] || "The test is not open.")
     if (!assessment.questions.length) throw new ApiError(409, "NO_QUESTIONS", "This test has no questions yet.")
 
@@ -164,7 +219,7 @@ export const start = async (ctx, { environment } = {}, { ip } = {}) => {
     try {
         const created = await OaAttempt.create({
             _id, accountId: assessment.accountId, assessmentId: assessment._id, studentId: ctx.studentId,
-            startedAt, deadline: attemptDeadline(assessment.schedule, startedAt), order, environment: pickEnvironment(environment), ip: ip || null, lastHeartbeatAt: startedAt,
+            startedAt, deadline: attemptDeadline(sched, startedAt), order, environment: pickEnvironment(environment), ip: ip || null, lastHeartbeatAt: startedAt,
         })
         await OaEvent.create({ attemptId: created._id, assessmentId: assessment._id, kind: "INFO", type: "EXAM_STARTED", detail: "Started the test" })
         return paperPayload(assessment, created)

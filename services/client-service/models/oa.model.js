@@ -51,6 +51,9 @@ const assessmentSchema = new Schema({
     roundLabel: { type: String, default: "", maxlength: 60 },
     previousAssessmentId: { type: Schema.Types.ObjectId, default: null },
     schedule: {
+        // FIXED: everyone starts together. SLOTS: the organizer offers several start times and each student books one.
+        mode: { type: String, enum: ["FIXED", "SLOTS"], default: "FIXED" },
+        slots: [{ id: String, startAt: Date, capacity: { type: Number, default: null }, _id: false }],
         startAt: { type: Date, default: null },
         endAt: { type: Date, default: null },
         durationMinutes: { type: Number, default: 60 },
@@ -72,7 +75,7 @@ const assessmentSchema = new Schema({
         requireFullscreen: { type: Boolean, default: true },
         faceChecks: { type: Boolean, default: true },
         blockCopyPaste: { type: Boolean, default: true },
-        maxViolations: { type: Number, default: 5, min: 1, max: 50 },
+        maxViolations: { type: Number, default: 5, min: 1, max: 10 },
         snapshotIntervalSec: { type: Number, default: 45, min: 15, max: 300 },
     },
     sections: [{ id: String, title: String, _id: false }],
@@ -91,6 +94,9 @@ const studentSchema = new Schema({
     emailNormalized: { type: String, required: true },
     phone: { type: String, trim: true, maxlength: 20, default: null },
     rollNumber: { type: String, trim: true, maxlength: 40, default: "" },
+    // The start time this student booked, when the test offers slots.
+    slotId: { type: String, default: null },
+    slotBookedAt: { type: Date, default: null },
     // Free-form details the admin uploaded with the list (branch, batch, college...).
     details: { type: Map, of: String, default: {} },
     codeHash: { type: String, required: true },

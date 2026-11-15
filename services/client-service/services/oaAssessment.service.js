@@ -6,6 +6,7 @@ import { EMAIL_RE, generateAccessCode, hashAccessCode, normalizeEmail } from "..
 import { decryptSecret, encryptSecret } from "../utils/crypto.js"
 import { newId, normalizeQuestion, normalizeQuestions } from "../utils/oaQuestions.js"
 import { gradeAttempt, parseSchedule, rankRows, schedulePhase } from "../utils/oaExam.js"
+import { LIMITS, intInRange, nameProblem, normalizePhone, phoneProblem, textLength, throwFields } from "../utils/oaValidate.js"
 import { inviteEmail, sendOaEmail } from "./oaMail.js"
 import { generateQuestions } from "./oaAi.service.js"
 
@@ -25,11 +26,6 @@ const owned = async (accountId, id) => {
 }
 
 const hasAttempts = (assessmentId) => OaAttempt.exists({ assessmentId })
-
-const clampInt = (value, min, max, fallback) => {
-    const n = Math.round(Number(value))
-    return Number.isFinite(n) ? Math.min(Math.max(n, min), max) : fallback
-}
 
 const pageParams = ({ page, pageSize }, fallback = 25) => ({
     page: Math.max(parseInt(page, 10) || 1, 1),
@@ -111,7 +107,7 @@ const applySettings = (target, input = {}) => {
         shuffleSections: flag("shuffleSections", s.shuffleSections ?? false),
         allowBackNavigation: flag("allowBackNavigation", s.allowBackNavigation ?? true),
         showResultToStudent: flag("showResultToStudent", s.showResultToStudent ?? false),
-        passPercent: input.passPercent === undefined ? (s.passPercent ?? 40) : clampInt(input.passPercent, 0, 100, 40),
+        passPercent: input.passPercent === undefined ? (s.passPercent ?? 40) : intInRange(input.passPercent, { ...LIMITS.passPercent, field: "passPercent", label: "Pass mark" }),
     }
 }
 
@@ -128,19 +124,26 @@ const applyProctoring = (target, input = {}) => {
         requireFullscreen: hard ? true : flag("requireFullscreen", p.requireFullscreen ?? true),
         faceChecks: hard ? true : flag("faceChecks", p.faceChecks ?? true),
         blockCopyPaste: hard ? true : flag("blockCopyPaste", p.blockCopyPaste ?? true),
-        maxViolations: input.maxViolations === undefined ? (p.maxViolations ?? 5) : clampInt(input.maxViolations, 1, 50, 5),
-        snapshotIntervalSec: input.snapshotIntervalSec === undefined ? (p.snapshotIntervalSec ?? 45) : clampInt(input.snapshotIntervalSec, 15, 300, 45),
+        maxViolations: input.maxViolations === undefined ? Math.min(p.maxViolations ?? 5, LIMITS.maxViolations.max) : intInRange(input.maxViolations, { ...LIMITS.maxViolations, field: "maxViolations", label: "Violations before auto-submit" }),
+        snapshotIntervalSec: input.snapshotIntervalSec === undefined ? (p.snapshotIntervalSec ?? 45) : intInRange(input.snapshotIntervalSec, { ...LIMITS.snapshotIntervalSec, field: "snapshotIntervalSec", label: "Snapshot interval" }),
     }
 }
 
 const cleanText = (value, max) => String(value ?? "").trim().slice(0, max)
 
+// Over-long text is refused with a message, not silently cut: the organizer should see what was too long.
+const checkedTitle = (value) => {
+    const title = textLength(value, { max: LIMITS.title.max, field: "title", label: "The name" })
+    if (title.length < LIMITS.title.min) throw new ApiError(400, "VALIDATION_ERROR", `Give the test a name (at least ${LIMITS.title.min} characters).`, { title: `At least ${LIMITS.title.min} characters.` })
+    return title
+}
+const checkedText = (value, key, label) => textLength(value, { max: LIMITS[key].max, field: key, label })
+
 export const createAssessment = async (accountId, input = {}) => {
-    const title = cleanText(input.title, 140)
-    if (title.length < 3) throw new ApiError(400, "VALIDATION_ERROR", "Give the test a name (at least 3 characters).", { title: "Required." })
+    const title = checkedTitle(input.title)
     const assessment = new OaAssessment({
         accountId, title,
-        description: cleanText(input.description, 2000), instructions: cleanText(input.instructions, 4000), roundLabel: cleanText(input.roundLabel, 60),
+        description: checkedText(input.description, "description", "Description"), instructions: checkedText(input.instructions, "instructions", "Instructions"), roundLabel: checkedText(input.roundLabel, "roundLabel", "Round label"),
         sections: [{ id: newId(), title: "Section 1" }],
     })
     assessment.settings = applySettings(assessment, input.settings)
@@ -157,10 +160,17 @@ const scheduleFrom = (assessment, input) => {
     return parsed
 }
 
+// How many students booked each slot: { [slotId]: count }.
+const slotUsage = async (assessment) => {
+    if (assessment.schedule?.mode !== "SLOTS") return {}
+    const rows = await OaStudent.aggregate([{ $match: { assessmentId: assessment._id, slotId: { $ne: null } } }, { $group: { _id: "$slotId", n: { $sum: 1 } } }])
+    return Object.fromEntries(rows.map((r) => [r._id, r.n]))
+}
+
 // `locked`: someone has started, so questions, sections, rules and schedule can no longer change.
 export const getAssessment = async (accountId, id) => {
     const assessment = await owned(accountId, id)
-    return assessmentView(assessment, { locked: Boolean(await hasAttempts(assessment._id)) })
+    return assessmentView(assessment, { locked: Boolean(await hasAttempts(assessment._id)), slotUsage: await slotUsage(assessment) })
 }
 
 export const updateAssessment = async (accountId, id, patch = {}) => {
@@ -168,14 +178,10 @@ export const updateAssessment = async (accountId, id, patch = {}) => {
     const started = await hasAttempts(assessment._id)
     if (assessment.status === "ARCHIVED") throw new ApiError(409, "ARCHIVED", "This test is archived.")
 
-    if (patch.title !== undefined) {
-        const title = cleanText(patch.title, 140)
-        if (title.length < 3) throw new ApiError(400, "VALIDATION_ERROR", "Give the test a name (at least 3 characters).", { title: "Required." })
-        assessment.title = title
-    }
-    if (patch.description !== undefined) assessment.description = cleanText(patch.description, 2000)
-    if (patch.instructions !== undefined) assessment.instructions = cleanText(patch.instructions, 4000)
-    if (patch.roundLabel !== undefined) assessment.roundLabel = cleanText(patch.roundLabel, 60)
+    if (patch.title !== undefined) assessment.title = checkedTitle(patch.title)
+    if (patch.description !== undefined) assessment.description = checkedText(patch.description, "description", "Description")
+    if (patch.instructions !== undefined) assessment.instructions = checkedText(patch.instructions, "instructions", "Instructions")
+    if (patch.roundLabel !== undefined) assessment.roundLabel = checkedText(patch.roundLabel, "roundLabel", "Round label")
 
     const structural = patch.sections !== undefined || patch.settings !== undefined || patch.proctoring !== undefined || patch.schedule !== undefined
     if (started && structural) {
@@ -186,7 +192,8 @@ export const updateAssessment = async (accountId, id, patch = {}) => {
     if (patch.proctoring !== undefined) assessment.proctoring = applyProctoring(assessment, patch.proctoring)
 
     if (patch.sections !== undefined) {
-        const next = (Array.isArray(patch.sections) ? patch.sections : []).slice(0, 12).map((s) => ({ id: cleanText(s.id, 80) || newId(), title: cleanText(s.title, 80) || "Untitled section" }))
+        if ((Array.isArray(patch.sections) ? patch.sections : []).length > LIMITS.sections.max) throw new ApiError(400, "VALIDATION_ERROR", `A test can have at most ${LIMITS.sections.max} sections.`, { sections: `At most ${LIMITS.sections.max}.` })
+        const next = (Array.isArray(patch.sections) ? patch.sections : []).map((s) => ({ id: cleanText(s.id, 80) || newId(), title: cleanText(s.title, 80) || "Untitled section" }))
         if (!next.length) throw new ApiError(400, "VALIDATION_ERROR", "A test needs at least one section.")
         const keep = new Set(next.map((s) => s.id))
         const orphaned = assessment.questions.filter((q) => !keep.has(q.sectionId)).length
@@ -194,7 +201,7 @@ export const updateAssessment = async (accountId, id, patch = {}) => {
         assessment.sections = next
     }
     await assessment.save()
-    return assessmentView(assessment, { locked: started })
+    return assessmentView(assessment, { locked: started, slotUsage: await slotUsage(assessment) })
 }
 
 export const publish = async (accountId, id) => {
@@ -202,7 +209,7 @@ export const publish = async (accountId, id) => {
     if (assessment.status === "PUBLISHED") return assessmentView(assessment)
     const problems = []
     if (!assessment.questions.length) problems.push("Add at least one question.")
-    if (!assessment.schedule?.startAt || !assessment.schedule?.endAt) problems.push("Set the date, start time, closing time and duration.")
+    if (!assessment.schedule?.startAt || !assessment.schedule?.endAt) problems.push(assessment.schedule?.mode === "SLOTS" ? "Add at least one time slot and set the duration." : "Set the date, start time, closing time and duration.")
     else {
         const parsed = parseSchedule(assessment.schedule.toObject())
         if (parsed.error) problems.push(parsed.error)
@@ -284,13 +291,15 @@ export const deleteQuestion = async (accountId, id, questionId) => {
 export const aiDraft = async (accountId, id, input = {}) => {
     const assessment = await owned(accountId, id)
     const ctx = sectionContext(assessment, input.sectionId)
+    if (input.count !== undefined) intInRange(input.count, { ...LIMITS.aiCount, field: "count", label: "Number of questions" })
     return generateQuestions({ prompt: input.prompt, count: input.count, types: input.types, difficulty: input.difficulty, sectionId: ctx.defaultSectionId, sectionIds: ctx.sectionIds })
 }
 
 // ---------- students ----------
 
-const studentView = (s, attempt) => ({
+const studentView = (s, attempt, schedule) => ({
     id: String(s._id), name: s.name, email: s.email, phone: s.phone, rollNumber: s.rollNumber,
+    slot: schedule?.mode === "SLOTS" ? (() => { const slot = (schedule.slots || []).find((x) => x.id === s.slotId); return slot ? { id: slot.id, startAt: slot.startAt, bookedAt: s.slotBookedAt } : null })() : undefined,
     details: s.details ? Object.fromEntries(s.details) : {},
     accessCode: (() => { try { return decryptSecret(s.codeEncrypted) } catch { return null } })(),
     invite: s.invite,
@@ -306,20 +315,22 @@ export const addStudents = async (accountId, id, { students } = {}) => {
     const existing = new Set((await OaStudent.find({ assessmentId: assessment._id }).select("emailNormalized").lean()).map((s) => s.emailNormalized))
     const seen = new Set(); const docs = []; const skipped = []
     rows.forEach((row, index) => {
-        const name = cleanText(row?.name, 100)
-        const email = cleanText(row?.email, 200)
-        const reason = !name ? "Name is missing" : !EMAIL_RE.test(email) ? "Email is not valid" : null
+        const name = cleanText(row?.name, LIMITS.studentName.max + 1)
+        const email = cleanText(row?.email, 201)
+        const rollNumber = cleanText(row?.rollNumber, LIMITS.rollNumber.max + 1)
         const key = normalizeEmail(email)
+        // Each row is checked on its own and reported with the reason, so one bad line never sinks the whole upload.
+        const reason = nameProblem(name, { ...LIMITS.studentName, label: "Name" }) || (email.length > 200 || !EMAIL_RE.test(email) ? "Email is not valid" : null)
+            || phoneProblem(row?.phone) || (rollNumber.length > LIMITS.rollNumber.max ? `Roll number can be at most ${LIMITS.rollNumber.max} characters.` : null)
         if (reason) return skipped.push({ row: index + 1, email, reason })
         if (existing.has(key) || seen.has(key)) return skipped.push({ row: index + 1, email, reason: "Already on this test" })
         seen.add(key)
-        const phone = cleanText(row?.phone, 20)
         const details = {}
         for (const [k, v] of Object.entries(row?.details || {}).slice(0, 10)) if (String(v ?? "").trim()) details[cleanText(k, 40).replace(/[.$]/g, "_")] = cleanText(v, 100)
         const code = generateAccessCode()
         docs.push({
             accountId, assessmentId: assessment._id, name, email, emailNormalized: key,
-            phone: /^[0-9+()\-\s]{7,20}$/.test(phone) ? phone : null, rollNumber: cleanText(row?.rollNumber, 40),
+            phone: normalizePhone(row?.phone), rollNumber,
             details, codeHash: hashAccessCode(code), codeEncrypted: encryptSecret(code),
         })
     })
@@ -340,7 +351,7 @@ export const listStudents = async (accountId, id, { search, status, page, pageSi
         OaAttempt.find({ assessmentId: assessment._id }).select("studentId status percent violationCount").lean(),
     ])
     const byStudent = new Map(attempts.map((a) => [String(a.studentId), a]))
-    return { items: items.map((s) => studentView(s, byStudent.get(String(s._id)))), total, ...p }
+    return { items: items.map((s) => studentView(s, byStudent.get(String(s._id)), assessment.schedule)), total, ...p }
 }
 
 export const removeStudent = async (accountId, id, studentId) => {
@@ -399,6 +410,7 @@ const buildResultRows = async (assessment) => {
         return {
             attemptId: a ? String(a._id) : null, studentId: String(s._id),
             name: s.name, email: s.email, rollNumber: s.rollNumber, details: s.details || {},
+            slotStartAt: slotStartOf(assessment, s.slotId),
             status: attemptStatusOf(a),
             score: a ? a.score : null, maxScore: a ? a.maxScore : null, percent: finished ? a.percent : null,
             rank: a ? ranks.get(String(a._id)) ?? null : null,
@@ -422,7 +434,10 @@ const filterRows = (rows, q) => {
     if (q.result === "FAILED") list = list.filter((r) => r.passed === false)
     if (q.flagged === "true" || q.flagged === true) list = list.filter((r) => r.violationCount > 0)
     const min = Number(q.minPercent)
-    if (q.minPercent !== undefined && q.minPercent !== "" && Number.isFinite(min)) list = list.filter((r) => (r.percent ?? -1) >= min)
+    if (q.minPercent !== undefined && q.minPercent !== "") {
+        if (!Number.isFinite(min) || min < 0 || min > 100) throw new ApiError(400, "VALIDATION_ERROR", "The minimum percentage must be between 0 and 100.", { minPercent: "0 to 100" })
+        list = list.filter((r) => (r.percent ?? -1) >= min)
+    }
     const dir = q.order === "desc" ? -1 : 1
     const key = ["name", "percent", "violationCount", "rank"].includes(q.sortBy) ? q.sortBy : "rank"
     const cmp = (a, b) => {
@@ -543,10 +558,12 @@ export const setDecision = async (accountId, id, attemptId, decision) => {
 
 // ---------- live monitor ----------
 
+const slotStartOf = (assessment, slotId) => (assessment.schedule?.mode === "SLOTS" ? (assessment.schedule.slots || []).find((x) => x.id === slotId)?.startAt || null : undefined)
+
 export const live = async (accountId, id) => {
     const assessment = await owned(accountId, id)
     const [students, attempts] = await Promise.all([
-        OaStudent.find({ assessmentId: assessment._id }).select("name email rollNumber").lean(),
+        OaStudent.find({ assessmentId: assessment._id }).select("name email rollNumber slotId").lean(),
         OaAttempt.find({ assessmentId: assessment._id }).select("studentId status violationCount lastHeartbeatAt startedAt deadline").lean(),
     ])
     const byStudent = new Map(attempts.map((a) => [String(a.studentId), a]))
@@ -557,6 +574,7 @@ export const live = async (accountId, id) => {
         return {
             studentId: String(s._id), attemptId: a ? String(a._id) : null, name: s.name, email: s.email, rollNumber: s.rollNumber,
             status: attemptStatusOf(a), violationCount: a?.violationCount || 0, deadline: a?.deadline || null,
+            slotStartAt: slotStartOf(assessment, s.slotId),
             silentForSec: silentFor, offline: silentFor !== null && silentFor > 60,
         }
     })
@@ -573,14 +591,21 @@ export const live = async (accountId, id) => {
 
 export const createNextRound = async (accountId, id, { title, minPercent, topN, roundLabel } = {}) => {
     const source = await owned(accountId, id)
+    const hasMin = minPercent !== undefined && minPercent !== null && minPercent !== ""
+    const hasTop = topN !== undefined && topN !== null && topN !== ""
+    if (!hasMin && !hasTop) throw new ApiError(400, "VALIDATION_ERROR", "Choose a cut-off: a minimum percentage or the top ranks.", { cutoff: "Required." })
+    const fields = {}
+    if (hasMin && !(Number.isFinite(Number(minPercent)) && Number(minPercent) >= 0 && Number(minPercent) <= 100)) fields.minPercent = "The minimum must be between 0 and 100."
+    if (hasTop && !(Number.isInteger(Number(topN)) && Number(topN) >= 1 && Number(topN) <= 100000)) fields.topN = "Enter a whole number of ranks, 1 or more."
+    throwFields(fields)
     const rows = await buildResultRows(source)
     let qualified = rows.filter((r) => r.rank !== null)
-    if (minPercent !== undefined && minPercent !== "") qualified = qualified.filter((r) => r.percent >= Number(minPercent))
-    if (topN) qualified = qualified.filter((r) => r.rank <= Number(topN)) // ties at the cut-off all advance
+    if (hasMin) qualified = qualified.filter((r) => r.percent >= Number(minPercent))
+    if (hasTop) qualified = qualified.filter((r) => r.rank <= Number(topN)) // ties at the cut-off all advance
     if (!qualified.length) throw new ApiError(409, "NO_ONE_QUALIFIES", "No one meets that cut-off yet. Check the results and the cut-off.")
 
     const next = new OaAssessment({
-        accountId, title: cleanText(title, 140) || `${source.title} - next round`, roundLabel: cleanText(roundLabel, 60) || "Next round",
+        accountId, title: cleanText(title, LIMITS.title.max) || `${source.title} - next round`, roundLabel: cleanText(roundLabel, LIMITS.roundLabel.max) || "Next round",
         description: source.description, instructions: source.instructions, previousAssessmentId: source._id,
         settings: source.settings.toObject(), proctoring: source.proctoring.toObject(), sections: [{ id: newId(), title: "Section 1" }],
     })
