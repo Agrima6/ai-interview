@@ -73,7 +73,7 @@ export default function OaApprovalsPage() {
                     <EmptyState icon={ClipboardCheck} title={status === 'PENDING' ? 'Nothing to review' : 'No registrations here'} description={status === 'PENDING' ? 'New Online Assessment registrations appear here for your approval.' : 'Try another status or search.'} />
                 ) : (
                     <div className='overflow-x-auto'>
-                        <table className='w-full text-[13.5px] min-w-[820px]'>
+                        <table className='w-full text-[13.5px] min-w-[560px]'>
                             <thead className='bg-surface-muted text-left text-[12px] font-semibold text-text-secondary'><tr><th className='px-4 py-3'>Organization</th><th className='px-4 py-3'>Contact</th><th className='px-4 py-3'>Applied</th><th className='px-4 py-3'>Status</th><th className='px-4 py-3 text-right'>Actions</th></tr></thead>
                             <tbody className='divide-y divide-line'>
                                 {items.map((a) => (
@@ -83,7 +83,7 @@ export default function OaApprovalsPage() {
                                         <td className='px-4 py-3 whitespace-nowrap'>{formatDate(a.createdAt)}</td>
                                         <td className='px-4 py-3'><Badge variant={STATUS[a.status][0]}>{STATUS[a.status][1]}</Badge>{a.review?.note && <div className='text-[12px] text-text-secondary mt-1 max-w-[220px]'>{a.review.note}</div>}</td>
                                         <td className='px-4 py-3'>
-                                            <div className='flex flex-wrap justify-end gap-1.5'>
+                                            <div className='flex flex-col items-stretch sm:items-end gap-1.5 min-w-[130px]'>
                                                 {a.status === 'PENDING' && <>
                                                     <Button size='xs' onClick={() => setAction({ account: a, kind: 'approve' })}><Check size={13} /> Approve</Button>
                                                     <Button size='xs' variant='secondary' onClick={() => setAction({ account: a, kind: 'request-changes' })}><MessageSquareWarning size={13} /> Ask for changes</Button>

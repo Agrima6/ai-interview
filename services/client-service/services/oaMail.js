@@ -49,7 +49,7 @@ export const inviteEmail = ({ assessment, student, code, orgName }) => {
             `2. Sign in with this email address and your access code: ${code}`,
             "",
             "Before the test, please:",
-            "- Use a laptop or desktop with a working webcam and microphone, in the latest Chrome or Edge.",
+            "- Use a laptop or desktop with a working webcam, in the latest Chrome or Edge.",
             "- Sit in a quiet, well-lit room. You will be asked to share your entire screen and stay in full screen.",
             "- Close every other app, tab and monitor. Leaving the test window, switching tabs or exiting full screen is recorded and can end your attempt.",
             "- Join a few minutes early. You can run the system check from 15 minutes before the start.",

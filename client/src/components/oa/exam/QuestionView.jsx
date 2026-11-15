@@ -62,7 +62,7 @@ export default function QuestionView({ question: q, value, onChange }) {
                             requestAnimationFrame(() => { t.selectionStart = t.selectionEnd = s + 4 })
                         }
                     }}
-                    className={`${areaClass} font-mono text-[13.5px] leading-relaxed bg-[#1a1215] text-[#f4eaea] border-[#3a2a2e]`} />
+                    className='w-full rounded-xl px-4 py-3 font-mono text-[13.5px] leading-relaxed select-text outline-none transition-all bg-[#1a1215] text-[#f4eaea] border-[1.5px] border-[#3a2a2e] caret-white focus:border-accent focus:ring-4 focus:ring-accent/20' />
                 <p className='text-[12px] text-text-secondary mt-1.5'>Your code is saved as you type. It is read and marked by your organizer.</p>
             </div>
         )

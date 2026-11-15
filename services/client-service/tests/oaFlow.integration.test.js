@@ -237,6 +237,8 @@ test("proctoring: strikes are counted once per act, snapshots stored, and the li
     assert.equal(burst.data.violationCount, 1)
     const quiet = await call("POST", "/oa/exam/violation", { token: s2.token, body: { type: "RIGHT_CLICK" } })    // logged, never counted
     assert.equal(quiet.data.violationCount, 1)
+    const noModel = await call("POST", "/oa/exam/violation", { token: s2.token, body: { type: "FACE_CHECK_UNAVAILABLE", detail: "model could not load" } })   // recorded for the organizer, never a strike
+    assert.equal(noModel.data.violationCount, 1)
     assert.equal((await call("POST", "/oa/exam/violation", { token: s2.token, body: { type: "NO_FACE" } })).data.violationCount, 2)
     const last = await call("POST", "/oa/exam/violation", { token: s2.token, body: { type: "FULLSCREEN_EXIT" } })
     assert.equal(last.data.violationCount, 3)

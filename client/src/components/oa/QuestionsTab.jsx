@@ -71,7 +71,8 @@ function UploadModal({ open, onClose, assessment, onDone }) {
     const upload = useMutation({
         mutationFn: () => oaApi.addQuestions(assessment.id, { questions: rows.map((r) => ({ ...r, sectionId: r.sectionId || sectionId })), source: 'UPLOAD', sectionId }),
         onSuccess: (r) => {
-            if (r.rejected.length) { setRejected(r.rejected); toast.warning(`${r.added} added, ${r.rejected.length} row(s) need fixing.`); onDone() } else { toast.success(`${r.added} questions added.`); onDone(); onClose() }
+            // The good rows are in now: drop them so a second click cannot add them twice.
+            if (r.rejected.length) { setRows(null); setName(''); setRejected(r.rejected); toast.warning(`${r.added} added, ${r.rejected.length} row(s) need fixing.`); onDone() } else { toast.success(`${r.added} questions added.`); onDone(); onClose() }
         },
         onError: (err) => { setProblem(err.message); setRejected(err.fields?.rows || []) },
     })

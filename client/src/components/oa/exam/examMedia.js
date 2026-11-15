@@ -2,7 +2,9 @@ import { classifyMediaError } from '../../../utils/mediaPermissions'
 
 // Camera and screen access for the exam. Failures come back as a message the student can act on, never a raw error.
 
-export const mobileDevice = () => typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1 && /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)
+// Phones and tablets cannot share a screen, so hard proctoring cannot work on them. iPadOS reports a desktop Mac user agent, hence the touch check.
+export const mobileDevice = () => typeof navigator !== 'undefined'
+    && (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1))
 
 export const requestCamera = async () => {
     if (!navigator.mediaDevices?.getUserMedia) return { ok: false, message: 'This browser cannot use a camera. Use the latest desktop Chrome or Edge.' }

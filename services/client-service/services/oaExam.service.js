@@ -16,7 +16,7 @@ const VIOLATIONS = {
     CAMERA_OFF: { counted: true, needs: "requireCamera" }, NO_FACE: { counted: true, needs: "faceChecks" },
     MULTIPLE_FACES: { counted: true, needs: "faceChecks" }, LOOKING_AWAY: { counted: true, needs: "faceChecks" },
     DEVTOOLS: { counted: true }, MULTIPLE_MONITORS: { counted: true },
-    RIGHT_CLICK: { counted: false }, SHORTCUT_BLOCKED: { counted: false }, RESUMED: { counted: false },
+    RIGHT_CLICK: { counted: false }, SHORTCUT_BLOCKED: { counted: false }, RESUMED: { counted: false }, FACE_CHECK_UNAVAILABLE: { counted: false },
 }
 
 const asObject = (q) => (q.toObject ? q.toObject() : q)

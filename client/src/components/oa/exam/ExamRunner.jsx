@@ -111,6 +111,8 @@ export default function ExamRunner({ paper, screenStream, onScreenStream, onFini
 
     // ---- face checks from the camera feed ----
     const onFace = useCallback((message) => { const type = FACE_MESSAGES[message]; if (type && cfg.faceChecks) proctor.report(type, message) }, [cfg.faceChecks]) // eslint-disable-line react-hooks/exhaustive-deps
+    // Logged for the organizer (never counted against the student): this attempt ran without face checks.
+    const onDetectorDown = useCallback(() => { if (cfg.faceChecks) proctor.report('FACE_CHECK_UNAVAILABLE', 'Face detection could not load on this network') }, [cfg.faceChecks]) // eslint-disable-line react-hooks/exhaustive-deps
     const onCameraStream = useCallback((stream) => setCamera(stream), [])
 
     const q = flat[index]
@@ -178,7 +180,7 @@ export default function ExamRunner({ paper, screenStream, onScreenStream, onFini
 
                 <aside className='space-y-4 lg:sticky lg:top-24'>
                     <div className='bg-card border border-line rounded-2xl overflow-hidden'>
-                        <ProctoringCamera active audio={false} onViolation={onFace} onStream={onCameraStream} className='aspect-[4/3] !rounded-none' />
+                        <ProctoringCamera active audio={false} onViolation={onFace} onStream={onCameraStream} onDetectorUnavailable={onDetectorDown} className='aspect-[4/3] !rounded-none' />
                         <p className='px-3 py-2 text-[11.5px] text-text-secondary'>Your camera is on and your screen is being monitored.</p>
                     </div>
                     <nav aria-label='Questions' className='bg-card border border-line rounded-2xl p-4'>

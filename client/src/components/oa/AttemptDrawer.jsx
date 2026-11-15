@@ -15,7 +15,7 @@ const VIOLATION_LABEL = {
     TAB_SWITCH: 'Switched tab', WINDOW_BLUR: 'Left the test window', FULLSCREEN_EXIT: 'Exited full screen', COPY_PASTE: 'Copy / paste attempt',
     SCREEN_SHARE_STOPPED: 'Stopped sharing screen', CAMERA_OFF: 'Camera turned off', NO_FACE: 'No face in camera', MULTIPLE_FACES: 'More than one face',
     LOOKING_AWAY: 'Looked away', DEVTOOLS: 'Developer tools opened', MULTIPLE_MONITORS: 'Second monitor detected', RIGHT_CLICK: 'Right-click blocked',
-    SHORTCUT_BLOCKED: 'Shortcut blocked', RESUMED: 'Re-entered the test', EXAM_STARTED: 'Started the test', CONNECTION_GAP: 'Connection gap',
+    SHORTCUT_BLOCKED: 'Shortcut blocked', RESUMED: 'Re-entered the test', EXAM_STARTED: 'Started the test', CONNECTION_GAP: 'Connection gap', FACE_CHECK_UNAVAILABLE: 'Face checks could not run',
 }
 
 function Answer({ q, grade, onGrade, locked }) {

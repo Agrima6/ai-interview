@@ -17,7 +17,8 @@ export const VIOLATION_TEXT = {
 /** A small JPEG of the webcam, kept tiny: it is evidence for a human reviewer, not a recording. */
 export const grabFrame = (video, width = 240, height = 180, quality = 0.5) => {
     try {
-        if (!video || video.readyState < 2 || !video.videoWidth) return null
+        // currentTime > 0: a video can report data before it has decoded a frame, and drawing it then gives a black picture.
+        if (!video || video.readyState < 2 || !video.videoWidth || !(video.currentTime > 0)) return null
         const canvas = document.createElement('canvas')
         canvas.width = width; canvas.height = height
         canvas.getContext('2d').drawImage(video, 0, 0, width, height)

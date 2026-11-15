@@ -58,7 +58,7 @@ export const login = async ({ email, password }) => {
     if (!account || !verifyPassword(password, account.passwordHash)) throw new ApiError(401, "INVALID_CREDENTIALS", "The email or password is incorrect.")
 
     if (account.status === "PENDING") throw new ApiError(403, "ACCOUNT_PENDING", "Your registration is waiting for approval. We will email you as soon as it is reviewed.")
-    if (account.status === "CHANGES_REQUESTED") throw new ApiError(403, "ACCOUNT_CHANGES_REQUESTED", `Your registration needs a change before approval: ${account.review?.note || "see your email"}. Register again with the corrections.`)
+    if (account.status === "CHANGES_REQUESTED") throw new ApiError(403, "ACCOUNT_CHANGES_REQUESTED", `Your registration needs a change before approval: ${(account.review?.note || "see your email").replace(/[.\s]+$/, "")}. Register again with the corrections.`)
     if (account.status === "REJECTED") throw new ApiError(403, "ACCOUNT_REJECTED", `Your registration was not approved${account.review?.note ? `: ${account.review.note}` : "."}`)
     if (account.status === "SUSPENDED") throw new ApiError(403, "ACCOUNT_SUSPENDED", "This account is suspended. Please contact support.")
 
