@@ -47,7 +47,8 @@ function Answer({ q, grade, onGrade, locked }) {
                 {subjective ? (
                     <>
                         <label className='flex items-center gap-2'>Marks
-                            <input type='number' min={0} max={q.marks} step={0.5} disabled={locked} aria-label={`Marks for: ${q.text.slice(0, 40)}`} className={`${inputClass} !w-24 !py-1.5`} value={value} onChange={(e) => onGrade(q.id, e.target.value === '' ? '' : Number(e.target.value))} /> / {q.marks}</label>
+                            <input inputMode='decimal' disabled={locked} aria-label={`Marks for: ${q.text.slice(0, 40)}`} aria-invalid={Number(value) > q.marks} className={`${inputClass} !w-24 !py-1.5 ${Number(value) > q.marks ? '!border-[var(--color-danger)]' : ''}`} value={value}
+                                onChange={(e) => { const raw = e.target.value.replace(/[^\d.]/g, '').replace(/^(\d*\.?\d{0,2}).*$/, '$1'); onGrade(q.id, raw === '' ? '' : Math.min(Number(raw), q.marks) === Number(raw) ? raw : String(q.marks)) }} /> / {q.marks}</label>
                         {grade?.needsReview && grade?.auto && <Badge variant='warning'>Auto-scored from keywords: please check</Badge>}
                         {grade?.marks === null && <Badge variant='warning'>Waiting for you</Badge>}
                     </>

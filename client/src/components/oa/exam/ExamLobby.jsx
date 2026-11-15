@@ -5,6 +5,7 @@ import Button from '../../Button'
 import useNow from '../../../hooks/useNow'
 import { formatDateTime } from '../oaFormat'
 import { describeEnvironment, mobileDevice, requestCamera, requestScreen, stopStream } from './examMedia'
+import SlotPicker from './SlotPicker'
 
 const countdown = (ms) => {
     const s = Math.max(0, Math.ceil(ms / 1000))
@@ -16,7 +17,7 @@ const countdown = (ms) => {
 function Check({ done, label, hint, error, action }) {
     return (
         <li className='flex items-start gap-3 py-3'>
-            {done ? <CheckCircle2 size={20} className='text-[var(--color-success)] shrink-0 mt-0.5' /> : <Circle size={20} className='text-text-secondary shrink-0 mt-0.5' />}
+            {done ? <CheckCircle2 size={20} className='ui-pop text-[var(--color-success)] shrink-0 mt-0.5' /> : <Circle size={20} className='text-text-secondary shrink-0 mt-0.5' />}
             <div className='min-w-0 flex-1'>
                 <div className='text-[14px] font-semibold text-ink'>{label}</div>
                 <div className='text-[12.5px] text-text-secondary'>{hint}</div>
@@ -28,7 +29,7 @@ function Check({ done, label, hint, error, action }) {
 }
 
 // Instructions, the system check, the countdown to the start, and the one click that begins the test.
-export default function ExamLobby({ session, screenStream, onScreenStream, onStarted }) {
+export default function ExamLobby({ session, screenStream, onScreenStream, onStarted, onSlotBooked }) {
     const { assessment: a, student, attempt } = session
     const cfg = a.proctoring
     const now = useNow(1000)
@@ -55,8 +56,9 @@ export default function ExamLobby({ session, screenStream, onScreenStream, onSta
         if (r.ok) { onScreenStream(r.stream); setScreen({ ok: true, error: '' }) } else setScreen({ ok: false, error: r.message })
     }
 
-    const startAt = new Date(a.schedule.startAt).getTime()
-    const untilStart = startAt - (now + skew.current)
+    const startAt = a.schedule.startAt ? new Date(a.schedule.startAt).getTime() : null
+    const untilStart = startAt === null ? 0 : startAt - (now + skew.current)
+    const choosing = a.phase === 'CHOOSE_SLOT' || a.phase === 'NO_SLOT'
     const open = a.phase === 'OPEN' || resuming
     const needCamera = cfg.requireCamera; const needScreen = cfg.requireScreenShare
     const ready = (!needCamera || camera.ok) && (!needScreen || screen.ok) && agreed && !(cfg.level === 'HARD' && extended) && !small
@@ -86,19 +88,22 @@ export default function ExamLobby({ session, screenStream, onScreenStream, onSta
                 </div>
             </header>
             <main className='max-w-[1100px] mx-auto px-5 py-8 grid lg:grid-cols-[1fr_420px] gap-8 items-start'>
-                <section className='space-y-6'>
-                    <div className='bg-card border border-line rounded-2xl p-6'>
+                <section className='space-y-6 oa-stagger'>
+                    <div className='oa-mesh bg-card border border-line rounded-2xl p-6'>
                         <div className='flex items-center gap-2 text-[13px] font-semibold text-accent mb-2'><Clock size={15} />
-                            {a.phase === 'UPCOMING' ? 'Starts in' : a.phase === 'OPEN' ? 'The test is open' : resuming ? 'You are part-way through' : ''}</div>
+                            {a.phase === 'UPCOMING' ? 'Starts in' : a.phase === 'OPEN' ? 'The test is open' : resuming ? 'You are part-way through' : a.phase === 'CHOOSE_SLOT' ? 'Pick your time' : a.phase === 'NO_SLOT' ? 'No slot booked' : ''}</div>
+                        {a.phase === 'CHOOSE_SLOT' && <div className='font-display text-[24px] font-bold text-ink'>Choose a start time below</div>}
+                        {a.phase === 'NO_SLOT' && <div className='font-display text-[22px] font-bold text-ink'>You did not book a slot in time</div>}
                         {a.phase === 'UPCOMING' && <div className='font-display text-[34px] font-bold text-ink tabular-nums' aria-live='off'>{countdown(untilStart)}</div>}
                         {a.phase === 'OPEN' && !resuming && <div className='font-display text-[28px] font-bold text-ink'>You can start now</div>}
                         {resuming && <div className='font-display text-[24px] font-bold text-ink'>Resume your test</div>}
                         <dl className='grid sm:grid-cols-3 gap-4 mt-5 text-[13px]'>
-                            <div><dt className='text-text-secondary'>Starts</dt><dd className='font-semibold text-ink'>{formatDateTime(a.schedule.startAt, a.schedule.timezone)}</dd></div>
+                            <div><dt className='text-text-secondary'>Starts</dt><dd className='font-semibold text-ink'>{startAt === null ? 'Choose a slot' : formatDateTime(a.schedule.startAt, a.schedule.timezone)}</dd></div>
                             <div><dt className='text-text-secondary'>Duration</dt><dd className='font-semibold text-ink'>{a.schedule.durationMinutes} minutes</dd></div>
                             <div><dt className='text-text-secondary'>Questions</dt><dd className='font-semibold text-ink'>{a.questionCount} · {a.totalMarks} marks</dd></div>
                         </dl>
                     </div>
+                    {a.slots && !resuming && <SlotPicker slots={a.slots} cutoffMinutes={a.slotCutoffMinutes} timezone={a.schedule.timezone} durationMinutes={a.schedule.durationMinutes} onBooked={onSlotBooked} />}
                     {a.description && <p className='text-[14px] text-ink leading-relaxed'>{a.description}</p>}
                     <div className='bg-card border border-line rounded-2xl p-6'>
                         <h2 className='text-[15px] font-bold text-ink mb-3'>Instructions</h2>
@@ -130,9 +135,10 @@ export default function ExamLobby({ session, screenStream, onScreenStream, onSta
                         <span className='text-[13px] text-ink'>I understand the rules, and I agree to be monitored by camera and screen during this test.</span>
                     </label>
                     {error && <p role='alert' className='mt-3 text-[13px] text-[var(--color-danger)] flex items-start gap-2'><AlertTriangle size={15} className='mt-0.5 shrink-0' /> {error}</p>}
-                    <Button className='w-full mt-5' disabled={!ready || !open || starting} onClick={begin}>
-                        <Maximize size={16} /> {starting ? 'Starting…' : resuming ? 'Resume test' : open ? 'Start test' : a.phase === 'UPCOMING' ? 'Waiting for the start time' : 'Not available'}
+                    <Button className={`w-full mt-5 oa-press ${ready && open && !starting ? 'oa-ring' : ''}`} disabled={!ready || !open || starting} onClick={begin}>
+                        <Maximize size={16} /> {starting ? 'Starting…' : resuming ? 'Resume test' : open ? 'Start test' : a.phase === 'UPCOMING' ? 'Waiting for the start time' : a.phase === 'CHOOSE_SLOT' ? 'Choose a time slot first' : 'Not available'}
                     </Button>
+                    {choosing && a.phase === 'CHOOSE_SLOT' && <p className='text-[12px] text-text-secondary mt-2 text-center'>Book a slot first. You can finish the checks now.</p>}
                     {!open && a.phase === 'UPCOMING' && <p className='text-[12px] text-text-secondary mt-2 text-center'>You can finish the checks now. The button turns on at the start time.</p>}
                     {a.phase === 'CLOSED_TO_ENTRY' && !resuming && <p role='alert' className='text-[12.5px] text-[var(--color-danger)] mt-2'>The late-entry window has closed. Please contact your organizer.</p>}
                 </aside>

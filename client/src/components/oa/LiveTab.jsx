@@ -6,6 +6,7 @@ import Badge from '../ui/Badge'
 import EmptyState from '../ui/EmptyState'
 import useNow from '../../hooks/useNow'
 import { AttemptStatus, ErrorState, PhaseBadge, TableSkeleton } from './oaUi'
+import { formatDay, formatTime } from './oaFormat'
 
 const clock = (ms) => {
     if (ms <= 0) return '0:00'
@@ -21,6 +22,8 @@ export default function LiveTab({ assessment: a }) {
 
     if (live.isError) return <ErrorState title='Could not load the live view' message={live.error.message} onRetry={live.refetch} />
     const c = data?.counts
+    const slotted = a.schedule?.mode === 'SLOTS'
+    const tz = a.schedule?.timezone
 
     return (
         <>
@@ -40,13 +43,14 @@ export default function LiveTab({ assessment: a }) {
                     <EmptyState compact title='Nobody is on this test yet' description='Add students on the Students tab.' />
                 ) : (
                     <div className='overflow-x-auto'>
-                        <table className='w-full text-[13.5px] min-w-[640px]'>
-                            <thead className='bg-surface-muted text-left text-[12px] font-semibold text-text-secondary'><tr><th className='px-4 py-3'>Student</th><th className='px-4 py-3'>Status</th><th className='px-4 py-3 text-right'>Time left</th><th className='px-4 py-3 text-right'>Violations</th><th className='px-4 py-3'>Connection</th></tr></thead>
+                        <table className='w-full text-[13.5px] min-w-[720px]'>
+                            <thead className='bg-surface-muted text-left text-[12px] font-semibold text-text-secondary'><tr><th className='px-4 py-3'>Student</th><th className='px-4 py-3'>Status</th>{slotted && <th className='px-4 py-3'>Slot</th>}<th className='px-4 py-3 text-right'>Time left</th><th className='px-4 py-3 text-right'>Violations</th><th className='px-4 py-3'>Connection</th></tr></thead>
                             <tbody className='divide-y divide-line'>
                                 {data.items.map((s) => (
-                                    <tr key={s.studentId}>
+                                    <tr key={s.studentId} className='ui-row'>
                                         <td className='px-4 py-3'><div className='font-semibold text-ink'>{s.name}</div><div className='text-[12px] text-text-secondary'>{s.rollNumber || s.email}</div></td>
                                         <td className='px-4 py-3'><AttemptStatus status={s.status} /></td>
+                                        {slotted && <td className='px-4 py-3 whitespace-nowrap text-[13px]'>{s.slotStartAt ? `${formatDay(s.slotStartAt, tz)}, ${formatTime(s.slotStartAt, tz)}` : <span className='text-text-secondary'>Not chosen</span>}</td>}
                                         <td className='px-4 py-3 text-right tabular-nums'>{s.status === 'IN_PROGRESS' && s.deadline ? clock(new Date(s.deadline) - now) : '—'}</td>
                                         <td className='px-4 py-3 text-right'>{s.violationCount > 0 ? <Badge variant={s.violationCount >= 3 ? 'danger' : 'warning'}>{s.violationCount}</Badge> : <span className='text-text-secondary'>0</span>}</td>
                                         <td className='px-4 py-3'>{s.status === 'IN_PROGRESS' ? (s.offline ? <Badge variant='danger'>Offline {s.silentForSec}s</Badge> : <Badge variant='success' dot>Connected</Badge>) : <span className='text-text-secondary'>—</span>}</td>

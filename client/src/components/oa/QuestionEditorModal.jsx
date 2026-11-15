@@ -3,6 +3,8 @@ import { Plus, Trash2 } from 'lucide-react'
 import Button from '../Button'
 import Modal from '../ui/Modal'
 import { LANGUAGES, TYPE_LABELS, inputClass } from './oaFormat'
+import { NumberField } from './oaFields'
+import { LIMITS, rangeError } from './oaRules'
 
 const DEFAULT_MARKS = { MCQ: 1, MSQ: 2, SHORT: 3, LONG: 10, CODING: 15 }
 
@@ -36,15 +38,24 @@ export default function QuestionEditorModal({ open, onClose, sections, question,
     const setOption = (i, text) => setF((s) => ({ ...s, options: s.options.map((o, j) => (j === i ? { ...o, text } : o)) }))
     const removeOption = (i) => setF((s) => ({ ...s, options: s.options.filter((_, j) => j !== i), correctIdx: s.correctIdx.filter((x) => x !== i).map((x) => (x > i ? x - 1 : x)) }))
 
+    const marksError = rangeError(f.marks, { ...LIMITS.marks, label: 'Marks', decimals: true })
+    const negativeError = !choice ? '' : rangeError(f.negativeMarks, { min: 0, max: Math.min(Number(f.marks) || LIMITS.marks.max, LIMITS.marks.max), label: 'Negative marks', decimals: true, required: false })
     const submit = (e) => {
         e.preventDefault()
         setError('')
         if (!f.text.trim()) return setError('Write the question.')
+        if (f.text.length > LIMITS.questionText.max) return setError(`The question can be at most ${LIMITS.questionText.max} characters.`)
+        if (marksError) return setError(marksError)
+        if (negativeError) return setError(negativeError)
         if (choice) {
             const filled = f.options.filter((o) => o.text.trim())
-            if (filled.length < 2) return setError('Give at least two options.')
-            if (!f.correctIdx.some((i) => f.options[i]?.text.trim())) return setError('Mark the correct answer.')
+            if (filled.length < LIMITS.options.min) return setError(`Give at least ${LIMITS.options.min} options.`)
+            if (new Set(filled.map((o) => o.text.trim().toLowerCase())).size !== filled.length) return setError('Options must be different from each other.')
+            const right = f.correctIdx.filter((i) => f.options[i]?.text.trim())
+            if (!right.length) return setError('Mark the correct answer.')
+            if (f.type === 'MCQ' && right.length !== 1) return setError('A single-answer question has exactly one correct option.')
         }
+        if (f.type === 'CODING' && !f.codeLanguages.length) return setError('Pick at least one language.')
         // Options are sent as plain text with the correct ones named by their text, so a re-ordered or edited list can never point at the wrong option.
         const payload = toPayload(f)
         if (choice) {
@@ -73,8 +84,8 @@ export default function QuestionEditorModal({ open, onClose, sections, question,
                     <textarea rows={f.type === 'CODING' ? 5 : 3} className={`${inputClass} mt-1.5`} value={f.text} onChange={(e) => set('text', e.target.value)} maxLength={4000} placeholder={f.type === 'CODING' ? 'Describe the problem, the input format and the expected output.' : 'Write the question'} /></label>
 
                 <div className='grid grid-cols-2 gap-3 max-w-sm'>
-                    <label className='block'><span className='text-[12.5px] font-semibold text-ink'>Marks</span><input type='number' min={0.5} step={0.5} className={`${inputClass} mt-1.5`} value={f.marks} onChange={(e) => set('marks', e.target.value)} /></label>
-                    {choice && <label className='block'><span className='text-[12.5px] font-semibold text-ink'>Negative marks</span><input type='number' min={0} step={0.25} className={`${inputClass} mt-1.5`} value={f.negativeMarks} onChange={(e) => set('negativeMarks', e.target.value)} /></label>}
+                    <NumberField label='Marks' decimals hint={`${LIMITS.marks.min} to ${LIMITS.marks.max}`} value={String(f.marks)} onChange={(v) => set('marks', v)} max={LIMITS.marks.max} error={marksError} />
+                    {choice && <NumberField label='Negative marks' decimals hint='For a wrong answer' value={String(f.negativeMarks)} onChange={(v) => set('negativeMarks', v)} max={LIMITS.marks.max} error={negativeError} />}
                 </div>
 
                 {choice && (
@@ -89,7 +100,7 @@ export default function QuestionEditorModal({ open, onClose, sections, question,
                                 </div>
                             ))}
                         </div>
-                        {f.options.length < 8 && <button type='button' onClick={() => set('options', [...f.options, { text: '' }])} className='mt-2 text-[12.5px] font-semibold text-accent inline-flex items-center gap-1'><Plus size={13} /> Add option</button>}
+                        {f.options.length < LIMITS.options.max && <button type='button' onClick={() => set('options', [...f.options, { text: '' }])} className='mt-2 text-[12.5px] font-semibold text-accent inline-flex items-center gap-1'><Plus size={13} /> Add option</button>}
                     </fieldset>
                 )}
 

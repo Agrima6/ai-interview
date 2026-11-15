@@ -65,5 +65,5 @@ export default function OaExamPage() {
     const done = finish || (s.attempt && s.attempt.status !== 'IN_PROGRESS')
     if (done) return <Finished session={s} info={finish} onLeave={leave} />
     if (paper) return <ExamRunner paper={paper} screenStream={screenStream} onScreenStream={setScreenStream} onFinish={onFinish} />
-    return <ExamLobby session={s} screenStream={screenStream} onScreenStream={setScreenStream} onStarted={setPaper} />
+    return <ExamLobby session={s} screenStream={screenStream} onScreenStream={setScreenStream} onStarted={setPaper} onSlotBooked={session.refetch} />
 }

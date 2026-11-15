@@ -38,8 +38,8 @@ export default function OaExamEntryPage() {
                     <Link to='/oa/login' className='text-[14px] font-medium text-accent hover:underline'>Organizer sign in →</Link>
                 </div>
             </header>
-            <main className='flex-1 flex items-center justify-center px-4 py-10'>
-                <AuthCard>
+            <main className='oa-mesh flex-1 flex items-center justify-center px-4 py-10'>
+                <AuthCard className='oa-rise'>
                     <h1 className='font-display text-[26px] font-bold text-[#1a1215] mb-1'>Enter your test</h1>
                     <p className='text-[14px] text-gray-500 mb-6'>Use the email your invitation was sent to and the access code from it.</p>
                     {error && <div role='alert' className='mb-4 text-[13.5px] text-[var(--color-danger)] bg-[var(--color-danger-soft)] rounded-xl px-4 py-3'>{error}</div>}
