@@ -1,0 +1,130 @@
+import React, { useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { Download, FlagTriangleRight, Trophy } from 'lucide-react'
+import { oaApi } from '../../api/oaApi'
+import useDebouncedValue from '../../hooks/useDebouncedValue'
+import Badge from '../ui/Badge'
+import Button from '../Button'
+import EmptyState from '../ui/EmptyState'
+import Modal from '../ui/Modal'
+import Pagination from '../ui/Pagination'
+import SearchInput from '../ui/SearchInput'
+import { useToast } from '../ui/Toast'
+import AttemptDrawer from './AttemptDrawer'
+import { AttemptStatus, ErrorState, TableSkeleton } from './oaUi'
+import { formatDuration, inputClass } from './oaFormat'
+
+const STATUSES = [['', 'All statuses'], ['SUBMITTED', 'Submitted'], ['AUTO_SUBMITTED', 'Time up'], ['TERMINATED', 'Ended by proctor'], ['IN_PROGRESS', 'In progress'], ['NOT_STARTED', 'Not started']]
+
+function NextRoundModal({ open, onClose, assessment, passPercent }) {
+    const navigate = useNavigate()
+    const toast = useToast()
+    const [f, setF] = useState({ title: `${assessment.title} · Round 2`, mode: 'percent', minPercent: passPercent, topN: 10 })
+    const make = useMutation({
+        mutationFn: () => oaApi.nextRound(assessment.id, { title: f.title, ...(f.mode === 'percent' ? { minPercent: Number(f.minPercent) } : { topN: Number(f.topN) }) }),
+        onSuccess: (r) => { toast.success(`Round created with ${r.students} student${r.students === 1 ? '' : 's'}.`); navigate(`/oa/admin/assessments/${r.assessmentId}`) },
+        onError: (err) => toast.error(err.message),
+    })
+    return (
+        <Modal open={open} onClose={onClose} title='Create the next round' size='md'
+            footer={<><Button variant='secondary' size='sm' onClick={onClose}>Cancel</Button><Button size='sm' disabled={make.isPending || f.title.trim().length < 3} onClick={() => make.mutate()}>{make.isPending ? 'Creating…' : 'Create round'}</Button></>}>
+            <div className='space-y-4'>
+                <p className='text-[13.5px] text-text-secondary'>Qualifying students are copied into a new draft with fresh access codes. Disqualified and unfinished attempts are left out. You then add questions and a schedule.</p>
+                <label className='block'><span className='text-[12.5px] font-semibold text-ink'>Name</span><input className={`${inputClass} mt-1.5`} value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} maxLength={140} /></label>
+                <fieldset><legend className='text-[12.5px] font-semibold text-ink mb-1.5'>Who moves on</legend>
+                    <div className='space-y-2.5'>
+                        <label className='flex items-center gap-2 text-[13.5px]'><input type='radio' name='mode' className='accent-[var(--color-accent)]' checked={f.mode === 'percent'} onChange={() => setF({ ...f, mode: 'percent' })} /> Everyone scoring at least <input type='number' min={0} max={100} aria-label='Minimum percent' className={`${inputClass} !w-20 !py-1.5`} value={f.minPercent} onChange={(e) => setF({ ...f, minPercent: e.target.value, mode: 'percent' })} /> %</label>
+                        <label className='flex items-center gap-2 text-[13.5px]'><input type='radio' name='mode' className='accent-[var(--color-accent)]' checked={f.mode === 'top'} onChange={() => setF({ ...f, mode: 'top' })} /> The top <input type='number' min={1} aria-label='How many' className={`${inputClass} !w-20 !py-1.5`} value={f.topN} onChange={(e) => setF({ ...f, topN: e.target.value, mode: 'top' })} /> ranks <span className='text-text-secondary text-[12px]'>(ties all move on)</span></label>
+                    </div></fieldset>
+            </div>
+        </Modal>
+    )
+}
+
+export default function ResultsTab({ assessment: a }) {
+    const toast = useToast()
+    const [params, setParams] = useSearchParams()
+    const get = (k) => params.get(k) || ''
+    const [search, setSearch] = useState('')
+    const q = useDebouncedValue(search)
+    const filters = { search: q, status: get('rstatus'), result: get('rresult'), flagged: get('rflag'), minPercent: get('rmin') }
+    const page = Number(get('rpage')) || 1
+    const pageSize = Number(get('rsize')) || 25
+    const [open, setOpen] = useState(null)
+    const [nextRound, setNextRound] = useState(false)
+    const [exporting, setExporting] = useState(false)
+
+    const update = (patch) => setParams((p) => { const n = new URLSearchParams(p); Object.entries(patch).forEach(([k, v]) => (v ? n.set(k, v) : n.delete(k))); n.delete('rpage'); return n }, { replace: true })
+
+    const results = useQuery({ queryKey: ['oa', 'assessment', a.id, 'results', filters, page, pageSize], queryFn: () => oaApi.results(a.id, { ...filters, page, pageSize }), placeholderData: (p) => p })
+    const s = results.data?.summary
+    const items = results.data?.items || []
+    const activeFilters = Object.values(filters).filter(Boolean).length
+
+    const exportCsv = async () => {
+        setExporting(true)
+        try { await oaApi.exportResults(a.id, filters); toast.success(activeFilters ? 'Downloaded the filtered results.' : 'Downloaded all results.') } catch (err) { toast.error(err.message) } finally { setExporting(false) }
+    }
+
+    return (
+        <>
+            {s && (
+                <dl className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 bg-card border border-line rounded-2xl divide-x divide-y lg:divide-y-0 divide-line mb-5'>
+                    {[['Invited', s.invited], ['Finished', s.finished], ['Passed', s.passed], ['Average', s.average === null ? '—' : `${s.average}%`], ['Highest', s.highest === null ? '—' : `${s.highest}%`], ['To grade', s.pendingReview]].map(([label, value]) => (
+                        <div key={label} className='px-4 py-3.5'><dt className='text-[12px] font-semibold text-text-secondary'>{label}</dt><dd className='text-[21px] font-display font-bold text-ink tabular-nums'>{value}</dd></div>
+                    ))}
+                </dl>
+            )}
+            {s?.pendingReview > 0 && <p role='status' className='mb-4 text-[13px] bg-[var(--color-warning-soft)] text-[var(--color-warning)] rounded-xl px-4 py-2.5'>{s.pendingReview} attempt{s.pendingReview === 1 ? ' has' : 's have'} long answers or code waiting for your marks. Ranks are provisional until they are graded.</p>}
+
+            <div className='flex flex-col xl:flex-row xl:items-center justify-between gap-3 mb-4'>
+                <div className='flex flex-wrap items-center gap-2'>
+                    <SearchInput value={search} onChange={(e) => { setSearch(e.target.value); setParams((p) => { const n = new URLSearchParams(p); n.delete('rpage'); return n }, { replace: true }) }} placeholder='Search name, email or roll no.' className='w-full sm:w-64' />
+                    <select aria-label='Status' className={`${inputClass} !w-auto`} value={filters.status} onChange={(e) => update({ rstatus: e.target.value })}>{STATUSES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+                    <select aria-label='Result' className={`${inputClass} !w-auto`} value={filters.result} onChange={(e) => update({ rresult: e.target.value })}><option value=''>Pass and fail</option><option value='PASSED'>Passed</option><option value='FAILED'>Not passed</option></select>
+                    <input type='number' min={0} max={100} aria-label='Minimum percent' placeholder='Min %' className={`${inputClass} !w-24`} value={filters.minPercent} onChange={(e) => update({ rmin: e.target.value })} />
+                    <label className='flex items-center gap-1.5 text-[13px] text-ink px-2'><input type='checkbox' className='accent-[var(--color-accent)]' checked={filters.flagged === 'true'} onChange={(e) => update({ rflag: e.target.checked ? 'true' : '' })} /> Flagged only</label>
+                    {activeFilters > 0 && <button className='text-[13px] font-semibold text-accent' onClick={() => { setSearch(''); setParams((p) => { const n = new URLSearchParams(); n.set('tab', p.get('tab') || 'results'); return n }, { replace: true }) }}>Clear {activeFilters} filter{activeFilters === 1 ? '' : 's'}</button>}
+                </div>
+                <div className='flex gap-2'>
+                    <Button size='sm' variant='secondary' disabled={exporting} onClick={exportCsv}><Download size={14} /> {exporting ? 'Preparing…' : activeFilters ? 'Export filtered' : 'Export CSV'}</Button>
+                    <Button size='sm' onClick={() => setNextRound(true)}><Trophy size={14} /> Next round</Button>
+                </div>
+            </div>
+
+            <div className='bg-card border border-line rounded-2xl overflow-hidden'>
+                {results.isError ? <ErrorState title='Could not load results' message={results.error.message} onRetry={results.refetch} /> : results.isLoading ? <TableSkeleton cols={7} /> : items.length === 0 ? (
+                    <EmptyState icon={Trophy} compact title={activeFilters ? 'No one matches these filters' : 'No results yet'} description={activeFilters ? 'Loosen a filter to see more.' : 'Results appear here as students finish.'} />
+                ) : (
+                    <div className='overflow-x-auto'>
+                        <table className='w-full text-[13.5px] min-w-[900px]'>
+                            <thead className='bg-surface-muted text-left text-[12px] font-semibold text-text-secondary sticky top-0'><tr><th className='px-4 py-3 w-16'>Rank</th><th className='px-4 py-3'>Student</th><th className='px-4 py-3'>Status</th><th className='px-4 py-3 text-right'>Score</th><th className='px-4 py-3 text-right'>%</th><th className='px-4 py-3'>Result</th><th className='px-4 py-3 text-right'>Flags</th><th className='px-4 py-3 text-right'>Time</th></tr></thead>
+                            <tbody className='divide-y divide-line'>
+                                {items.map((r) => (
+                                    <tr key={r.studentId} className={`hover:bg-black/[0.02] ${r.attemptId ? 'cursor-pointer' : ''}`} onClick={() => r.attemptId && setOpen(r.attemptId)}>
+                                        <td className='px-4 py-3 font-bold tabular-nums'>{r.rank ?? '—'}</td>
+                                        <td className='px-4 py-3'>
+                                            {r.attemptId ? <button className='font-semibold text-ink hover:text-accent text-left' onClick={(e) => { e.stopPropagation(); setOpen(r.attemptId) }}>{r.name}</button> : <span className='font-semibold text-ink'>{r.name}</span>}
+                                            <div className='text-[12px] text-text-secondary'>{r.rollNumber || r.email}</div>
+                                        </td>
+                                        <td className='px-4 py-3'><AttemptStatus status={r.status} />{r.adminDecision && <div className='mt-1'><Badge variant={r.adminDecision === 'DISQUALIFIED' ? 'danger' : 'info'}>{r.adminDecision === 'DISQUALIFIED' ? 'Disqualified' : 'Cleared'}</Badge></div>}</td>
+                                        <td className='px-4 py-3 text-right tabular-nums'>{r.score === null ? '—' : `${r.score}/${r.maxScore}`}{r.gradingStatus === 'PENDING_REVIEW' && <span className='block text-[11px] text-[var(--color-warning)] font-semibold'>to grade</span>}</td>
+                                        <td className='px-4 py-3 text-right tabular-nums font-semibold'>{r.percent === null ? '—' : `${r.percent}%`}</td>
+                                        <td className='px-4 py-3'>{r.passed === null ? <span className='text-text-secondary'>—</span> : <Badge variant={r.passed ? 'success' : 'danger'}>{r.passed ? 'Passed' : 'Not passed'}</Badge>}</td>
+                                        <td className='px-4 py-3 text-right'>{r.violationCount > 0 ? <span className='inline-flex items-center gap-1 font-semibold text-[var(--color-danger)]'><FlagTriangleRight size={13} />{r.violationCount}</span> : <span className='text-text-secondary'>0</span>}</td>
+                                        <td className='px-4 py-3 text-right tabular-nums text-text-secondary'>{formatDuration(r.timeTakenSec)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+            {results.data?.total > 0 && <Pagination page={page} pageSize={pageSize} total={results.data.total} onPageChange={(p) => setParams((x) => { const n = new URLSearchParams(x); p > 1 ? n.set('rpage', String(p)) : n.delete('rpage'); return n }, { replace: true })} onPageSizeChange={(sz) => update({ rsize: String(sz) })} />}
+
+            <AttemptDrawer key={open || 'closed'} assessmentId={a.id} attemptId={open} onClose={() => setOpen(null)} />
+            {nextRound && <NextRoundModal open assessment={a} passPercent={s?.passPercent ?? 40} onClose={() => setNextRound(false)} />}
+        </>
+    )
+}

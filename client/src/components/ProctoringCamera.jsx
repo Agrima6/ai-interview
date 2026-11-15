@@ -21,7 +21,7 @@ const VIOLATION_MESSAGES = {
 // the screen for a sustained period. Reuses Step2Interview's existing
 // violation/warning system via onViolation - this is just another source
 // feeding into the same 3-strikes flow as tab-switching etc.
-function ProctoringCamera({ active, onViolation, onStream, className = "" }) {
+function ProctoringCamera({ active, onViolation, onStream, className = "", audio = true }) {
     const videoRef = useRef(null)
     const streamRef = useRef(null)
     const landmarkerRef = useRef(null)
@@ -73,7 +73,7 @@ function ProctoringCamera({ active, onViolation, onStream, className = "" }) {
                 // Also grabs audio so the same stream can double as the source for
                 // per-question answer recordings (see onStream) - proctoring itself
                 // only looks at the video track.
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 }, audio: true })
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 }, audio })
                 if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return }
                 streamRef.current = stream
                 if (videoRef.current) {

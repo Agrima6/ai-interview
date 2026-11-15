@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, ClipboardCheck, Building2, LogOut, MessageCircleQuestion, FileText, Menu, X, Settings } from 'lucide-react'
+import { LayoutDashboard, ClipboardCheck, Building2, LogOut, MessageCircleQuestion, FileText, Menu, X, Settings, ClipboardList } from 'lucide-react'
 import { useAuth, usePermission } from '../../hooks/useAuth.jsx'
 import { featurePermissions } from '../../permissions/featurePermissions'
 import logo from '../../assets/logo.png'
@@ -10,6 +10,7 @@ const NAV = [
     { to: '/platform/admin/forms', label: 'Forms', icon: FileText, permission: featurePermissions.formBuilder },
     { to: '/platform/admin/onboarding', label: 'Onboarding Review', icon: ClipboardCheck, permission: featurePermissions.onboarding },
     { to: '/platform/admin/clients', label: 'Clients', icon: Building2, permission: featurePermissions.clients },
+    { to: '/platform/admin/oa-approvals', label: 'Online Assessment', icon: ClipboardList, permission: 'CLIENT_APPROVE' },
     { to: '/platform/admin/enquiries', label: 'Enquiries', icon: MessageCircleQuestion, permission: featurePermissions.enquiries },
     { to: '/platform/admin/settings', label: 'Settings', icon: Settings, permission: featurePermissions.settings },
 ]

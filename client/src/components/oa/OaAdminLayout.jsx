@@ -1,0 +1,79 @@
+import React, { useEffect, useState } from 'react'
+import { NavLink, Navigate, useNavigate } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { ClipboardList, LayoutDashboard, LogOut, Menu, X } from 'lucide-react'
+import { oaApi, oaTokens } from '../../api/oaApi'
+import { ErrorState } from './oaUi'
+import Avatar from '../ui/Avatar'
+import logo from '../../assets/logo.png'
+
+const NAV = [
+    { to: '/oa/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
+    { to: '/oa/admin/assessments', label: 'Assessments', icon: ClipboardList },
+]
+
+// Gate + shell for the organizer side of Online Assessment. A separate room: its own sign-in, its own navigation.
+export function RequireOaAdmin({ children }) {
+    const navigate = useNavigate()
+    const queryClient = useQueryClient()
+    const hasToken = Boolean(oaTokens.get('admin'))
+    const [open, setOpen] = useState(false)
+    const me = useQuery({ queryKey: ['oa', 'me'], queryFn: oaApi.me, enabled: hasToken, retry: false, staleTime: 5 * 60 * 1000 })
+
+    useEffect(() => {
+        if (!open) return undefined
+        const onKey = (e) => e.key === 'Escape' && setOpen(false)
+        window.addEventListener('keydown', onKey)
+        return () => window.removeEventListener('keydown', onKey)
+    }, [open])
+
+    if (!hasToken) return <Navigate to='/oa/login' replace />
+    if (me.isError && ['ACCOUNT_INACTIVE', 'FORBIDDEN'].includes(me.error?.code)) { oaTokens.clear('admin'); return <Navigate to='/oa/login?inactive=1' replace /> }
+
+    const signOut = () => { oaApi.logout(); queryClient.removeQueries({ queryKey: ['oa'] }); navigate('/oa/login') }
+
+    return (
+        <div className='min-h-screen bg-bg flex'>
+            {open && <div className='fixed inset-0 z-[var(--z-drawer)] bg-[#1a1215]/45 lg:hidden' onClick={() => setOpen(false)} aria-hidden='true' />}
+            <aside className={`fixed inset-y-0 left-0 z-[var(--z-drawer)] w-[248px] border-r border-line bg-card flex flex-col transition-transform duration-200 lg:static lg:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'}`}>
+                <div className='flex items-center gap-2.5 px-5 h-[64px] border-b border-line'>
+                    <img src={logo} alt='' className='w-8 h-8 rounded-full' />
+                    <div className='flex-1 leading-tight'>
+                        <div className='font-display text-[14px] font-bold text-ink'>WorkmateIQ</div>
+                        <div className='text-[11px] font-semibold text-accent tracking-wide'>Online Assessment</div>
+                    </div>
+                    <button onClick={() => setOpen(false)} aria-label='Close menu' className='lg:hidden text-text-secondary hover:text-ink'><X size={18} /></button>
+                </div>
+                <nav className='flex-1 p-3 space-y-1' aria-label='Online Assessment'>
+                    {NAV.map((item) => (
+                        <NavLink key={item.to} to={item.to} end={item.end} onClick={() => setOpen(false)}
+                            className={({ isActive }) => `flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-colors ${isActive ? 'bg-accent/10 text-accent' : 'text-text-secondary hover:bg-black/[0.03] hover:text-ink'}`}>
+                            <item.icon size={16} /> {item.label}
+                        </NavLink>
+                    ))}
+                </nav>
+                <div className='p-3 border-t border-line'>
+                    <div className='flex items-center gap-2.5 px-2 py-2'>
+                        <Avatar name={me.data?.orgName || '?'} size='sm' />
+                        <div className='min-w-0 flex-1'>
+                            <div className='text-[13px] font-semibold text-ink truncate'>{me.data?.orgName || 'Loading…'}</div>
+                            <div className='text-[11.5px] text-text-secondary truncate'>{me.data?.email}</div>
+                        </div>
+                    </div>
+                    <button onClick={signOut} className='w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13.5px] font-medium text-text-secondary hover:bg-black/[0.03] hover:text-ink'>
+                        <LogOut size={16} /> Sign out
+                    </button>
+                </div>
+            </aside>
+            <div className='flex-1 min-w-0 flex flex-col'>
+                <header className='lg:hidden sticky top-0 z-[var(--z-sticky-header)] h-14 bg-card border-b border-line flex items-center gap-3 px-4'>
+                    <button onClick={() => setOpen(true)} aria-label='Open menu' className='text-ink'><Menu size={20} /></button>
+                    <span className='font-display text-[14px] font-bold text-ink'>Online Assessment</span>
+                </header>
+                <main className='flex-1 w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8'>
+                    {me.isError ? <ErrorState message={me.error.message} onRetry={() => me.refetch()} /> : children}
+                </main>
+            </div>
+        </div>
+    )
+}

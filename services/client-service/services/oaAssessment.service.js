@@ -157,7 +157,11 @@ const scheduleFrom = (assessment, input) => {
     return parsed
 }
 
-export const getAssessment = async (accountId, id) => assessmentView(await owned(accountId, id))
+// `locked`: someone has started, so questions, sections, rules and schedule can no longer change.
+export const getAssessment = async (accountId, id) => {
+    const assessment = await owned(accountId, id)
+    return assessmentView(assessment, { locked: Boolean(await hasAttempts(assessment._id)) })
+}
 
 export const updateAssessment = async (accountId, id, patch = {}) => {
     const assessment = await owned(accountId, id)
@@ -190,7 +194,7 @@ export const updateAssessment = async (accountId, id, patch = {}) => {
         assessment.sections = next
     }
     await assessment.save()
-    return assessmentView(assessment)
+    return assessmentView(assessment, { locked: started })
 }
 
 export const publish = async (accountId, id) => {
