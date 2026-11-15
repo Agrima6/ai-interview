@@ -21,7 +21,7 @@ const VIOLATION_MESSAGES = {
 // the screen for a sustained period. Reuses Step2Interview's existing
 // violation/warning system via onViolation - this is just another source
 // feeding into the same 3-strikes flow as tab-switching etc.
-function ProctoringCamera({ active, onViolation, onStream, className = "" }) {
+function ProctoringCamera({ active, onViolation, onStream, onDetectorUnavailable, className = "", audio = true }) {
     const videoRef = useRef(null)
     const streamRef = useRef(null)
     const landmarkerRef = useRef(null)
@@ -73,7 +73,7 @@ function ProctoringCamera({ active, onViolation, onStream, className = "" }) {
                 // Also grabs audio so the same stream can double as the source for
                 // per-question answer recordings (see onStream) - proctoring itself
                 // only looks at the video track.
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 }, audio: true })
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 }, audio })
                 if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return }
                 streamRef.current = stream
                 if (videoRef.current) {
@@ -104,7 +104,10 @@ function ProctoringCamera({ active, onViolation, onStream, className = "" }) {
                 }, CHECK_INTERVAL_MS)
             } catch (error) {
                 console.log("Proctoring camera unavailable:", error)
-                if (!cancelled) setStatus("unavailable")
+                if (cancelled) return
+                // The camera itself is fine but the face model could not load (a network that blocks the CDN, say):
+                // keep showing the video and say so, instead of blacking it out as if the camera were broken.
+                if (streamRef.current) { setStatus("detector-unavailable"); onDetectorUnavailable?.() } else setStatus("unavailable")
             }
         }
 
@@ -119,7 +122,7 @@ function ProctoringCamera({ active, onViolation, onStream, className = "" }) {
     }, [active])
 
     const ringColor = status === "ok" ? "ring-success"
-        : status === "initializing" ? "ring-line"
+        : status === "initializing" || status === "detector-unavailable" ? "ring-line"
         : "ring-red-500"
 
     const statusLabel = {
@@ -128,6 +131,7 @@ function ProctoringCamera({ active, onViolation, onStream, className = "" }) {
         "no-face": "No face detected",
         "multiple-faces": "Multiple faces detected",
         "looking-away": "Please face the screen",
+        "detector-unavailable": "Face checks unavailable",
         unavailable: "Camera unavailable",
     }[status]
 
@@ -139,8 +143,8 @@ function ProctoringCamera({ active, onViolation, onStream, className = "" }) {
                 <Camera size={11} /> Your Camera
             </div>
 
-            <div className={`absolute bottom-3 left-3 flex items-center gap-1.5 backdrop-blur-sm text-[11.5px] font-medium px-2.5 py-1 rounded-full ${status === "ok" ? "bg-black/70 text-white" : status === "initializing" ? "bg-black/70 text-white/70" : "bg-red-600 text-white"}`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${status === "ok" ? "bg-success" : status === "initializing" ? "bg-white/50" : "bg-white animate-pulse"}`} />
+            <div className={`absolute bottom-3 left-3 flex items-center gap-1.5 backdrop-blur-sm text-[11.5px] font-medium px-2.5 py-1 rounded-full ${status === "ok" ? "bg-black/70 text-white" : status === "initializing" || status === "detector-unavailable" ? "bg-black/70 text-white/70" : "bg-red-600 text-white"}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${status === "ok" ? "bg-success" : status === "initializing" || status === "detector-unavailable" ? "bg-white/50" : "bg-white animate-pulse"}`} />
                 {statusLabel}
             </div>
 
