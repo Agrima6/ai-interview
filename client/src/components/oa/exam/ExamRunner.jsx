@@ -101,6 +101,7 @@ export default function ExamRunner({ paper, screenStream, onScreenStream, onFini
 
     // ---- the clock ----
     const remaining = deadline - (now + skew)
+    const total = new Date(paper.deadline).getTime() - new Date(paper.startedAt).getTime()
     const submit = useCallback(async () => {
         if (submitting || finished.current) return
         setSubmitting(true)
@@ -150,10 +151,15 @@ export default function ExamRunner({ paper, screenStream, onScreenStream, onFini
                     <span className={`inline-flex items-center gap-1.5 text-[12.5px] font-semibold px-2.5 py-1.5 rounded-full ${warningsLeft <= 1 ? 'bg-[var(--color-danger-soft)] text-[var(--color-danger)]' : count ? 'bg-[var(--color-warning-soft)] text-[var(--color-warning)]' : 'bg-[var(--color-neutral-soft)] text-text-secondary'}`} title={`${cfg.maxViolations} violations end the test`}>
                         <ShieldAlert size={14} /> Warnings {count}/{cfg.maxViolations}
                     </span>
-                    <div role='timer' aria-label='Time left' className={`inline-flex items-center gap-1.5 font-mono text-[17px] font-bold px-3 py-1.5 rounded-xl tabular-nums ${low ? 'bg-[var(--color-danger-soft)] text-[var(--color-danger)]' : 'bg-ink text-white'}`}>
+                    <div role='timer' aria-label='Time left' className={`inline-flex items-center gap-1.5 font-mono text-[17px] font-bold px-3 py-1.5 rounded-xl tabular-nums ${low ? 'oa-urgent bg-[var(--color-danger-soft)] text-[var(--color-danger)]' : 'bg-ink text-white'}`}>
                         <Clock size={16} /> {clock(remaining)}{low && <span className='sr-only'> — less than five minutes left</span>}
                     </div>
                 </div>
+                {total > 0 && (
+                    <div className='h-[3px] bg-line' aria-hidden='true'>
+                        <div className={`h-full transition-[width] duration-1000 ease-linear ${low ? 'bg-[var(--color-danger)]' : 'bg-accent'}`} style={{ width: `${Math.max(0, Math.min(100, (remaining / total) * 100))}%` }} />
+                    </div>
+                )}
                 {proctor.notice && Date.now() - proctor.notice.at < 9000 && (
                     // Overlays the page instead of pushing it down: a banner that shifts the layout can land a student's next click on the wrong answer.
                     <div role='alert' className='absolute left-0 right-0 top-full shadow-lg bg-[var(--color-danger)] text-white text-[13.5px] font-medium px-4 py-2 text-center flex items-center justify-center gap-2 pointer-events-none'>
@@ -163,7 +169,7 @@ export default function ExamRunner({ paper, screenStream, onScreenStream, onFini
             </header>
 
             <div className='flex-1 max-w-[1280px] w-full mx-auto px-4 sm:px-6 py-6 grid lg:grid-cols-[1fr_280px] gap-6 items-start' aria-hidden={blocked}>
-                <main className='min-w-0 bg-card border border-line rounded-2xl p-5 sm:p-7'>
+                <main key={q.id} className='oa-slide min-w-0 bg-card border border-line rounded-2xl p-5 sm:p-7'>
                     <div className='flex items-start justify-between gap-4 mb-5'>
                         <h1 className='text-[17px] sm:text-[18px] font-semibold text-ink leading-relaxed break-words select-text whitespace-pre-wrap'>{q.text}</h1>
                         <span className='shrink-0 text-[12.5px] font-semibold text-text-secondary bg-[var(--color-neutral-soft)] px-2.5 py-1 rounded-full'>{q.marks} mark{q.marks === 1 ? '' : 's'}</span>

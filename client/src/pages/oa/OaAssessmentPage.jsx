@@ -60,7 +60,7 @@ export default function OaAssessmentPage() {
             <PageHeader
                 back={<Link to='/oa/admin/assessments' className='inline-flex items-center gap-1.5 text-[13px] font-medium text-text-secondary hover:text-ink mb-2'><ArrowLeft size={14} /> All assessments</Link>}
                 title={a.title}
-                subtitle={<span className='inline-flex flex-wrap items-center gap-2'><AssessmentStatus status={a.status} />{published && <PhaseBadge phase={a.phase} />}{a.schedule?.startAt && <span>{formatDateTime(a.schedule.startAt, a.schedule.timezone)} · {a.schedule.durationMinutes} min</span>}</span>}
+                subtitle={<span className='inline-flex flex-wrap items-center gap-2'><AssessmentStatus status={a.status} />{published && <PhaseBadge phase={a.phase} />}{a.schedule?.startAt && <span>{a.schedule.mode === 'SLOTS' ? `${a.schedule.slots.length} time slot${a.schedule.slots.length === 1 ? '' : 's'}, from ${formatDateTime(a.schedule.startAt, a.schedule.timezone)}` : formatDateTime(a.schedule.startAt, a.schedule.timezone)} · {a.schedule.durationMinutes} min</span>}</span>}
                 actions={<>
                     {a.status === 'DRAFT' && <Button size='sm' disabled={!ready || act.isPending} onClick={() => setConfirm('publish')}><Rocket size={15} /> Publish</Button>}
                     {published && !a.locked && <Button size='sm' variant='secondary' onClick={() => setConfirm('unpublish')}><Undo2 size={15} /> Back to draft</Button>}
@@ -96,7 +96,7 @@ export default function OaAssessmentPage() {
             {tab === 'results' && <ResultsTab assessment={a} />}
 
             <ConfirmModal open={confirm === 'publish'} onClose={() => setConfirm(null)} title='Publish this assessment?' confirmLabel='Publish' onConfirm={() => act.mutateAsync({ kind: 'publish' })}>
-                Students can sign in once you invite them, and the test opens at {formatDateTime(a.schedule?.startAt, a.schedule?.timezone)}. After the first student starts, the questions and rules are locked.
+                Students can sign in once you invite them, {a.schedule?.mode === 'SLOTS' ? `and each books one of the ${a.schedule.slots.length} time slots you set (the first is ${formatDateTime(a.schedule.startAt, a.schedule.timezone)})` : `and the test opens at ${formatDateTime(a.schedule?.startAt, a.schedule?.timezone)}`}. After the first student starts, the questions and rules are locked.
             </ConfirmModal>
             <ConfirmModal open={confirm === 'unpublish'} onClose={() => setConfirm(null)} title='Move back to draft?' confirmLabel='Move to draft' onConfirm={() => act.mutateAsync({ kind: 'unpublish' })}>
                 Students will not be able to sign in until you publish again. Codes already emailed stay valid.

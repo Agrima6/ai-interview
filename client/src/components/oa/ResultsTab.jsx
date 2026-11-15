@@ -13,14 +13,18 @@ import SearchInput from '../ui/SearchInput'
 import { useToast } from '../ui/Toast'
 import AttemptDrawer from './AttemptDrawer'
 import { AttemptStatus, ErrorState, TableSkeleton } from './oaUi'
-import { formatDuration, inputClass } from './oaFormat'
+import { formatDay, formatDuration, formatTime, inputClass } from './oaFormat'
+import { NumberField, TextField } from './oaFields'
+import { LIMITS, lengthError, rangeError } from './oaRules'
 
 const STATUSES = [['', 'All statuses'], ['SUBMITTED', 'Submitted'], ['AUTO_SUBMITTED', 'Time up'], ['TERMINATED', 'Ended by proctor'], ['IN_PROGRESS', 'In progress'], ['NOT_STARTED', 'Not started']]
 
 function NextRoundModal({ open, onClose, assessment, passPercent }) {
     const navigate = useNavigate()
     const toast = useToast()
-    const [f, setF] = useState({ title: `${assessment.title} · Round 2`, mode: 'percent', minPercent: passPercent, topN: 10 })
+    const [f, setF] = useState({ title: `${assessment.title} · Round 2`.slice(0, LIMITS.title.max), mode: 'percent', minPercent: String(passPercent), topN: '10' })
+    const titleError = lengthError(f.title, { ...LIMITS.title, label: 'The name' })
+    const cutoffError = f.mode === 'percent' ? rangeError(f.minPercent, { ...LIMITS.passPercent, label: 'The minimum' }) : rangeError(f.topN, { ...LIMITS.nextRoundTop, label: 'The number of ranks' })
     const make = useMutation({
         mutationFn: () => oaApi.nextRound(assessment.id, { title: f.title, ...(f.mode === 'percent' ? { minPercent: Number(f.minPercent) } : { topN: Number(f.topN) }) }),
         onSuccess: (r) => { toast.success(`Round created with ${r.students} student${r.students === 1 ? '' : 's'}.`); navigate(`/oa/admin/assessments/${r.assessmentId}`) },
@@ -28,14 +32,20 @@ function NextRoundModal({ open, onClose, assessment, passPercent }) {
     })
     return (
         <Modal open={open} onClose={onClose} title='Create the next round' size='md'
-            footer={<><Button variant='secondary' size='sm' onClick={onClose}>Cancel</Button><Button size='sm' disabled={make.isPending || f.title.trim().length < 3} onClick={() => make.mutate()}>{make.isPending ? 'Creating…' : 'Create round'}</Button></>}>
+            footer={<><Button variant='secondary' size='sm' onClick={onClose}>Cancel</Button><Button size='sm' disabled={make.isPending || Boolean(titleError) || Boolean(cutoffError)} onClick={() => make.mutate()}>{make.isPending ? 'Creating…' : 'Create round'}</Button></>}>
             <div className='space-y-4'>
                 <p className='text-[13.5px] text-text-secondary'>Qualifying students are copied into a new draft with fresh access codes. Disqualified and unfinished attempts are left out. You then add questions and a schedule.</p>
-                <label className='block'><span className='text-[12.5px] font-semibold text-ink'>Name</span><input className={`${inputClass} mt-1.5`} value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} maxLength={140} /></label>
+                <TextField label='Name' value={f.title} onChange={(v) => setF({ ...f, title: v })} max={LIMITS.title.max} error={titleError} />
                 <fieldset><legend className='text-[12.5px] font-semibold text-ink mb-1.5'>Who moves on</legend>
-                    <div className='space-y-2.5'>
-                        <label className='flex items-center gap-2 text-[13.5px]'><input type='radio' name='mode' className='accent-[var(--color-accent)]' checked={f.mode === 'percent'} onChange={() => setF({ ...f, mode: 'percent' })} /> Everyone scoring at least <input type='number' min={0} max={100} aria-label='Minimum percent' className={`${inputClass} !w-20 !py-1.5`} value={f.minPercent} onChange={(e) => setF({ ...f, minPercent: e.target.value, mode: 'percent' })} /> %</label>
-                        <label className='flex items-center gap-2 text-[13.5px]'><input type='radio' name='mode' className='accent-[var(--color-accent)]' checked={f.mode === 'top'} onChange={() => setF({ ...f, mode: 'top' })} /> The top <input type='number' min={1} aria-label='How many' className={`${inputClass} !w-20 !py-1.5`} value={f.topN} onChange={(e) => setF({ ...f, topN: e.target.value, mode: 'top' })} /> ranks <span className='text-text-secondary text-[12px]'>(ties all move on)</span></label>
+                    <div className='space-y-3'>
+                        <div className='flex items-start gap-3'>
+                            <input type='radio' name='mode' aria-label='Score at least' className='mt-[38px] accent-[var(--color-accent)]' checked={f.mode === 'percent'} onChange={() => setF({ ...f, mode: 'percent' })} />
+                            <NumberField label='Everyone scoring at least' suffix='%' width='w-36' hint='0 to 100' value={f.minPercent} onChange={(v) => setF({ ...f, minPercent: v, mode: 'percent' })} max={LIMITS.passPercent.max} error={f.mode === 'percent' ? cutoffError : ''} />
+                        </div>
+                        <div className='flex items-start gap-3'>
+                            <input type='radio' name='mode' aria-label='Top ranks' className='mt-[38px] accent-[var(--color-accent)]' checked={f.mode === 'top'} onChange={() => setF({ ...f, mode: 'top' })} />
+                            <NumberField label='The top ranks' width='w-36' hint='Whole number. Ties all move on.' value={f.topN} onChange={(v) => setF({ ...f, topN: v, mode: 'top' })} max={LIMITS.nextRoundTop.max} error={f.mode === 'top' ? cutoffError : ''} />
+                        </div>
                     </div></fieldset>
             </div>
         </Modal>
@@ -54,6 +64,7 @@ export default function ResultsTab({ assessment: a }) {
     const [open, setOpen] = useState(null)
     const [nextRound, setNextRound] = useState(false)
     const [exporting, setExporting] = useState(false)
+    const slotted = a.schedule?.mode === 'SLOTS'
 
     const update = (patch) => setParams((p) => { const n = new URLSearchParams(p); Object.entries(patch).forEach(([k, v]) => (v ? n.set(k, v) : n.delete(k))); n.delete('rpage'); return n }, { replace: true })
 
@@ -83,7 +94,7 @@ export default function ResultsTab({ assessment: a }) {
                     <SearchInput value={search} onChange={(e) => { setSearch(e.target.value); setParams((p) => { const n = new URLSearchParams(p); n.delete('rpage'); return n }, { replace: true }) }} placeholder='Search name, email or roll no.' className='w-full sm:w-64' />
                     <select aria-label='Status' className={`${inputClass} !w-auto`} value={filters.status} onChange={(e) => update({ rstatus: e.target.value })}>{STATUSES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
                     <select aria-label='Result' className={`${inputClass} !w-auto`} value={filters.result} onChange={(e) => update({ rresult: e.target.value })}><option value=''>Pass and fail</option><option value='PASSED'>Passed</option><option value='FAILED'>Not passed</option></select>
-                    <input type='number' min={0} max={100} aria-label='Minimum percent' placeholder='Min %' className={`${inputClass} !w-24`} value={filters.minPercent} onChange={(e) => update({ rmin: e.target.value })} />
+                    <input inputMode='numeric' aria-label='Minimum percent' placeholder='Min %' maxLength={3} className={`${inputClass} !w-24`} value={filters.minPercent} onChange={(e) => { const v = e.target.value.replace(/\D/g, '').slice(0, 3); update({ rmin: v && Number(v) > 100 ? '100' : v }) }} />
                     <label className='flex items-center gap-1.5 text-[13px] text-ink px-2'><input type='checkbox' className='accent-[var(--color-accent)]' checked={filters.flagged === 'true'} onChange={(e) => update({ rflag: e.target.checked ? 'true' : '' })} /> Flagged only</label>
                     {activeFilters > 0 && <button className='text-[13px] font-semibold text-accent' onClick={() => { setSearch(''); setParams((p) => { const n = new URLSearchParams(); n.set('tab', p.get('tab') || 'results'); return n }, { replace: true }) }}>Clear {activeFilters} filter{activeFilters === 1 ? '' : 's'}</button>}
                 </div>
@@ -99,7 +110,7 @@ export default function ResultsTab({ assessment: a }) {
                 ) : (
                     <div className='overflow-x-auto'>
                         <table className='w-full text-[13.5px] min-w-[900px]'>
-                            <thead className='bg-surface-muted text-left text-[12px] font-semibold text-text-secondary sticky top-0'><tr><th className='px-4 py-3 w-16'>Rank</th><th className='px-4 py-3'>Student</th><th className='px-4 py-3'>Status</th><th className='px-4 py-3 text-right'>Score</th><th className='px-4 py-3 text-right'>%</th><th className='px-4 py-3'>Result</th><th className='px-4 py-3 text-right'>Flags</th><th className='px-4 py-3 text-right'>Time</th></tr></thead>
+                            <thead className='bg-surface-muted text-left text-[12px] font-semibold text-text-secondary sticky top-0'><tr><th className='px-4 py-3 w-16'>Rank</th><th className='px-4 py-3'>Student</th><th className='px-4 py-3'>Status</th>{slotted && <th className='px-4 py-3'>Slot</th>}<th className='px-4 py-3 text-right'>Score</th><th className='px-4 py-3 text-right'>%</th><th className='px-4 py-3'>Result</th><th className='px-4 py-3 text-right'>Flags</th><th className='px-4 py-3 text-right'>Time</th></tr></thead>
                             <tbody className='divide-y divide-line'>
                                 {items.map((r) => (
                                     <tr key={r.studentId} className={`hover:bg-black/[0.02] ${r.attemptId ? 'cursor-pointer' : ''}`} onClick={() => r.attemptId && setOpen(r.attemptId)}>
@@ -109,6 +120,7 @@ export default function ResultsTab({ assessment: a }) {
                                             <div className='text-[12px] text-text-secondary'>{r.rollNumber || r.email}</div>
                                         </td>
                                         <td className='px-4 py-3'><AttemptStatus status={r.status} />{r.adminDecision && <div className='mt-1'><Badge variant={r.adminDecision === 'DISQUALIFIED' ? 'danger' : 'info'}>{r.adminDecision === 'DISQUALIFIED' ? 'Disqualified' : 'Cleared'}</Badge></div>}</td>
+                                        {slotted && <td className='px-4 py-3 whitespace-nowrap text-[13px]'>{r.slotStartAt ? `${formatDay(r.slotStartAt, a.schedule.timezone)}, ${formatTime(r.slotStartAt, a.schedule.timezone)}` : <span className='text-text-secondary'>—</span>}</td>}
                                         <td className='px-4 py-3 text-right tabular-nums'>{r.score === null ? '—' : `${r.score}/${r.maxScore}`}{r.gradingStatus === 'PENDING_REVIEW' && <span className='block text-[11px] text-[var(--color-warning)] font-semibold'>to grade</span>}</td>
                                         <td className='px-4 py-3 text-right tabular-nums font-semibold'>{r.percent === null ? '—' : `${r.percent}%`}</td>
                                         <td className='px-4 py-3'>{r.passed === null ? <span className='text-text-secondary'>—</span> : <Badge variant={r.passed ? 'success' : 'danger'}>{r.passed ? 'Passed' : 'Not passed'}</Badge>}</td>

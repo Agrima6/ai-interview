@@ -134,7 +134,7 @@ test("publishing is refused until the test is ready", opts, async () => {
 })
 
 test("students: upload, duplicates, then publish and the invite is idempotent", opts, async () => {
-    const people = Array.from({ length: 4 }, (_, i) => ({ name: `Student ${i + 1}`, email: `s${i + 1}@college.test`, rollNumber: `R${i + 1}`, details: { branch: "CSE" } }))
+    const people = Array.from({ length: 4 }, (_, i) => ({ name: `Student ${"ABCD"[i]}`, email: `s${i + 1}@college.test`, rollNumber: `R${i + 1}`, details: { branch: "CSE" } }))
     const added = await call("POST", `/oa/assessments/${state.a}/students`, { token: state.admin, body: { students: [...people, { name: "Dup", email: "S1@college.test" }, { name: "", email: "x@y.test" }, { name: "Bad", email: "not-an-email" }, { name: "Owner Too", email: "owner@acme.test" }] } })
     assert.equal(added.data.added, 5)      // the OA admin's own email is allowed as a student: the identities are separate
     assert.equal(added.data.skipped.length, 3)
@@ -269,14 +269,14 @@ test("submit once; time-up is enforced by the server even if the browser is gone
 test("results: auto marks, pending manual grading, rank, filters and a filtered export", opts, async () => {
     const results = await call("GET", `/oa/assessments/${state.a}/results?pageSize=100`, { token: state.admin })
     const row = (name) => results.data.find((r) => r.name === name)
-    const s1 = row("Student 1")
+    const s1 = row("Student A")
     // 8 right x2 = 16, one wrong -0.5, short answer hits 1 of 2 keywords = 2  => 17.5 so far; long + code wait for the admin
     assert.equal(s1.score, 17.5)
     assert.equal(s1.gradingStatus, "PENDING_REVIEW")
     assert.equal(s1.rank, 1)
-    assert.equal(row("Student 2").status, "TERMINATED")
-    assert.equal(row("Student 2").rank, null)
-    assert.equal(row("Student 4").status, "NOT_STARTED")
+    assert.equal(row("Student B").status, "TERMINATED")
+    assert.equal(row("Student B").rank, null)
+    assert.equal(row("Student D").status, "NOT_STARTED")
     assert.equal(results.json.meta.summary.pendingReview, 1)
 
     const detail = await call("GET", `/oa/assessments/${state.a}/attempts/${s1.attemptId}`, { token: state.admin })
@@ -288,24 +288,24 @@ test("results: auto marks, pending manual grading, rank, filters and a filtered 
     assert.equal(graded.data.gradingStatus, "COMPLETE")
     assert.equal(graded.data.score, 45.5)
 
-    const student2 = await call("GET", `/oa/assessments/${state.a}/attempts/${row("Student 2").attemptId}`, { token: state.admin })
+    const student2 = await call("GET", `/oa/assessments/${state.a}/attempts/${row("Student B").attemptId}`, { token: state.admin })
     assert.equal(student2.data.violations.filter((v) => v.counted).length, 3)
     assert.equal(student2.data.snapshots.length, 1)
     assert.ok(student2.data.violations.find((v) => v.type === "TAB_SWITCH").image)
 
     // filters work server-side and the export honours them
     const passed = await call("GET", `/oa/assessments/${state.a}/results?result=PASSED`, { token: state.admin })
-    assert.deepEqual(passed.data.map((r) => r.name), ["Student 1"])
+    assert.deepEqual(passed.data.map((r) => r.name), ["Student A"])
     const flagged = await call("GET", `/oa/assessments/${state.a}/results?flagged=true`, { token: state.admin })
-    assert.deepEqual(flagged.data.map((r) => r.name), ["Student 2"])
+    assert.deepEqual(flagged.data.map((r) => r.name), ["Student B"])
     const csv = await call("GET", `/oa/assessments/${state.a}/results/export?flagged=true`, { token: state.admin })
-    assert.match(csv.json, /Student 2/)
-    assert.doesNotMatch(csv.json, /Student 1/)
+    assert.match(csv.json, /Student B/)
+    assert.doesNotMatch(csv.json, /Student A/)
 
     // the admin's decision changes who is ranked
-    await call("PUT", `/oa/assessments/${state.a}/attempts/${row("Student 2").attemptId}/decision`, { token: state.admin, body: { decision: "CLEARED" } })
+    await call("PUT", `/oa/assessments/${state.a}/attempts/${row("Student B").attemptId}/decision`, { token: state.admin, body: { decision: "CLEARED" } })
     const after = await call("GET", `/oa/assessments/${state.a}/results?pageSize=100`, { token: state.admin })
-    assert.equal(after.data.find((r) => r.name === "Student 2").rank !== null, true)
+    assert.equal(after.data.find((r) => r.name === "Student B").rank !== null, true)
 })
 
 test("the student sees their score only when the organizer allows it", opts, async () => {

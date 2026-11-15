@@ -115,6 +115,7 @@ export const examApi = {
     login: async (body) => { const r = await post('/exam/login', body); oaTokens.set('student', r.token) },
     logout: () => oaTokens.clear('student'),
     session: () => get('/exam/session'),
+    bookSlot: (slotId) => put('/exam/slot', { slotId }),
     start: (environment) => post('/exam/start', { environment }),
     paper: () => get('/exam/paper'),
     saveAnswers: (answers) => put('/exam/answers', { answers }),

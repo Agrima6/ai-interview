@@ -8,14 +8,49 @@ A separate room for running proctored written tests: MCQ, multi-select, short an
 1. Registers at `/oa/register`. A WorkmateIQ super admin approves it (maker-checker): Platform admin → **Online Assessment** → Approve, Ask for changes or Reject. Nothing works until then.
 2. Creates an assessment, adds sections, adds questions by writing them, uploading a CSV/JSON, or describing a topic for AI to draft (reviewed before anything is added).
 3. Uploads students (name and email are enough). Each student gets a personal access code.
-4. Sets the date, start time, closing time, duration, rules and proctoring level, then publishes and emails invitations.
+4. Chooses how students are scheduled (see below), sets duration, rules and proctoring level, then publishes and emails invitations.
 5. Watches the **Live** tab during the test, then reads ranked **Results**, grades long answers and code, reviews proctoring evidence, exports CSV, and can create the next round from the qualifiers.
 
 **Student** at `/oa/exam` (the invitation email links here with the test and email filled in)
 1. Signs in with email and access code.
 2. Reads the instructions and runs the system check (webcam, entire screen share, one monitor), then agrees to the rules.
-3. When the start time arrives everyone can begin. The clock is the server's. Each student sees questions and options in an order of their own.
+3. When the start time arrives (the shared one, or the slot they booked) they can begin. The clock is the server's. Each student sees questions and options in an order of their own.
 4. Answers save automatically. Submitting, running out of time, or too many violations ends the attempt.
+
+## Scheduling: same time for all, or student-chosen slots
+
+Setup → Schedule has two modes.
+
+- **Same time for everyone.** One start and one closing time. Everyone begins together.
+- **Let students choose a slot.** The organizer lists several start times, each with an optional seat limit. After signing in, a student sees the slots (with seats left) and books one. Duration and late-entry apply to each slot; a student's test ends `duration` minutes after they start, and their window closes `late entry + duration` minutes after their slot begins.
+
+Slot rules, all enforced on the server:
+
+- A student can book or change a slot until **30 minutes before it starts**. Inside that window the slot can be neither booked nor left.
+- Seats are never oversold. Booking claims the seat, then counts; if the slot overflowed the booking is undone and the student is told to pick another. Two people racing for the last seat may both be asked to retry, but the slot is never over capacity.
+- Without a booking a student cannot start (`SLOT_REQUIRED`). If every remaining slot has closed for booking they see "You did not book a slot in time" and the organizer sees "Not chosen" in the Students, Live and Results tables.
+- Once a student has started, their slot is fixed. Slots, like questions and rules, lock when anyone starts.
+- Removing a slot that students booked asks them to choose again; lowering a slot's seats below the number booked keeps the existing seats.
+
+## Field limits
+
+Every form is checked in the browser as you type and again on the server, which is the authority. Out-of-range values are refused with a message, never silently changed. The numbers live in `services/client-service/utils/oaValidate.js` and are mirrored in `client/src/components/oa/oaRules.js`.
+
+| Field | Rule |
+|---|---|
+| Mobile number | exactly 10 digits; a leading `+91`, `91` or `0` is accepted and removed. Stored as plain digits |
+| Person names | 2 to 100 letters (any script), spaces and `. ' -`. No digits or symbols |
+| Email | valid address, at most 200 characters |
+| Test name | 3 to 140 characters; description 2000; instructions 4000; round label 60 |
+| Violations before auto-submit | whole number, 1 to 10 |
+| Snapshot interval | 15 to 300 seconds |
+| Pass mark | 0 to 100 |
+| Duration | 5 to 360 minutes; late entry 0 to 120 |
+| Slots | 1 to 40 per test, none in the past, no two at the same time; seats 1 to 5000 or empty for no limit |
+| Question marks | 0.5 to 100; negative marks no larger than the marks; 2 to 8 options |
+| AI questions per request | 1 to 25 |
+| Next round cut-off | minimum percent 0 to 100, or top ranks 1 or more |
+| Manual marks | 0 up to the question's marks |
 
 ## Proctoring
 
@@ -47,6 +82,10 @@ Separate collections (`OaAccount`, `OaStudent`, ...), separate token secret and 
 | `OA_AI_BASE_URL` | client-service | Default `https://api.openai.com/v1` |
 | `OA_AI_MODEL` | client-service | Default `gpt-4o-mini` |
 
+### Troubleshooting AI drafting
+
+The organizer sees the reason, in plain words, when the provider refuses: key rejected, out of credits, rate limited, model not found, timeout. Provider text and the key never reach the browser; the full upstream message is in the server log (`pm2 logs client-service | grep "OA AI"`). The service retries once without JSON mode if a provider refuses it, tolerates code fences and chatter around the JSON, strips `A)`/`1.` prefixes from options, and refuses to guess when an answer key is a bare number (those questions are skipped and counted).
+
 Without `OA_AI_API_KEY` the AI button says it is not set up and everything else works. Emails go through communication-service with event types `OA_INVITE` and `OA_ACCOUNT_DECISION` (custom subject and body, no template needed).
 
 ## Test credentials
@@ -75,6 +114,8 @@ These are test values for this repository only.
 cd services/client-service
 node --test tests/oaLogic.test.js                  # shuffling, grading, schedule, ranking, passwords
 node --test tests/oaFlow.integration.test.js       # the whole flow over HTTP against a throwaway local mongod
+node --test tests/oaSlots.integration.test.js      # field limits, strict phone/name checks, slot booking and races
+node --test tests/oaValidate.test.js tests/oaAi.test.js   # validation helpers, and AI drafting against a mock provider
 ```
 
 The integration test is skipped when `mongod` is not installed.

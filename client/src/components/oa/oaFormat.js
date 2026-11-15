@@ -12,6 +12,14 @@ export const formatDate = (value, timeZone = DEFAULT_TZ) => {
     try { return new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeZone }).format(new Date(value)) } catch { return String(value) }
 }
 
+export const formatDay = (value, timeZone = DEFAULT_TZ) => {
+    try { return new Intl.DateTimeFormat('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone }).format(new Date(value)) } catch { return String(value) }
+}
+
+export const formatTime = (value, timeZone = DEFAULT_TZ) => {
+    try { return new Intl.DateTimeFormat('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone }).format(new Date(value)).toUpperCase() } catch { return String(value) }
+}
+
 export const formatDuration = (seconds) => {
     if (seconds === null || seconds === undefined) return '—'
     const m = Math.floor(seconds / 60); const s = seconds % 60

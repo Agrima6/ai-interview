@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ClipboardList, Plus } from 'lucide-react'
+import { ChevronRight, ClipboardList, Plus } from 'lucide-react'
 import { oaApi } from '../../api/oaApi'
 import useDebouncedValue from '../../hooks/useDebouncedValue'
 import Button from '../../components/Button'
@@ -11,7 +11,9 @@ import SearchInput from '../../components/ui/SearchInput'
 import EmptyState from '../../components/ui/EmptyState'
 import { useToast } from '../../components/ui/Toast'
 import { AssessmentStatus, ErrorState, PageHeader, PhaseBadge, TableSkeleton } from '../../components/oa/oaUi'
-import { formatDateTime, inputClass } from '../../components/oa/oaFormat'
+import { formatDateTime } from '../../components/oa/oaFormat'
+import { TextField } from '../../components/oa/oaFields'
+import { LIMITS, lengthError } from '../../components/oa/oaRules'
 
 const STATUS_TABS = [['', 'Active'], ['DRAFT', 'Drafts'], ['PUBLISHED', 'Published'], ['ARCHIVED', 'Archived']]
 
@@ -63,23 +65,25 @@ export default function OaAssessmentsPage() {
                         actionLabel={q || status ? undefined : 'New assessment'} onAction={() => setCreating(true)} />
                 ) : (
                     <div className='overflow-x-auto'>
-                        <table className='w-full text-[13.5px] min-w-[760px]'>
+                        <table className='w-full text-[13.5px] min-w-[800px]'>
                             <thead className='bg-surface-muted text-left text-[12px] font-semibold text-text-secondary'>
-                                <tr><th className='px-4 py-3'>Assessment</th><th className='px-4 py-3'>Status</th><th className='px-4 py-3'>Starts</th><th className='px-4 py-3 text-right'>Questions</th><th className='px-4 py-3 text-right'>Students</th><th className='px-4 py-3 text-right'>Finished</th></tr>
+                                <tr><th className='px-4 py-3'>Assessment</th><th className='px-4 py-3'>Status</th><th className='px-4 py-3'>Starts</th><th className='px-4 py-3 text-right'>Questions</th><th className='px-4 py-3 text-right'>Students</th><th className='px-4 py-3 text-right'>Finished</th><th className='px-2 py-3 w-8'><span className='sr-only'>Open</span></th></tr>
                             </thead>
                             <tbody className='divide-y divide-line'>
-                                {items.map((a) => (
-                                    <tr key={a.id} className='hover:bg-black/[0.02]'>
+                                {items.map((a, i) => (
+                                    <tr key={a.id} className='ui-row group cursor-pointer oa-rise' style={{ animationDelay: `${Math.min(i, 10) * 35}ms` }}
+                                        onClick={(e) => { if (!e.target.closest('a')) navigate(`/oa/admin/assessments/${a.id}`) }}>
                                         <td className='px-4 py-3'>
                                             <Link to={`/oa/admin/assessments/${a.id}`} className='font-semibold text-ink hover:text-accent'>{a.title}</Link>
                                             {a.roundLabel && <span className='ml-2 text-[11.5px] text-text-secondary'>{a.roundLabel}</span>}
                                             <div className='text-[12px] text-text-secondary'>Created {formatDateTime(a.createdAt)}</div>
                                         </td>
                                         <td className='px-4 py-3'><div className='flex flex-wrap gap-1.5'><AssessmentStatus status={a.status} />{a.status === 'PUBLISHED' && <PhaseBadge phase={a.phase} />}</div></td>
-                                        <td className='px-4 py-3 whitespace-nowrap'>{a.schedule?.startAt ? formatDateTime(a.schedule.startAt, a.schedule.timezone) : <span className='text-text-secondary'>Not scheduled</span>}</td>
+                                        <td className='px-4 py-3 whitespace-nowrap'>{a.schedule?.startAt ? <>{formatDateTime(a.schedule.startAt, a.schedule.timezone)}{a.schedule.mode === 'SLOTS' && <div className='text-[12px] text-text-secondary'>{a.schedule.slots.length} time slot{a.schedule.slots.length === 1 ? '' : 's'}</div>}</> : <span className='text-text-secondary'>Not scheduled</span>}</td>
                                         <td className='px-4 py-3 text-right tabular-nums'>{a.questionCount}</td>
                                         <td className='px-4 py-3 text-right tabular-nums'>{a.stats.students}</td>
                                         <td className='px-4 py-3 text-right tabular-nums'>{a.stats.finished}</td>
+                                        <td className='px-2 py-3 text-text-secondary'><ChevronRight size={16} className='transition-transform group-hover:translate-x-0.5 group-hover:text-accent' aria-hidden='true' /></td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -92,11 +96,9 @@ export default function OaAssessmentsPage() {
             )}
 
             <Modal open={creating} onClose={() => setCreating(false)} title='New assessment' size='sm'
-                footer={<><Button variant='secondary' size='sm' onClick={() => setCreating(false)}>Cancel</Button><Button size='sm' disabled={create.isPending || title.trim().length < 3} onClick={() => create.mutate()}>{create.isPending ? 'Creating…' : 'Create'}</Button></>}>
+                footer={<><Button variant='secondary' size='sm' onClick={() => setCreating(false)}>Cancel</Button><Button size='sm' disabled={create.isPending || Boolean(lengthError(title, { ...LIMITS.title, label: 'The name' }))} onClick={() => create.mutate()}>{create.isPending ? 'Creating…' : 'Create'}</Button></>}>
                 <form onSubmit={(e) => { e.preventDefault(); if (title.trim().length >= 3 && !create.isPending) create.mutate() }}>
-                    <label htmlFor='oa-title' className='block text-[13.5px] font-semibold text-ink mb-2'>Name of the test</label>
-                    <input id='oa-title' autoFocus className={inputClass} value={title} onChange={(e) => { setTitle(e.target.value); setTitleError('') }} placeholder='e.g. Campus Drive 2026 · Round 1' maxLength={140} />
-                    {titleError && <p className='text-[12px] text-red-500 mt-2'>{titleError}</p>}
+                    <TextField autoFocus label='Name of the test' value={title} onChange={(v) => { setTitle(v); setTitleError('') }} max={LIMITS.title.max} error={titleError || lengthError(title, { ...LIMITS.title, label: 'The name' })} placeholder='e.g. Campus Drive 2026 · Round 1' />
                     <p className='text-[12.5px] text-text-secondary mt-3'>You will add sections, questions, students and the schedule next.</p>
                 </form>
             </Modal>

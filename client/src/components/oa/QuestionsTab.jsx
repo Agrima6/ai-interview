@@ -12,6 +12,8 @@ import Modal from '../ui/Modal'
 import { useToast } from '../ui/Toast'
 import { Panel } from './oaUi'
 import { downloadText, inputClass } from './oaFormat'
+import { NumberField, TextField } from './oaFields'
+import { LIMITS, lengthError, rangeError } from './oaRules'
 import QuestionEditorModal from './QuestionEditorModal'
 import { TYPE_LABELS } from './oaFormat'
 
@@ -112,13 +114,15 @@ function UploadModal({ open, onClose, assessment, onDone }) {
 
 function AiModal({ open, onClose, assessment, aiAvailable, onDone }) {
     const toast = useToast()
-    const [f, setF] = useState({ prompt: '', count: 8, types: ['MCQ'], difficulty: 'MEDIUM', sectionId: assessment.sections[0]?.id })
+    const [f, setF] = useState({ prompt: '', count: '8', types: ['MCQ'], difficulty: 'MEDIUM', sectionId: assessment.sections[0]?.id })
+    const countError = rangeError(f.count, { ...LIMITS.aiCount, label: 'Number of questions' })
+    const promptError = lengthError(f.prompt, { ...LIMITS.aiPrompt, label: 'The description' })
     const [drafts, setDrafts] = useState(null)
     const [picked, setPicked] = useState(new Set())
     const [error, setError] = useState('')
 
     const generate = useMutation({
-        mutationFn: () => oaApi.generateQuestions(assessment.id, f),
+        mutationFn: () => oaApi.generateQuestions(assessment.id, { ...f, count: Number(f.count) }),
         onSuccess: (r) => { setDrafts(r.questions); setPicked(new Set(r.questions.map((q) => q.id))); setError('') },
         onError: (err) => setError(err.message),
     })
@@ -133,15 +137,14 @@ function AiModal({ open, onClose, assessment, aiAvailable, onDone }) {
         <Modal open={open} onClose={onClose} title='Generate questions with AI' size='lg'
             footer={drafts
                 ? <><Button variant='secondary' size='sm' onClick={() => setDrafts(null)}>Back</Button><Button size='sm' disabled={!picked.size || add.isPending} onClick={() => add.mutate()}>{add.isPending ? 'Adding…' : `Add ${picked.size} selected`}</Button></>
-                : <><Button variant='secondary' size='sm' onClick={onClose}>Cancel</Button><Button size='sm' disabled={!aiAvailable || f.prompt.trim().length < 10 || !f.types.length || generate.isPending} onClick={() => generate.mutate()}><Wand2 size={14} /> {generate.isPending ? 'Writing questions…' : 'Generate'}</Button></>}>
+                : <><Button variant='secondary' size='sm' onClick={onClose}>Cancel</Button><Button size='sm' disabled={!aiAvailable || Boolean(promptError) || Boolean(countError) || !f.types.length || generate.isPending} onClick={() => generate.mutate()}><Wand2 size={14} /> {generate.isPending ? 'Writing questions…' : 'Generate'}</Button></>}>
             {!aiAvailable && <div role='status' className='mb-4 text-[13px] bg-[var(--color-warning-soft)] text-[var(--color-warning)] rounded-xl px-3.5 py-2.5'>AI drafting is not switched on for this server yet. You can still write questions or upload a file.</div>}
             {error && <div role='alert' className='mb-4 text-[13px] text-[var(--color-danger)] bg-[var(--color-danger-soft)] rounded-xl px-3.5 py-2.5'>{error}</div>}
             {!drafts ? (
                 <div className='space-y-4'>
-                    <label className='block'><span className='text-[12.5px] font-semibold text-ink'>What should the questions cover?</span>
-                        <textarea rows={4} className={`${inputClass} mt-1.5`} value={f.prompt} maxLength={2000} onChange={(e) => setF({ ...f, prompt: e.target.value })} placeholder='e.g. Core Java for freshers: OOP, collections, exceptions and basic multithreading. Practical, scenario-based.' /></label>
+                    <TextField textarea rows={4} label='What should the questions cover?' hint={`At least ${LIMITS.aiPrompt.min} characters. Name the topic, level and skills to test.`} value={f.prompt} onChange={(v) => setF({ ...f, prompt: v })} max={LIMITS.aiPrompt.max} error={promptError} placeholder='e.g. Core Java for freshers: OOP, collections, exceptions and basic multithreading. Practical, scenario-based.' />
                     <div className='grid sm:grid-cols-3 gap-3'>
-                        <label className='block'><span className='text-[12.5px] font-semibold text-ink'>How many</span><input type='number' min={1} max={25} className={`${inputClass} mt-1.5`} value={f.count} onChange={(e) => setF({ ...f, count: e.target.value })} /></label>
+                        <NumberField label='How many' hint={`${LIMITS.aiCount.min} to ${LIMITS.aiCount.max}`} value={f.count} onChange={(v) => setF({ ...f, count: v })} max={LIMITS.aiCount.max} error={countError} />
                         <label className='block'><span className='text-[12.5px] font-semibold text-ink'>Difficulty</span><select className={`${inputClass} mt-1.5`} value={f.difficulty} onChange={(e) => setF({ ...f, difficulty: e.target.value })}>{['EASY', 'MEDIUM', 'HARD'].map((d) => <option key={d} value={d}>{formatEnumLabel(d)}</option>)}</select></label>
                         <label className='block'><span className='text-[12.5px] font-semibold text-ink'>Add to section</span><select className={`${inputClass} mt-1.5`} value={f.sectionId} onChange={(e) => setF({ ...f, sectionId: e.target.value })}>{assessment.sections.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}</select></label>
                     </div>

@@ -1510,4 +1510,42 @@ html.org-theme body {
   .ui-rise, .ui-fade, .ui-pop, .ui-down, .ui-float, .ui-ping, .ui-shine::after { animation: none !important; }
   .ui-lift, .ui-row, .ui-field { transition: none !important; }
 }
+
+/* Online Assessment motion. Short, quiet and purposeful: things arrive, respond to touch and say when something is wrong. */
+@keyframes oa-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes oa-error { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes oa-slide { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+@keyframes oa-drift { 0% { transform: translate3d(0, 0, 0) scale(1); } 50% { transform: translate3d(3%, -4%, 0) scale(1.08); } 100% { transform: translate3d(-3%, 3%, 0) scale(1); } }
+@keyframes oa-ring { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-accent) 45%, transparent); } 70%, 100% { box-shadow: 0 0 0 14px transparent; } }
+@keyframes oa-urgent { 0%, 100% { background-color: var(--color-danger-soft); } 50% { background-color: color-mix(in srgb, var(--color-danger) 22%, white); } }
+@keyframes oa-draw { from { stroke-dashoffset: 24; } to { stroke-dashoffset: 0; } }
+@keyframes oa-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.oa-rise { animation: oa-rise 0.38s cubic-bezier(0.2, 0.75, 0.2, 1) both; }
+.oa-slide { animation: oa-slide 0.32s cubic-bezier(0.2, 0.75, 0.2, 1) both; }
+.oa-error-in { animation: oa-error 0.18s ease both; }
+.oa-page { animation: oa-rise 0.42s cubic-bezier(0.2, 0.75, 0.2, 1) both; }
+.oa-stagger > * { animation: oa-rise 0.45s cubic-bezier(0.2, 0.75, 0.2, 1) both; }
+.oa-stagger > *:nth-child(2) { animation-delay: 0.06s; }
+.oa-stagger > *:nth-child(3) { animation-delay: 0.12s; }
+.oa-stagger > *:nth-child(4) { animation-delay: 0.18s; }
+.oa-stagger > *:nth-child(5) { animation-delay: 0.24s; }
+.oa-stagger > *:nth-child(n + 6) { animation-delay: 0.3s; }
+.oa-press { transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease; }
+.oa-press:active:not(:disabled) { transform: scale(0.985); }
+.oa-lift { transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease; }
+.oa-lift:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); border-color: color-mix(in srgb, var(--color-accent) 28%, transparent); }
+.oa-ring { animation: oa-ring 2s ease-out infinite; }
+.oa-urgent { animation: oa-urgent 1s ease-in-out infinite; }
+.oa-check path { stroke-dasharray: 24; animation: oa-draw 0.35s 0.05s ease-out both; }
+.oa-skel { background: linear-gradient(90deg, rgba(30, 15, 15, 0.05) 25%, rgba(30, 15, 15, 0.1) 37%, rgba(30, 15, 15, 0.05) 63%); background-size: 400% 100%; animation: oa-shimmer 1.6s linear infinite; }
+/* A soft, slow colour wash behind hero areas. Pure CSS, sits behind content, never intercepts clicks. */
+.oa-mesh { position: relative; isolation: isolate; overflow: hidden; }
+.oa-mesh::before, .oa-mesh::after { content: ""; position: absolute; z-index: -1; pointer-events: none; border-radius: 50%; filter: blur(60px); animation: oa-drift 16s ease-in-out infinite alternate; }
+.oa-mesh::before { width: 46%; aspect-ratio: 1; left: -8%; top: -30%; background: color-mix(in srgb, var(--color-accent) 22%, transparent); }
+.oa-mesh::after { width: 38%; aspect-ratio: 1; right: -6%; bottom: -35%; background: color-mix(in srgb, var(--color-accent-cyan) 20%, transparent); animation-delay: -6s; }
+@media (prefers-reduced-motion: reduce) {
+  .oa-rise, .oa-slide, .oa-error-in, .oa-page, .oa-stagger > *, .oa-ring, .oa-urgent, .oa-check path, .oa-skel, .oa-mesh::before, .oa-mesh::after { animation: none !important; }
+  .oa-press, .oa-lift { transition: none !important; }
+  .oa-lift:hover { transform: none; }
+}
 @keyframes wave { 0%, 100% { transform: scaleY(0.35); } 50% { transform: scaleY(1); } }

@@ -1,4 +1,5 @@
 import crypto from "crypto"
+import { LIMITS } from "./oaValidate.js"
 
 // ---------- per-student question order ----------
 
@@ -109,26 +110,88 @@ export const gradeAttempt = ({ questions, answers = {}, grades = {} }) => {
 
 // ---------- schedule ----------
 
-export const MIN_DURATION = 5
-export const MAX_DURATION = 360
+export const MIN_DURATION = LIMITS.durationMinutes.min
+export const MAX_DURATION = LIMITS.durationMinutes.max
 const MIN = 60 * 1000
 
-/** Checks a schedule and returns it as Dates/numbers, or { error, field }. */
-export const parseSchedule = (input, { now = Date.now() } = {}) => {
-    const startAt = new Date(input?.startAt)
-    const endAt = new Date(input?.endAt)
+// A student may book or change a slot until this long before it starts, so the organizer knows who is coming.
+export const SLOT_CHANGE_CUTOFF_MINUTES = 30
+
+const parseDuration = (input) => {
     const durationMinutes = Number(input?.durationMinutes)
     const lateEntryMinutes = input?.lateEntryMinutes === undefined || input?.lateEntryMinutes === "" ? 10 : Number(input.lateEntryMinutes)
+    if (!Number.isInteger(durationMinutes) || durationMinutes < MIN_DURATION || durationMinutes > MAX_DURATION) {
+        return { error: `Duration must be a whole number between ${MIN_DURATION} and ${MAX_DURATION} minutes.`, field: "durationMinutes" }
+    }
+    if (!Number.isInteger(lateEntryMinutes) || lateEntryMinutes < LIMITS.lateEntryMinutes.min || lateEntryMinutes > LIMITS.lateEntryMinutes.max) {
+        return { error: `Late entry must be a whole number between ${LIMITS.lateEntryMinutes.min} and ${LIMITS.lateEntryMinutes.max} minutes.`, field: "lateEntryMinutes" }
+    }
+    return { durationMinutes, lateEntryMinutes }
+}
+
+const parseSlots = (input, { durationMinutes, lateEntryMinutes }, now) => {
+    const list = Array.isArray(input?.slots) ? input.slots : []
+    if (list.length < LIMITS.slots.min) return { error: "Add at least one time slot.", field: "slots" }
+    if (list.length > LIMITS.slots.max) return { error: `Offer at most ${LIMITS.slots.max} time slots.`, field: "slots" }
+    const slots = []
+    const seen = new Set()
+    for (const [index, raw] of list.entries()) {
+        const startAt = new Date(raw?.startAt)
+        if (Number.isNaN(startAt.getTime())) return { error: `Slot ${index + 1}: choose a date and time.`, field: "slots" }
+        if (startAt.getTime() <= now) return { error: `Slot ${index + 1} is already in the past.`, field: "slots" }
+        if (seen.has(startAt.getTime())) return { error: `Slot ${index + 1} repeats another slot's start time.`, field: "slots" }
+        seen.add(startAt.getTime())
+        let capacity = null
+        if (raw?.capacity !== null && raw?.capacity !== undefined && raw?.capacity !== "") {
+            capacity = Number(raw.capacity)
+            if (!Number.isInteger(capacity) || capacity < LIMITS.slotCapacity.min || capacity > LIMITS.slotCapacity.max) {
+                return { error: `Slot ${index + 1}: seats must be a whole number between ${LIMITS.slotCapacity.min} and ${LIMITS.slotCapacity.max}, or left empty for no limit.`, field: "slots" }
+            }
+        }
+        slots.push({ id: String(raw?.id || crypto.randomUUID()).slice(0, 80), startAt, capacity })
+    }
+    slots.sort((a, b) => a.startAt - b.startAt)
+    // The test as a whole runs from the first slot to the moment the last slot's latest starter must finish.
+    const last = slots[slots.length - 1].startAt.getTime()
+    return { slots, startAt: slots[0].startAt, endAt: new Date(last + (lateEntryMinutes + durationMinutes) * MIN) }
+}
+
+/** Checks a schedule and returns it as Dates/numbers, or { error, field }. Out-of-range values are rejected, never clamped. */
+export const parseSchedule = (input, { now = Date.now() } = {}) => {
+    const mode = input?.mode === "SLOTS" ? "SLOTS" : "FIXED"
+    const timezone = String(input?.timezone || "Asia/Kolkata").slice(0, 60)
+    const length = parseDuration(input)
+    if (length.error) return length
+
+    if (mode === "SLOTS") {
+        const parsed = parseSlots(input, length, now)
+        if (parsed.error) return parsed
+        return { mode, ...parsed, ...length, timezone }
+    }
+
+    const startAt = new Date(input?.startAt)
+    const endAt = new Date(input?.endAt)
     if (Number.isNaN(startAt.getTime())) return { error: "Choose when the test starts.", field: "startAt" }
     if (Number.isNaN(endAt.getTime())) return { error: "Choose when the test closes.", field: "endAt" }
-    if (!Number.isFinite(durationMinutes) || durationMinutes < MIN_DURATION || durationMinutes > MAX_DURATION) {
-        return { error: `Duration must be between ${MIN_DURATION} and ${MAX_DURATION} minutes.`, field: "durationMinutes" }
-    }
-    if (!Number.isFinite(lateEntryMinutes) || lateEntryMinutes < 0 || lateEntryMinutes > 120) return { error: "Late entry must be between 0 and 120 minutes.", field: "lateEntryMinutes" }
-    if (endAt.getTime() < startAt.getTime() + durationMinutes * MIN) return { error: "The test must close at least one full duration after it starts.", field: "endAt" }
+    if (endAt.getTime() < startAt.getTime() + length.durationMinutes * MIN) return { error: "The test must close at least one full duration after it starts.", field: "endAt" }
     if (endAt.getTime() <= now) return { error: "The closing time is already in the past.", field: "endAt" }
-    return { startAt, endAt, durationMinutes, lateEntryMinutes, timezone: String(input?.timezone || "Asia/Kolkata").slice(0, 60) }
+    return { mode, slots: [], startAt, endAt, ...length, timezone }
 }
+
+/**
+ * The schedule one student actually sits: the shared one, or the slot they booked. null when the test offers slots
+ * and this student has not booked one yet.
+ */
+export const effectiveSchedule = (schedule, slotId) => {
+    if (schedule?.mode !== "SLOTS") return schedule
+    const slot = (schedule.slots || []).find((s) => s.id === slotId)
+    if (!slot) return null
+    const startAt = new Date(slot.startAt)
+    const { durationMinutes, lateEntryMinutes, timezone } = schedule
+    return { mode: "SLOTS", startAt, endAt: new Date(startAt.getTime() + (lateEntryMinutes + durationMinutes) * MIN), durationMinutes, lateEntryMinutes, timezone }
+}
+
+export const slotChangeDeadline = (slot) => new Date(new Date(slot.startAt).getTime() - SLOT_CHANGE_CUTOFF_MINUTES * MIN)
 
 export const WAITING_ROOM_MINUTES = 15
 

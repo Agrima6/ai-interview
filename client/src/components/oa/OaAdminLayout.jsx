@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { NavLink, Navigate, useNavigate } from 'react-router-dom'
+import { NavLink, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { motion as M } from 'motion/react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ClipboardList, LayoutDashboard, LogOut, Menu, X } from 'lucide-react'
 import { oaApi, oaTokens } from '../../api/oaApi'
@@ -15,6 +16,7 @@ const NAV = [
 // Gate + shell for the organizer side of Online Assessment. A separate room: its own sign-in, its own navigation.
 export function RequireOaAdmin({ children }) {
     const navigate = useNavigate()
+    const { pathname } = useLocation()
     const queryClient = useQueryClient()
     const hasToken = Boolean(oaTokens.get('admin'))
     const [open, setOpen] = useState(false)
@@ -47,8 +49,14 @@ export function RequireOaAdmin({ children }) {
                 <nav className='flex-1 p-3 space-y-1' aria-label='Online Assessment'>
                     {NAV.map((item) => (
                         <NavLink key={item.to} to={item.to} end={item.end} onClick={() => setOpen(false)}
-                            className={({ isActive }) => `flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-colors ${isActive ? 'bg-accent/10 text-accent' : 'text-text-secondary hover:bg-black/[0.03] hover:text-ink'}`}>
-                            <item.icon size={16} /> {item.label}
+                            className={({ isActive }) => `relative flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-colors ${isActive ? 'text-accent' : 'text-text-secondary hover:bg-black/[0.03] hover:text-ink'}`}>
+                            {({ isActive }) => (
+                                <>
+                                    {isActive && <M.span layoutId='oa-nav-pill' transition={{ type: 'spring', duration: 0.4, bounce: 0.18 }} className='absolute inset-0 rounded-xl bg-accent/10' aria-hidden='true' />}
+                                    {isActive && <M.span layoutId='oa-nav-bar' transition={{ type: 'spring', duration: 0.4, bounce: 0.18 }} className='absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-accent' aria-hidden='true' />}
+                                    <item.icon size={16} className='relative' /><span className='relative'>{item.label}</span>
+                                </>
+                            )}
                         </NavLink>
                     ))}
                 </nav>
@@ -71,7 +79,7 @@ export function RequireOaAdmin({ children }) {
                     <span className='font-display text-[14px] font-bold text-ink'>Online Assessment</span>
                 </header>
                 <main className='flex-1 w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8'>
-                    {me.isError ? <ErrorState message={me.error.message} onRetry={() => me.refetch()} /> : children}
+                    {me.isError ? <ErrorState message={me.error.message} onRetry={() => me.refetch()} /> : <div key={pathname} className='oa-page'>{children}</div>}
                 </main>
             </div>
         </div>
