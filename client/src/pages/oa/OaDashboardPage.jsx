@@ -15,12 +15,12 @@ const greeting = () => {
 
 // What the organizer is most likely to want to know first, in one sentence.
 const summary = (d) => {
-    if (!d) return 'Loading your assessments…'
+    if (!d) return 'Loading your drives…'
     const { live, upcoming, draft } = d.assessments
-    if (live) return `${live} test${live === 1 ? ' is' : 's are'} live right now${d.attempts.inProgress ? ` with ${d.attempts.inProgress} student${d.attempts.inProgress === 1 ? '' : 's'} sitting` : ''}.`
+    if (live) return `${live} test${live === 1 ? ' is' : 's are'} live right now${d.attempts.inProgress ? ` with ${d.attempts.inProgress} candidate${d.attempts.inProgress === 1 ? '' : 's'} sitting` : ''}.`
     if (upcoming) return `${upcoming} test${upcoming === 1 ? ' is' : 's are'} scheduled. Everything is ready when the time comes.`
     if (draft) return `${draft} draft${draft === 1 ? '' : 's'} waiting to be finished and published.`
-    return 'Create your first assessment and invite students in minutes.'
+    return 'Create your first drive and invite candidates in minutes.'
 }
 
 const StatIcon = ({ icon }) => React.createElement(icon, { size: 18 })
@@ -48,10 +48,10 @@ export default function OaDashboardPage() {
     const first = (me.data?.contactName || '').split(' ')[0]
 
     const steps = [
-        ['Create an assessment', 'Name it and add sections.', (data?.assessments.total || 0) > 0, '/oa/admin/assessments?new=1'],
-        ['Add questions and students', 'Write, upload or let AI draft them.', (data?.students || 0) > 0, '/oa/admin/assessments'],
-        ['Schedule and publish', 'One start time, or let students pick a slot.', (data?.assessments.live || 0) + (data?.assessments.upcoming || 0) + (data?.assessments.ended || 0) > 0, '/oa/admin/assessments'],
-        ['Review ranked results', 'Scores, rank and proctoring evidence.', (data?.attempts.finished || 0) > 0, '/oa/admin/assessments'],
+        ['Create a drive', 'Name it. Round 1 is created for you.', (data?.assessments.total || 0) > 0, '/oa/admin/drives?new=1'],
+        ['Add questions and candidates', 'Write, upload or let AI draft them.', (data?.students || 0) > 0, '/oa/admin/drives'],
+        ['Schedule and publish', 'Open the round for a time window; candidates can take it any time inside it.', (data?.assessments.live || 0) + (data?.assessments.upcoming || 0) + (data?.assessments.ended || 0) > 0, '/oa/admin/drives'],
+        ['Review ranked results', 'Scores, rank and proctoring evidence.', (data?.attempts.finished || 0) > 0, '/oa/admin/drives'],
     ]
     const done = steps.filter((s) => s[2]).length
 
@@ -59,11 +59,11 @@ export default function OaDashboardPage() {
         <div>
             <section className='oa-mesh rounded-3xl border border-line bg-card px-6 sm:px-8 py-7 mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-5'>
                 <div className='min-w-0'>
-                    <p className='text-[12.5px] font-semibold text-accent tracking-wide uppercase'>Online Assessment</p>
+                    <p className='text-[12.5px] font-semibold text-accent tracking-wide uppercase'>Drives</p>
                     <h1 className='font-display text-[26px] sm:text-[30px] font-bold text-ink tracking-tight mt-1 break-words'>{greeting()}{first ? `, ${first}` : ''}</h1>
                     <p className='text-[14.5px] text-text-secondary mt-1.5 max-w-xl'>{summary(data)}</p>
                 </div>
-                <Button size='sm' className='oa-press shrink-0' onClick={() => navigate('/oa/admin/assessments?new=1')}><Plus size={15} /> New assessment</Button>
+                <Button size='sm' className='oa-press shrink-0' onClick={() => navigate('/oa/admin/drives?new=1')}><Plus size={15} /> New drive</Button>
             </section>
 
             {isError ? <ErrorState title='Could not load your dashboard' message={error.message} onRetry={refetch} /> : (
@@ -71,12 +71,12 @@ export default function OaDashboardPage() {
                     <div className='grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 oa-stagger'>
                         <Stat icon={Radio} label='Live now' value={data?.assessments.live} tone='success' pulse loading={isLoading} />
                         <Stat icon={CalendarClock} label='Upcoming' value={data?.assessments.upcoming} tone='info' loading={isLoading} />
-                        <Stat icon={Users} label='Students invited' value={data?.students} tone='accent' loading={isLoading} />
+                        <Stat icon={Users} label='Candidates invited' value={data?.students} tone='accent' loading={isLoading} />
                         <Stat icon={Video} label='Sitting right now' value={data?.attempts.inProgress} tone='warning' loading={isLoading} />
                     </div>
 
                     <div className='grid lg:grid-cols-[1fr_360px] gap-6 items-start'>
-                        <Panel title='Starting soon' description='Published tests with a future start.' actions={<Link to='/oa/admin/assessments' className='text-[13px] font-semibold text-accent hover:underline inline-flex items-center gap-1'>All assessments <ArrowRight size={14} /></Link>} bodyClassName='!p-0'>
+                        <Panel title='Starting soon' description='Published rounds with a future start.' actions={<Link to='/oa/admin/drives' className='text-[13px] font-semibold text-accent hover:underline inline-flex items-center gap-1'>All drives <ArrowRight size={14} /></Link>} bodyClassName='!p-0'>
                             {isLoading ? (
                                 <div className='p-5 space-y-3'>{[0, 1].map((i) => <div key={i} className='oa-skel h-14 rounded-xl' />)}</div>
                             ) : data.next.length ? (
@@ -101,8 +101,8 @@ export default function OaDashboardPage() {
                                 <div className='text-center py-10 px-6'>
                                     <span className='mx-auto w-12 h-12 rounded-2xl bg-accent/10 text-accent flex items-center justify-center mb-3'><ClipboardList size={22} /></span>
                                     <p className='text-[14px] font-semibold text-ink'>Nothing scheduled yet</p>
-                                    <p className='text-[13px] text-text-secondary mt-1 mb-4'>Published assessments with a future start time show up here.</p>
-                                    <Link to='/oa/admin/assessments' className='text-[13.5px] font-semibold text-accent hover:underline'>Go to assessments</Link>
+                                    <p className='text-[13px] text-text-secondary mt-1 mb-4'>Published rounds with a future start time show up here.</p>
+                                    <Link to='/oa/admin/drives' className='text-[13.5px] font-semibold text-accent hover:underline'>Go to drives</Link>
                                 </div>
                             )}
                         </Panel>

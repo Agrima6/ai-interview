@@ -56,15 +56,18 @@ export function PhoneField({ label = 'Mobile number', hint, error, value, onChan
     const shown = touched || forceError ? error : ''
     return (
         <Field label={label} hint={hint} error={shown} htmlFor={id} className={className}>
-            <input id={id} type='tel' inputMode='tel' autoComplete='tel-national' maxLength={18} value={value ?? ''} placeholder='10-digit number' aria-invalid={Boolean(shown)}
+            <input id={id} type='tel' inputMode='numeric' autoComplete='tel-national' value={value ?? ''} placeholder='10-digit number' aria-invalid={Boolean(shown)} aria-describedby={shown ? `${id}-error` : hint ? `${id}-hint` : undefined}
                 onChange={(e) => onChange(tidyPhone(e.target.value))} onBlur={() => { setTouched(true); onChange(settlePhone(value)) }}
                 className={`${inputClass} tabular-nums ${shown ? errorRing : ''}`} {...rest} />
         </Field>
     )
 }
 
-/** Text input or textarea with a live character counter and an error that shows once touched. */
-export function TextField({ label, hint, error, value, onChange, max, textarea = false, rows = 3, forceError = false, className = '', ...rest }) {
+/**
+ * Text input or textarea with a live character counter and an error that shows once touched. `filter` (one of
+ * FILTERS in oaRules) drops characters the field may not hold as they are typed or pasted.
+ */
+export function TextField({ label, hint, error, value, onChange, max, filter, textarea = false, rows = 3, forceError = false, className = '', ...rest }) {
     const id = useId()
     const [touched, setTouched] = useState(false)
     const shown = touched || forceError ? error : ''
@@ -72,7 +75,7 @@ export function TextField({ label, hint, error, value, onChange, max, textarea =
     return (
         <Field label={label} hint={hint} error={shown} htmlFor={id} className={className} count={max ? <Counter value={value} max={max} /> : null}>
             <Control id={id} rows={textarea ? rows : undefined} value={value ?? ''} aria-invalid={Boolean(shown)} aria-describedby={shown ? `${id}-error` : hint ? `${id}-hint` : undefined}
-                onChange={(e) => onChange(e.target.value)} onBlur={() => setTouched(true)} maxLength={max}
+                onChange={(e) => onChange(filter ? filter(e.target.value, max) : e.target.value)} onBlur={() => setTouched(true)} maxLength={max}
                 className={`${inputClass} ${shown ? errorRing : ''}`} {...rest} />
         </Field>
     )

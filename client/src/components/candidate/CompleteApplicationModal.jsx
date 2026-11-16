@@ -7,6 +7,7 @@ import { Modal, Button, Badge } from '../ui'
 import { submitCandidateApplication } from '../../api/organization/organizationApi'
 import CandidateCalendarPicker from './CandidateCalendarPicker'
 import { INTERVIEW_LANGUAGES } from '../../constants/interviewLanguages'
+import { FILTERS, tidyPhone } from '../oa/oaRules'
 
 export default function CompleteApplicationModal({ open, onClose, interview, onSuccess }) {
     if (!interview) return null
@@ -146,7 +147,7 @@ export default function CompleteApplicationModal({ open, onClose, interview, onS
                             <input
                                 type='text'
                                 value={name}
-                                onChange={(e) => setName(e.target.value)}
+                                onChange={(e) => setName(FILTERS.personName(e.target.value, 100))}
                                 className='w-full px-3 py-2 text-[13px] rounded-lg border border-line bg-card focus:outline-none focus:ring-1 focus:ring-accent text-ink'
                                 placeholder='Your name'
                             />
@@ -158,7 +159,7 @@ export default function CompleteApplicationModal({ open, onClose, interview, onS
                                 <input
                                     type='tel'
                                     value={phone}
-                                    onChange={(e) => setPhone(e.target.value)}
+                                    onChange={(e) => setPhone(tidyPhone(e.target.value))} inputMode='numeric' maxLength={10}
                                     className='w-full pl-8 pr-3 py-2 text-[13px] rounded-lg border border-line bg-card focus:outline-none focus:ring-1 focus:ring-accent text-ink'
                                     placeholder='10-digit mobile'
                                 />

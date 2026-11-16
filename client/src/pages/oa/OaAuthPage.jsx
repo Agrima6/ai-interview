@@ -7,7 +7,7 @@ import AuthCard from '../../components/auth/AuthCard'
 import AuthInput from '../../components/auth/AuthInput'
 import AuthPasswordInput from '../../components/auth/AuthPasswordInput'
 import AuthButton from '../../components/auth/AuthButton'
-import { LIMITS, emailError, lengthError, nameError, phoneError, settlePhone, tidyPhone } from '../../components/oa/oaRules'
+import { FILTERS, LIMITS, emailError, lengthError, nameError, phoneError, settlePhone, tidyPhone } from '../../components/oa/oaRules'
 import logo from '../../assets/landing/logo.webp'
 
 const MESSAGES = {
@@ -30,7 +30,8 @@ export default function OaAuthPage({ mode = 'login' }) {
 
     if (oaTokens.get('admin') && !isRegister) return <Navigate to='/oa/admin' replace />
 
-    const set = (key) => (e) => { setForm((f) => ({ ...f, [key]: e.target.value })); setFields((f) => ({ ...f, [key]: undefined })) }
+    const clean = { orgName: FILTERS.orgName, contactName: (v) => FILTERS.personName(v, LIMITS.personName.max), email: FILTERS.email }
+    const set = (key) => (e) => { setForm((f) => ({ ...f, [key]: clean[key] ? clean[key](e.target.value) : e.target.value })); setFields((f) => ({ ...f, [key]: undefined })) }
 
     // Checked here first so the person sees every problem at once; the server checks again.
     const check = () => {

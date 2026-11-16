@@ -4,7 +4,7 @@ import { getOrganizationProfile } from '../api/organization/organizationApi'
 // signed-in visitor lands on a public page (/ or /login), so the two can never disagree.
 //
 // An org admin who also holds a candidate application is still primarily an org admin: the org identity wins.
-export async function resolvePostLoginPath(user) {
+export async function resolveWorkspacePath(user) {
     if (!user) return '/login'
     const isOrgAdmin = Boolean(user.tenantId || user.roles?.includes('CLIENT_ADMIN'))
     if (!isOrgAdmin && user.roles?.includes('CANDIDATE')) {
@@ -18,4 +18,10 @@ export async function resolvePostLoginPath(user) {
         if (profile?.type === 'CANDIDATE') return '/candidate/dashboard'
     } catch { /* fall through to the organization dashboard */ }
     return '/organization/dashboard'
+}
+
+// Organizations and colleges have two products, so they first choose between Online Assessment and AI Interview.
+export async function resolvePostLoginPath(user) {
+    const path = await resolveWorkspacePath(user)
+    return ['/organization/dashboard', '/college/dashboard'].includes(path) ? '/workspace' : path
 }

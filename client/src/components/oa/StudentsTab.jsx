@@ -14,9 +14,9 @@ import { useToast } from '../ui/Toast'
 import { AttemptStatus, ErrorState, TableSkeleton } from './oaUi'
 import { downloadText, formatDateTime, formatDay, formatTime } from './oaFormat'
 import { PhoneField, TextField } from './oaFields'
-import { LIMITS, emailError, lengthError, nameError, normalizePhone, phoneError } from './oaRules'
+import { FILTERS, LIMITS, emailError, lengthError, nameError, normalizePhone, phoneError } from './oaRules'
 
-const TEMPLATE = 'name,email,phone,rollNumber,branch,batch\nAsha Verma,asha@college.edu,9876543210,CS21001,CSE,2026\nRahul Mehta,rahul@college.edu,,CS21002,CSE,2026\n'
+const TEMPLATE = 'name,email,phone,rollNumber,branch,batch\nAsha Verma,asha@example.com,9876543210,CS21001,CSE,2026\nRahul Mehta,rahul@example.com,,CS21002,CSE,2026\n'
 const KNOWN = ['name', 'email', 'phone', 'rollnumber']
 
 // Reads a name/email list. Extra columns (branch, batch, college...) ride along as details the admin can see later.
@@ -56,7 +56,7 @@ function ImportModal({ open, onClose, assessmentId, onDone }) {
 
     const send = useMutation({
         mutationFn: (list) => oaApi.addStudents(assessmentId, list),
-        onSuccess: (r) => { setResult(r); onDone(); if (!r.skipped.length) { toast.success(`${r.added} student${r.added === 1 ? '' : 's'} added.`); onClose() } },
+        onSuccess: (r) => { setResult(r); onDone(); if (!r.skipped.length) { toast.success(`${r.added} candidate${r.added === 1 ? '' : 's'} added.`); onClose() } },
         onError: (err) => setError(err.message),
     })
 
@@ -67,27 +67,30 @@ function ImportModal({ open, onClose, assessmentId, onDone }) {
     }
 
     return (
-        <Modal open={open} onClose={onClose} title='Add students' size='lg'
+        <Modal open={open} onClose={onClose} title='Add candidates' size='lg'
             footer={<><Button variant='secondary' size='sm' onClick={onClose}>Close</Button>
-                {rows.length > 0 ? <Button size='sm' disabled={!valid.length || send.isPending} onClick={() => send.mutate(valid.map(({ name, email, phone, rollNumber, details }) => ({ name, email, phone: normalizePhone(phone) || '', rollNumber, details })))}>{send.isPending ? 'Adding…' : `Add ${valid.length} student${valid.length === 1 ? '' : 's'}`}</Button>
-                    : <Button size='sm' disabled={Boolean(rowProblem(single)) || send.isPending} onClick={() => send.mutate([{ ...single, phone: normalizePhone(single.phone) || '' }])}>Add student</Button>}</>}>
+                {rows.length > 0 ? <Button size='sm' disabled={!valid.length || send.isPending} onClick={() => send.mutate(valid.map(({ name, email, phone, rollNumber, details }) => ({ name, email, phone: normalizePhone(phone) || '', rollNumber, details })))}>{send.isPending ? 'Adding…' : `Add ${valid.length} candidate${valid.length === 1 ? '' : 's'}`}</Button>
+                    : <Button size='sm' disabled={Boolean(rowProblem(single)) || send.isPending} onClick={() => send.mutate([{ ...single, phone: normalizePhone(single.phone) || '' }])}>Add candidate</Button>}</>}>
             <div className='space-y-5'>
-                <p className='text-[13.5px] text-text-secondary'>Names and emails are enough. Each student gets a personal access code, and extra columns (branch, batch, college) are kept as details.</p>
+                <p className='text-[13.5px] text-text-secondary'>Names and emails are enough. Each candidate gets a personal access code, and extra columns (branch, batch, college) are kept as details.</p>
                 {error && <div role='alert' className='text-[13px] text-[var(--color-danger)] bg-[var(--color-danger-soft)] rounded-xl px-3.5 py-2.5'>{error}</div>}
                 <div className='flex flex-wrap gap-2'>
-                    <Button size='sm' variant='secondary' onClick={() => downloadText('students-template.csv', TEMPLATE)}><Download size={14} /> Download template</Button>
+                    <Button size='sm' variant='secondary' onClick={() => downloadText('candidates-template.csv', TEMPLATE)}><Download size={14} /> Download template</Button>
                     <Button size='sm' variant='secondary' onClick={() => input.current?.click()}><FileUp size={14} /> Choose CSV file</Button>
-                    <input ref={input} type='file' accept='.csv,text/csv' className='sr-only' aria-label='Choose a students file' onChange={(e) => { pick(e.target.files?.[0]); e.target.value = '' }} />
+                    <input ref={input} type='file' accept='.csv,text/csv' className='sr-only' aria-label='Choose a candidates file' onChange={(e) => { pick(e.target.files?.[0]); e.target.value = '' }} />
                 </div>
 
                 {rows.length === 0 && (
-                    <fieldset className='border border-line rounded-xl p-4'>
-                        <legend className='px-1 text-[12.5px] font-semibold text-ink'>Or add one student</legend>
+                    <fieldset className='border border-line rounded-xl p-4' onKeyDown={(e) => {
+                        // Enter in any of the single-candidate boxes adds the candidate, like the button does.
+                        if (e.key === 'Enter' && e.target.tagName === 'INPUT' && !rowProblem(single) && !send.isPending) { e.preventDefault(); send.mutate([{ ...single, phone: normalizePhone(single.phone) || '' }]) }
+                    }}>
+                        <legend className='px-1 text-[12.5px] font-semibold text-ink'>Or add one candidate</legend>
                         <div className='grid sm:grid-cols-2 gap-x-3 gap-y-4'>
-                            <TextField label='Name' value={single.name} onChange={(v) => setSingle({ ...single, name: v })} max={LIMITS.studentName.max} error={nameError(single.name, { ...LIMITS.studentName, label: 'Name' })} placeholder='Full name' autoComplete='off' />
-                            <TextField label='Email' type='email' value={single.email} onChange={(v) => setSingle({ ...single, email: v })} max={200} error={emailError(single.email)} placeholder='name@college.edu' autoComplete='off' />
+                            <TextField label='Name' value={single.name} onChange={(v) => setSingle({ ...single, name: v })} max={LIMITS.studentName.max} filter={FILTERS.personName} error={nameError(single.name, { ...LIMITS.studentName, label: 'Name' })} placeholder='Full name' autoComplete='off' />
+                            <TextField label='Email' type='text' inputMode='email' value={single.email} onChange={(v) => setSingle({ ...single, email: v })} max={200} filter={FILTERS.email} error={emailError(single.email)} placeholder='name@example.com' autoComplete='off' />
                             <PhoneField label='Mobile (optional)' value={single.phone} onChange={(v) => setSingle({ ...single, phone: v })} error={phoneError(single.phone)} />
-                            <TextField label='Roll number (optional)' value={single.rollNumber} onChange={(v) => setSingle({ ...single, rollNumber: v })} max={LIMITS.rollNumber.max} error={lengthError(single.rollNumber, { max: LIMITS.rollNumber.max, label: 'Roll number' })} />
+                            <TextField label='Roll number (optional)' value={single.rollNumber} onChange={(v) => setSingle({ ...single, rollNumber: v })} max={LIMITS.rollNumber.max} filter={FILTERS.rollNumber} error={lengthError(single.rollNumber, { max: LIMITS.rollNumber.max, label: 'Roll number' })} />
                         </div>
                     </fieldset>
                 )}
@@ -134,6 +137,8 @@ export default function StudentsTab({ assessment: a }) {
     const refresh = () => queryClient.invalidateQueries({ queryKey: ['oa'] })
     const published = a.status === 'PUBLISHED' && a.phase !== 'ENDED'
     const slotted = a.schedule?.mode === 'SLOTS'
+    // An AI interview round has no test to sign in to: no invitations, access codes or test status here.
+    const isTest = a.kind !== 'AI_INTERVIEW'
 
     const invite = useMutation({
         mutationFn: (body) => oaApi.invite(a.id, body),
@@ -147,7 +152,7 @@ export default function StudentsTab({ assessment: a }) {
     })
     const remove = useMutation({
         mutationFn: (id) => oaApi.removeStudent(a.id, id),
-        onSuccess: () => { refresh(); setRemoving(null); toast.success('Student removed.') },
+        onSuccess: () => { refresh(); setRemoving(null); toast.success('Candidate removed.') },
         onError: (err) => { setRemoving(null); toast.error(err.message) },
     })
 
@@ -157,32 +162,34 @@ export default function StudentsTab({ assessment: a }) {
     return (
         <>
             <div className='flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4'>
-                <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder='Search name, email or roll number' className='lg:w-80' />
+                <SearchInput value={search} onChange={(e) => setSearch(e.target.value.replace(/[^\p{L}\p{M}\d\s.@_'/+-]/gu, '').slice(0, 80))} placeholder='Search name, email or roll number' className='lg:w-80' />
                 <div className='flex flex-wrap gap-2'>
-                    <Button size='sm' variant='secondary' onClick={() => setAdding(true)}><UserPlus size={14} /> Add students</Button>
-                    <Button size='sm' disabled={!published || invite.isPending || !list.data?.total} title={published ? undefined : 'Publish the test first'} onClick={() => invite.mutate({})}><Send size={14} /> {invite.isPending ? 'Sending…' : 'Email invitations'}</Button>
+                    <Button size='sm' variant='secondary' onClick={() => setAdding(true)}><UserPlus size={14} /> Add candidates</Button>
+                    {isTest && <Button size='sm' disabled={!published || invite.isPending || !list.data?.total} title={published ? undefined : 'Publish this round first'} onClick={() => invite.mutate({})}><Send size={14} /> {invite.isPending ? 'Sending…' : 'Email invitations'}</Button>}
                 </div>
             </div>
-            {!published && <p className='text-[12.5px] text-text-secondary mb-3'>{a.status === 'PUBLISHED' ? 'This test has closed, so invitations can no longer be sent.' : 'Publish the test to email invitations. You can add students any time.'}</p>}
+            {isTest && !published && <p className='text-[12.5px] text-text-secondary mb-3'>{a.status === 'PUBLISHED' ? 'This round has closed, so invitations can no longer be sent.' : 'Publish this round to email invitations. You can add candidates any time.'}</p>}
 
             <div className='bg-card border border-line rounded-2xl overflow-hidden'>
-                {list.isError ? <ErrorState title='Could not load students' message={list.error.message} onRetry={list.refetch} /> : list.isLoading ? <TableSkeleton cols={5} /> : items.length === 0 ? (
-                    <EmptyState icon={Users} title={q ? 'No students match' : 'No students yet'} description={q ? 'Try a different search.' : 'Upload a CSV with names and emails, or add students one at a time. They sign in with their email and a personal access code.'} actionLabel={q ? undefined : 'Add students'} onAction={() => setAdding(true)} />
+                {list.isError ? <ErrorState title='Could not load candidates' message={list.error.message} onRetry={list.refetch} /> : list.isLoading ? <TableSkeleton cols={5} /> : items.length === 0 ? (
+                    <EmptyState icon={Users} title={q ? 'No candidates match' : 'No candidates yet'} description={q ? 'Try a different search.' : 'Upload a CSV with names and emails, or add candidates one at a time. They sign in with their email and a personal access code.'} actionLabel={q ? undefined : 'Add candidates'} onAction={() => setAdding(true)} />
                 ) : (
                     <div className='overflow-x-auto'>
-                        <table className='w-full text-[13.5px] min-w-[900px]'>
-                            <thead className='bg-surface-muted text-left text-[12px] font-semibold text-text-secondary'><tr><th className='px-4 py-3'>Student</th><th className='px-4 py-3'>Roll no.</th>{slotted && <th className='px-4 py-3'>Time slot</th>}<th className='px-4 py-3'>Invitation</th><th className='px-4 py-3'>Access code</th><th className='px-4 py-3'>Test</th><th className='px-4 py-3'><span className='sr-only'>Actions</span></th></tr></thead>
+                        <table className={`w-full text-[13.5px] ${isTest ? 'min-w-[900px]' : 'min-w-[520px]'}`}>
+                            <thead className='bg-surface-muted text-left text-[12px] font-semibold text-text-secondary'><tr><th className='px-4 py-3'>Candidate</th><th className='px-4 py-3'>Roll no.</th>{slotted && <th className='px-4 py-3'>Time slot</th>}{isTest && <><th className='px-4 py-3'>Invitation</th><th className='px-4 py-3'>Access code</th><th className='px-4 py-3'>Test</th></>}<th className='px-4 py-3'><span className='sr-only'>Actions</span></th></tr></thead>
                             <tbody className='divide-y divide-line'>
                                 {items.map((s) => (
                                     <tr key={s.id} className='ui-row'>
                                         <td className='px-4 py-3'><div className='font-semibold text-ink'>{s.name}</div><div className='text-[12px] text-text-secondary'>{s.email}</div></td>
                                         <td className='px-4 py-3'>{s.rollNumber || '—'}</td>
                                         {slotted && <td className='px-4 py-3 whitespace-nowrap'>{s.slot ? <><div className='font-medium text-ink'>{formatTime(s.slot.startAt, a.schedule.timezone)}</div><div className='text-[12px] text-text-secondary'>{formatDay(s.slot.startAt, a.schedule.timezone)}</div></> : <Badge variant='warning'>Not chosen</Badge>}</td>}
+                                        {isTest && <>
                                         <td className='px-4 py-3'><Badge variant={INVITE[s.invite.status][0]}>{INVITE[s.invite.status][1]}</Badge>{s.invite.sentAt && <div className='text-[11.5px] text-text-secondary mt-0.5'>{formatDateTime(s.invite.sentAt)}</div>}</td>
                                         <td className='px-4 py-3'><button onClick={() => copy(s.accessCode, 'Access code')} className='font-mono text-[13px] tracking-wider inline-flex items-center gap-1.5 text-ink hover:text-accent' aria-label={`Copy access code for ${s.name}`}>{s.accessCode}<Copy size={12} /></button></td>
                                         <td className='px-4 py-3'><AttemptStatus status={s.attempt?.status || 'NOT_STARTED'} /></td>
+                                        </>}
                                         <td className='px-4 py-3 whitespace-nowrap text-right'>
-                                            {published && <button aria-label={`Email ${s.name}`} title='Send or resend the invitation' className='p-2 text-text-secondary hover:text-accent' onClick={() => invite.mutate({ studentIds: [s.id], resend: true })}><Mail size={15} /></button>}
+                                            {isTest && published && <button aria-label={`Email ${s.name}`} title='Send or resend the invitation' className='p-2 text-text-secondary hover:text-accent' onClick={() => invite.mutate({ studentIds: [s.id], resend: true })}><Mail size={15} /></button>}
                                             {!s.attempt && <button aria-label={`Remove ${s.name}`} className='p-2 text-text-secondary hover:text-[var(--color-danger)]' onClick={() => setRemoving(s)}><Trash2 size={15} /></button>}
                                         </td>
                                     </tr>
@@ -195,8 +202,8 @@ export default function StudentsTab({ assessment: a }) {
             {list.data?.total > 0 && <Pagination page={page} pageSize={pageSize} total={list.data.total} onPageChange={setPage} onPageSizeChange={(s) => { setPageSize(s); setPage(1) }} />}
 
             {adding && <ImportModal open assessmentId={a.id} onClose={() => setAdding(false)} onDone={refresh} />}
-            <ConfirmModal open={Boolean(removing)} onClose={() => setRemoving(null)} danger title='Remove this student?' confirmLabel='Remove' onConfirm={() => remove.mutateAsync(removing.id)}>
-                {removing?.name} ({removing?.email}) will no longer be able to sit this test.
+            <ConfirmModal open={Boolean(removing)} onClose={() => setRemoving(null)} danger title='Remove this candidate?' confirmLabel='Remove' onConfirm={() => remove.mutateAsync(removing.id)}>
+                {removing?.name} ({removing?.email}) will no longer be able to take this round.
             </ConfirmModal>
         </>
     )

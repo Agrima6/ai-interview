@@ -1,6 +1,7 @@
 import React from 'react'
+import { languageLabel } from '../oaLanguages'
+import VideoAnswer from './VideoAnswer'
 
-const LANGUAGE_NAMES = { javascript: 'JavaScript', typescript: 'TypeScript', python: 'Python', java: 'Java', cpp: 'C++', c: 'C', go: 'Go', sql: 'SQL' }
 const words = (text) => (text.trim() ? text.trim().split(/\s+/).length : 0)
 
 // One question, one answer control. `value` is what the server stores: option ids, text, or { code, language }.
@@ -31,8 +32,16 @@ export default function QuestionView({ question: q, value, onChange }) {
     }
 
     if (q.type === 'CODING') {
-        const v = value && typeof value === 'object' ? value : { code: q.starterCode || '', language: q.codeLanguages?.[0] }
-        const code = value && typeof value === 'object' ? v.code : q.starterCode || ''
+        const languages = q.codeLanguages?.length ? q.codeLanguages : ['javascript']
+        const starterFor = (lang) => q.starterCodes?.[lang] ?? (lang === languages[0] ? q.starterCode : '') ?? ''
+        const v = value && typeof value === 'object' && !Array.isArray(value) ? value : null
+        const language = v?.language && languages.includes(v.language) ? v.language : languages[0]
+        const code = v ? v.code ?? '' : starterFor(language)
+        // Switching language swaps the starter snippet in, but only while the candidate has not written their own code.
+        const switchTo = (next) => {
+            const untouched = !code.trim() || Object.values({ ...q.starterCodes, '': q.starterCode }).some((s) => s && s === code)
+            onChange({ code: untouched ? starterFor(next) : code, language: next })
+        }
         return (
             <div>
                 {q.sampleCases?.length > 0 && (
@@ -46,19 +55,19 @@ export default function QuestionView({ question: q, value, onChange }) {
                         ))}
                     </div>
                 )}
-                <div className='flex items-center justify-between mb-2'>
+                <div className='flex items-center justify-between mb-2 gap-3'>
                     <label htmlFor={`lang-${q.id}`} className='text-[13px] font-semibold text-ink'>Language</label>
-                    <select id={`lang-${q.id}`} className='bg-card border border-line rounded-lg px-3 py-1.5 text-[13px]' value={v.language} onChange={(e) => onChange({ code, language: e.target.value })}>
-                        {q.codeLanguages.map((l) => <option key={l} value={l}>{LANGUAGE_NAMES[l] || l}</option>)}
+                    <select id={`lang-${q.id}`} className='bg-card border border-line rounded-lg px-3 py-1.5 text-[13px] min-w-[150px]' value={language} onChange={(e) => switchTo(e.target.value)}>
+                        {languages.map((l) => <option key={l} value={l}>{languageLabel(l)}</option>)}
                     </select>
                 </div>
                 <textarea aria-label='Your code' spellCheck={false} autoCapitalize='off' autoCorrect='off' rows={16} maxLength={50000} value={code}
-                    onChange={(e) => onChange({ code: e.target.value, language: v.language })}
+                    onChange={(e) => onChange({ code: e.target.value, language })}
                     onKeyDown={(e) => {
                         if (e.key === 'Tab') {            // an editor, not a form: Tab indents instead of leaving the box
                             e.preventDefault()
                             const t = e.target; const s = t.selectionStart
-                            onChange({ code: `${code.slice(0, s)}    ${code.slice(t.selectionEnd)}`, language: v.language })
+                            onChange({ code: `${code.slice(0, s)}    ${code.slice(t.selectionEnd)}`, language })
                             requestAnimationFrame(() => { t.selectionStart = t.selectionEnd = s + 4 })
                         }
                     }}
@@ -67,6 +76,8 @@ export default function QuestionView({ question: q, value, onChange }) {
             </div>
         )
     }
+
+    if (q.type === 'VIDEO') return <VideoAnswer question={q} value={value} onChange={onChange} />
 
     const text = typeof value === 'string' ? value : ''
     const max = q.type === 'SHORT' ? 3000 : 20000

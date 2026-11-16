@@ -1,4 +1,5 @@
 import { Router } from "express"
+import multer from "multer"
 import { authenticate, requirePermission } from "../middlewares/authenticate.js"
 import { OaAccount } from "../models/oa.model.js"
 import { ApiError, ok, okList } from "../utils/response.js"
@@ -6,7 +7,10 @@ import { OA_ROLES, requireOa } from "../utils/oaSecurity.js"
 import * as accounts from "../services/oaAccount.service.js"
 import * as assessments from "../services/oaAssessment.service.js"
 import * as exam from "../services/oaExam.service.js"
-import { aiConfigured } from "../services/oaAi.service.js"
+import * as drives from "../services/oaDrive.service.js"
+import { brandForAssessmentId, resolveLogo } from "../services/oaBrand.service.js"
+import { aiConfigured, aiStatus } from "../services/oaAi.service.js"
+import { VIDEO_MAX_BYTES, VIDEO_MIME_TYPES, verifyVideoSignature } from "../utils/oaVideo.js"
 
 // The Online Assessment room. Mounted at /api/v1/oa. Its sign-in and tokens are separate from the platform's, so
 // the same email can exist here and as an organization admin, college admin or candidate at the same time.
@@ -38,12 +42,67 @@ const requireActiveAdmin = async (req, res, next) => {
 
 const admin = [requireOa(OA_ROLES.ADMIN), requireActiveAdmin]
 const student = [requireOa(OA_ROLES.STUDENT)]
-const clientIp = (req) => req.ip
+// The gateway and the web server sit in front of this service, so the socket address is theirs. The web server's
+// own header is preferred; it is shown to the candidate and the organizer for the record, never used to allow anything.
+const clientIp = (req) => {
+    const real = String(req.headers["x-real-ip"] || "").trim()
+    const forwarded = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim()
+    return (real || forwarded || req.ip || "").replace(/^::ffff:/, "").slice(0, 64) || null
+}
+
+// One recorded answer, buffered in memory on its way to object storage.
+const videoUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: VIDEO_MAX_BYTES, files: 1 },
+    fileFilter: (req, file, cb) => cb(null, VIDEO_MIME_TYPES.includes(String(file.mimetype || "").split(";")[0].trim().toLowerCase())),
+}).single("video")
+const receiveVideo = (req, res, next) => videoUpload(req, res, (error) => {
+    if (!error) return next()
+    next(new ApiError(400, "VALIDATION_ERROR", error.code === "LIMIT_FILE_SIZE" ? `The recording is too large (the limit is ${Math.round(VIDEO_MAX_BYTES / 1024 / 1024)} MB). Record a shorter answer.` : "The recording could not be read. Record it again."))
+})
 
 // ---- public ----
 router.post("/oa/auth/register", handle((req) => accounts.register(req.body)))
 router.post("/oa/auth/login", handle((req) => accounts.login(req.body || {})))
 router.post("/oa/exam/login", handle((req) => exam.studentLogin(req.body || {})))
+// What we can see of the visitor's connection, shown to them before they sign in.
+router.get("/oa/exam/whoami", handle((req) => ({ ip: clientIp(req) })))
+// The organization behind a test (name, logo), so the sign-in page can look like theirs. Nothing else about the test.
+router.get("/oa/exam/brand", handle(async (req) => {
+    const brand = await brandForAssessmentId(String(req.query.a || ""))
+    return { name: brand.name, logoPath: brand.logoPath }
+}))
+// The logo itself: public (a mail app or a signed-out page cannot send a login), and cacheable.
+router.get("/oa/brand/:accountId/logo", async (req, res, next) => {
+    try {
+        const logo = await resolveLogo(req.params.accountId)
+        if (!logo) return next(new ApiError(404, "NOT_FOUND", "No logo."))
+        res.setHeader("Cache-Control", "public, max-age=1800")
+        if (logo.redirect) return res.redirect(302, logo.redirect)
+        res.setHeader("Content-Type", logo.contentType)
+        res.setHeader("X-Content-Type-Options", "nosniff")
+        return res.send(logo.buffer)
+    } catch (error) { return next(error) }
+})
+
+// A recorded video answer, opened from the organizer's report through a short-lived signed link.
+router.get("/oa/video/:attemptId/:questionId", async (req, res, next) => {
+    try {
+        const { attemptId, questionId } = req.params
+        if (!verifyVideoSignature(attemptId, questionId, req.query.exp, req.query.sig)) throw new ApiError(403, "FORBIDDEN", "This link has expired. Reopen the report.")
+        const file = await exam.videoStream(attemptId, questionId, req.headers.range)
+        res.status(file.contentRange ? 206 : 200)
+        res.setHeader("Content-Type", file.contentType || "video/webm")
+        res.setHeader("Accept-Ranges", "bytes")
+        res.setHeader("Cache-Control", "private, no-store")
+        if (file.contentLength) res.setHeader("Content-Length", file.contentLength)
+        if (file.contentRange) res.setHeader("Content-Range", file.contentRange)
+        file.stream.on("error", next).pipe(res)
+    } catch (error) { next(error) }
+})
+
+// ---- organization admins: straight in from their platform sign-in ----
+router.post("/oa/auth/org-session", authenticate, requirePermission("CLIENT_SELF_READ"), handle((req) => accounts.orgSession(req.user)))
 
 // ---- platform super admin: the checker ----
 const platform = [authenticate, requirePermission("CLIENT_APPROVE")]
@@ -52,16 +111,23 @@ router.post("/oa/platform/accounts/:id/:action", ...platform, handle((req) => ac
 
 // ---- OA admin ----
 router.get("/oa/me", ...admin, handle((req) => accounts.getMine(req.oa.accountId).then((account) => ({ ...account, aiAvailable: aiConfigured() }))))
+router.get("/oa/ai/status", ...admin, handle(() => aiStatus()))
 router.get("/oa/dashboard", ...admin, handle((req) => assessments.dashboard(req.oa.accountId)))
+
+router.get("/oa/drives", ...admin, handle((req) => drives.listDrives(req.oa.accountId, req.query), { list: true }))
+router.post("/oa/drives", ...admin, handle((req) => drives.createDrive(req.oa.accountId, req.body || {})))
+router.get("/oa/drives/:id", ...admin, handle((req) => drives.getDrive(req.oa.accountId, req.params.id)))
+router.patch("/oa/drives/:id", ...admin, handle((req) => drives.updateDrive(req.oa.accountId, req.params.id, req.body || {})))
+router.post("/oa/drives/:id/rounds", ...admin, handle((req) => drives.addRound(req.oa.accountId, req.params.id, req.body || {})))
 
 router.get("/oa/assessments", ...admin, handle((req) => assessments.listAssessments(req.oa.accountId, req.query), { list: true }))
 router.post("/oa/assessments", ...admin, handle((req) => assessments.createAssessment(req.oa.accountId, req.body)))
-router.get("/oa/assessments/:id", ...admin, handle((req) => assessments.getAssessment(req.oa.accountId, req.params.id)))
+router.get("/oa/assessments/:id", ...admin, handle(async (req) => { await drives.ensureDrives(req.oa.accountId); return assessments.getAssessment(req.oa.accountId, req.params.id) }))
 router.patch("/oa/assessments/:id", ...admin, handle((req) => assessments.updateAssessment(req.oa.accountId, req.params.id, req.body)))
 router.post("/oa/assessments/:id/publish", ...admin, handle((req) => assessments.publish(req.oa.accountId, req.params.id)))
 router.post("/oa/assessments/:id/unpublish", ...admin, handle((req) => assessments.unpublish(req.oa.accountId, req.params.id)))
 router.post("/oa/assessments/:id/archive", ...admin, handle((req) => assessments.archive(req.oa.accountId, req.params.id)))
-router.post("/oa/assessments/:id/next-round", ...admin, handle((req) => assessments.createNextRound(req.oa.accountId, req.params.id, req.body || {})))
+router.post("/oa/assessments/:id/next-round", ...admin, handle((req) => drives.nextRoundOf(req.oa.accountId, req.params.id, req.body || {})))
 
 router.post("/oa/assessments/:id/questions", ...admin, handle((req) => assessments.addQuestions(req.oa.accountId, req.params.id, req.body)))
 router.post("/oa/assessments/:id/questions/generate", ...admin, handle((req) => assessments.aiDraft(req.oa.accountId, req.params.id, req.body)))
@@ -93,6 +159,7 @@ router.put("/oa/exam/slot", ...student, handle((req) => exam.bookSlot(req.oa, re
 router.post("/oa/exam/start", ...student, handle((req) => exam.start(req.oa, req.body || {}, { ip: clientIp(req) })))
 router.get("/oa/exam/paper", ...student, handle((req) => exam.getPaper(req.oa)))
 router.put("/oa/exam/answers", ...student, handle((req) => exam.saveAnswers(req.oa, req.body)))
+router.post("/oa/exam/video/:questionId", ...student, receiveVideo, handle((req) => exam.uploadVideo(req.oa, req.params.questionId, req.file, { durationSec: req.body?.durationSec })))
 router.post("/oa/exam/heartbeat", ...student, handle((req) => exam.heartbeat(req.oa, req.body || {})))
 router.post("/oa/exam/violation", ...student, handle((req) => exam.reportViolation(req.oa, req.body || {})))
 router.post("/oa/exam/submit", ...student, handle((req) => exam.submit(req.oa)))

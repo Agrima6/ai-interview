@@ -4,10 +4,12 @@ import { ApiError } from "../utils/response.js"
 import { csvEscape } from "../utils/csv.js"
 import { EMAIL_RE, generateAccessCode, hashAccessCode, normalizeEmail } from "../utils/oaSecurity.js"
 import { decryptSecret, encryptSecret } from "../utils/crypto.js"
-import { newId, normalizeQuestion, normalizeQuestions } from "../utils/oaQuestions.js"
+import { newId, normalizeQuestion, normalizeQuestions, sectionName } from "../utils/oaQuestions.js"
+import { signedVideoPath } from "../utils/oaVideo.js"
 import { gradeAttempt, parseSchedule, rankRows, schedulePhase } from "../utils/oaExam.js"
 import { LIMITS, intInRange, nameProblem, normalizePhone, phoneProblem, textLength, throwFields } from "../utils/oaValidate.js"
 import { inviteEmail, sendOaEmail } from "./oaMail.js"
+import { emailBrand } from "./oaBrand.service.js"
 import { generateQuestions } from "./oaAi.service.js"
 
 const MAX_STUDENTS_PER_UPLOAD = 2000
@@ -39,8 +41,9 @@ export const assessmentView = (a, extra = {}) => {
     return {
         id: String(o._id), title: o.title, description: o.description, instructions: o.instructions, status: o.status,
         roundLabel: o.roundLabel, previousAssessmentId: o.previousAssessmentId ? String(o.previousAssessmentId) : null,
+        driveId: o.driveId ? String(o.driveId) : null, roundNumber: o.roundNumber || 1, kind: o.kind || "TEST", aiInterviewDriveId: o.aiInterviewDriveId || null,
         schedule: o.schedule, settings: o.settings, proctoring: o.proctoring,
-        sections: o.sections, questions: o.questions,
+        sections: (o.sections || []).map((s) => ({ id: s.id, title: sectionName(s.title) })), questions: o.questions,
         questionCount: o.questions?.length || 0,
         totalMarks: (o.questions || []).reduce((sum, q) => sum + q.marks, 0),
         phase: o.schedule?.startAt && o.schedule?.endAt ? schedulePhase(o.schedule) : "UNSCHEDULED",
@@ -107,6 +110,7 @@ const applySettings = (target, input = {}) => {
         shuffleSections: flag("shuffleSections", s.shuffleSections ?? false),
         allowBackNavigation: flag("allowBackNavigation", s.allowBackNavigation ?? true),
         showResultToStudent: flag("showResultToStudent", s.showResultToStudent ?? false),
+        partialMarking: flag("partialMarking", s.partialMarking ?? false),
         passPercent: input.passPercent === undefined ? (s.passPercent ?? 40) : intInRange(input.passPercent, { ...LIMITS.passPercent, field: "passPercent", label: "Pass mark" }),
     }
 }
@@ -124,6 +128,8 @@ const applyProctoring = (target, input = {}) => {
         requireFullscreen: hard ? true : flag("requireFullscreen", p.requireFullscreen ?? true),
         faceChecks: hard ? true : flag("faceChecks", p.faceChecks ?? true),
         blockCopyPaste: hard ? true : flag("blockCopyPaste", p.blockCopyPaste ?? true),
+        // Not tied to the level: some candidates' devices cannot give a location, so the organizer may switch it off.
+        requireLocation: flag("requireLocation", p.requireLocation ?? false),
         maxViolations: input.maxViolations === undefined ? Math.min(p.maxViolations ?? 5, LIMITS.maxViolations.max) : intInRange(input.maxViolations, { ...LIMITS.maxViolations, field: "maxViolations", label: "Violations before auto-submit" }),
         snapshotIntervalSec: input.snapshotIntervalSec === undefined ? (p.snapshotIntervalSec ?? 45) : intInRange(input.snapshotIntervalSec, { ...LIMITS.snapshotIntervalSec, field: "snapshotIntervalSec", label: "Snapshot interval" }),
     }
@@ -144,10 +150,12 @@ export const createAssessment = async (accountId, input = {}) => {
     const assessment = new OaAssessment({
         accountId, title,
         description: checkedText(input.description, "description", "Description"), instructions: checkedText(input.instructions, "instructions", "Instructions"), roundLabel: checkedText(input.roundLabel, "roundLabel", "Round label"),
-        sections: [{ id: newId(), title: "Section 1" }],
+        sections: [{ id: newId(), title: "" }],
     })
+    if (input.driveId) Object.assign(assessment, { driveId: input.driveId, roundNumber: input.roundNumber || 1 })
     assessment.settings = applySettings(assessment, input.settings)
-    assessment.proctoring = applyProctoring(assessment, input.proctoring)
+    // New rounds ask for the candidate's location; rounds made before this existed keep working as they were.
+    assessment.proctoring = applyProctoring(assessment, { requireLocation: true, ...(input.proctoring || {}) })
     if (input.schedule) assessment.schedule = scheduleFrom(assessment, input.schedule)
     await assessment.save()
     return assessmentView(assessment)
@@ -170,7 +178,12 @@ const slotUsage = async (assessment) => {
 // `locked`: someone has started, so questions, sections, rules and schedule can no longer change.
 export const getAssessment = async (accountId, id) => {
     const assessment = await owned(accountId, id)
-    return assessmentView(assessment, { locked: Boolean(await hasAttempts(assessment._id)), slotUsage: await slotUsage(assessment) })
+    const [students, started, finished] = await Promise.all([
+        OaStudent.countDocuments({ assessmentId: assessment._id }),
+        OaAttempt.countDocuments({ assessmentId: assessment._id }),
+        OaAttempt.countDocuments({ assessmentId: assessment._id, status: { $in: FINISHED } }),
+    ])
+    return assessmentView(assessment, { locked: started > 0, slotUsage: await slotUsage(assessment), stats: { students, started, finished } })
 }
 
 export const updateAssessment = async (accountId, id, patch = {}) => {
@@ -181,7 +194,8 @@ export const updateAssessment = async (accountId, id, patch = {}) => {
     if (patch.title !== undefined) assessment.title = checkedTitle(patch.title)
     if (patch.description !== undefined) assessment.description = checkedText(patch.description, "description", "Description")
     if (patch.instructions !== undefined) assessment.instructions = checkedText(patch.instructions, "instructions", "Instructions")
-    if (patch.roundLabel !== undefined) assessment.roundLabel = checkedText(patch.roundLabel, "roundLabel", "Round label")
+    if (patch.roundLabel !== undefined) assessment.roundLabel = checkedText(patch.roundLabel, "roundLabel", "Round name")
+    if (patch.aiInterviewDriveId !== undefined && assessment.kind === "AI_INTERVIEW") assessment.aiInterviewDriveId = cleanText(patch.aiInterviewDriveId, 64).replace(/[^a-zA-Z0-9_-]/g, "") || null
 
     const structural = patch.sections !== undefined || patch.settings !== undefined || patch.proctoring !== undefined || patch.schedule !== undefined
     if (started && structural) {
@@ -193,7 +207,7 @@ export const updateAssessment = async (accountId, id, patch = {}) => {
 
     if (patch.sections !== undefined) {
         if ((Array.isArray(patch.sections) ? patch.sections : []).length > LIMITS.sections.max) throw new ApiError(400, "VALIDATION_ERROR", `A test can have at most ${LIMITS.sections.max} sections.`, { sections: `At most ${LIMITS.sections.max}.` })
-        const next = (Array.isArray(patch.sections) ? patch.sections : []).map((s) => ({ id: cleanText(s.id, 80) || newId(), title: cleanText(s.title, 80) || "Untitled section" }))
+        const next = (Array.isArray(patch.sections) ? patch.sections : []).map((s) => ({ id: cleanText(s.id, 80) || newId(), title: sectionName(s.title) }))
         if (!next.length) throw new ApiError(400, "VALIDATION_ERROR", "A test needs at least one section.")
         const keep = new Set(next.map((s) => s.id))
         const orphaned = assessment.questions.filter((q) => !keep.has(q.sectionId)).length
@@ -207,9 +221,10 @@ export const updateAssessment = async (accountId, id, patch = {}) => {
 export const publish = async (accountId, id) => {
     const assessment = await owned(accountId, id)
     if (assessment.status === "PUBLISHED") return assessmentView(assessment)
+    if (assessment.kind === "AI_INTERVIEW") throw new ApiError(409, "NOT_A_TEST", "This round is an AI interview. It runs from AI Interview, so there is nothing to publish here.")
     const problems = []
     if (!assessment.questions.length) problems.push("Add at least one question.")
-    if (!assessment.schedule?.startAt || !assessment.schedule?.endAt) problems.push(assessment.schedule?.mode === "SLOTS" ? "Add at least one time slot and set the duration." : "Set the date, start time, closing time and duration.")
+    if (!assessment.schedule?.startAt || !assessment.schedule?.endAt) problems.push(assessment.schedule?.mode === "SLOTS" ? "Add at least one time slot and set the duration." : "Set when the test opens, when it closes and how long it lasts.")
     else {
         const parsed = parseSchedule(assessment.schedule.toObject())
         if (parsed.error) problems.push(parsed.error)
@@ -367,6 +382,7 @@ export const sendInvites = async (accountId, id, { studentIds, resend = false } 
     if (assessment.status !== "PUBLISHED") throw new ApiError(409, "NOT_PUBLISHED", "Publish the test before inviting students.")
     if (schedulePhase(assessment.schedule) === "ENDED") throw new ApiError(409, "ENDED", "This test has already closed.")
     const account = await OaAccount.findById(accountId)
+    const brand = await emailBrand(account)
     const filter = { assessmentId: assessment._id }
     if (Array.isArray(studentIds) && studentIds.length) filter._id = { $in: studentIds.filter((x) => mongoose.isValidObjectId(x)) }
     // Idempotent: a repeated click only mails people who have not been mailed (unless the admin asks to resend).
@@ -379,7 +395,7 @@ export const sendInvites = async (accountId, id, { studentIds, resend = false } 
         while (queue.length) {
             const student = queue.shift()
             const code = decryptSecret(student.codeEncrypted)
-            const mail = inviteEmail({ assessment, student, code, orgName: account?.orgName || "Your organizer" })
+            const mail = inviteEmail({ assessment, student, code, orgName: brand.name || account?.orgName || "Your organizer", brand })
             const result = await sendOaEmail({ accountId, to: student.email, eventType: "OA_INVITE", ...mail, metadata: { assessmentId: String(assessment._id), studentId: String(student._id) } })
             student.invite = result.ok ? { status: "SENT", sentAt: new Date(), error: null } : { status: "FAILED", sentAt: student.invite?.sentAt || null, error: String(result.error || "send failed").slice(0, 120) }
             await student.save()
@@ -399,7 +415,7 @@ const durationSec = (a) => (a.submittedAt ? Math.max(0, Math.round((new Date(a.s
 const buildResultRows = async (assessment) => {
     const [students, attempts] = await Promise.all([
         OaStudent.find({ assessmentId: assessment._id }).lean(),
-        OaAttempt.find({ assessmentId: assessment._id }).select("-answers -grades -order -environment").lean(),
+        OaAttempt.find({ assessmentId: assessment._id }).select("-answers -grades -order").lean(),
     ])
     const byStudent = new Map(attempts.map((a) => [String(a.studentId), a]))
     const ranks = rankRows(attempts.map((a) => ({ id: String(a._id), percent: a.percent, durationSec: durationSec(a), eligible: isRankable(a) })))
@@ -421,6 +437,9 @@ const buildResultRows = async (assessment) => {
             timeTakenSec: a ? durationSec(a) : null,
             submittedAt: a?.submittedAt || null,
             endReason: a?.endReason || null,
+            // Where and on what the candidate sat the test, as recorded when they pressed Start.
+            ip: a?.ip || null, latitude: a?.environment?.latitude ?? null, longitude: a?.environment?.longitude ?? null,
+            browser: a?.environment?.browser || null, os: a?.environment?.os || null, device: a?.environment?.device || null,
         }
     })
 }
@@ -477,13 +496,14 @@ const label = (value) => String(value || "").toLowerCase().split("_").map((w) =>
 export const exportResultsCsv = async (accountId, id, query = {}) => {
     const assessment = await owned(accountId, id)
     const rows = filterRows(await buildResultRows(assessment), query)
-    const head = ["Rank", "Name", "Email", "Roll number", "Status", "Score", "Out of", "Percent", "Result", "Violations", "Time taken (min)", "Submitted at", "Decision"]
+    const head = ["Rank", "Name", "Email", "Roll number", "Status", "Score", "Out of", "Percent", "Result", "Violations", "Time taken (min)", "Submitted at", "Decision", "IP address", "Latitude", "Longitude", "Browser", "Operating system", "Device"]
     const lines = [head.map(csvEscape).join(",")]
     for (const r of rows) {
         lines.push([
             r.rank ?? "", r.name, r.email, r.rollNumber, label(r.status), r.score ?? "", r.maxScore ?? "", r.percent ?? "",
             r.passed === null ? "" : r.passed ? "Passed" : "Not passed", r.violationCount,
             r.timeTakenSec === null ? "" : Math.round(r.timeTakenSec / 6) / 10, r.submittedAt ? new Date(r.submittedAt).toISOString() : "", label(r.adminDecision),
+            r.ip ?? "", r.latitude ?? "", r.longitude ?? "", r.browser ?? "", r.os ?? "", r.device ?? "",
         ].map(csvEscape).join(","))
     }
     return { filename: `${assessment.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "results"}-results.csv`, csv: lines.join("\r\n") }
@@ -498,11 +518,17 @@ export const attemptDetail = async (accountId, id, attemptId) => {
         OaEvent.find({ attemptId: attempt._id }).sort({ at: 1 }).limit(400).lean(),
     ])
     const byId = new Map(assessment.questions.map((q) => [q.id, q.toObject ? q.toObject() : q]))
+    // While the candidate is still writing, nobody sees their answers: not the answers, not the running score.
+    const answersHidden = attempt.status === "IN_PROGRESS"
     const sections = attempt.order.sections.map((s) => ({
-        sectionId: s.sectionId, title: assessment.sections.find((x) => x.id === s.sectionId)?.title || "Section",
+        sectionId: s.sectionId, number: assessment.sections.findIndex((x) => x.id === s.sectionId) + 1,
+        title: sectionName(assessment.sections.find((x) => x.id === s.sectionId)?.title),
         questions: s.questionIds.map((qid) => {
             const q = byId.get(qid); if (!q) return null
-            const answer = attempt.answers?.[qid]?.value
+            if (answersHidden) return { id: q.id, type: q.type, text: q.text, marks: q.marks, negativeMarks: q.negativeMarks, options: [], correct: [], correctText: [], answer: null, answered: false, grade: null }
+            const stored = attempt.answers?.[qid]?.value
+            // A video answer is handed over as a short-lived signed link, never as its storage key.
+            const answer = q.type === "VIDEO" ? (stored?.videoKey ? { video: { url: signedVideoPath(String(attempt._id), q.id), durationSec: stored.durationSec ?? null, size: stored.size ?? null } } : null) : stored
             const optionText = (ids) => (Array.isArray(ids) ? ids : []).map((oid) => q.options.find((o) => o.id === oid)?.text).filter(Boolean)
             return {
                 id: q.id, type: q.type, text: q.text, marks: q.marks, negativeMarks: q.negativeMarks,
@@ -516,11 +542,12 @@ export const attemptDetail = async (accountId, id, attemptId) => {
     return {
         attempt: {
             id: String(attempt._id), status: attempt.status, startedAt: attempt.startedAt, submittedAt: attempt.submittedAt, endReason: attempt.endReason,
-            score: attempt.score, maxScore: attempt.maxScore, percent: attempt.percent, gradingStatus: attempt.gradingStatus,
+            score: answersHidden ? null : attempt.score, maxScore: attempt.maxScore, percent: answersHidden ? null : attempt.percent, gradingStatus: attempt.gradingStatus,
             violationCount: attempt.violationCount, adminDecision: attempt.adminDecision, environment: attempt.environment, ip: attempt.ip,
         },
         student: student ? { name: student.name, email: student.email, rollNumber: student.rollNumber, details: student.details || {} } : null,
         passPercent: assessment.settings?.passPercent ?? 40,
+        answersHidden,
         sections,
         violations: events.filter((e) => e.kind !== "SNAPSHOT").map((e) => ({ id: String(e._id), kind: e.kind, type: e.type, detail: e.detail, counted: e.counted, at: e.at, image: e.image })),
         snapshots: events.filter((e) => e.kind === "SNAPSHOT").slice(-60).map((e) => ({ id: String(e._id), at: e.at, image: e.image })),
@@ -541,7 +568,7 @@ export const gradeManually = async (accountId, id, attemptId, { grades } = {}) =
         if (!Number.isFinite(marks) || marks < 0 || marks > q.marks) throw new ApiError(400, "VALIDATION_ERROR", `Marks for a question must be between 0 and ${q.marks}.`, { [q.id]: `0 to ${q.marks}` })
         next[q.id] = { marks: Math.round(marks * 100) / 100, auto: false, needsReview: false, feedback: cleanText(g.feedback, 500) || undefined, gradedAt: new Date() }
     }
-    const result = gradeAttempt({ questions: assessment.questions.map((q) => (q.toObject ? q.toObject() : q)), answers: attempt.answers, grades: next })
+    const result = gradeAttempt({ questions: assessment.questions.map((q) => (q.toObject ? q.toObject() : q)), answers: attempt.answers, grades: next, settings: assessment.settings?.toObject?.() || assessment.settings || {} })
     Object.assign(attempt, { grades: result.grades, score: result.score, maxScore: result.maxScore, percent: result.percent, gradingStatus: result.gradingStatus })
     attempt.markModified("grades")
     await attempt.save()
@@ -589,8 +616,8 @@ export const live = async (accountId, id) => {
 
 // ---------- next round ----------
 
-export const createNextRound = async (accountId, id, { title, minPercent, topN, roundLabel } = {}) => {
-    const source = await owned(accountId, id)
+/** The candidates of one round who clear a cut-off (a minimum percentage, the top ranks, or both). */
+const qualifiersOf = async (source, { minPercent, topN }) => {
     const hasMin = minPercent !== undefined && minPercent !== null && minPercent !== ""
     const hasTop = topN !== undefined && topN !== null && topN !== ""
     if (!hasMin && !hasTop) throw new ApiError(400, "VALIDATION_ERROR", "Choose a cut-off: a minimum percentage or the top ranks.", { cutoff: "Required." })
@@ -603,18 +630,28 @@ export const createNextRound = async (accountId, id, { title, minPercent, topN, 
     if (hasMin) qualified = qualified.filter((r) => r.percent >= Number(minPercent))
     if (hasTop) qualified = qualified.filter((r) => r.rank <= Number(topN)) // ties at the cut-off all advance
     if (!qualified.length) throw new ApiError(409, "NO_ONE_QUALIFIES", "No one meets that cut-off yet. Check the results and the cut-off.")
+    return qualified.map((r) => r.studentId)
+}
 
+/**
+ * The round after `id`. With a cut-off, the candidates who clear it are carried over (each gets a new access code).
+ * `empty: true` starts the round with no candidates, for the organizer to add their own.
+ */
+export const createNextRound = async (accountId, id, { title, minPercent, topN, roundLabel, kind, empty = false, driveId = null, roundNumber } = {}) => {
+    const source = await owned(accountId, id)
+    const studentIds = empty ? [] : await qualifiersOf(source, { minPercent, topN })
     const next = new OaAssessment({
-        accountId, title: cleanText(title, LIMITS.title.max) || `${source.title} - next round`, roundLabel: cleanText(roundLabel, LIMITS.roundLabel.max) || "Next round",
+        accountId, title: cleanText(title, LIMITS.title.max) || `${source.title} - next round`, roundLabel: cleanText(roundLabel, LIMITS.roundLabel.max),
         description: source.description, instructions: source.instructions, previousAssessmentId: source._id,
-        settings: source.settings.toObject(), proctoring: source.proctoring.toObject(), sections: [{ id: newId(), title: "Section 1" }],
+        driveId: driveId || source.driveId || null, roundNumber: roundNumber || (source.roundNumber || 1) + 1, kind: kind === "AI_INTERVIEW" ? "AI_INTERVIEW" : "TEST",
+        settings: source.settings.toObject(), proctoring: source.proctoring.toObject(), sections: [{ id: newId(), title: "" }],
     })
     await next.save()
-    const people = await OaStudent.find({ _id: { $in: qualified.map((r) => r.studentId) } }).lean()
+    const people = studentIds.length ? await OaStudent.find({ _id: { $in: studentIds } }).lean() : []
     const docs = people.map((s) => {
         const code = generateAccessCode()
         return { accountId, assessmentId: next._id, name: s.name, email: s.email, emailNormalized: s.emailNormalized, phone: s.phone, rollNumber: s.rollNumber, details: s.details, codeHash: hashAccessCode(code), codeEncrypted: encryptSecret(code) }
     })
-    await OaStudent.insertMany(docs, { ordered: false })
+    if (docs.length) await OaStudent.insertMany(docs, { ordered: false })
     return { assessmentId: String(next._id), students: docs.length }
 }

@@ -8,6 +8,7 @@ import ExamLobby from '../../components/oa/exam/ExamLobby'
 import ExamRunner from '../../components/oa/exam/ExamRunner'
 import { stopStream } from '../../components/oa/exam/examMedia'
 import { ErrorState } from '../../components/oa/oaUi'
+import ExamBrand from '../../components/oa/ExamBrand'
 
 function Finished({ session, info, onLeave }) {
     const status = info?.status || session.attempt?.status
@@ -22,6 +23,7 @@ function Finished({ session, info, onLeave }) {
     return (
         <div className='min-h-screen bg-bg flex items-center justify-center p-5'>
             <div className='bg-card border border-line rounded-3xl max-w-md w-full p-8 text-center'>
+                <div className='flex justify-center mb-6'><ExamBrand brand={session.assessment?.brand} size={40} /></div>
                 <Icon size={48} style={{ color }} className='mx-auto mb-4' />
                 <h1 className='font-display text-[24px] font-bold text-ink mb-2'>{title}</h1>
                 <p className='text-[14.5px] text-text-secondary leading-relaxed'>{text}</p>

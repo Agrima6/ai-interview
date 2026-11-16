@@ -2,24 +2,36 @@ import React, { useEffect, useState } from 'react'
 import { NavLink, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { motion as M } from 'motion/react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ClipboardList, LayoutDashboard, LogOut, Menu, X } from 'lucide-react'
+import { ArrowLeftRight, Layers, LayoutDashboard, LogOut, Menu, X } from 'lucide-react'
 import { oaApi, oaTokens } from '../../api/oaApi'
+import { useAuth } from '../../hooks/useAuth.jsx'
 import { ErrorState } from './oaUi'
 import Avatar from '../ui/Avatar'
 import logo from '../../assets/logo.png'
 
 const NAV = [
     { to: '/oa/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
-    { to: '/oa/admin/assessments', label: 'Assessments', icon: ClipboardList },
+    { to: '/oa/admin/drives', label: 'Drives', icon: Layers },
 ]
 
-// Gate + shell for the organizer side of Online Assessment. A separate room: its own sign-in, its own navigation.
+// Gate + shell for the organizer side of Online Assessment. An organization admin walks in on their platform
+// sign-in: the first visit trades it for an Online Assessment session, so nobody signs in twice.
 export function RequireOaAdmin({ children }) {
     const navigate = useNavigate()
     const { pathname } = useLocation()
     const queryClient = useQueryClient()
-    const hasToken = Boolean(oaTokens.get('admin'))
+    const auth = useAuth()
+    const [hasToken, setHasToken] = useState(() => Boolean(oaTokens.get('admin')))
+    const [bridgeError, setBridgeError] = useState(null)
     const [open, setOpen] = useState(false)
+
+    const needsBridge = !hasToken && auth.status === 'authenticated' && !bridgeError
+    useEffect(() => {
+        if (!needsBridge) return undefined
+        let cancelled = false
+        oaApi.orgSession().then(() => { if (!cancelled) setHasToken(true) }).catch((error) => { if (!cancelled) setBridgeError(error) })
+        return () => { cancelled = true }
+    }, [needsBridge])
     const me = useQuery({ queryKey: ['oa', 'me'], queryFn: oaApi.me, enabled: hasToken, retry: false, staleTime: 5 * 60 * 1000 })
 
     useEffect(() => {
@@ -29,10 +41,19 @@ export function RequireOaAdmin({ children }) {
         return () => window.removeEventListener('keydown', onKey)
     }, [open])
 
-    if (!hasToken) return <Navigate to='/oa/login' replace />
+    if (!hasToken) {
+        if (bridgeError) return <div className='min-h-screen bg-bg flex items-center justify-center p-6'><ErrorState title='Online Assessment could not be opened' message={bridgeError.message} onRetry={() => setBridgeError(null)} /></div>
+        if (auth.status === 'anonymous') return <Navigate to='/login' replace />
+        return <div className='min-h-screen bg-bg flex items-center justify-center text-[13px] text-text-secondary' role='status'>Opening Online Assessment…</div>
+    }
     if (me.isError && ['ACCOUNT_INACTIVE', 'FORBIDDEN'].includes(me.error?.code)) { oaTokens.clear('admin'); return <Navigate to='/oa/login?inactive=1' replace /> }
 
-    const signOut = () => { oaApi.logout(); queryClient.removeQueries({ queryKey: ['oa'] }); navigate('/oa/login') }
+    // Signing out leaves both rooms and lands on the public site.
+    const signOut = async () => {
+        oaApi.logout(); queryClient.removeQueries({ queryKey: ['oa'] })
+        if (auth.status === 'authenticated') await auth.logout()
+        navigate('/')
+    }
 
     return (
         <div className='min-h-screen bg-bg flex'>
@@ -61,6 +82,11 @@ export function RequireOaAdmin({ children }) {
                     ))}
                 </nav>
                 <div className='p-3 border-t border-line'>
+                    {auth.status === 'authenticated' && (
+                        <NavLink to='/workspace' className='mb-2 flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-line text-[13px] font-semibold text-ink hover:border-accent/40 hover:text-accent transition-colors'>
+                            <ArrowLeftRight size={15} /> Switch to AI Interview
+                        </NavLink>
+                    )}
                     <div className='flex items-center gap-2.5 px-2 py-2'>
                         <Avatar name={me.data?.orgName || '?'} size='sm' />
                         <div className='min-w-0 flex-1'>
