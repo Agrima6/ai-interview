@@ -7,7 +7,7 @@ import { brandForAssessmentId } from "./oaBrand.service.js"
 import { placeName } from "./oaPlace.service.js"
 import { canRunLanguage, runCases, runnableLanguages } from "./oaCodeRunner.service.js"
 import { RECORDINGS_BUCKET, getObjectStream, uploadBuffer } from "../config/s3Client.js"
-import { VIDEO_MIME_TYPES, videoObjectKey } from "../utils/oaVideo.js"
+import { sniffVideoType, videoObjectKey } from "../utils/oaVideo.js"
 import { SLOT_CHANGE_CUTOFF_MINUTES, attemptDeadline, buildPaperOrder, effectiveSchedule, gradeAttempt, inWaitingRoom, schedulePhase, slotChangeDeadline } from "../utils/oaExam.js"
 
 const GRACE_MS = 10 * 1000          // network slack when the last autosave lands just after the deadline
@@ -327,8 +327,16 @@ export const uploadVideo = async (ctx, questionId, file, { durationSec } = {}) =
     const question = assessment.questions.find((q) => q.id === questionId)
     const inPaper = attempt.order.sections.some((s) => s.questionIds.includes(questionId))
     if (!question || !inPaper || question.type !== "VIDEO") throw new ApiError(400, "VALIDATION_ERROR", "That question does not take a video answer.")
-    const mime = String(file?.mimetype || "").split(";")[0].trim().toLowerCase()
-    if (!file?.buffer?.length || !VIDEO_MIME_TYPES.includes(mime)) throw new ApiError(400, "VALIDATION_ERROR", "The recording did not arrive. Record it again.")
+    if (!file?.buffer?.length) {
+        console.warn(`[client-service] OA video rejected: nothing arrived (file part ${file ? "was empty" : "missing"})`)
+        throw new ApiError(400, "VALIDATION_ERROR", "The recording was empty. Record it again, speak for a few seconds, then press Stop.")
+    }
+    // Judge the file by what it is, not by the label the browser gave it.
+    const mime = sniffVideoType(file.buffer)
+    if (!mime) {
+        console.warn(`[client-service] OA video rejected: declared type "${file.mimetype}", ${file.buffer.length} bytes, not a WebM or MP4 file`)
+        throw new ApiError(400, "VALIDATION_ERROR", "The recording is not in a format we can play. Use the latest Chrome or Edge and record again.")
+    }
 
     const key = videoObjectKey({ assessmentId: String(assessment._id), attemptId: String(attempt._id), questionId, mime })
     try {
