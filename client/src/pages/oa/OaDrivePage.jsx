@@ -87,7 +87,10 @@ function TestRound({ assessment: a, driveArchived, step, onStep, onNextRound }) 
     ]
     // Where to land: the step asked for, else the first thing still to do.
     const fallback = started ? (a.phase === 'ENDED' || a.status === 'ARCHIVED' ? 'results' : 'live') : steps.slice(0, 4).find((s) => !s.done)?.id || 'publish'
-    const current = steps.find((s) => s.id === step && !s.locked)?.id || fallback
+    // The starting step is chosen once, when the round opens. After that the page stays where the organizer is working:
+    // finishing a step (the first question saved, the first candidate added) must not carry them off to the next one.
+    const [landed] = useState(fallback)
+    const current = steps.find((s) => s.id === step && !s.locked)?.id || (steps.find((s) => s.id === landed && !s.locked) ? landed : fallback)
     const index = steps.findIndex((s) => s.id === current)
     const [Icon, title, text] = TEST_STEPS[current]
 

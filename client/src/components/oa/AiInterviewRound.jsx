@@ -90,7 +90,9 @@ export default function AiInterviewRound({ assessment: a, driveArchived, step, o
         { id: 'interview', label: 'Choose interview', done: Boolean(chosen) },
         { id: 'send', label: 'Send', done: Boolean(outcome), locked: !candidates || !chosen, lockReason: !candidates ? 'Add candidates first (step 1)' : 'Choose the AI interview first (step 2)' },
     ]
-    const current = steps.find((s) => s.id === step && !s.locked)?.id || steps.find((s) => !s.done && !s.locked)?.id || 'send'
+    // Chosen once, when the round opens: finishing a step must not move the organizer on by itself.
+    const [landed] = useState(() => steps.find((s) => !s.done && !s.locked)?.id || 'send')
+    const current = steps.find((s) => s.id === step && !s.locked)?.id || (steps.find((s) => s.id === landed && !s.locked) ? landed : steps.find((s) => !s.done && !s.locked)?.id || 'send')
     const index = steps.findIndex((s) => s.id === current)
     const intro = {
         candidates: [Users, 'Check who takes this interview', 'These are the candidates of this round. Add, upload or remove anyone before you send them on.'],
