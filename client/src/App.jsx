@@ -1,84 +1,91 @@
-import React from 'react'
+import React, { Suspense, lazy } from 'react'
 import { Route, Routes, Navigate, useLocation } from 'react-router-dom'
-import OaAuthPage from './pages/oa/OaAuthPage'
-import OaExamEntryPage from './pages/oa/OaExamEntryPage'
-import OaExamPage from './pages/oa/OaExamPage'
-import OaDashboardPage from './pages/oa/OaDashboardPage'
-import OaDrivesPage from './pages/oa/OaDrivesPage'
-import OaDrivePage from './pages/oa/OaDrivePage'
-import OaJoinPage from './pages/oa/OaJoinPage'
-import OaLegacyRoundRedirect from './pages/oa/OaLegacyRoundRedirect'
-import WorkspaceChooserPage from './pages/WorkspaceChooserPage'
-import OaApprovalsPage from './pages/oa/OaApprovalsPage'
 import { RequireOaAdmin } from './components/oa/OaAdminLayout'
 import ErrorBoundary from './components/ErrorBoundary'
-import NotFoundPage from './pages/NotFoundPage'
-import CollegeDashboard from './pages/college/CollegeDashboard'
-import ExamDrivesPage from './pages/college/ExamDrivesPage'
-import ExamDetailPage from './pages/college/ExamDetailPage'
-import CollegeResultsPage from './pages/college/CollegeResultsPage'
-import CollegeStudentsPage from './pages/college/CollegeStudentsPage'
-import AuthPage from './pages/auth/AuthPage'
-import Home from './pages/Home'
 import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { useDispatch } from 'react-redux'
 import { setUserData } from './redux/userSlice'
-import InterviewPage from './pages/InterviewPage'
-import InterviewHistory from './pages/InterviewHistory'
-import Pricing from './pages/Pricing'
-import InterviewReport from './pages/InterviewReport'
-import AdminPanel from './pages/AdminPanel'
-import SuperAdminPanel from './pages/SuperAdminPanel'
-import AdminDashboard from './pages/admin/AdminDashboard'
-import QuestionBankManager from './pages/admin/QuestionBankManager'
-import TemplateBuilder from './pages/admin/TemplateBuilder'
-import InviteCandidates from './pages/admin/InviteCandidates'
 import RequireAuth from './components/RequireAuth'
 import RedirectIfAuthenticated from './components/RedirectIfAuthenticated'
 import RequireRole from './components/RequireRole'
-import InviteLanding from './pages/InviteLanding'
-import WHome from './pages/workmate/WHome'
-import LandingPage from './pages/landing/LandingPage'
-import PricingPage from './pages/landing/PricingPage'
-import HeroGsapExperiment from './pages/workmate/HeroGsapExperiment'
-import HeroDotsExperiment from './pages/workmate/HeroDotsExperiment'
-import HeroEcosystem from './pages/workmate/HeroEcosystem'
-import HeroFlow from './pages/workmate/HeroFlow'
-import HeroDepth from './pages/workmate/HeroDepth'
-import HeroExperiment from './pages/workmate/HeroExperiment'
-import HeroMinimalExperiment from './pages/workmate/HeroMinimalExperiment'
-import HeroHoverExperiment from './pages/workmate/HeroHoverExperiment'
-import WorkmateLayout from './pages/workmate/WorkmateLayout'
-import OnboardingFlow from './pages/onboarding/OnboardingFlow'
 import RequirePlatformAuth from './components/RequirePlatformAuth'
 import RequireClientAuth from './components/RequireClientAuth'
-import PlatformDashboard from './pages/dashboard/AdminDashboard'
-import OnboardingReviewList from './pages/onboarding-admin/OnboardingReviewList'
-import OnboardingReviewDetail from './pages/onboarding-admin/OnboardingReviewDetail'
-import ClientList from './pages/clients/ClientList'
-import EnquiryList from './pages/enquiries/EnquiryList'
-import VoiceProviderSettings from './pages/admin/VoiceProviderSettings'
-import FormBuilderPage from './pages/admin/FormBuilderPage'
-import ClientChangePassword from './pages/clientPortal/ChangePassword'
-import OrganizationDashboard from './pages/organization/OrganizationDashboard'
-import OrganizationComingSoon from './pages/organization/OrganizationComingSoon'
-import DrivesListPage from './pages/organization/DrivesListPage'
-import DriveDetailPage from './pages/organization/DriveDetailPage'
-import CandidatesListPage from './pages/organization/CandidatesListPage'
-import QuestionSetsPage from './pages/organization/QuestionSetsPage'
-import TeamPage from './pages/organization/TeamPage'
-import TemplatesPage from './pages/organization/TemplatesPage'
-import ReportsPage from './pages/organization/ReportsPage'
-import SettingsPage from './pages/organization/SettingsPage'
-import ApplyPage from './pages/ApplyPage'
-import ResetPasswordPage from './pages/auth/ResetPasswordPage'
-import CandidateChangePassword from './pages/candidate/CandidateChangePassword'
-import CandidateRoomPage from './pages/candidate/CandidateRoomPage'
-import InterviewRoomPage from './pages/candidate/InterviewRoomPage'
 import RequireCandidateAuth from './components/RequireCandidateAuth'
 import { featurePermissions } from './permissions/featurePermissions'
 import { ServerUrl } from './constants'
+
+// Shown for the instant a page's code is being fetched.
+function RouteFallback() {
+  return <div role='status' aria-label='Loading' style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-background, #F8FAFC)', color: 'var(--color-text-secondary, #6B7280)', fontSize: 14 }}>Loading…</div>
+}
+
+// Every page is loaded when it is first visited, so opening one page no longer downloads all of them.
+const OaAuthPage = lazy(() => import('./pages/oa/OaAuthPage'))
+const OaExamEntryPage = lazy(() => import('./pages/oa/OaExamEntryPage'))
+const OaExamPage = lazy(() => import('./pages/oa/OaExamPage'))
+const OaDashboardPage = lazy(() => import('./pages/oa/OaDashboardPage'))
+const OaDrivesPage = lazy(() => import('./pages/oa/OaDrivesPage'))
+const OaDrivePage = lazy(() => import('./pages/oa/OaDrivePage'))
+const OaJoinPage = lazy(() => import('./pages/oa/OaJoinPage'))
+const OaLegacyRoundRedirect = lazy(() => import('./pages/oa/OaLegacyRoundRedirect'))
+const WorkspaceChooserPage = lazy(() => import('./pages/WorkspaceChooserPage'))
+const OaApprovalsPage = lazy(() => import('./pages/oa/OaApprovalsPage'))
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
+const CollegeDashboard = lazy(() => import('./pages/college/CollegeDashboard'))
+const ExamDrivesPage = lazy(() => import('./pages/college/ExamDrivesPage'))
+const ExamDetailPage = lazy(() => import('./pages/college/ExamDetailPage'))
+const CollegeResultsPage = lazy(() => import('./pages/college/CollegeResultsPage'))
+const CollegeStudentsPage = lazy(() => import('./pages/college/CollegeStudentsPage'))
+const AuthPage = lazy(() => import('./pages/auth/AuthPage'))
+const Home = lazy(() => import('./pages/Home'))
+const InterviewPage = lazy(() => import('./pages/InterviewPage'))
+const InterviewHistory = lazy(() => import('./pages/InterviewHistory'))
+const Pricing = lazy(() => import('./pages/Pricing'))
+const InterviewReport = lazy(() => import('./pages/InterviewReport'))
+const AdminPanel = lazy(() => import('./pages/AdminPanel'))
+const SuperAdminPanel = lazy(() => import('./pages/SuperAdminPanel'))
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
+const QuestionBankManager = lazy(() => import('./pages/admin/QuestionBankManager'))
+const TemplateBuilder = lazy(() => import('./pages/admin/TemplateBuilder'))
+const InviteCandidates = lazy(() => import('./pages/admin/InviteCandidates'))
+const InviteLanding = lazy(() => import('./pages/InviteLanding'))
+const WHome = lazy(() => import('./pages/workmate/WHome'))
+const LandingPage = lazy(() => import('./pages/landing/LandingPage'))
+const PricingPage = lazy(() => import('./pages/landing/PricingPage'))
+const HeroGsapExperiment = lazy(() => import('./pages/workmate/HeroGsapExperiment'))
+const HeroDotsExperiment = lazy(() => import('./pages/workmate/HeroDotsExperiment'))
+const HeroEcosystem = lazy(() => import('./pages/workmate/HeroEcosystem'))
+const HeroFlow = lazy(() => import('./pages/workmate/HeroFlow'))
+const HeroDepth = lazy(() => import('./pages/workmate/HeroDepth'))
+const HeroExperiment = lazy(() => import('./pages/workmate/HeroExperiment'))
+const HeroMinimalExperiment = lazy(() => import('./pages/workmate/HeroMinimalExperiment'))
+const HeroHoverExperiment = lazy(() => import('./pages/workmate/HeroHoverExperiment'))
+const WorkmateLayout = lazy(() => import('./pages/workmate/WorkmateLayout'))
+const OnboardingFlow = lazy(() => import('./pages/onboarding/OnboardingFlow'))
+const PlatformDashboard = lazy(() => import('./pages/dashboard/AdminDashboard'))
+const OnboardingReviewList = lazy(() => import('./pages/onboarding-admin/OnboardingReviewList'))
+const OnboardingReviewDetail = lazy(() => import('./pages/onboarding-admin/OnboardingReviewDetail'))
+const ClientList = lazy(() => import('./pages/clients/ClientList'))
+const EnquiryList = lazy(() => import('./pages/enquiries/EnquiryList'))
+const VoiceProviderSettings = lazy(() => import('./pages/admin/VoiceProviderSettings'))
+const FormBuilderPage = lazy(() => import('./pages/admin/FormBuilderPage'))
+const ClientChangePassword = lazy(() => import('./pages/clientPortal/ChangePassword'))
+const OrganizationDashboard = lazy(() => import('./pages/organization/OrganizationDashboard'))
+const OrganizationComingSoon = lazy(() => import('./pages/organization/OrganizationComingSoon'))
+const DrivesListPage = lazy(() => import('./pages/organization/DrivesListPage'))
+const DriveDetailPage = lazy(() => import('./pages/organization/DriveDetailPage'))
+const CandidatesListPage = lazy(() => import('./pages/organization/CandidatesListPage'))
+const QuestionSetsPage = lazy(() => import('./pages/organization/QuestionSetsPage'))
+const TeamPage = lazy(() => import('./pages/organization/TeamPage'))
+const TemplatesPage = lazy(() => import('./pages/organization/TemplatesPage'))
+const ReportsPage = lazy(() => import('./pages/organization/ReportsPage'))
+const SettingsPage = lazy(() => import('./pages/organization/SettingsPage'))
+const ApplyPage = lazy(() => import('./pages/ApplyPage'))
+const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage'))
+const CandidateChangePassword = lazy(() => import('./pages/candidate/CandidateChangePassword'))
+const CandidateRoomPage = lazy(() => import('./pages/candidate/CandidateRoomPage'))
+const InterviewRoomPage = lazy(() => import('./pages/candidate/InterviewRoomPage'))
 
 export { ServerUrl }
 
@@ -109,6 +116,7 @@ function App() {
 
   return (
     <ErrorBoundary resetKey={location.pathname}>
+    <Suspense fallback={<RouteFallback />}>
     <Routes>
       {/* The redesigned front page (pages/landing) is the real landing page. The previous design
           (WHome) is kept and reachable at /welcome-classic so the two can be compared. */}
@@ -223,6 +231,7 @@ function App() {
 
       <Route path='*' element={<NotFoundPage/>}/>
     </Routes>
+    </Suspense>
     </ErrorBoundary>
   )
 }

@@ -32,7 +32,21 @@ export const emailBrand = async (account) => {
 }
 
 /** What a candidate may see before signing in: the organization behind a test. Nothing else about the test. */
+// A candidate's lobby asks for this on every refresh: remember it briefly instead of three database reads each time.
+const brandCache = new Map()
+const BRAND_TTL_MS = 5 * 60 * 1000
+
 export const brandForAssessmentId = async (assessmentId) => {
+    const key = String(assessmentId)
+    const hit = brandCache.get(key)
+    if (hit && Date.now() - hit.at < BRAND_TTL_MS) return hit.value
+    const value = await loadBrandForAssessment(assessmentId)
+    if (brandCache.size >= 2000) brandCache.delete(brandCache.keys().next().value)
+    brandCache.set(key, { value, at: Date.now() })
+    return value
+}
+
+const loadBrandForAssessment = async (assessmentId) => {
     if (!mongoose.isValidObjectId(assessmentId)) return { name: null, logoPath: null, color: null }
     const assessment = await OaAssessment.findById(assessmentId).select("accountId").lean()
     const account = assessment ? await OaAccount.findById(assessment.accountId).select("orgName tenantId").lean() : null

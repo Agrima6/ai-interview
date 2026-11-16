@@ -17,8 +17,16 @@ const freePort = () => new Promise((resolve) => { const s = net.createServer().l
 before(async () => {
     if (!hasMongod) return
     dbPath = mkdtempSync(path.join(tmpdir(), "oa-test-"))
-    const port = await freePort()
-    mongo = spawn("mongod", ["--dbpath", dbPath, "--port", String(port), "--bind_ip", "127.0.0.1", "--nounixsocket"], { stdio: "ignore" })
+    // Another test file may grab the port between "find a free one" and "listen on it": if mongod dies at once, pick again.
+    let port
+    for (let attempt = 0; attempt < 6; attempt++) {
+        port = await freePort()
+        mongo = spawn("mongod", ["--dbpath", dbPath, "--port", String(port), "--bind_ip", "127.0.0.1", "--nounixsocket"], { stdio: "ignore" })
+        let exited = false
+        mongo.on("exit", () => { exited = true })
+        await new Promise((r) => setTimeout(r, 500))
+        if (!exited) break
+    }
     process.env.MONGODB_URL = `mongodb://127.0.0.1:${port}/oa_test`
     process.env.ACCESS_TOKEN_SECRET = "test-secret"
     process.env.SERVICE_NAME = "client-service-test"

@@ -5,6 +5,7 @@ import { OA_ROLES, clearRateLimit, codesMatch, normalizeEmail, rateLimit, signOa
 import { sectionName, studentQuestionView } from "../utils/oaQuestions.js"
 import { brandForAssessmentId } from "./oaBrand.service.js"
 import { placeName } from "./oaPlace.service.js"
+import { canRunLanguage, runCases, runnableLanguages } from "./oaCodeRunner.service.js"
 import { RECORDINGS_BUCKET, getObjectStream, uploadBuffer } from "../config/s3Client.js"
 import { VIDEO_MIME_TYPES, videoObjectKey } from "../utils/oaVideo.js"
 import { SLOT_CHANGE_CUTOFF_MINUTES, attemptDeadline, buildPaperOrder, effectiveSchedule, gradeAttempt, inWaitingRoom, schedulePhase, slotChangeDeadline } from "../utils/oaExam.js"
@@ -76,7 +77,10 @@ export const finalizeAttempt = async (attemptId, { status, reason = null }) => {
     if (!claimed) return OaAttempt.findById(attemptId)
     const assessment = await OaAssessment.findById(claimed.assessmentId)
     const result = gradeAttempt({ questions: assessment.questions.map(asObject), answers: claimed.answers || {}, grades: claimed.grades || {}, settings: assessment.settings?.toObject?.() || {} })
-    return OaAttempt.findByIdAndUpdate(attemptId, { $set: { grades: result.grades, score: result.score, maxScore: result.maxScore, percent: result.percent, gradingStatus: result.gradingStatus } }, { new: true })
+    const saved = await OaAttempt.findByIdAndUpdate(attemptId, { $set: { grades: result.grades, score: result.score, maxScore: result.maxScore, percent: result.percent, gradingStatus: result.gradingStatus } }, { new: true })
+    // Coding answers with test cases are run and scored in the background, so submitting never waits for the code runner.
+    setImmediate(() => autoGradeCoding(attemptId).catch((e) => console.error("[client-service] OA coding auto-grade failed:", e.message)))
+    return saved
 }
 
 /** Run on a timer: anyone whose time is up is submitted for them, even if their browser is closed. */
@@ -183,6 +187,8 @@ const paperPayload = (assessment, attempt) => {
     const questions = new Map(assessment.questions.map((q) => [q.id, asObject(q)]))
     return {
         serverNow: new Date(), deadline: attempt.deadline, startedAt: attempt.startedAt, status: attempt.status,
+        // Languages the candidate can run against the sample test cases (empty when no code runner is set up).
+        runnableLanguages: runnableLanguages(),
         allowBackNavigation: assessment.settings.allowBackNavigation,
         proctoring: proctoringView(assessment.proctoring), violationCount: attempt.violationCount,
         sections: attempt.order.sections.map((s) => ({
@@ -422,4 +428,76 @@ export const submit = async (ctx) => {
     if (!attempt) throw new ApiError(409, "NOT_STARTED", "You have not started this test.")
     const done = await finalizeAttempt(attempt._id, { status: "SUBMITTED" })
     return { status: done.status, submittedAt: done.submittedAt, result: resultView(assessment, done) }
+}
+
+// ---------- running code (like the Run button on a coding site) ----------
+
+const STARTER_ONLY = (question, code) => {
+    const starters = [question.starterCode, ...Object.values(question.starterCodes || {})].map((c) => String(c || "").trim())
+    return !String(code || "").trim() || starters.includes(String(code).trim())
+}
+
+/**
+ * Run the candidate's code. With no `customInput` it runs the question's sample (non-hidden) test cases and says which
+ * passed; with `customInput` it just runs the program on that input. Hidden test cases are never run or shown here.
+ */
+export const runCode = async (ctx, { questionId, language, code, customInput } = {}) => {
+    const { assessment, attempt } = await loadContext(ctx)
+    if (!attempt) throw new ApiError(409, "NOT_STARTED", "You have not started this test.")
+    if (attempt.status !== "IN_PROGRESS") throw new ApiError(409, "ALREADY_FINISHED", "This test has already been submitted.")
+    await settleIfExpired(attempt)
+    const question = assessment.questions.find((q) => q.id === String(questionId))
+    const inPaper = attempt.order.sections.some((sec) => sec.questionIds.includes(String(questionId)))
+    if (!question || !inPaper || question.type !== "CODING") throw new ApiError(400, "VALIDATION_ERROR", "That question does not take code.")
+    const q = asObject(question)
+    if (!q.codeLanguages.includes(language)) throw new ApiError(400, "VALIDATION_ERROR", "That language is not allowed for this question.")
+    if (typeof code !== "string" || code.length > 50000) throw new ApiError(400, "VALIDATION_ERROR", "The code is too long to run.")
+    if (!canRunLanguage(language)) throw new ApiError(503, "CODE_RUNNER_NOT_CONFIGURED", runnableLanguages().length ? "This language cannot be run here. Your code is still saved." : "Running code is not set up on this server. Your code is saved and your organizer will review it.")
+    rateLimit({ key: `oa-run:${attempt._id}`, max: 10, windowMs: 60 * 1000 })
+    rateLimit({ key: `oa-run-all:${attempt._id}`, max: 120, windowMs: 3 * 3600 * 1000 })
+
+    if (customInput !== undefined && customInput !== null) {
+        if (typeof customInput !== "string" || customInput.length > 5000) throw new ApiError(400, "VALIDATION_ERROR", "The custom input can be at most 5000 characters.")
+        const [r] = await runCases({ language, code, cases: [{ input: customInput, expected: null }] })
+        return { custom: true, results: [{ ...r, input: customInput, expected: null, passed: null }], passed: null, total: 1 }
+    }
+    const visible = (q.testCases || []).filter((c) => !c.hidden).slice(0, 10)
+    if (!visible.length) throw new ApiError(400, "NO_SAMPLE_CASES", "This question has no sample test cases to run. Use your own input to try the code.")
+    const results = await runCases({ language, code, cases: visible })
+    return { custom: false, results: results.map((r, i) => ({ ...r, input: visible[i].input, expected: visible[i].expected })), passed: results.filter((r) => r.passed).length, total: results.length }
+}
+
+/**
+ * After a test is submitted: run every test case (hidden ones included) for each coding answer and score it by the
+ * share that passed. The organizer can still change the marks by hand. Does nothing when no code runner is set up.
+ */
+export const autoGradeCoding = async (attemptId) => {
+    if (!runnableLanguages().length) return
+    const attempt = await OaAttempt.findById(attemptId)
+    if (!attempt || attempt.status === "IN_PROGRESS") return
+    const assessment = await OaAssessment.findById(attempt.assessmentId)
+    if (!assessment) return
+    const found = {}
+    for (const question of assessment.questions) {
+        const q = asObject(question)
+        const cases = (q.testCases || []).slice(0, 20)
+        const given = attempt.answers?.[q.id]?.value
+        const existing = attempt.grades?.[q.id]
+        if (q.type !== "CODING" || !cases.length || (existing && existing.auto === false && existing.marks !== null && existing.marks !== undefined)) continue
+        if (!given || typeof given !== "object" || !canRunLanguage(given.language) || STARTER_ONLY(q, given.code)) { found[q.id] = { passed: 0, total: cases.length, ran: false }; continue }
+        const results = await runCases({ language: given.language, code: String(given.code), cases })
+        found[q.id] = { passed: results.filter((r) => r.passed).length, total: cases.length, ran: true }
+    }
+    if (!Object.keys(found).length) return
+    // Read the attempt again: the organizer may have graded something while the cases were running.
+    const fresh = await OaAttempt.findById(attemptId)
+    const grades = { ...(fresh.grades || {}) }
+    for (const [id, f] of Object.entries(found)) {
+        const q = assessment.questions.find((x) => x.id === id)
+        const held = grades[id]
+        if (held && held.auto === false && held.marks !== null && held.marks !== undefined) continue
+        grades[id] = { marks: Math.round((q.marks * f.passed / f.total) * 100) / 100, auto: true, needsReview: true, runner: { passed: f.passed, total: f.total, ran: f.ran, at: new Date() } }
+    }
+    const result = gradeAttempt({ questions: assessment.questions.map(asObject), answers: fresh.answers || {}, grades, settings: assessment.settings?.toObject?.() || {} })
+    await OaAttempt.updateOne({ _id: attemptId }, { $set: { grades: result.grades, score: result.score, maxScore: result.maxScore, percent: result.percent, gradingStatus: result.gradingStatus } })
 }
