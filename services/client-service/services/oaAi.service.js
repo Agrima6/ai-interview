@@ -169,9 +169,11 @@ export const generateQuestions = async ({ prompt, count = 10, types = ["MCQ"], d
 
     let response
     try {
+        // Ask for a few spare questions: the ones that fail the checks (two right answers on a single-answer question) are dropped, and the rest are cut back to the number wanted.
+        const ask = Math.min(wanted + Math.max(2, Math.ceil(wanted * 0.3)), 40)
         const messages = [
             { role: "system", content: system },
-            { role: "user", content: `Write ${wanted} questions at ${level} difficulty.\n<topic>\n${topic}\n</topic>\nMix the allowed types sensibly. Return JSON only.` },
+            { role: "user", content: `Write ${ask} questions at ${level} difficulty.\n<topic>\n${topic}\n</topic>\nMix the allowed types sensibly. Return JSON only.` },
         ]
         response = (await withModel({ key, base, model }, (m) => callModel({ key, base, model: m, messages }))).result
     } catch (error) {
