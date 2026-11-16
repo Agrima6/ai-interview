@@ -4,7 +4,7 @@ import { AlertCircle, CheckCircle2 } from 'lucide-react'
 import { Card, Input, Button } from '../../components/ui'
 import { useAuth } from '../../hooks/useAuth.jsx'
 import { forgotPassword } from '../../api/authApi'
-import logo from '../../assets/logo.png'
+import logo from '../../assets/logo.webp'
 
 function CandidateLoginPage() {
     const navigate = useNavigate()

@@ -4,7 +4,7 @@ import { Building2, GraduationCap, User, Home, Sparkles, ChevronRight } from 'lu
 import { Card } from '../../components/ui'
 import { getRegistrationTypes } from '../../api/registrationsApi'
 import AmbientBackground from '../workmate/AmbientBackground'
-import logo from '../../assets/logo.png'
+import logo from '../../assets/logo.webp'
 
 const ICONS = { ORGANIZATION: Building2, COLLEGE: GraduationCap, CANDIDATE: User }
 const COPY = {

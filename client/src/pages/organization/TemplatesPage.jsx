@@ -12,7 +12,7 @@ import {
 } from '../../api/organization/organizationApi'
 import { formatEnumLabel } from '../../utils/formatEnumLabel'
 import { TEMPLATE_VARIABLE_TAGS, TEMPLATE_SAMPLE_VALUES, renderWithSamples } from '../../constants/templateVariables'
-import logo from '../../assets/logo.png'
+import logo from '../../assets/logo.webp'
 
 const CHANNEL_TABS = [
   { id: 'EMAIL', label: 'Email', icon: Mail },

@@ -4,7 +4,7 @@ import { Check, XCircle } from 'lucide-react'
 import AuthPasswordInput from '../../components/auth/AuthPasswordInput'
 import AuthButton from '../../components/auth/AuthButton'
 import { resetPassword } from '../../api/authApi'
-import logo from '../../assets/logo.png'
+import logo from '../../assets/logo.webp'
 
 // Password rules shown as guidance. Only the length is enforced here (and by the server); the rest feeds the
 // strength meter so people can see how to make a stronger one.

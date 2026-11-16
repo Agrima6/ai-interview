@@ -7,7 +7,7 @@ import { getRegistrationForm } from '../../api/formsApi'
 import { submitRegistration } from '../../api/registrationsApi'
 import CaptchaField from '../../components/auth/CaptchaField'
 import AmbientBackground from '../workmate/AmbientBackground'
-import logo from '../../assets/logo.png'
+import logo from '../../assets/logo.webp'
 
 const STATUS_LABEL = { QUEUED: 'Queued', SENT: 'Sent', MOCK_SENT: 'Sent (test mode)', FAILED: 'Failed', DELIVERED: 'Delivered' }
 

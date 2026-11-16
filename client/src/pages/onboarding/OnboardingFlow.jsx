@@ -19,7 +19,7 @@ import {
 import { Card, Button, Input, Select, Textarea } from '../../components/ui'
 import { getOnboardingFileLink, getOnboarding, autosaveOnboarding, uploadOnboardingFile, submitOnboarding } from '../../api/onboardingApi'
 import { getCaptcha } from '../../api/registrationsApi'
-import logo from '../../assets/logo.png'
+import logo from '../../assets/logo.webp'
 
 // Helper to check if a field is of file/image type
 const isFileType = (type) => ['FILE', 'IMAGE', 'MULTI_FILE'].includes(type)

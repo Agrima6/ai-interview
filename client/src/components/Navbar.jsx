@@ -9,7 +9,7 @@ import { ServerUrl } from '../constants';
 import { loginWithGoogle } from '../utils/authApi';
 import { setUserData } from '../redux/userSlice';
 import Button from './Button';
-import logo from '../assets/logo.png';
+import logo from '../assets/logo.webp';
 
 const GUEST_EMAIL = "guest@ats-pro.local"
 

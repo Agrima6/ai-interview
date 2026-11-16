@@ -10,7 +10,7 @@ import {
     ShieldCheck,
     Sparkles,
 } from 'lucide-react'
-import candidateImage from '../../assets/workmate/interview-candidate.png'
+import candidateImage from '../../assets/workmate/interview-candidate.webp'
 import profileImage from '../../assets/workmate/profile.svg'
 import './InterviewPreview.css'
 

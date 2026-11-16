@@ -6,7 +6,7 @@ import { Building2, Briefcase, Clock, AlertCircle, CheckCircle2, UploadCloud, Fi
 import { Card, Skeleton } from '../components/ui'
 import Input from '../components/ui/Input'
 import { Field } from '../components/ui/Input'
-import logo from '../assets/logo.png'
+import logo from '../assets/logo.webp'
 import { getPublicDrive, applyToDrive, getApplicationPrefill } from '../api/organization/organizationApi'
 import { CANDIDATE_FIELDS } from '../constants/candidateSchema'
 import { FILTERS, tidyPhone } from '../components/oa/oaRules'

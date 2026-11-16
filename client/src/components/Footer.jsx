@@ -2,7 +2,7 @@ import React from 'react'
 import { Globe, Mail, MessageCircle, ArrowRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import Button from './Button'
-import logo from '../assets/logo.png'
+import logo from '../assets/logo.webp'
 
 const COLUMNS = [
     {

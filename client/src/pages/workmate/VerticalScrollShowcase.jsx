@@ -5,9 +5,9 @@ import {
     ChevronLeft,
     ChevronRight,
 } from 'lucide-react'
-import connectedEcosystemImage from '../../assets/workmate/showcase-connected-ecosystem.png'
-import interviewEvaluationImage from '../../assets/workmate/showcase-interview-evaluation.png'
-import candidateRankingImage from '../../assets/workmate/showcase-candidate-ranking.png'
+import connectedEcosystemImage from '../../assets/workmate/showcase-connected-ecosystem.webp'
+import interviewEvaluationImage from '../../assets/workmate/showcase-interview-evaluation.webp'
+import candidateRankingImage from '../../assets/workmate/showcase-candidate-ranking.webp'
 import './VerticalScrollShowcase.css'
 
 const REDUCE_MOTION = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches

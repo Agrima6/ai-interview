@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, ClipboardCheck, Building2, LogOut, MessageCircleQuestion, FileText, Menu, X, Settings, ClipboardList } from 'lucide-react'
 import { useAuth, usePermission } from '../../hooks/useAuth.jsx'
 import { featurePermissions } from '../../permissions/featurePermissions'
-import logo from '../../assets/logo.png'
+import logo from '../../assets/logo.webp'
 
 const NAV = [
     { to: '/platform/dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: featurePermissions.dashboard },

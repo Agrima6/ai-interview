@@ -8,7 +8,7 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 import { ServerUrl } from '../App'
-import logo from '../assets/logo.png'
+import logo from '../assets/logo.webp'
 
 const BRAND_RED = "#c4161f"
 const BRAND_RED_DARK = "#8b0e16"
