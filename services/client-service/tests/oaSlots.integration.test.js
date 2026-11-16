@@ -34,8 +34,13 @@ before(async () => {
 after(async () => {
     server?.close()
     await mongoose?.disconnect()
-    mongo?.kill()
-    if (dbPath) rmSync(dbPath, { recursive: true, force: true })
+    if (mongo) {
+        const closed = new Promise((resolve) => { if (mongo.exitCode !== null) resolve(); else mongo.once("exit", resolve) })
+        mongo.kill()
+        await Promise.race([closed, new Promise((resolve) => setTimeout(resolve, 5000))])
+    }
+    // Leftover temp files are not a test failure.
+    try { if (dbPath) rmSync(dbPath, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }) } catch { /* ignore */ }
 })
 
 const call = async (method, url, { token, body } = {}) => {
