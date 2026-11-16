@@ -1,7 +1,7 @@
 import { after, before, beforeEach, describe, it } from "node:test"
 import assert from "node:assert/strict"
 import http from "http"
-import { explainUpstreamFailure, extractJson } from "../services/oaAi.service.js"
+import { explainUpstreamFailure, extractJson, pickModel } from "../services/oaAi.service.js"
 
 // A stand-in for an OpenAI-compatible provider (OpenAI, Groq...). Each test sets what it should answer with.
 let server; let port; let reply
@@ -148,4 +148,13 @@ it("a provider key alone is a full setup: the endpoint and model follow the key"
         set({})
         assert.equal(aiConfig().key, "")
     } finally { set(Object.fromEntries(Object.entries(saved).filter(([, v]) => v !== undefined))) }
+})
+
+it("when the configured model is retired, the best available chat model is chosen", () => {
+    const groq = ["whisper-large-v3", "llama-guard-4-12b", "llama-3.1-8b-instant", "openai/gpt-oss-120b", "meta-llama/llama-4-scout-17b", "playai-tts"]
+    assert.equal(pickModel(groq), "openai/gpt-oss-120b")
+    assert.equal(pickModel(["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]), "llama-3.3-70b-versatile")
+    assert.equal(pickModel(["llama-3.3-70b-versatile"], "llama-3.3-70b-versatile"), null)      // never the one that just failed
+    assert.equal(pickModel(["whisper-large-v3", "text-embedding-3"]), null)                    // nothing that can chat
+    assert.equal(pickModel(["some-new-model"]), "some-new-model")
 })

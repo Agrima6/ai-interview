@@ -15,6 +15,7 @@ import { ErrorState, PageHeader, TableSkeleton } from '../../components/oa/oaUi'
 import { formatDate, formatDateTime } from '../../components/oa/oaFormat'
 import { TextField } from '../../components/oa/oaFields'
 import { FILTERS, LIMITS, lengthError } from '../../components/oa/oaRules'
+import RoundKindChoice from '../../components/oa/RoundKindChoice'
 
 const STATUS_TABS = [['', 'Active'], ['ARCHIVED', 'Archived']]
 
@@ -45,6 +46,7 @@ export default function OaDrivesPage() {
     const q = useDebouncedValue(search)
     const [creating, setCreating] = useState(params.get('new') === '1')
     const [title, setTitle] = useState('')
+    const [kind, setKind] = useState('TEST')
     const [titleError, setTitleError] = useState('')
 
     const update = (patch) => setParams((p) => { const next = new URLSearchParams(p); Object.entries(patch).forEach(([k, v]) => (v ? next.set(k, v) : next.delete(k))); return next }, { replace: true })
@@ -52,12 +54,12 @@ export default function OaDrivesPage() {
     const list = useQuery({ queryKey: ['oa', 'drives', { status, q, page, pageSize }], queryFn: () => oaApi.listDrives({ status, search: q, page, pageSize }), placeholderData: (prev) => prev })
 
     const create = useMutation({
-        mutationFn: () => oaApi.createDrive({ title: title.trim() }),
-        onSuccess: (d) => { queryClient.invalidateQueries({ queryKey: ['oa'] }); toast.success('Drive created. Start with step 1: add questions.'); navigate(`/oa/admin/drives/${d.id}`) },
+        mutationFn: () => oaApi.createDrive({ title: title.trim(), kind }),
+        onSuccess: (d) => { queryClient.invalidateQueries({ queryKey: ['oa'] }); toast.success(kind === 'TEST' ? 'Drive created. Start with step 1: add questions.' : 'Drive created. Start with step 1: add candidates.'); navigate(`/oa/admin/drives/${d.id}`) },
         onError: (err) => { setTitleError(err.fields?.title || err.message); toast.error(err.message) },
     })
     const nameProblem = lengthError(title, { ...LIMITS.title, label: 'The name' })
-    const openCreate = () => { setTitle(''); setTitleError(''); setCreating(true) }
+    const openCreate = () => { setTitle(''); setKind('TEST'); setTitleError(''); setCreating(true) }
     const closeCreate = () => { setCreating(false); if (params.get('new')) update({ new: '' }) }
 
     const items = list.data?.items || []
@@ -113,11 +115,15 @@ export default function OaDrivesPage() {
                 <Pagination page={page} pageSize={pageSize} total={list.data.total} onPageChange={(p) => update({ page: p > 1 ? String(p) : '' })} onPageSizeChange={(s) => update({ pageSize: String(s), page: '' })} />
             )}
 
-            <Modal open={creating} onClose={closeCreate} title='New drive' size='sm'
+            <Modal open={creating} onClose={closeCreate} title='New drive' size='lg'
                 footer={<><Button variant='secondary' size='sm' onClick={closeCreate}>Cancel</Button><Button size='sm' disabled={create.isPending || Boolean(nameProblem)} onClick={() => create.mutate()}>{create.isPending ? 'Creating…' : 'Create drive'}</Button></>}>
                 <form onSubmit={(e) => { e.preventDefault(); if (!nameProblem && !create.isPending) create.mutate() }}>
                     <TextField autoFocus label='Name of the drive' filter={FILTERS.title} value={title} onChange={(v) => { setTitle(v); setTitleError('') }} max={LIMITS.title.max} error={titleError || (title ? nameProblem : '')} placeholder='e.g. Campus Hiring 2026' />
-                    <p className='text-[12.5px] text-text-secondary mt-3'>Round 1 is created for you. Next you add questions, then candidates, then the schedule.</p>
+                    <fieldset className='mt-5'>
+                        <legend className='text-[13px] font-bold text-ink mb-2'>What is Round 1?</legend>
+                        <RoundKindChoice value={kind} onChange={setKind} name='drive-kind' />
+                    </fieldset>
+                    <p className='text-[12.5px] text-text-secondary mt-3'>You can add more rounds later, each an online test or an AI interview. While Round 1 is an empty draft you can still change its type.</p>
                 </form>
             </Modal>
         </>

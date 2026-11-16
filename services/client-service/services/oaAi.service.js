@@ -82,6 +82,50 @@ const tidyDraft = (q) => {
     return { ...q, options, ...(correct === undefined ? {} : { correct }) }
 }
 
+// Providers retire models. When the one named in .env is gone, ask the provider what it has now and use the best chat
+// model from that list, instead of failing every request until someone edits the server.
+const NOT_CHAT = /whisper|tts|speech|guard|embed|moderation|safeguard|orpheus|playai|vision-preview|rerank|transcri|image|dall-e|audio/i
+const PREFERRED = [/llama-3\.3-70b/i, /gpt-oss-120b/i, /llama-3\.1-70b/i, /llama-4/i, /gpt-oss-20b/i, /qwen/i, /grok-4/i, /grok-3(?!-mini)/i, /gpt-4\.1(?!-nano)/i, /gpt-4o(?!-mini)/i, /gpt-4o-mini/i, /llama-3\.1-8b/i, /grok/i, /mixtral|gemma|mistral|deepseek/i]
+
+/** The best chat model from a provider's list of model ids; null when none looks usable. */
+export const pickModel = (ids, avoid = "") => {
+    const usable = [...new Set(ids.map(String))].filter((id) => id && id !== avoid && !NOT_CHAT.test(id)).sort()
+    for (const rule of PREFERRED) { const hit = usable.find((id) => rule.test(id)); if (hit) return hit }
+    return usable[0] || null
+}
+
+const modelMissing = (error) => {
+    const status = error.response?.status
+    const detail = String(error.response?.data?.error?.message || error.response?.data?.message || "")
+    return status === 404 || (status === 400 && /model/i.test(detail)) || /decommission|deprecated|does not exist|no longer supported|not found/i.test(detail)
+}
+
+const listModels = async ({ key, base }) => {
+    const res = await axios.get(`${base}/models`, { headers: { Authorization: `Bearer ${key}` }, timeout: 15000 })
+    return (res.data?.data || res.data?.models || []).map((m) => m?.id || m?.name).filter(Boolean)
+}
+
+// base|configured model -> the model that actually worked, so the lookup happens once, not on every request.
+const working = new Map()
+
+/** Runs `attempt(model)` with the configured model; if the provider says it is gone, retries once with the best model it lists. */
+const withModel = async ({ key, base, model }, attempt) => {
+    const slot = `${base}|${model}`
+    const first = working.get(slot) || model
+    try {
+        return { result: await attempt(first), model: first }
+    } catch (error) {
+        if (!modelMissing(error)) throw error
+        let alternative = null
+        try { alternative = pickModel(await listModels({ key, base }), first) } catch { /* keep the original error */ }
+        if (!alternative) throw error
+        console.warn(`[client-service] OA AI: model "${first}" is not available at the provider; using "${alternative}". Update OA_AI_MODEL in .env to silence this.`)
+        const result = await attempt(alternative)
+        working.set(slot, alternative)
+        return { result, model: alternative }
+    }
+}
+
 const callModel = async ({ key, base, model, messages }) => {
     const headers = { Authorization: `Bearer ${key}` }
     const body = { model, messages, temperature: 0.4, response_format: { type: "json_object" } }
@@ -125,10 +169,11 @@ export const generateQuestions = async ({ prompt, count = 10, types = ["MCQ"], d
 
     let response
     try {
-        response = await callModel({ key, base, model, messages: [
+        const messages = [
             { role: "system", content: system },
             { role: "user", content: `Write ${wanted} questions at ${level} difficulty.\n<topic>\n${topic}\n</topic>\nMix the allowed types sensibly. Return JSON only.` },
-        ] })
+        ]
+        response = (await withModel({ key, base, model }, (m) => callModel({ key, base, model: m, messages }))).result
     } catch (error) {
         console.error("[client-service] OA AI generation failed:", error.response?.status, error.response?.data?.error?.message || error.message)
         throw new ApiError(502, "AI_UNAVAILABLE", explainUpstreamFailure(error))
@@ -155,8 +200,8 @@ export const aiStatus = async () => {
     const { key, base, model, provider } = config()
     if (!key) return { configured: false, ok: false, provider: null, model: null, message: "No AI key is set on the server (OA_AI_API_KEY, GROQ_API_KEY or XAI_API_KEY in the client-service .env), or the service was not restarted after adding it." }
     try {
-        await axios.post(`${base}/chat/completions`, { model, messages: [{ role: "user", content: "Reply with the word ok." }], max_tokens: 5 }, { headers: { Authorization: `Bearer ${key}` }, timeout: 20000 })
-        return { configured: true, ok: true, provider, model, message: `${provider} is connected.` }
+        const { model: used } = await withModel({ key, base, model }, (m) => axios.post(`${base}/chat/completions`, { model: m, messages: [{ role: "user", content: "Reply with the word ok." }], max_tokens: 5 }, { headers: { Authorization: `Bearer ${key}` }, timeout: 20000 }))
+        return { configured: true, ok: true, provider, model: used, message: used === model ? `${provider} is connected.` : `${provider} is connected. The model "${model}" is no longer offered, so "${used}" is being used instead.` }
     } catch (error) {
         console.error("[client-service] OA AI status check failed:", error.response?.status, error.response?.data?.error?.message || error.message)
         return { configured: true, ok: false, provider, model, message: explainUpstreamFailure(error) }

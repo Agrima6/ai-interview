@@ -103,9 +103,12 @@ export const getDrive = async (accountId, id) => {
 export const createDrive = async (accountId, input = {}) => {
     const title = checkedTitle(input.title)
     const description = textLength(input.description, { max: LIMITS.description.max, field: "description", label: "Description" })
+    const kind = input.kind === undefined ? "TEST" : input.kind
+    if (!["TEST", "AI_INTERVIEW"].includes(kind)) throw new ApiError(400, "VALIDATION_ERROR", "Choose Online test or AI interview for Round 1.", { kind: "Choose Online test or AI interview." })
     const drive = await OaDrive.create({ accountId, title, description })
     try {
         const round = await createAssessment(accountId, { title, description, driveId: drive._id, roundNumber: 1 })
+        if (kind !== "TEST") await OaAssessment.updateOne({ _id: round.id }, { $set: { kind } })
         return { ...driveView(drive), firstRoundId: round.id }
     } catch (error) {
         await OaDrive.deleteOne({ _id: drive._id })
