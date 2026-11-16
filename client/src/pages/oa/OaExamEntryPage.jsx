@@ -9,7 +9,8 @@ import AuthButton from '../../components/auth/AuthButton'
 import DeviceDetails from '../../components/oa/DeviceDetails'
 import { describeDevice, requestLocation } from '../../components/oa/exam/examMedia'
 import { FILTERS } from '../../components/oa/oaRules'
-import logo from '../../assets/landing/logo.webp'
+import ExamBrand from '../../components/oa/ExamBrand'
+import useExamBrand from '../../hooks/useExamBrand'
 
 // Where candidates enter their test. The invitation email links here with the test and their email filled in.
 export default function OaExamEntryPage() {
@@ -17,6 +18,7 @@ export default function OaExamEntryPage() {
     const [params] = useSearchParams()
     const [assessmentId, setAssessmentId] = useState(FILTERS.code(params.get('a') || '', 24).toLowerCase())
     const [email, setEmail] = useState(FILTERS.email(params.get('e') || ''))
+    const brand = useExamBrand(assessmentId).data
     const [ip, setIp] = useState('')
     const [place, setPlace] = useState({ state: 'asking' })
     const [device] = useState(describeDevice)
@@ -46,12 +48,13 @@ export default function OaExamEntryPage() {
         <AuthLayout>
             <header className='border-b border-[#F3E8EB]'>
                 <div className='max-w-[1100px] mx-auto px-5 h-16 flex items-center justify-between'>
-                    <Link to='/' className='flex items-center gap-2.5 text-[#1F1417] no-underline'><img src={logo} alt='' className='w-9 h-9 rounded-full' /><span className='text-[19px] font-medium tracking-tight'>WorkmateIQ</span></Link>
+                    {brand?.name ? <ExamBrand brand={brand} size={40} /> : <Link to='/' className='no-underline'><ExamBrand size={36} /></Link>}
                 </div>
             </header>
-            <main className='oa-mesh flex-1 flex items-center justify-center px-4 py-10'>
+            <main className='oa-mesh relative flex-1 flex items-center justify-center px-4 py-10 pb-14'>
                 <AuthCard className='oa-rise'>
                     <h1 className='font-display text-[26px] font-bold text-[#1a1215] mb-1'>Enter your test</h1>
+                    {brand?.name && <p className='text-[13px] font-semibold text-accent mb-1'>{brand.name}</p>}
                     <p className='text-[14px] text-gray-500 mb-6'>Use the email your invitation was sent to and the access code from it.</p>
                     <div className='mb-5 rounded-xl border border-line bg-surface-muted/70 p-3.5' aria-label='Details of this device'>
                         <p className='text-[12px] font-bold text-ink mb-2'>Your connection and device</p>
@@ -67,6 +70,7 @@ export default function OaExamEntryPage() {
                     </form>
                     <p className='text-[12.5px] text-gray-500 mt-6 leading-relaxed'>Lost your code? Ask your organizer to resend your invitation. Use a laptop or desktop with a webcam, in Chrome or Edge.</p>
                 </AuthCard>
+                <p className='absolute bottom-3 inset-x-0 text-center text-[12px] text-gray-400 pointer-events-none'>Powered by WorkmateIQ</p>
             </main>
         </AuthLayout>
     )

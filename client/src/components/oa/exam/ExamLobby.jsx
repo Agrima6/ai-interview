@@ -5,6 +5,7 @@ import Button from '../../Button'
 import useNow from '../../../hooks/useNow'
 import { formatDateTime } from '../oaFormat'
 import DeviceDetails from '../DeviceDetails'
+import ExamBrand from '../ExamBrand'
 import { describeDevice, describeEnvironment, mobileDevice, requestCamera, requestLocation, requestScreen, stopStream } from './examMedia'
 import SlotPicker from './SlotPicker'
 
@@ -95,7 +96,7 @@ export default function ExamLobby({ session, screenStream, onScreenStream, onSta
         <div className='min-h-screen bg-bg'>
             <header className='bg-card border-b border-line'>
                 <div className='max-w-[1100px] mx-auto px-5 h-16 flex items-center justify-between'>
-                    <span className='font-display text-[16px] font-bold text-ink'>{a.title}</span>
+                    <span className='flex items-center gap-4 min-w-0'><ExamBrand brand={a.brand} size={34} /><span className='hidden sm:inline text-[13px] text-text-secondary truncate border-l border-line pl-4'>{a.title}</span></span>
                     <span className='text-[13px] text-text-secondary'>Signed in as <b className='text-ink'>{student.name}</b></span>
                 </div>
             </header>

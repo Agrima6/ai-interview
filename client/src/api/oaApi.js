@@ -16,7 +16,7 @@ export const oaTokens = {
 const http = axios.create({ baseURL: `${GatewayUrl}/api/v1/oa` })
 
 const roleFor = (url = '') => {
-    if (url.startsWith('/auth/') || url === '/exam/login' || url === '/exam/whoami') return null
+    if (url.startsWith('/auth/') || url === '/exam/login' || url === '/exam/whoami' || url.startsWith('/exam/brand')) return null
     return url.startsWith('/exam/') ? 'student' : 'admin'
 }
 
@@ -132,6 +132,7 @@ export const examApi = {
     login: async (body) => { const r = await post('/exam/login', body); oaTokens.set('student', r.token) },
     logout: () => oaTokens.clear('student'),
     whoami: () => get('/exam/whoami'),
+    brand: (assessmentId) => get(`/exam/brand?a=${encodeURIComponent(assessmentId)}`),
     session: () => get('/exam/session'),
     bookSlot: (slotId) => put('/exam/slot', { slotId }),
     start: (environment) => post('/exam/start', { environment }),

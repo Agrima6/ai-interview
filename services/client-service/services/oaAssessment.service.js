@@ -9,6 +9,7 @@ import { signedVideoPath } from "../utils/oaVideo.js"
 import { gradeAttempt, parseSchedule, rankRows, schedulePhase } from "../utils/oaExam.js"
 import { LIMITS, intInRange, nameProblem, normalizePhone, phoneProblem, textLength, throwFields } from "../utils/oaValidate.js"
 import { inviteEmail, sendOaEmail } from "./oaMail.js"
+import { emailBrand } from "./oaBrand.service.js"
 import { generateQuestions } from "./oaAi.service.js"
 
 const MAX_STUDENTS_PER_UPLOAD = 2000
@@ -381,6 +382,7 @@ export const sendInvites = async (accountId, id, { studentIds, resend = false } 
     if (assessment.status !== "PUBLISHED") throw new ApiError(409, "NOT_PUBLISHED", "Publish the test before inviting students.")
     if (schedulePhase(assessment.schedule) === "ENDED") throw new ApiError(409, "ENDED", "This test has already closed.")
     const account = await OaAccount.findById(accountId)
+    const brand = await emailBrand(account)
     const filter = { assessmentId: assessment._id }
     if (Array.isArray(studentIds) && studentIds.length) filter._id = { $in: studentIds.filter((x) => mongoose.isValidObjectId(x)) }
     // Idempotent: a repeated click only mails people who have not been mailed (unless the admin asks to resend).
@@ -393,7 +395,7 @@ export const sendInvites = async (accountId, id, { studentIds, resend = false } 
         while (queue.length) {
             const student = queue.shift()
             const code = decryptSecret(student.codeEncrypted)
-            const mail = inviteEmail({ assessment, student, code, orgName: account?.orgName || "Your organizer" })
+            const mail = inviteEmail({ assessment, student, code, orgName: brand.name || account?.orgName || "Your organizer", brand })
             const result = await sendOaEmail({ accountId, to: student.email, eventType: "OA_INVITE", ...mail, metadata: { assessmentId: String(assessment._id), studentId: String(student._id) } })
             student.invite = result.ok ? { status: "SENT", sentAt: new Date(), error: null } : { status: "FAILED", sentAt: student.invite?.sentAt || null, error: String(result.error || "send failed").slice(0, 120) }
             await student.save()

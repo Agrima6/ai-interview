@@ -8,6 +8,7 @@ import * as accounts from "../services/oaAccount.service.js"
 import * as assessments from "../services/oaAssessment.service.js"
 import * as exam from "../services/oaExam.service.js"
 import * as drives from "../services/oaDrive.service.js"
+import { brandForAssessmentId, resolveLogo } from "../services/oaBrand.service.js"
 import { aiConfigured, aiStatus } from "../services/oaAi.service.js"
 import { VIDEO_MAX_BYTES, VIDEO_MIME_TYPES, verifyVideoSignature } from "../utils/oaVideo.js"
 
@@ -66,6 +67,23 @@ router.post("/oa/auth/login", handle((req) => accounts.login(req.body || {})))
 router.post("/oa/exam/login", handle((req) => exam.studentLogin(req.body || {})))
 // What we can see of the visitor's connection, shown to them before they sign in.
 router.get("/oa/exam/whoami", handle((req) => ({ ip: clientIp(req) })))
+// The organization behind a test (name, logo), so the sign-in page can look like theirs. Nothing else about the test.
+router.get("/oa/exam/brand", handle(async (req) => {
+    const brand = await brandForAssessmentId(String(req.query.a || ""))
+    return { name: brand.name, logoPath: brand.logoPath }
+}))
+// The logo itself: public (a mail app or a signed-out page cannot send a login), and cacheable.
+router.get("/oa/brand/:accountId/logo", async (req, res, next) => {
+    try {
+        const logo = await resolveLogo(req.params.accountId)
+        if (!logo) return next(new ApiError(404, "NOT_FOUND", "No logo."))
+        res.setHeader("Cache-Control", "public, max-age=1800")
+        if (logo.redirect) return res.redirect(302, logo.redirect)
+        res.setHeader("Content-Type", logo.contentType)
+        res.setHeader("X-Content-Type-Options", "nosniff")
+        return res.send(logo.buffer)
+    } catch (error) { return next(error) }
+})
 
 // A recorded video answer, opened from the organizer's report through a short-lived signed link.
 router.get("/oa/video/:attemptId/:questionId", async (req, res, next) => {

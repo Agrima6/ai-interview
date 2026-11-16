@@ -42,7 +42,7 @@ const TRACKING_BASE_URL = process.env.PUBLIC_BASE_URL || "http://localhost:4005"
 // 1x1 transparent GIF, served by the /track/open/:id route below.
 const TRACKING_PIXEL_GIF = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7", "base64")
 
-export const sendAndRecord = async ({ entityType, entityId, channel, eventType, recipient, variables, subject, body, metadata }) => {
+export const sendAndRecord = async ({ entityType, entityId, channel, eventType, recipient, variables, subject, body, html, metadata }) => {
     if (!recipient) throw new ApiError(400, "RECIPIENT_REQUIRED", "recipient is required.")
     if (!mongoose.isValidObjectId(entityId)) throw new ApiError(400, "INVALID_ENTITY_ID", "entityId must be a valid id.")
 
@@ -50,6 +50,8 @@ export const sendAndRecord = async ({ entityType, entityId, channel, eventType, 
     if (body) {
         finalSubject = subject || ""
         finalBody = body
+        // An inline HTML version (a designed email) goes out alongside the plain text, which stays as the fallback.
+        if (channel === "EMAIL" && typeof html === "string" && html.trim()) finalHtml = html.slice(0, 200000)
     } else {
         const template = await templateRepo.findPublished(channel, eventType)
         if (!template) throw new ApiError(404, "TEMPLATE_NOT_FOUND", `No published ${channel} template for ${eventType}.`)

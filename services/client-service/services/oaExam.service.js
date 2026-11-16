@@ -3,6 +3,7 @@ import { OaAssessment, OaAttempt, OaEvent, OaStudent } from "../models/oa.model.
 import { ApiError } from "../utils/response.js"
 import { OA_ROLES, clearRateLimit, codesMatch, normalizeEmail, rateLimit, signOaToken } from "../utils/oaSecurity.js"
 import { sectionName, studentQuestionView } from "../utils/oaQuestions.js"
+import { brandForAssessmentId } from "./oaBrand.service.js"
 import { RECORDINGS_BUCKET, getObjectStream, uploadBuffer } from "../config/s3Client.js"
 import { VIDEO_MIME_TYPES, videoObjectKey } from "../utils/oaVideo.js"
 import { SLOT_CHANGE_CUTOFF_MINUTES, attemptDeadline, buildPaperOrder, effectiveSchedule, gradeAttempt, inWaitingRoom, schedulePhase, slotChangeDeadline } from "../utils/oaExam.js"
@@ -117,6 +118,7 @@ const slotChoices = async (assessment, student) => {
 
 export const session = async (ctx) => {
     const { assessment, student, attempt } = await loadContext(ctx)
+    const brand = await brandForAssessmentId(assessment._id)
     if (attempt) await settleIfExpired(attempt).catch((e) => { if (e.code !== "TIME_UP") throw e })
     const fresh = attempt ? await OaAttempt.findById(attempt._id) : null
     const slotted = isSlotted(assessment)
@@ -130,7 +132,7 @@ export const session = async (ctx) => {
         serverNow: new Date(),
         student: { name: student.name, email: student.email },
         assessment: {
-            id: String(assessment._id), title: assessment.title, description: assessment.description, instructions: assessment.instructions,
+            id: String(assessment._id), brand: { name: brand.name, logoPath: brand.logoPath }, title: assessment.title, description: assessment.description, instructions: assessment.instructions,
             schedule: sched ? { mode: assessment.schedule.mode, startAt: sched.startAt, endAt: sched.endAt, durationMinutes, lateEntryMinutes, timezone } : { mode: "SLOTS", startAt: null, endAt: null, durationMinutes, lateEntryMinutes, timezone },
             phase, waitingRoom: sched ? inWaitingRoom(sched) : false,
             slots, slotCutoffMinutes: slotted ? SLOT_CHANGE_CUTOFF_MINUTES : undefined,
