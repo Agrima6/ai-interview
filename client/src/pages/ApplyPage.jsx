@@ -9,6 +9,7 @@ import { Field } from '../components/ui/Input'
 import logo from '../assets/logo.png'
 import { getPublicDrive, applyToDrive, getApplicationPrefill } from '../api/organization/organizationApi'
 import { CANDIDATE_FIELDS } from '../constants/candidateSchema'
+import { FILTERS, tidyPhone } from '../components/oa/oaRules'
 
 const ALREADY_APPLIED_KEY = (link) => `hirepro_applied_${link}`
 
@@ -83,7 +84,10 @@ function ApplyPage() {
   }, [drive])
 
   const handleChange = (key) => (e) => {
-    setForm((prev) => ({ ...prev, [key]: e.target.value }))
+    // Names take letters only and phones at most ten digits, so a wrong character never lands in the box.
+    const raw = e.target.value
+    const value = key === 'name' ? FILTERS.personName(raw, 100) : key === 'phone' ? tidyPhone(raw) : key === 'email' ? FILTERS.email(raw) : raw
+    setForm((prev) => ({ ...prev, [key]: value }))
     setFieldErrors((prev) => ({ ...prev, [key]: undefined }))
   }
 
@@ -248,7 +252,7 @@ function ApplyPage() {
                 label={`${field.label}${field.required ? ' *' : ''}`}
                 type={field.type === 'email' ? 'email' : field.type === 'phone' ? 'tel' : 'text'}
                 inputMode={field.type === 'phone' ? 'tel' : field.key === 'exp' ? 'decimal' : undefined}
-                maxLength={field.key === 'name' ? 100 : field.key === 'phone' ? 20 : field.key === 'exp' ? 8 : 254}
+                maxLength={field.key === 'name' ? 100 : field.key === 'phone' ? 10 : field.key === 'exp' ? 8 : 254}
                 autoComplete={field.key === 'name' ? 'name' : field.key === 'phone' ? 'tel' : field.key === 'email' ? 'email' : 'off'}
                 value={form[field.key]}
                 onChange={handleChange(field.key)}

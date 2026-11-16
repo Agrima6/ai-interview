@@ -36,15 +36,15 @@ export default function LiveTab({ assessment: a }) {
                     <div key={label} className='px-4 py-3.5'><dt className='text-[12px] font-semibold text-text-secondary'>{label}</dt><dd className='text-[22px] font-display font-bold text-ink tabular-nums'>{value ?? '—'}</dd></div>
                 ))}
             </dl>
-            {c?.offline > 0 && <p role='status' className='mb-4 text-[13px] text-[var(--color-warning)] bg-[var(--color-warning-soft)] rounded-xl px-4 py-2.5 inline-flex items-center gap-2'><WifiOff size={15} /> {c.offline} student{c.offline === 1 ? ' has' : 's have'} not been heard from for over a minute.</p>}
+            {c?.offline > 0 && <p role='status' className='mb-4 text-[13px] text-[var(--color-warning)] bg-[var(--color-warning-soft)] rounded-xl px-4 py-2.5 inline-flex items-center gap-2'><WifiOff size={15} /> {c.offline} candidate{c.offline === 1 ? ' has' : 's have'} not been heard from for over a minute.</p>}
 
             <div className='bg-card border border-line rounded-2xl overflow-hidden'>
                 {live.isLoading ? <TableSkeleton cols={5} /> : data.items.length === 0 ? (
-                    <EmptyState compact title='Nobody is on this test yet' description='Add students on the Students tab.' />
+                    <EmptyState compact title='Nobody is on this round yet' description='Add candidates in step 2.' />
                 ) : (
                     <div className='overflow-x-auto'>
                         <table className='w-full text-[13.5px] min-w-[720px]'>
-                            <thead className='bg-surface-muted text-left text-[12px] font-semibold text-text-secondary'><tr><th className='px-4 py-3'>Student</th><th className='px-4 py-3'>Status</th>{slotted && <th className='px-4 py-3'>Slot</th>}<th className='px-4 py-3 text-right'>Time left</th><th className='px-4 py-3 text-right'>Violations</th><th className='px-4 py-3'>Connection</th></tr></thead>
+                            <thead className='bg-surface-muted text-left text-[12px] font-semibold text-text-secondary'><tr><th className='px-4 py-3'>Candidate</th><th className='px-4 py-3'>Status</th>{slotted && <th className='px-4 py-3'>Slot</th>}<th className='px-4 py-3 text-right'>Time left</th><th className='px-4 py-3 text-right'>Violations</th><th className='px-4 py-3'>Connection</th></tr></thead>
                             <tbody className='divide-y divide-line'>
                                 {data.items.map((s) => (
                                     <tr key={s.studentId} className='ui-row'>

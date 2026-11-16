@@ -19,13 +19,26 @@ const accountSchema = new Schema({
         note: { type: String, default: "" },
     },
     lastLoginAt: { type: Date, default: null },
+    // Set when the account belongs to a platform organization: its admins reach Online Assessment from their own
+    // sign-in, with no second password.
+    tenantId: { type: String, default: null, index: true },
 }, { timestamps: true })
+
+// ---- Drive: one hiring drive. Its rounds are assessments (Round 1, Round 2, ...). ----
+const driveSchema = new Schema({
+    accountId: { type: Schema.Types.ObjectId, required: true, index: true },
+    title: { type: String, required: true, trim: true, maxlength: 140 },
+    description: { type: String, default: "", maxlength: 2000 },
+    status: { type: String, enum: ["ACTIVE", "ARCHIVED"], default: "ACTIVE", index: true },
+}, { timestamps: true })
+
+driveSchema.index({ accountId: 1, createdAt: -1 })
 
 // ---- Assessment: one test, with sections of mixed question types. A multi-round hiring test is several assessments. ----
 const questionSchema = new Schema({
     id: { type: String, required: true },
     sectionId: { type: String, required: true },
-    type: { type: String, enum: ["MCQ", "MSQ", "SHORT", "LONG", "CODING"], required: true },
+    type: { type: String, enum: ["MCQ", "MSQ", "SHORT", "LONG", "CODING", "VIDEO"], required: true },
     text: { type: String, required: true },
     options: [{ id: String, text: String, _id: false }],
     correct: [String],
@@ -35,6 +48,10 @@ const questionSchema = new Schema({
     keywords: [String],
     codeLanguages: [String],
     starterCode: { type: String, default: "" },
+    // The organizer's own snippet per language ({ python: "..." }); languages without one get the default snippet.
+    starterCodes: { type: Schema.Types.Mixed, default: {} },
+    // VIDEO: the longest recording a candidate may upload.
+    maxDurationSec: { type: Number, default: 120 },
     testCases: [{ input: String, expected: String, hidden: Boolean, _id: false }],
     difficulty: { type: String, enum: ["EASY", "MEDIUM", "HARD"], default: "MEDIUM" },
     explanation: { type: String, default: "" },
@@ -50,9 +67,15 @@ const assessmentSchema = new Schema({
     status: { type: String, enum: ["DRAFT", "PUBLISHED", "ARCHIVED"], default: "DRAFT", index: true },
     roundLabel: { type: String, default: "", maxlength: 60 },
     previousAssessmentId: { type: Schema.Types.ObjectId, default: null },
+    // A round of a drive. TEST: an online test. AI_INTERVIEW: a round handed over to an AI interview drive.
+    driveId: { type: Schema.Types.ObjectId, default: null, index: true },
+    roundNumber: { type: Number, default: 1 },
+    kind: { type: String, enum: ["TEST", "AI_INTERVIEW"], default: "TEST" },
+    aiInterviewDriveId: { type: String, default: null },
     schedule: {
-        // FIXED: everyone starts together. SLOTS: the organizer offers several start times and each student books one.
-        mode: { type: String, enum: ["FIXED", "SLOTS"], default: "FIXED" },
+        // FIXED: everyone starts together. FLEXIBLE: any time inside the window, each candidate gets the full duration.
+        // SLOTS (older rounds only): the organizer offered several start times and each student booked one.
+        mode: { type: String, enum: ["FIXED", "FLEXIBLE", "SLOTS"], default: "FIXED" },
         slots: [{ id: String, startAt: Date, capacity: { type: Number, default: null }, _id: false }],
         startAt: { type: Date, default: null },
         endAt: { type: Date, default: null },
@@ -67,6 +90,8 @@ const assessmentSchema = new Schema({
         allowBackNavigation: { type: Boolean, default: true },
         passPercent: { type: Number, default: 40, min: 0, max: 100 },
         showResultToStudent: { type: Boolean, default: false },
+        // Multiple-correct questions: part marks for some right options and no wrong one.
+        partialMarking: { type: Boolean, default: false },
     },
     proctoring: {
         level: { type: String, enum: ["HARD", "STANDARD"], default: "HARD" },
@@ -75,6 +100,8 @@ const assessmentSchema = new Schema({
         requireFullscreen: { type: Boolean, default: true },
         faceChecks: { type: Boolean, default: true },
         blockCopyPaste: { type: Boolean, default: true },
+        // The candidate must allow location access before starting; it is shown in their report.
+        requireLocation: { type: Boolean, default: false },
         maxViolations: { type: Number, default: 5, min: 1, max: 10 },
         snapshotIntervalSec: { type: Number, default: 45, min: 15, max: 300 },
     },
@@ -153,6 +180,7 @@ const eventSchema = new Schema({
 eventSchema.index({ attemptId: 1, at: 1 })
 
 export const OaAccount = mongoose.model("OaAccount", accountSchema)
+export const OaDrive = mongoose.model("OaDrive", driveSchema)
 export const OaAssessment = mongoose.model("OaAssessment", assessmentSchema)
 export const OaStudent = mongoose.model("OaStudent", studentSchema)
 export const OaAttempt = mongoose.model("OaAttempt", attemptSchema)

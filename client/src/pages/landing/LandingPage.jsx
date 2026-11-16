@@ -171,7 +171,6 @@ export default function LandingPage() {
 
 <Link className="navlink" to="/plans">{"Pricing"}</Link>
 
-<Link className="navlink" to="/oa/login">{"Online Assessment"}</Link>
 </nav>
 
 <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
@@ -193,7 +192,6 @@ export default function LandingPage() {
 <a href="#who" onClick={() => setMenuOpen(false)}>{"Solutions"}</a>
 <Link to="/plans" onClick={() => setMenuOpen(false)}>{"Pricing"}</Link>
 
-<Link to="/oa/login" onClick={() => setMenuOpen(false)}>{"Online Assessment"}</Link>
 <Link to="/login" onClick={() => setMenuOpen(false)}>{"Log in"}</Link>
 </nav>)}
 </header>

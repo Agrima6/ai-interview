@@ -21,7 +21,7 @@ function OrganizationSidebar({ profile, profileLoading, mobileOpen, onClose }) {
 
     const handleLogout = async () => {
         await logout()
-        navigate('/login')
+        navigate('/')
     }
 
     return (

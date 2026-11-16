@@ -275,7 +275,7 @@ test("starting follows the booked slot: deadline is slot start + duration, and t
     const sess = await call("GET", "/oa/exam/session", { token: asha.token })
     assert.equal(sess.data.assessment.phase, "OPEN")
     assert.equal(sess.data.canStart, true)
-    const paper = await call("POST", "/oa/exam/start", { token: asha.token, body: { environment: { userAgent: "t" } } })
+    const paper = await call("POST", "/oa/exam/start", { token: asha.token, body: { environment: { userAgent: "t", latitude: 12.9716, longitude: 77.5946 } } })
     assert.equal(paper.status, 200)
     assert.equal(new Date(paper.data.deadline).getTime() <= startedAgo + 70 * MIN, true)
     assert.equal(new Date(paper.data.deadline).getTime() >= Date.now() + 55 * MIN, true)

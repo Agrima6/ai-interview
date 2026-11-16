@@ -87,10 +87,36 @@ export const decimalOnly = (value) => {
 }
 
 /**
- * What a phone box keeps while typing: digits, a leading +, and the spaces or dashes people paste. Letters never get in.
- * Typing "+91 98765 43210" key by key has to survive, so exactness is checked by phoneError, not forced here.
+ * What a phone box keeps while typing: digits only, never more than ten. A pasted "+91 98765 43210" or "098765 43210"
+ * loses its prefix, so the box always holds exactly what will be stored.
  */
-export const tidyPhone = (raw) => String(raw ?? '').replace(/[^\d+\s()-]/g, '').replace(/(?!^)\+/g, '').slice(0, 18)
+export const tidyPhone = (raw) => {
+    let digits = String(raw ?? '').replace(/\D/g, '')
+    if (digits.length === 12 && digits.startsWith('91')) digits = digits.slice(2)
+    else if (digits.length === 11 && digits.startsWith('0')) digits = digits.slice(1)
+    return digits.slice(0, 10)
+}
 
 /** On leaving the box, "+91 98765 43210" is shown as the plain ten digits that will be stored. */
 export const settlePhone = (value) => normalizePhone(value) || value
+
+// What each kind of text box keeps while the user types. A character that is not allowed never appears, so a form
+// cannot be filled in wrongly and then refused: the same rule is checked again on submit and on the server.
+const keep = (pattern, max) => (raw) => String(raw ?? '').replace(pattern, '').replace(/^\s+/, '').replace(/\s{2,}/g, ' ').slice(0, max)
+
+export const FILTERS = Object.freeze({
+    /** People's names: letters of any script, spaces and . ' - only. */
+    personName: (raw, max = LIMITS.studentName.max) => keep(/[^\p{L}\p{M}\s.'’-]/gu, max)(raw).replace(/^[\s.'’-]+/, ''),
+    /** Organization and college names: letters, digits and the punctuation company names carry. */
+    orgName: keep(/[^\p{L}\p{M}\d\s.,&'’()/-]/gu, LIMITS.orgName.max),
+    /** Drive, round and section names. */
+    title: (raw, max = LIMITS.title.max) => keep(/[^\p{L}\p{M}\d\s.,&'’():/+#|-]/gu, max)(raw),
+    /** Emails never contain spaces; anything else is left for the format check. */
+    email: (raw) => String(raw ?? '').replace(/[^A-Za-z0-9.@_%+'-]/g, '').replace(/@(?=.*@)/g, '').slice(0, 200).toLowerCase(),
+    /** Roll numbers and employee ids: letters, digits and - / _ . */
+    rollNumber: (raw) => String(raw ?? '').replace(/[^A-Za-z0-9/_.-]/g, '').slice(0, LIMITS.rollNumber.max),
+    /** Test ids and access codes: letters and digits only, shown in capitals. */
+    code: (raw, max = 16) => String(raw ?? '').replace(/[^A-Za-z0-9]/g, '').slice(0, max).toUpperCase(),
+    /** Comma-separated keywords. */
+    keywords: (raw, max = 300) => String(raw ?? '').replace(/[^\p{L}\p{M}\d\s,.+#_-]/gu, '').replace(/^\s+/, '').slice(0, max),
+})

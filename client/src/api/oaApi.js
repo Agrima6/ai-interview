@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { GatewayUrl } from './client'
+import { GatewayUrl, getAccessToken } from './client'
 
 // The Online Assessment room keeps its own sign-in, separate from the platform's, so the same email can be an
 // organization admin, a college admin, a candidate and an OA admin at once. Admin and student tokens live in
@@ -16,7 +16,7 @@ export const oaTokens = {
 const http = axios.create({ baseURL: `${GatewayUrl}/api/v1/oa` })
 
 const roleFor = (url = '') => {
-    if (url.startsWith('/auth/') || url === '/exam/login') return null
+    if (url.startsWith('/auth/') || url === '/exam/login' || url === '/exam/whoami') return null
     return url.startsWith('/exam/') ? 'student' : 'admin'
 }
 
@@ -32,7 +32,8 @@ http.interceptors.response.use((res) => res, (error) => {
     const role = error.config?.__role
     if (error.response?.status === 401 && role && read(role)) {
         oaTokens.clear(role)
-        window.location.assign(role === 'admin' ? '/oa/login?expired=1' : '/oa/exam?expired=1')
+        // An organizer comes in through the main sign-in, so that is where an expired session goes back to.
+        window.location.assign(role === 'admin' ? '/oa/admin' : '/oa/exam?expired=1')
     }
     return Promise.reject(error)
 })
@@ -68,7 +69,23 @@ export const oaApi = {
     register: (body) => post('/auth/register', body),
     login: async (body) => { const r = await post('/auth/login', body); oaTokens.set('admin', r.token); return r.account },
     logout: () => oaTokens.clear('admin'),
+    /** Trade the platform sign-in for an Online Assessment session: an organization admin never signs in twice. */
+    orgSession: async () => {
+        const platformToken = getAccessToken()
+        if (!platformToken) { const e = new Error('Sign in to continue.'); e.code = 'UNAUTHENTICATED'; throw e }
+        const r = await run(http.post('/auth/org-session', {}, { headers: { Authorization: `Bearer ${platformToken}` } }))
+        oaTokens.set('admin', r.token)
+        return r.account
+    },
     me: () => get('/me'),
+    aiStatus: () => get('/ai/status'),
+
+    // drives: one hiring drive holds Round 1, Round 2, ...
+    listDrives: (params) => list('/drives', cleanParams(params)),
+    createDrive: (body) => post('/drives', body),
+    getDrive: (id) => get(`/drives/${id}`),
+    updateDrive: (id, body) => patch(`/drives/${id}`, body),
+    addRound: (id, body) => post(`/drives/${id}/rounds`, body),
     dashboard: () => get('/dashboard'),
 
     // assessments
@@ -114,11 +131,18 @@ export const oaApi = {
 export const examApi = {
     login: async (body) => { const r = await post('/exam/login', body); oaTokens.set('student', r.token) },
     logout: () => oaTokens.clear('student'),
+    whoami: () => get('/exam/whoami'),
     session: () => get('/exam/session'),
     bookSlot: (slotId) => put('/exam/slot', { slotId }),
     start: (environment) => post('/exam/start', { environment }),
     paper: () => get('/exam/paper'),
     saveAnswers: (answers) => put('/exam/answers', { answers }),
+    uploadVideo: (questionId, blob, durationSec, onProgress) => {
+        const form = new FormData()
+        form.append('video', blob, 'answer.webm')
+        form.append('durationSec', String(Math.round(durationSec)))
+        return run(http.post(`/exam/video/${questionId}`, form, { onUploadProgress: (e) => onProgress?.(e.total ? e.loaded / e.total : 0) }))
+    },
     heartbeat: (snapshot) => post('/exam/heartbeat', { snapshot }),
     violation: (body) => post('/exam/violation', body),
     submit: () => post('/exam/submit'),

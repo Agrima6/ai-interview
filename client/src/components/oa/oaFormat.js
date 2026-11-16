@@ -36,8 +36,18 @@ export const toLocalInput = (value) => {
 export const fromLocalInput = (value) => (value ? new Date(value).toISOString() : '')
 
 
-export const TYPE_LABELS = { MCQ: 'Single choice', MSQ: 'Multiple choice', SHORT: 'Short answer', LONG: 'Long answer', CODING: 'Coding' }
-export const LANGUAGES = [['javascript', 'JavaScript'], ['typescript', 'TypeScript'], ['python', 'Python'], ['java', 'Java'], ['cpp', 'C++'], ['c', 'C'], ['go', 'Go'], ['sql', 'SQL']]
+export const TYPE_LABELS = { MCQ: 'Single choice', MSQ: 'Multiple choice', SHORT: 'Short answer', LONG: 'Long answer', CODING: 'Coding', VIDEO: 'Video answer' }
+
+// Difficulty reads as the experience it suits, so a recruiter can pick without guessing.
+export const DIFFICULTIES = [['EASY', 'Easy', '0–2 yrs'], ['MEDIUM', 'Medium', '2–5 yrs'], ['HARD', 'Hard', '5+ yrs']]
+export const difficultyLabel = (value) => { const d = DIFFICULTIES.find((x) => x[0] === value); return d ? `${d[1]} · ${d[2]} experience` : value }
+
+/** "Section 2" or, when the organizer named it, "Section 2 · Aptitude". */
+export const sectionLabel = (section, index) => {
+    const fixed = `Section ${index + 1}`
+    const name = String(section?.name ?? section?.title ?? '').trim()
+    return !name || /^section\s*\d+$/i.test(name) ? fixed : `${fixed} · ${name}`
+}
 
 export const inputClass = 'w-full bg-card border-[1.5px] border-line rounded-[12px] px-3.5 py-2.5 text-[14px] text-ink placeholder:text-text-secondary/70 outline-none transition-all hover:border-accent/35 focus:border-accent focus:ring-4 focus:ring-accent/15 disabled:opacity-50'
 
@@ -46,4 +56,15 @@ export const downloadText = (filename, text, type = 'text/csv;charset=utf-8') =>
     const a = document.createElement('a')
     a.href = url; a.download = filename; a.click()
     setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+const countOf = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
+
+/** When the round runs, in one plain sentence. */
+export const scheduleSentence = (schedule) => {
+    if (!schedule?.startAt || !schedule?.endAt) return ''
+    const tz = schedule.timezone
+    if (schedule.mode === 'SLOTS') return `${countOf(schedule.slots?.length || 0, 'time slot')}, the first on ${formatDateTime(schedule.startAt, tz)}. ${schedule.durationMinutes} minutes each.`
+    if (schedule.mode === 'FLEXIBLE') return `Open from ${formatDateTime(schedule.startAt, tz)} to ${formatDateTime(schedule.endAt, tz)}. A candidate can start at any time in between and gets ${schedule.durationMinutes} minutes.`
+    return `Starts ${formatDateTime(schedule.startAt, tz)} for everyone. ${schedule.durationMinutes} minutes.`
 }

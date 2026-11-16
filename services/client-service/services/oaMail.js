@@ -41,17 +41,26 @@ export const inviteEmail = ({ assessment, student, code, orgName }) => {
             `Duration: ${schedule.durationMinutes} minutes`,
             "You choose one after you sign in, and can change it until 30 minutes before it starts.",
         ]
-        : [
-            `Starts: ${dateFormat(schedule.startAt, tz)} (${tz})`,
-            `Duration: ${schedule.durationMinutes} minutes`,
-            `Closes: ${dateFormat(schedule.endAt, tz)} (${tz})`,
-        ]
+        : schedule.mode === "FLEXIBLE"
+            ? [
+                `Open from: ${dateFormat(schedule.startAt, tz)} (${tz})`,
+                `Open until: ${dateFormat(schedule.endAt, tz)} (${tz})`,
+                `Duration: ${schedule.durationMinutes} minutes, once you start`,
+                "There is no fixed time. Take it whenever suits you inside this window, day or night.",
+            ]
+            : [
+                `Starts: ${dateFormat(schedule.startAt, tz)} (${tz})`,
+                `Duration: ${schedule.durationMinutes} minutes`,
+                `Closes: ${dateFormat(schedule.endAt, tz)} (${tz})`,
+            ]
+    const round = assessment.roundNumber ? `Round ${assessment.roundNumber}${assessment.roundLabel ? ` (${assessment.roundLabel})` : ""}` : ""
+    const needsLocation = Boolean(assessment.proctoring?.requireLocation)
     return {
         subject: `You're invited: ${assessment.title}`,
         body: [
             `Hello ${student.name},`,
             "",
-            `${orgName} has invited you to take an online assessment: ${assessment.title}.`,
+            `${orgName} has invited you to take ${round ? `${round} of ` : "an online assessment: "}${assessment.title}.`,
             "",
             ...when,
             "",
@@ -64,7 +73,8 @@ export const inviteEmail = ({ assessment, student, code, orgName }) => {
             "- Use a laptop or desktop with a working webcam, in the latest Chrome or Edge.",
             "- Sit in a quiet, well-lit room. You will be asked to share your entire screen and stay in full screen.",
             "- Close every other app, tab and monitor. Leaving the test window, switching tabs or exiting full screen is recorded and can end your attempt.",
-            "- Join a few minutes early. You can run the system check from 15 minutes before the start.",
+            ...(needsLocation ? ["- Allow your browser to share your location when asked. Your organizer needs it to start."] : []),
+            ...(schedule.mode === "FLEXIBLE" ? ["- Run the system check before you begin, and start only when you can finish without a break."] : ["- Join a few minutes early. You can run the system check from 15 minutes before the start."]),
             "",
             "Your access code is personal. Please do not share it.",
             "",

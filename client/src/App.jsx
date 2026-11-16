@@ -4,8 +4,10 @@ import OaAuthPage from './pages/oa/OaAuthPage'
 import OaExamEntryPage from './pages/oa/OaExamEntryPage'
 import OaExamPage from './pages/oa/OaExamPage'
 import OaDashboardPage from './pages/oa/OaDashboardPage'
-import OaAssessmentsPage from './pages/oa/OaAssessmentsPage'
-import OaAssessmentPage from './pages/oa/OaAssessmentPage'
+import OaDrivesPage from './pages/oa/OaDrivesPage'
+import OaDrivePage from './pages/oa/OaDrivePage'
+import OaLegacyRoundRedirect from './pages/oa/OaLegacyRoundRedirect'
+import WorkspaceChooserPage from './pages/WorkspaceChooserPage'
 import OaApprovalsPage from './pages/oa/OaApprovalsPage'
 import { RequireOaAdmin } from './components/oa/OaAdminLayout'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -145,12 +147,16 @@ function App() {
       <Route path='/platform/admin/clients' element={<RequirePlatformAuth permission={featurePermissions.clients}><ClientList/></RequirePlatformAuth>}/>
       <Route path='/platform/admin/settings' element={<RequirePlatformAuth permission={featurePermissions.settings}><VoiceProviderSettings/></RequirePlatformAuth>}/>
       {/* Online Assessment: a separate room with its own sign-in (organizers) and its own student entry. */}
-      <Route path='/oa' element={<Navigate to='/oa/login' replace/>}/>
+      <Route path='/oa' element={<Navigate to='/oa/admin' replace/>}/>
       <Route path='/oa/login' element={<OaAuthPage mode='login'/>}/>
       <Route path='/oa/register' element={<OaAuthPage mode='register'/>}/>
       <Route path='/oa/admin' element={<RequireOaAdmin><OaDashboardPage/></RequireOaAdmin>}/>
-      <Route path='/oa/admin/assessments' element={<RequireOaAdmin><OaAssessmentsPage/></RequireOaAdmin>}/>
-      <Route path='/oa/admin/assessments/:id' element={<RequireOaAdmin><OaAssessmentPage/></RequireOaAdmin>}/>
+      <Route path='/oa/admin/drives' element={<RequireOaAdmin><OaDrivesPage/></RequireOaAdmin>}/>
+      <Route path='/oa/admin/drives/:id' element={<RequireOaAdmin><OaDrivePage/></RequireOaAdmin>}/>
+      {/* Links from before rounds lived inside drives. */}
+      <Route path='/oa/admin/assessments' element={<Navigate to='/oa/admin/drives' replace/>}/>
+      <Route path='/oa/admin/assessments/:id' element={<RequireOaAdmin><OaLegacyRoundRedirect/></RequireOaAdmin>}/>
+      <Route path='/workspace' element={<RequireClientAuth><WorkspaceChooserPage/></RequireClientAuth>}/>
       <Route path='/oa/exam' element={<OaExamEntryPage/>}/>
       <Route path='/oa/exam/test' element={<OaExamPage/>}/>
       <Route path='/platform/admin/oa-approvals' element={<RequirePlatformAuth permission='CLIENT_APPROVE'><OaApprovalsPage/></RequirePlatformAuth>}/>

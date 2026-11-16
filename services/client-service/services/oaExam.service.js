@@ -2,7 +2,9 @@ import mongoose from "mongoose"
 import { OaAssessment, OaAttempt, OaEvent, OaStudent } from "../models/oa.model.js"
 import { ApiError } from "../utils/response.js"
 import { OA_ROLES, clearRateLimit, codesMatch, normalizeEmail, rateLimit, signOaToken } from "../utils/oaSecurity.js"
-import { studentQuestionView } from "../utils/oaQuestions.js"
+import { sectionName, studentQuestionView } from "../utils/oaQuestions.js"
+import { RECORDINGS_BUCKET, getObjectStream, uploadBuffer } from "../config/s3Client.js"
+import { VIDEO_MIME_TYPES, videoObjectKey } from "../utils/oaVideo.js"
 import { SLOT_CHANGE_CUTOFF_MINUTES, attemptDeadline, buildPaperOrder, effectiveSchedule, gradeAttempt, inWaitingRoom, schedulePhase, slotChangeDeadline } from "../utils/oaExam.js"
 
 const GRACE_MS = 10 * 1000          // network slack when the last autosave lands just after the deadline
@@ -40,7 +42,9 @@ export const studentLogin = async ({ assessmentId, email, code }) => {
 
     clearRateLimit(limiterKey)
     const secondsToClose = Math.ceil((new Date(assessment.schedule.endAt).getTime() - Date.now()) / 1000)
-    const ttl = Math.min(Math.max(secondsToClose + 2 * 3600, 3600), 14 * 24 * 3600)
+    // An open window lets someone begin in its last minute and still get the whole duration.
+    const extra = assessment.schedule.mode === "FLEXIBLE" ? assessment.schedule.durationMinutes * 60 : 0
+    const ttl = Math.min(Math.max(secondsToClose + extra + 2 * 3600, 3600), 14 * 24 * 3600)
     const token = signOaToken({ sub: String(student._id), role: OA_ROLES.STUDENT, studentId: String(student._id), assessmentId: String(assessment._id), accountId: String(assessment.accountId) }, ttl)
     return { token, expiresIn: ttl }
 }
@@ -67,7 +71,7 @@ export const finalizeAttempt = async (attemptId, { status, reason = null }) => {
     const claimed = await OaAttempt.findOneAndUpdate({ _id: attemptId, status: "IN_PROGRESS" }, { $set: { status, submittedAt, endReason: reason } }, { new: true })
     if (!claimed) return OaAttempt.findById(attemptId)
     const assessment = await OaAssessment.findById(claimed.assessmentId)
-    const result = gradeAttempt({ questions: assessment.questions.map(asObject), answers: claimed.answers || {}, grades: claimed.grades || {} })
+    const result = gradeAttempt({ questions: assessment.questions.map(asObject), answers: claimed.answers || {}, grades: claimed.grades || {}, settings: assessment.settings?.toObject?.() || {} })
     return OaAttempt.findByIdAndUpdate(attemptId, { $set: { grades: result.grades, score: result.score, maxScore: result.maxScore, percent: result.percent, gradingStatus: result.gradingStatus } }, { new: true })
 }
 
@@ -87,7 +91,7 @@ const settleIfExpired = async (attempt) => {
 
 // ---------- reading state ----------
 
-const proctoringView = (p) => ({ level: p.level, requireCamera: p.requireCamera, requireScreenShare: p.requireScreenShare, requireFullscreen: p.requireFullscreen, faceChecks: p.faceChecks, blockCopyPaste: p.blockCopyPaste, maxViolations: p.maxViolations, snapshotIntervalSec: p.snapshotIntervalSec })
+const proctoringView = (p) => ({ level: p.level, requireCamera: p.requireCamera, requireScreenShare: p.requireScreenShare, requireFullscreen: p.requireFullscreen, faceChecks: p.faceChecks, blockCopyPaste: p.blockCopyPaste, requireLocation: Boolean(p.requireLocation), maxViolations: p.maxViolations, snapshotIntervalSec: p.snapshotIntervalSec })
 
 const resultView = (assessment, attempt) => {
     if (!attempt || attempt.status === "IN_PROGRESS") return null
@@ -177,10 +181,12 @@ const paperPayload = (assessment, attempt) => {
         allowBackNavigation: assessment.settings.allowBackNavigation,
         proctoring: proctoringView(assessment.proctoring), violationCount: attempt.violationCount,
         sections: attempt.order.sections.map((s) => ({
-            id: s.sectionId, title: assessment.sections.find((x) => x.id === s.sectionId)?.title || "Section",
+            id: s.sectionId, number: assessment.sections.findIndex((x) => x.id === s.sectionId) + 1,
+            title: sectionName(assessment.sections.find((x) => x.id === s.sectionId)?.title),
             questions: s.questionIds.map((qid) => questions.get(qid)).filter(Boolean).map((q) => studentQuestionView(q, attempt.order.optionOrder?.[q.id])),
         })),
-        answers: Object.fromEntries(Object.entries(attempt.answers || {}).map(([qid, a]) => [qid, a?.value ?? null])),
+        // A recorded video is reported as "recorded", never by where it is stored.
+        answers: Object.fromEntries(Object.entries(attempt.answers || {}).map(([qid, a]) => [qid, a?.value?.videoKey ? { recorded: true, durationSec: a.value.durationSec ?? null } : a?.value ?? null])),
     }
 }
 
@@ -191,7 +197,18 @@ const pickEnvironment = (env = {}) => ({
     screenCount: Number.isFinite(Number(env.screenCount)) ? Number(env.screenCount) : null,
     screen: String(env.screen || "").slice(0, 30), timezone: String(env.timezone || "").slice(0, 60),
     language: String(env.language || "").slice(0, 20),
+    browser: String(env.browser || "").slice(0, 60), os: String(env.os || "").slice(0, 60), device: String(env.device || "").slice(0, 40),
+    ...coordinates(env),
 })
+
+// Latitude and longitude as the candidate's browser reported them (with their permission); null when it did not.
+const coordinates = (env = {}) => {
+    const latitude = Number(env.latitude); const longitude = Number(env.longitude); const accuracy = Number(env.accuracy)
+    const valid = env.latitude !== null && env.latitude !== undefined && env.latitude !== "" && Number.isFinite(latitude) && Number.isFinite(longitude) && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180
+    return valid
+        ? { latitude: Math.round(latitude * 1e6) / 1e6, longitude: Math.round(longitude * 1e6) / 1e6, accuracy: Number.isFinite(accuracy) && accuracy >= 0 ? Math.round(accuracy) : null }
+        : { latitude: null, longitude: null, accuracy: null }
+}
 
 const NOT_OPEN = {
     UPCOMING: "The test has not started yet. You can enter when the start time arrives.",
@@ -212,6 +229,8 @@ export const start = async (ctx, { environment } = {}, { ip } = {}) => {
     const phase = schedulePhase(sched)
     if (phase !== "OPEN") throw new ApiError(409, "NOT_OPEN", NOT_OPEN[phase] || "The test is not open.")
     if (!assessment.questions.length) throw new ApiError(409, "NO_QUESTIONS", "This test has no questions yet.")
+    const env = pickEnvironment(environment)
+    if (assessment.proctoring.requireLocation && env.latitude === null) throw new ApiError(409, "LOCATION_REQUIRED", "Allow location access in your browser to start this test. Your organizer requires it.")
 
     const _id = new mongoose.Types.ObjectId()
     const startedAt = new Date()
@@ -219,7 +238,7 @@ export const start = async (ctx, { environment } = {}, { ip } = {}) => {
     try {
         const created = await OaAttempt.create({
             _id, accountId: assessment.accountId, assessmentId: assessment._id, studentId: ctx.studentId,
-            startedAt, deadline: attemptDeadline(sched, startedAt), order, environment: pickEnvironment(environment), ip: ip || null, lastHeartbeatAt: startedAt,
+            startedAt, deadline: attemptDeadline(sched, startedAt), order, environment: env, ip: ip || null, lastHeartbeatAt: startedAt,
         })
         await OaEvent.create({ attemptId: created._id, assessmentId: assessment._id, kind: "INFO", type: "EXAM_STARTED", detail: "Started the test" })
         return paperPayload(assessment, created)
@@ -248,6 +267,8 @@ const validAnswer = (question, value) => {
         if (question.type === "MCQ" && ids.length > 1) return { error: "Choose only one option." }
         return { value: ids }
     }
+    // A video answer is only ever written by the upload itself, so nothing typed here can point at someone else's file.
+    if (question.type === "VIDEO") return { skip: true }
     if (question.type === "CODING") {
         const code = String(value?.code ?? "")
         const language = String(value?.language ?? question.codeLanguages[0] ?? "")
@@ -275,10 +296,54 @@ export const saveAnswers = async (ctx, { answers } = {}) => {
         if (!q || !inPaper.has(q.id)) throw new ApiError(400, "VALIDATION_ERROR", "An answer refers to a question that is not on your paper.")
         const checked = validAnswer(q, item.value)
         if (checked.error) throw new ApiError(400, "VALIDATION_ERROR", checked.error, { [q.id]: checked.error })
+        if (checked.skip) continue
         $set[`answers.${q.id}`] = { value: checked.value, savedAt: now }
     }
     if (Object.keys($set).length) await OaAttempt.updateOne({ _id: attempt._id, status: "IN_PROGRESS" }, { $set })
     return { savedAt: now, serverNow: now, deadline: attempt.deadline }
+}
+
+// ---------- video answers ----------
+
+/** Store a candidate's recorded answer to a VIDEO question. Recording again replaces the earlier one. */
+export const uploadVideo = async (ctx, questionId, file, { durationSec } = {}) => {
+    const { assessment, attempt } = await loadContext(ctx)
+    if (!attempt) throw new ApiError(409, "NOT_STARTED", "You have not started this test.")
+    if (attempt.status !== "IN_PROGRESS") throw new ApiError(409, "ALREADY_FINISHED", "This test has already been submitted.")
+    await settleIfExpired(attempt)
+    const question = assessment.questions.find((q) => q.id === questionId)
+    const inPaper = attempt.order.sections.some((s) => s.questionIds.includes(questionId))
+    if (!question || !inPaper || question.type !== "VIDEO") throw new ApiError(400, "VALIDATION_ERROR", "That question does not take a video answer.")
+    const mime = String(file?.mimetype || "").split(";")[0].trim().toLowerCase()
+    if (!file?.buffer?.length || !VIDEO_MIME_TYPES.includes(mime)) throw new ApiError(400, "VALIDATION_ERROR", "The recording did not arrive. Record it again.")
+
+    const key = videoObjectKey({ assessmentId: String(assessment._id), attemptId: String(attempt._id), questionId, mime })
+    try {
+        await uploadBuffer(RECORDINGS_BUCKET, key, file.buffer, mime)
+    } catch (error) {
+        console.error("[client-service] OA video upload failed:", error.message)
+        throw new ApiError(503, "STORAGE_UNAVAILABLE", "Your recording could not be saved just now. Please try again.")
+    }
+    const seconds = Number(durationSec)
+    const now = new Date()
+    const value = { videoKey: key, mime, size: file.buffer.length, durationSec: Number.isFinite(seconds) && seconds >= 0 ? Math.min(Math.round(seconds), 3600) : null }
+    const saved = await OaAttempt.updateOne({ _id: attempt._id, status: "IN_PROGRESS" }, { $set: { [`answers.${questionId}`]: { value, savedAt: now } } })
+    if (!saved.modifiedCount) throw new ApiError(409, "ALREADY_FINISHED", "This test has already been submitted.")
+    return { recorded: true, durationSec: value.durationSec, savedAt: now }
+}
+
+/** The stored recording behind a signed link (the link itself is checked by the route). */
+export const videoStream = async (attemptId, questionId, range) => {
+    if (!mongoose.isValidObjectId(attemptId)) throw new ApiError(404, "NOT_FOUND", "Recording not found.")
+    const attempt = await OaAttempt.findById(attemptId).select("answers").lean()
+    const key = attempt?.answers?.[questionId]?.value?.videoKey
+    if (!key) throw new ApiError(404, "NOT_FOUND", "Recording not found.")
+    try {
+        return await getObjectStream(RECORDINGS_BUCKET, key, range)
+    } catch (error) {
+        console.error("[client-service] OA video read failed:", error.message)
+        throw new ApiError(404, "NOT_FOUND", "Recording not found.")
+    }
 }
 
 // ---------- proctoring ----------

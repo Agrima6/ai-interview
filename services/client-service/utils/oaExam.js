@@ -56,7 +56,7 @@ const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 export const hasAnswer = (value) => {
     if (value === null || value === undefined) return false
     if (Array.isArray(value)) return value.length > 0
-    if (typeof value === "object") return Boolean(String(value.code || "").trim())
+    if (typeof value === "object") return Boolean(value.videoKey) || Boolean(String(value.code || "").trim())
     return String(value).trim().length > 0
 }
 
@@ -65,12 +65,17 @@ export const hasAnswer = (value) => {
  *  - marks === null  -> waiting for the admin (long answers and code are never guessed at)
  *  - needsReview     -> an automatic score the admin may want to look at (keyword-matched short answers)
  */
-export const gradeAnswer = (question, answer) => {
+export const gradeAnswer = (question, answer, { partialMarking = false } = {}) => {
     const given = hasAnswer(answer)
     if (question.type === "MCQ" || question.type === "MSQ") {
         if (!given) return { marks: 0, auto: true, needsReview: false }
         const chosen = (Array.isArray(answer) ? answer : [answer]).map(String)
-        const right = sameSet(chosen, question.correct.map(String))
+        const correct = question.correct.map(String)
+        const right = sameSet(chosen, correct)
+        // Part marks: some of the right options and none of the wrong ones. One wrong option is a wrong answer.
+        if (!right && partialMarking && question.type === "MSQ" && chosen.every((id) => correct.includes(id))) {
+            return { marks: Math.round((question.marks * chosen.length / correct.length) * 100) / 100, auto: true, needsReview: false, partial: true }
+        }
         return { marks: right ? question.marks : 0 - (question.negativeMarks || 0), auto: true, needsReview: false }
     }
     if (!given) return { marks: 0, auto: true, needsReview: false }
@@ -84,7 +89,7 @@ export const gradeAnswer = (question, answer) => {
 }
 
 /** Grade a whole attempt. Manual grades already given by the admin are kept as they are. */
-export const gradeAttempt = ({ questions, answers = {}, grades = {} }) => {
+export const gradeAttempt = ({ questions, answers = {}, grades = {}, settings = {} }) => {
     const nextGrades = {}
     let score = 0
     let maxScore = 0
@@ -94,7 +99,7 @@ export const gradeAttempt = ({ questions, answers = {}, grades = {} }) => {
         const existing = grades[q.id]
         const entry = existing && existing.auto === false && existing.marks !== null && existing.marks !== undefined
             ? existing
-            : { ...gradeAnswer(q, answers[q.id]?.value), ...(existing?.feedback ? { feedback: existing.feedback } : {}) }
+            : { ...gradeAnswer(q, answers[q.id]?.value, { partialMarking: Boolean(settings.partialMarking) }), ...(existing?.feedback ? { feedback: existing.feedback } : {}) }
         nextGrades[q.id] = entry
         if (entry.marks === null) pending += 1
         else score += entry.marks
@@ -158,7 +163,7 @@ const parseSlots = (input, { durationMinutes, lateEntryMinutes }, now) => {
 
 /** Checks a schedule and returns it as Dates/numbers, or { error, field }. Out-of-range values are rejected, never clamped. */
 export const parseSchedule = (input, { now = Date.now() } = {}) => {
-    const mode = input?.mode === "SLOTS" ? "SLOTS" : "FIXED"
+    const mode = ["SLOTS", "FLEXIBLE"].includes(input?.mode) ? input.mode : "FIXED"
     const timezone = String(input?.timezone || "Asia/Kolkata").slice(0, 60)
     const length = parseDuration(input)
     if (length.error) return length
@@ -171,6 +176,14 @@ export const parseSchedule = (input, { now = Date.now() } = {}) => {
 
     const startAt = new Date(input?.startAt)
     const endAt = new Date(input?.endAt)
+    if (mode === "FLEXIBLE") {
+        // Open window: a candidate may begin at any moment inside it, day or night, and always gets the full duration.
+        if (Number.isNaN(startAt.getTime())) return { error: "Choose when the window opens.", field: "startAt" }
+        if (Number.isNaN(endAt.getTime())) return { error: "Choose when the window closes.", field: "endAt" }
+        if (endAt.getTime() <= startAt.getTime()) return { error: "The window must close after it opens.", field: "endAt" }
+        if (endAt.getTime() <= now) return { error: "The closing time is already in the past.", field: "endAt" }
+        return { mode, slots: [], startAt, endAt, ...length, lateEntryMinutes: 0, timezone }
+    }
     if (Number.isNaN(startAt.getTime())) return { error: "Choose when the test starts.", field: "startAt" }
     if (Number.isNaN(endAt.getTime())) return { error: "Choose when the test closes.", field: "endAt" }
     if (endAt.getTime() < startAt.getTime() + length.durationMinutes * MIN) return { error: "The test must close at least one full duration after it starts.", field: "endAt" }
@@ -199,6 +212,7 @@ export const WAITING_ROOM_MINUTES = 15
 export const schedulePhase = (schedule, now = Date.now()) => {
     const start = new Date(schedule.startAt).getTime()
     const end = new Date(schedule.endAt).getTime()
+    if (schedule.mode === "FLEXIBLE") return now >= end ? "ENDED" : now < start ? "UPCOMING" : "OPEN"
     const lastEntry = Math.min(start + (schedule.lateEntryMinutes ?? 10) * MIN, end - MIN)
     if (now >= end) return "ENDED"
     if (now < start) return "UPCOMING"
@@ -214,6 +228,8 @@ export const inWaitingRoom = (schedule, now = Date.now()) => {
 /** The moment this student's attempt ends: their own duration, but never past the test's closing time. */
 export const attemptDeadline = (schedule, startedAt) => {
     const own = new Date(startedAt).getTime() + schedule.durationMinutes * MIN
+    // An open window promises the full duration to whoever starts inside it, even in its last minute.
+    if (schedule.mode === "FLEXIBLE") return new Date(own)
     return new Date(Math.min(own, new Date(schedule.endAt).getTime()))
 }
 

@@ -51,6 +51,8 @@ for (const { prefix, target } of routeTable) {
     app.use(prefix, createProxyMiddleware({
         target,
         changeOrigin: true,
+        // Pass the caller's address on (x-forwarded-for) so a service can record where a request came from.
+        xfwd: true,
         // Express's app.use(prefix, ...) strips the prefix from req.url
         // before the proxy ever sees it - add it back so each service
         // still receives the exact public /api/v1/* path it expects.

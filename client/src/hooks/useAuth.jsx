@@ -5,6 +5,7 @@ import { setUserData } from '../redux/userSlice'
 import * as authApi from '../api/authApi'
 import * as meApi from '../api/meApi'
 import { setAccessToken } from '../api/client'
+import { oaTokens } from '../api/oaApi'
 
 const AuthContext = createContext(null)
 
@@ -22,6 +23,7 @@ export function AuthProvider({ children }) {
     // expired session) drops the whole query cache and the legacy practice-app user.
     const resetAccountState = useCallback(() => {
         queryClient.clear()
+        oaTokens.clear('admin')        // the Online Assessment session is derived from this sign-in
         dispatch(setUserData(null))
     }, [queryClient, dispatch])
 

@@ -3,6 +3,7 @@ import { Upload, Download, X, UserPlus, AlertCircle } from 'lucide-react'
 import Modal from '../ui/Modal'
 import { Button, Input } from '../ui'
 import { BRANCH_OPTIONS } from '../../constants/collegeOptions'
+import { FILTERS, tidyPhone } from '../oa/oaRules'
 import {
     MAX_STUDENTS, MAX_FILE_BYTES, STUDENT_FIELDS, SAMPLE_CSV, readStudentFile, splitFile, studentsFromRows, classify, cleanStudent, problemsOf,
 } from '../../utils/studentImport'
@@ -55,7 +56,8 @@ function AddStudentsModal({ open, onClose, onSubmit, submitting = false, existin
     const tooMany = ready.length > MAX_STUDENTS
     const missingRequired = file ? STUDENT_FIELDS.filter((f) => f.required && !file.mapping.includes(f.key)) : []
 
-    const setField = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
+    const filters = { name: (v) => FILTERS.personName(v, 100), email: FILTERS.email, phone: tidyPhone, rollNumber: FILTERS.rollNumber }
+    const setField = (key) => (e) => setForm((f) => ({ ...f, [key]: filters[key] ? filters[key](e.target.value) : e.target.value }))
 
     const addManual = (e) => {
         e.preventDefault()
@@ -132,7 +134,7 @@ function AddStudentsModal({ open, onClose, onSubmit, submitting = false, existin
                     <form onSubmit={addManual} className="grid sm:grid-cols-2 gap-4" noValidate>
                         <Input id="stu-name" ref={nameRef} label="Name *" value={form.name} onChange={setField('name')} maxLength={100} autoComplete="off" autoFocus />
                         <Input id="stu-email" label="Email *" type="email" value={form.email} onChange={setField('email')} maxLength={254} autoComplete="off" />
-                        <Input id="stu-phone" label="Phone" value={form.phone} onChange={setField('phone')} placeholder="10 digits, +91 is fine" inputMode="tel" autoComplete="off" />
+                        <Input id="stu-phone" label="Phone" value={form.phone} onChange={setField('phone')} placeholder="10 digits" inputMode="numeric" maxLength={10} autoComplete="off" />
                         <Input id="stu-roll" label="Roll number" value={form.rollNumber} onChange={setField('rollNumber')} maxLength={40} autoComplete="off" />
                         <Input id="stu-branch" label="Branch" value={form.branch} onChange={setField('branch')} list="stu-branches" maxLength={80} autoComplete="off" />
                         <datalist id="stu-branches">{BRANCH_OPTIONS.map((b) => <option key={b.value} value={b.value} />)}</datalist>

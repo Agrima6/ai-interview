@@ -122,3 +122,30 @@ describe("helpers", () => {
         assert.doesNotMatch(explainUpstreamFailure({ response: { status: 500, data: { error: { message: "secret internal stack" } } } }), /secret/)
     })
 })
+
+it("a provider key alone is a full setup: the endpoint and model follow the key", async () => {
+    const { aiConfig } = await import("../services/oaAi.service.js")
+    const names = ["OA_AI_API_KEY", "GROQ_API_KEY", "OPENROUTER_API_KEY", "OPENAI_API_KEY", "XAI_API_KEY", "GROK_API_KEY", "OA_AI_BASE_URL", "OA_AI_MODEL"]
+    const saved = Object.fromEntries(names.map((n) => [n, process.env[n]]))
+    const set = (env) => { for (const n of names) delete process.env[n]; Object.assign(process.env, env) }
+    try {
+        set({ GROQ_API_KEY: ' "gsk_test123" \n' })                                   // the provider's own name, pasted with quotes
+        assert.deepEqual(aiConfig(), { key: "gsk_test123", base: "https://api.groq.com/openai/v1", model: "llama-3.3-70b-versatile", provider: "Groq" })
+        set({ OA_AI_API_KEY: "gsk_x", OA_AI_MODEL: "gpt-4o-mini" })                  // an OpenAI model left behind never reaches Groq
+        assert.equal(aiConfig().model, "llama-3.3-70b-versatile")
+        set({ OA_AI_API_KEY: "gsk_x", OA_AI_MODEL: "llama-3.1-8b-instant" })
+        assert.equal(aiConfig().model, "llama-3.1-8b-instant")
+        set({ OA_AI_API_KEY: "gsk_x", OA_AI_BASE_URL: "https://api.groq.com/openai/v1/chat/completions/" })
+        assert.equal(aiConfig().base, "https://api.groq.com/openai/v1")              // a full endpoint pasted as the base still works
+        set({ OA_AI_API_KEY: "sk-abc" })
+        assert.equal(aiConfig().base, "https://api.openai.com/v1")
+        set({ OA_AI_API_KEY: "k", OA_AI_BASE_URL: "https://llm.internal/v1", OA_AI_MODEL: "m" })
+        assert.deepEqual(aiConfig(), { key: "k", base: "https://llm.internal/v1", model: "m", provider: "Custom" })
+        set({ GROK_API_KEY: "xai-abc123" })                                          // an xAI Grok key under either usual name
+        assert.deepEqual(aiConfig(), { key: "xai-abc123", base: "https://api.x.ai/v1", model: "grok-3-mini", provider: "xAI Grok" })
+        set({ XAI_API_KEY: "xai-abc123", OA_AI_MODEL: "gpt-4o-mini" })
+        assert.equal(aiConfig().model, "grok-3-mini")
+        set({})
+        assert.equal(aiConfig().key, "")
+    } finally { set(Object.fromEntries(Object.entries(saved).filter(([, v]) => v !== undefined))) }
+})

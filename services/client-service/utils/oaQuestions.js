@@ -1,10 +1,18 @@
 import crypto from "crypto"
 import { ApiError } from "./response.js"
+import { CODE_LANGUAGES, starterCodesFor } from "./oaLanguages.js"
 
-export const QUESTION_TYPES = Object.freeze(["MCQ", "MSQ", "SHORT", "LONG", "CODING"])
+export { CODE_LANGUAGES }
+export const QUESTION_TYPES = Object.freeze(["MCQ", "MSQ", "SHORT", "LONG", "CODING", "VIDEO"])
+
+/** A section is always "Section N" on screen; only the organizer's own name is stored ("" when there is none). */
+export const sectionName = (title) => {
+    const text = String(title ?? "").trim().slice(0, 80)
+    return /^(section\s*\d+|untitled section)$/i.test(text) ? "" : text
+}
+export const VIDEO_SECONDS = Object.freeze({ min: 15, max: 300, fallback: 120 })
 export const QUESTION_SOURCES = Object.freeze(["MANUAL", "UPLOAD", "AI"])
 export const DIFFICULTIES = Object.freeze(["EASY", "MEDIUM", "HARD"])
-export const CODE_LANGUAGES = Object.freeze(["javascript", "python", "java", "cpp", "c", "typescript", "go", "sql"])
 
 const MAX_TEXT = 4000
 const MAX_OPTIONS = 8
@@ -63,7 +71,7 @@ export const normalizeQuestion = (input, { sectionIds = [], defaultSectionId = n
     if (!sectionId) fields.sectionId = "Choose a section."
 
     const marks = toNumber(input?.marks, 1)
-    if (Number.isNaN(marks) || marks <= 0 || marks > MAX_MARKS) fields.marks = `Marks must be between 0 and ${MAX_MARKS}.`
+    if (Number.isNaN(marks) || marks <= 0 || marks > MAX_MARKS) fields.marks = `Marks must be more than 0 and at most ${MAX_MARKS}.`
     const negativeMarks = toNumber(input?.negativeMarks ?? input?.negative, 0)
     if (Number.isNaN(negativeMarks) || negativeMarks < 0 || negativeMarks > marks) fields.negativeMarks = "Negative marks must be 0 or more and no larger than the marks."
 
@@ -72,7 +80,7 @@ export const normalizeQuestion = (input, { sectionIds = [], defaultSectionId = n
         sectionId, type, text,
         options: [], correct: [],
         marks, negativeMarks: type === "MCQ" || type === "MSQ" ? negativeMarks : 0,
-        modelAnswer: "", keywords: [], codeLanguages: [], starterCode: "", testCases: [],
+        modelAnswer: "", keywords: [], codeLanguages: [], starterCode: "", starterCodes: {}, maxDurationSec: VIDEO_SECONDS.fallback, testCases: [],
         difficulty: DIFFICULTIES.includes(clean(input?.difficulty, 10).toUpperCase()) ? clean(input?.difficulty, 10).toUpperCase() : "MEDIUM",
         explanation: clean(input?.explanation, 2000),
         source: QUESTION_SOURCES.includes(source) ? source : "MANUAL",
@@ -99,10 +107,21 @@ export const normalizeQuestion = (input, { sectionIds = [], defaultSectionId = n
         const languages = asList(input?.codeLanguages ?? input?.languages).map((l) => clean(l, 20).toLowerCase()).filter((l) => CODE_LANGUAGES.includes(l))
         question.codeLanguages = languages.length ? [...new Set(languages)] : ["javascript", "python"]
         question.starterCode = clean(input?.starterCode, 4000)
+        const snippets = input?.starterCodes && typeof input.starterCodes === "object" ? input.starterCodes : {}
+        for (const id of question.codeLanguages) {
+            // Kept as typed (indentation matters in code); only languages on this question are stored.
+            const code = String(snippets[id] ?? "").replace(/\u0000/g, "").slice(0, 4000)
+            if (code.trim()) question.starterCodes[id] = code
+        }
         question.modelAnswer = clean(input?.modelAnswer ?? input?.answer, 6000)
         question.testCases = (Array.isArray(input?.testCases) ? input.testCases : []).slice(0, 20).map((t) => ({
             input: clean(t?.input, 1000), expected: clean(t?.expected, 1000), hidden: Boolean(t?.hidden),
         })).filter((t) => t.input || t.expected)
+    } else if (type === "VIDEO") {
+        const seconds = toNumber(input?.maxDurationSec, VIDEO_SECONDS.fallback)
+        if (!Number.isInteger(seconds) || seconds < VIDEO_SECONDS.min || seconds > VIDEO_SECONDS.max) fields.maxDurationSec = `The recording limit must be a whole number between ${VIDEO_SECONDS.min} and ${VIDEO_SECONDS.max} seconds.`
+        else question.maxDurationSec = seconds
+        question.modelAnswer = clean(input?.modelAnswer ?? input?.answer, 6000)
     }
 
     if (Object.keys(fields).length) throw new ApiError(400, "VALIDATION_ERROR", Object.values(fields)[0], fields)
@@ -133,6 +152,8 @@ export const studentQuestionView = (question, optionOrder) => {
         multiple: question.type === "MSQ",
         codeLanguages: question.type === "CODING" ? question.codeLanguages : undefined,
         starterCode: question.type === "CODING" ? question.starterCode : undefined,
+        starterCodes: question.type === "CODING" ? starterCodesFor(question) : undefined,
+        maxDurationSec: question.type === "VIDEO" ? question.maxDurationSec || VIDEO_SECONDS.fallback : undefined,
         sampleCases: question.type === "CODING" ? question.testCases.filter((t) => !t.hidden).map(({ input, expected }) => ({ input, expected })) : undefined,
     }
 }

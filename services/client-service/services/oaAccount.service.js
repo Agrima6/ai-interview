@@ -1,4 +1,7 @@
+import crypto from "node:crypto"
+import mongoose from "mongoose"
 import { OaAccount } from "../models/oa.model.js"
+import Client from "../models/client.model.js"
 import { ApiError } from "../utils/response.js"
 import {
     EMAIL_RE, OA_ROLES, clearRateLimit, hashPassword, normalizeEmail, passwordProblem, rateLimit, signOaToken, verifyPassword,
@@ -67,6 +70,49 @@ export const login = async ({ email, password }) => {
     if (account.status === "SUSPENDED") throw new ApiError(403, "ACCOUNT_SUSPENDED", "This account is suspended. Please contact support.")
 
     clearRateLimit(limiterKey)
+    account.lastLoginAt = new Date()
+    await account.save()
+    const token = signOaToken({ sub: String(account._id), role: OA_ROLES.ADMIN, accountId: String(account._id) }, ADMIN_TOKEN_SECONDS)
+    return { token, expiresIn: ADMIN_TOKEN_SECONDS, account: accountView(account) }
+}
+
+/**
+ * An organization admin who is already signed in to the platform gets an Online Assessment session without a second
+ * password. The whole organization shares one OA account, found by its tenant (or, the first time, by the same email).
+ */
+export const orgSession = async (user) => {
+    const tenantId = String(user?.tenantId || "")
+    const email = String(user?.email || "").trim()
+    if (!tenantId || !EMAIL_RE.test(email)) throw new ApiError(403, "NOT_AN_ORGANIZATION", "Online Assessment is available to organization accounts.")
+    const emailNormalized = normalizeEmail(email)
+
+    let account = await OaAccount.findOne({ tenantId })
+    if (!account) {
+        // The same person may have registered for Online Assessment on its own before: adopt that account.
+        const sameEmail = await OaAccount.findOne({ emailNormalized, tenantId: null })
+        if (sameEmail) { sameEmail.tenantId = tenantId; account = await sameEmail.save() }
+    }
+    if (!account) {
+        const client = mongoose.isValidObjectId(tenantId) ? await Client.findOne({ tenantId }).select("name").lean() : null
+        const taken = await OaAccount.exists({ emailNormalized })
+        try {
+            account = await OaAccount.create({
+                orgName: String(client?.name || "My organization").slice(0, 120), contactName: email.split("@")[0].slice(0, 80) || "Admin", email,
+                // The email is the unique key; if another organization already holds it, key this one by its tenant.
+                emailNormalized: taken ? `tenant:${tenantId}` : emailNormalized,
+                // Never used to sign in: this account is only reached through the platform session.
+                passwordHash: hashPassword(crypto.randomBytes(32).toString("hex")),
+                status: "ACTIVE", tenantId, purpose: "Created from the organization's platform account",
+            })
+        } catch (error) {
+            if (error.code !== 11000) throw error
+            account = await OaAccount.findOne({ tenantId })
+            if (!account) throw error
+        }
+    }
+    // A platform organization is already verified, so a pending self-registration needs no second review.
+    if (["PENDING", "CHANGES_REQUESTED"].includes(account.status)) account.status = "ACTIVE"
+    if (account.status !== "ACTIVE") throw new ApiError(403, "ACCOUNT_INACTIVE", "Online Assessment is switched off for this organization. Please contact support.")
     account.lastLoginAt = new Date()
     await account.save()
     const token = signOaToken({ sub: String(account._id), role: OA_ROLES.ADMIN, accountId: String(account._id) }, ADMIN_TOKEN_SECONDS)

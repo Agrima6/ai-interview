@@ -180,7 +180,11 @@ test("the exam: each student gets their own order, and never sees the answer key
     assert.equal(sess.data.attempt, null)
     assert.equal((await call("GET", "/oa/exam/paper", { token: s1.token })).status, 409)      // cannot read the paper before starting
 
-    const env = { userAgent: "test", screenCount: 1 }
+    const env = { userAgent: "test", screenCount: 1, latitude: 12.9716, longitude: 77.5946, accuracy: 20, browser: "Chrome 130", os: "macOS", device: "Desktop" }
+    // New rounds ask for the candidate's location: starting without it is refused, and says why.
+    const noPlace = await call("POST", "/oa/exam/start", { token: s1.token, body: { environment: { userAgent: "test" } } })
+    assert.equal(noPlace.status, 409)
+    assert.equal(noPlace.error.code, "LOCATION_REQUIRED")
     const p1 = await call("POST", "/oa/exam/start", { token: s1.token, body: { environment: env } })
     const p2 = await call("POST", "/oa/exam/start", { token: s2.token, body: { environment: env } })
     assert.equal(p1.status, 200)
@@ -255,7 +259,7 @@ test("submit once; time-up is enforced by the server even if the browser is gone
     assert.equal((await call("POST", "/oa/exam/submit", { token: s1.token })).data.status, "SUBMITTED")     // idempotent
     assert.equal((await call("PUT", "/oa/exam/answers", { token: s1.token, body: { answers: [] } })).status, 409)
 
-    await call("POST", "/oa/exam/start", { token: s3.token, body: {} })
+    await call("POST", "/oa/exam/start", { token: s3.token, body: { environment: { latitude: 12.9716, longitude: 77.5946 } } })
     await models.OaAttempt.updateOne({ studentId: s3.id }, { deadline: new Date(Date.now() - 60e3) })
     assert.ok(await exam.finalizeExpiredAttempts() >= 1)
     const gone = await call("GET", "/oa/exam/session", { token: s3.token })

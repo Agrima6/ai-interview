@@ -21,7 +21,12 @@ const clock = (ms) => {
 
 export default function ExamRunner({ paper, screenStream, onScreenStream, onFinish }) {
     const cfg = paper.proctoring
-    const flat = useMemo(() => paper.sections.flatMap((s) => s.questions.map((q) => ({ ...q, sectionTitle: s.title }))), [paper])
+    const flat = useMemo(() => paper.sections.flatMap((s) => {
+        // Sections are always "Section 1, 2, 3"; the organizer's name, when there is one, follows it.
+        const title = String(s.title || '').trim()
+        const label = /^section\s*\d/i.test(title) ? title : `Section ${s.number}${title ? ` · ${title}` : ''}`
+        return s.questions.map((q) => ({ ...q, sectionTitle: label }))
+    }), [paper])
     const [index, setIndex] = useState(0)
     const [answers, setAnswers] = useState(paper.answers || {})
     const [review, setReview] = useState(() => new Set())
@@ -73,6 +78,8 @@ export default function ExamRunner({ paper, screenStream, onScreenStream, onFini
 
     const change = (qid, value) => {
         setAnswers((a) => ({ ...a, [qid]: value }))
+        // A recorded video travels in its own upload, never through autosave.
+        if (flat.find((x) => x.id === qid)?.type === 'VIDEO') return
         dirty.current.add(qid)
         setSaveState('saving')
         clearTimeout(saveTimer.current)
@@ -117,7 +124,19 @@ export default function ExamRunner({ paper, screenStream, onScreenStream, onFini
     const onCameraStream = useCallback((stream) => setCamera(stream), [])
 
     const q = flat[index]
-    const answered = (id) => { const v = answers[id]; return Array.isArray(v) ? v.length > 0 : v && typeof v === 'object' ? Boolean(v.code?.trim()) : Boolean(v && String(v).trim()) }
+    const answered = (id) => {
+        const v = answers[id]
+        if (Array.isArray(v)) return v.length > 0
+        if (v && typeof v === 'object') {
+            if (v.recorded) return true
+            // Code that is still exactly the starter snippet has not been answered yet.
+            const q = flat.find((x) => x.id === id)
+            const starters = [q?.starterCode, ...Object.values(q?.starterCodes || {})].map((c) => String(c || '').trim())
+            const code = String(v.code || '').trim()
+            return Boolean(code) && !starters.includes(code)
+        }
+        return Boolean(v && String(v).trim())
+    }
     const answeredCount = flat.filter((x) => answered(x.id)).length
     const blocked = proctor.lost.fullscreen || proctor.lost.screen || proctor.lost.camera
     const warningsLeft = cfg.maxViolations - count
@@ -185,21 +204,27 @@ export default function ExamRunner({ paper, screenStream, onScreenStream, onFini
                 </main>
 
                 <aside className='space-y-4 lg:sticky lg:top-24'>
-                    <div className='bg-card border border-line rounded-2xl overflow-hidden'>
-                        <ProctoringCamera active audio={false} onViolation={onFace} onStream={onCameraStream} onDetectorUnavailable={onDetectorDown} className='aspect-[4/3] !rounded-none' />
-                        <p className='px-3 py-2 text-[11.5px] text-text-secondary'>Your camera is on and your screen is being monitored.</p>
-                    </div>
+                    {cfg.requireCamera && (
+                        <div className='bg-card border border-line rounded-2xl overflow-hidden'>
+                            <ProctoringCamera active audio={false} onViolation={onFace} onStream={onCameraStream} onDetectorUnavailable={onDetectorDown} className='aspect-[4/3] !rounded-none' />
+                            <p className='px-3 py-2 text-[11.5px] text-text-secondary'>Your camera is on{cfg.requireScreenShare ? ' and your screen is being monitored' : ''}.</p>
+                        </div>
+                    )}
                     <nav aria-label='Questions' className='bg-card border border-line rounded-2xl p-4'>
                         <div className='flex items-center justify-between mb-3'><h2 className='text-[13px] font-bold text-ink'>Questions</h2><span className='text-[12px] text-text-secondary'>{answeredCount}/{flat.length} answered</span></div>
                         <div className='grid grid-cols-6 gap-1.5'>
                             {flat.map((x, i) => (
-                                <button key={x.id} onClick={() => goto(i)} disabled={!paper.allowBackNavigation && i < index} aria-label={`Question ${i + 1}${answered(x.id) ? ', answered' : ', not answered'}${review.has(x.id) ? ', marked for review' : ''}`} aria-current={i === index ? 'step' : undefined}
-                                    className={`relative h-9 rounded-lg text-[12.5px] font-semibold border transition-colors disabled:opacity-40 ${i === index ? 'ring-2 ring-accent border-accent' : 'border-line'} ${answered(x.id) ? 'bg-accent text-white border-accent' : 'bg-card text-ink hover:bg-black/[0.03]'}`}>
-                                    {i + 1}{review.has(x.id) && <span className='absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[var(--color-warning)] border-2 border-card' aria-hidden='true' />}
+                                <button key={x.id} onClick={() => goto(i)} disabled={!paper.allowBackNavigation && i < index} aria-label={`Question ${i + 1}, ${review.has(x.id) ? 'marked for review' : answered(x.id) ? 'answered' : 'not attempted'}`} aria-current={i === index ? 'step' : undefined}
+                                    className={`relative h-9 rounded-lg text-[12.5px] font-bold border-2 transition-colors disabled:opacity-40 ${i === index ? 'ring-2 ring-offset-1 ring-ink' : ''} ${review.has(x.id) ? 'bg-[var(--color-warning)] border-[var(--color-warning)] text-white' : answered(x.id) ? 'bg-[var(--color-success)] border-[var(--color-success)] text-white' : 'bg-[var(--color-danger-soft)] border-[var(--color-danger)]/40 text-[var(--color-danger)]'}`}>
+                                    {i + 1}
                                 </button>
                             ))}
                         </div>
-                        <p className='text-[11.5px] text-text-secondary mt-3'>Filled = answered · Orange dot = marked for review</p>
+                        <ul className='mt-3 space-y-1.5 text-[11.5px] text-text-secondary' aria-label='Colour key'>
+                            <li className='flex items-center gap-2'><span className='w-4 h-4 rounded bg-[var(--color-success)]' aria-hidden='true' /> Answered ({flat.filter((x) => answered(x.id) && !review.has(x.id)).length})</li>
+                            <li className='flex items-center gap-2'><span className='w-4 h-4 rounded bg-[var(--color-warning)]' aria-hidden='true' /> Marked for review ({flat.filter((x) => review.has(x.id)).length})</li>
+                            <li className='flex items-center gap-2'><span className='w-4 h-4 rounded border-2 border-[var(--color-danger)]/40 bg-[var(--color-danger-soft)]' aria-hidden='true' /> Not attempted ({flat.filter((x) => !answered(x.id) && !review.has(x.id)).length})</li>
+                        </ul>
                         <Button className='w-full mt-4' size='sm' onClick={() => { flush(); setConfirming(true) }}>Submit test</Button>
                     </nav>
                 </aside>

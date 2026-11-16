@@ -5,11 +5,32 @@ import { LIMITS } from "../utils/oaValidate.js"
 
 // Any OpenAI-compatible chat endpoint works (OpenAI, Groq, OpenRouter...). Nothing is hard-wired: an unset key just
 // turns the feature off with a clear message, it never breaks the rest of the room.
-const config = () => ({
-    key: process.env.OA_AI_API_KEY,
-    base: (process.env.OA_AI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, ""),
-    model: process.env.OA_AI_MODEL || "gpt-4o-mini",
-})
+const PROVIDERS = [
+    { name: "xAI Grok", prefix: "xai-", host: "x.ai", base: "https://api.x.ai/v1", model: "grok-3-mini" },
+    { name: "Groq", prefix: "gsk_", host: "groq.com", base: "https://api.groq.com/openai/v1", model: "llama-3.3-70b-versatile" },
+    { name: "OpenRouter", prefix: "sk-or-", host: "openrouter.ai", base: "https://openrouter.ai/api/v1", model: "meta-llama/llama-3.3-70b-instruct" },
+    { name: "OpenAI", prefix: "sk-", host: "openai.com", base: "https://api.openai.com/v1", model: "gpt-4o-mini" },
+]
+
+// A value pasted into .env often arrives with quotes, spaces or a trailing newline: none of those are part of it.
+const envValue = (name) => String(process.env[name] || "").trim().replace(/^["']|["']$/g, "").trim()
+
+/**
+ * Where to send the request. OA_AI_API_KEY is the documented name, but the provider's own usual name works too, and
+ * the endpoint and model follow from the key when they are not spelled out - so a Groq key alone is a full setup,
+ * and a Groq key is never sent to OpenAI with an OpenAI model name.
+ */
+export const aiConfig = () => {
+    const key = envValue("OA_AI_API_KEY") || envValue("GROQ_API_KEY") || envValue("XAI_API_KEY") || envValue("GROK_API_KEY") || envValue("OPENROUTER_API_KEY") || envValue("OPENAI_API_KEY")
+    const explicitBase = envValue("OA_AI_BASE_URL").replace(/\/(chat\/completions)?\/?$/, "")
+    const provider = (explicitBase ? PROVIDERS.find((p) => explicitBase.includes(p.host)) : PROVIDERS.find((p) => key.startsWith(p.prefix))) || (explicitBase ? null : PROVIDERS[2])
+    const model = envValue("OA_AI_MODEL")
+    // A model name left over from another provider (gpt-* on Groq) would fail every request: use the provider's own default.
+    const foreign = provider && model && ((provider.name === "xAI Grok" && /^(gpt-|o\d|llama|mixtral|gemma)/i.test(model)) || (provider.name === "Groq" && /^(gpt-|o\d|grok)/i.test(model)) || (provider.name === "OpenAI" && /llama|mixtral|gemma|grok/i.test(model)))
+    return { key, base: explicitBase || provider.base, model: model && !foreign ? model : provider?.model || "gpt-4o-mini", provider: provider?.name || "Custom" }
+}
+
+const config = aiConfig
 
 export const aiConfigured = () => Boolean(config().key)
 
@@ -127,4 +148,17 @@ export const generateQuestions = async ({ prompt, count = 10, types = ["MCQ"], d
     if (rejected.length) console.warn(`[client-service] OA AI draft: kept ${questions.length}, rejected ${rejected.length}: ${rejected.slice(0, 3).map((r) => r.error).join(" | ")}`)
     if (!questions.length) throw new ApiError(502, "AI_BAD_RESPONSE", "The AI did not return usable questions. Try a more specific description.")
     return { questions, skipped: rejected.length }
+}
+
+/** A one-word live check for the organizer's screen: is the key accepted, right now? Never returns the key. */
+export const aiStatus = async () => {
+    const { key, base, model, provider } = config()
+    if (!key) return { configured: false, ok: false, provider: null, model: null, message: "No AI key is set on the server (OA_AI_API_KEY, GROQ_API_KEY or XAI_API_KEY in the client-service .env), or the service was not restarted after adding it." }
+    try {
+        await axios.post(`${base}/chat/completions`, { model, messages: [{ role: "user", content: "Reply with the word ok." }], max_tokens: 5 }, { headers: { Authorization: `Bearer ${key}` }, timeout: 20000 })
+        return { configured: true, ok: true, provider, model, message: `${provider} is connected.` }
+    } catch (error) {
+        console.error("[client-service] OA AI status check failed:", error.response?.status, error.response?.data?.error?.message || error.message)
+        return { configured: true, ok: false, provider, model, message: explainUpstreamFailure(error) }
+    }
 }

@@ -7,3 +7,9 @@ export function buildPublicApplyUrl(publicLink) {
   if (!publicLink) return ''
   return `${PUBLIC_APP_URL}/apply/${publicLink}`
 }
+
+// The page a candidate opens to sit an Online Assessment round. The round id travels in the link, so the candidate
+// only types their email and access code.
+export function buildExamUrl(roundId) {
+  return roundId ? `${PUBLIC_APP_URL}/oa/exam?a=${roundId}` : `${PUBLIC_APP_URL}/oa/exam`
+}

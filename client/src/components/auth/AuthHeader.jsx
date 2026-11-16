@@ -28,7 +28,6 @@ function AuthHeader({ onSwitchMode }) {
                     <nav className="navmid" aria-label="Main" style={{ display: 'flex', gap: 32, fontSize: 15 }}>
                         {NAV_LINKS.map((l) => <a key={l.label} className="navlink" href={l.href}>{l.label}</a>)}
                         <Link className="navlink" to="/plans">Pricing</Link>
-                        <Link className="navlink" to="/oa/login">Online Assessment</Link>
                     </nav>
 
                     <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -52,7 +51,6 @@ function AuthHeader({ onSwitchMode }) {
                     <nav id="wl-auth-mobile-menu" className="mpanel" aria-label="Mobile">
                         {NAV_LINKS.map((l) => <a key={l.label} href={l.href} onClick={close}>{l.label}</a>)}
                         <Link to="/plans" onClick={close}>Pricing</Link>
-                        <Link to="/oa/login" onClick={close}>Online Assessment</Link>
                         <a href="/login" onClick={(e) => { e.preventDefault(); close(); onSwitchMode('login') }}>Log in</a>
                         <a href="/register" onClick={(e) => { e.preventDefault(); close(); onSwitchMode('register') }}>Join now</a>
                     </nav>
