@@ -1549,3 +1549,12 @@ html.org-theme body {
   .oa-lift:hover { transform: none; }
 }
 @keyframes wave { 0%, 100% { transform: scaleY(0.35); } 50% { transform: scaleY(1); } }
+
+
+main{
+  background-color: #ffffff;
+        opacity: 0.8;
+        background-image: radial-gradient(circle, #ffe3e4 0.8px, transparent 0.8px), radial-gradient(circle, #ffe3e4 0.8px, transparent 0.8px);
+        background-size: 5px 20px, 20px 5px;
+        background-position: -2.5px -10px, -10px -2.5px;
+}
