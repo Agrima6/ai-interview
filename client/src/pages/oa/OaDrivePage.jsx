@@ -18,6 +18,7 @@ import { DriveStepper, StepFooter, StepIntro } from '../../components/oa/DriveSt
 import AddRoundModal from '../../components/oa/AddRoundModal'
 import PublishStep from '../../components/oa/PublishStep'
 import AiInterviewRound from '../../components/oa/AiInterviewRound'
+import RoundKindChoice from '../../components/oa/RoundKindChoice'
 import SetupTab from '../../components/oa/SetupTab'
 import QuestionsTab from '../../components/oa/QuestionsTab'
 import StudentsTab from '../../components/oa/StudentsTab'
@@ -122,9 +123,33 @@ function RoundWorkspace({ roundId, drive, step, onStep, onNextRound }) {
     if (isError) return <ErrorState title='Could not open this round' message={error.message} onRetry={refetch} />
     if (isLoading) return <div className='space-y-4' aria-busy='true' aria-label='Loading the round'><Skeleton className='h-[92px] w-full rounded-2xl' /><Skeleton className='h-20 w-full rounded-2xl' /><Skeleton className='h-64 w-full rounded-2xl' /></div>
     const driveArchived = drive.status === 'ARCHIVED'
-    return a.kind === 'AI_INTERVIEW'
-        ? <AiInterviewRound assessment={a} driveArchived={driveArchived} step={step} onStep={onStep} />
-        : <TestRound assessment={a} driveArchived={driveArchived} step={step} onStep={onStep} onNextRound={onNextRound} />
+    return (
+        <>
+            {!driveArchived && <KindSwitch assessment={a} />}
+            {a.kind === 'AI_INTERVIEW'
+                ? <AiInterviewRound assessment={a} driveArchived={driveArchived} step={step} onStep={onStep} />
+                : <TestRound assessment={a} driveArchived={driveArchived} step={step} onStep={onStep} onNextRound={onNextRound} />}
+        </>
+    )
+}
+
+// While a round is an empty draft its type can still be changed; once it has questions or candidates have started, it is fixed.
+function KindSwitch({ assessment: a }) {
+    const toast = useToast()
+    const queryClient = useQueryClient()
+    const change = useMutation({
+        mutationFn: (kind) => oaApi.updateAssessment(a.id, { kind }),
+        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['oa'] }); toast.success('Round type changed.') },
+        onError: (err) => toast.error(err.message),
+    })
+    if (a.status !== 'DRAFT' || a.locked || a.questionCount > 0) return null
+    return (
+        <div className='mb-5 rounded-2xl border border-line bg-card p-4' aria-busy={change.isPending}>
+            <p className='text-[13px] font-bold text-ink mb-0.5'>Type of this round</p>
+            <p className='text-[12.5px] text-text-secondary mb-3'>You can change it until you add questions.</p>
+            <fieldset disabled={change.isPending}><RoundKindChoice value={a.kind} onChange={(kind) => kind !== a.kind && change.mutate(kind)} name={`kind-${a.id}`} /></fieldset>
+        </div>
+    )
 }
 
 function RenameModal({ drive, onClose }) {

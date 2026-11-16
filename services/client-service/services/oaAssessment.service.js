@@ -195,6 +195,13 @@ export const updateAssessment = async (accountId, id, patch = {}) => {
     if (patch.description !== undefined) assessment.description = checkedText(patch.description, "description", "Description")
     if (patch.instructions !== undefined) assessment.instructions = checkedText(patch.instructions, "instructions", "Instructions")
     if (patch.roundLabel !== undefined) assessment.roundLabel = checkedText(patch.roundLabel, "roundLabel", "Round name")
+    if (patch.kind !== undefined && patch.kind !== assessment.kind) {
+        if (!["TEST", "AI_INTERVIEW"].includes(patch.kind)) throw new ApiError(400, "VALIDATION_ERROR", "Choose Online test or AI interview.", { kind: "Choose Online test or AI interview." })
+        // The type can change only while the round is an empty draft; after that, add a new round instead.
+        if (assessment.status !== "DRAFT" || started || assessment.questions.length > 0) throw new ApiError(409, "KIND_LOCKED", "The type of a round can only be changed while it is a draft with no questions. Add a new round instead.")
+        assessment.kind = patch.kind
+        if (patch.kind === "TEST") assessment.aiInterviewDriveId = null
+    }
     if (patch.aiInterviewDriveId !== undefined && assessment.kind === "AI_INTERVIEW") assessment.aiInterviewDriveId = cleanText(patch.aiInterviewDriveId, 64).replace(/[^a-zA-Z0-9_-]/g, "") || null
 
     const structural = patch.sections !== undefined || patch.settings !== undefined || patch.proctoring !== undefined || patch.schedule !== undefined
