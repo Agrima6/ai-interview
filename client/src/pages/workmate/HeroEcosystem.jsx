@@ -1,7 +1,7 @@
 import React, { useLayoutEffect, useRef } from 'react'
 import gsap from 'gsap'
 import HeroExperimentFrame from './HeroExperimentFrame'
-import logo from '../../assets/logo.png'
+import logo from '../../assets/logo.webp'
 
 const ECO_NODES = [
     { label: 'Organizations', detail: 'Hire. Manage. Grow.', className: 'hero-eco-node-org' },

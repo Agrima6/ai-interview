@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import Button from '../../components/Button'
-import heroWorkmate from '../../assets/workmate/hero-workmate.png'
+import heroWorkmate from '../../assets/workmate/hero-workmate.webp'
 import HeroDotsBackground from './HeroDotsBackground'
 
 const REDUCE_MOTION = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches

@@ -4,7 +4,7 @@ import { motion as M } from 'motion/react'
 import { ArrowRight, Bot, ClipboardCheck, LogOut } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { resolveWorkspacePath } from '../utils/postLoginPath'
-import logo from '../assets/logo.png'
+import logo from '../assets/logo.webp'
 
 const PRODUCTS = [
     {

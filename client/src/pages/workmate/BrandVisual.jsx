@@ -1,6 +1,6 @@
 import React from 'react'
 import { Building2, GraduationCap, User, TrendingUp } from 'lucide-react'
-import logo from '../../assets/logo.png'
+import logo from '../../assets/logo.webp'
 
 // Code-drawn brand graphics (SVG/CSS, no external image or AI-generated
 // asset) used in place of imagery throughout the marketing pages, in the

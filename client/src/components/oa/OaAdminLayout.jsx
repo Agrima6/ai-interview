@@ -7,7 +7,7 @@ import { oaApi, oaTokens } from '../../api/oaApi'
 import { useAuth } from '../../hooks/useAuth.jsx'
 import { ErrorState } from './oaUi'
 import Avatar from '../ui/Avatar'
-import logo from '../../assets/logo.png'
+import logo from '../../assets/logo.webp'
 
 const NAV = [
     { to: '/oa/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },

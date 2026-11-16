@@ -6,7 +6,7 @@ import { LogIn } from "lucide-react"
 import { setUserData } from '../redux/userSlice'
 import { loginWithGoogle, loginAsGuest } from '../utils/authApi'
 import Button from '../components/Button'
-import logo from '../assets/logo.png'
+import logo from '../assets/logo.webp'
 
 function Login() {
     const dispatch = useDispatch()

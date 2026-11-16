@@ -27,7 +27,7 @@ import {
     STATUS, FULL_REQUIREMENTS, WRONG_SURFACE_COPY, normalizeRequirements, classifyMediaError, isTrackLive, verifyStream, readiness, describeMissing,
 } from '../../utils/mediaPermissions'
 import { ChunkedRecorder, createRecordingMixer } from '../../utils/chunkedRecorder'
-import logo from '../../assets/logo.png'
+import logo from '../../assets/logo.webp'
 
 const MAX_VIOLATIONS = 3
 // Only a short utterance that is *just* the command counts, so "...before the end interview..." in an answer never ends it.

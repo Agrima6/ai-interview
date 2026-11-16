@@ -1,7 +1,7 @@
 import React from 'react'
 import { ArrowRight } from 'lucide-react'
 import Button from '../../components/Button'
-import heroWorkmate from '../../assets/workmate/hero-workmate.png'
+import heroWorkmate from '../../assets/workmate/hero-workmate.webp'
 import './HeroMinimalExperiment.css'
 
 function HeroMinimalExperiment() {

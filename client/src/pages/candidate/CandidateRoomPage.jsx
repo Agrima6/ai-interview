@@ -12,7 +12,7 @@ import RescheduleSlotModal from '../../components/candidate/RescheduleSlotModal'
 import DeviceCheckModal from '../../components/candidate/DeviceCheckModal'
 import useNow from '../../hooks/useNow'
 import { formatCountdown, getSlotGate } from '../../utils/slotRules'
-import logo from '../../assets/logo.png'
+import logo from '../../assets/logo.webp'
 import CandidateIdentity from '../../components/candidate/CandidateIdentity'
 import { resolveCandidateName, firstNameOf } from '../../utils/candidateName'
 
