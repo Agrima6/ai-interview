@@ -8,6 +8,7 @@ import Button from '../Button'
 import ConfirmModal from '../ui/ConfirmModal'
 import { useToast } from '../ui/Toast'
 import { PhaseBadge } from './oaUi'
+import OpenRegistrationCard from './OpenRegistrationCard'
 import { scheduleSentence } from './oaFormat'
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
@@ -110,7 +111,7 @@ export default function PublishStep({ assessment: a, driveArchived, goTo }) {
                             {a.phase === 'ENDED' && <p className='text-[12.5px] text-text-secondary mt-3'>This round has closed, so invitations can no longer be sent.</p>}
                         </section>
                         <section className='bg-card border border-line rounded-2xl p-5 min-w-0'>
-                            <h3 className='text-[14.5px] font-bold text-ink'>2. Or share the link yourself</h3>
+                            <h3 className='text-[14.5px] font-bold text-ink'>2. Or share the sign-in link yourself</h3>
                             <p className='text-[13px] text-text-secondary mt-1'>Candidates open this page and sign in with their email and access code.</p>
                             <div className='mt-4 flex items-center gap-2 rounded-xl border border-line bg-surface-muted px-3 py-2'>
                                 <span className='flex-1 min-w-0 truncate font-mono text-[12.5px] text-ink' title={link}>{link}</span>
@@ -122,6 +123,8 @@ export default function PublishStep({ assessment: a, driveArchived, goTo }) {
                     <p className='text-[13px] text-text-secondary'>Next: step 5 (Live) and step 6 (Results) open as soon as the first candidate starts the test.</p>
                 </>
             )}
+
+            {!driveArchived && <OpenRegistrationCard assessment={a} goTo={goTo} />}
 
             {(!a.locked || a.phase === 'ENDED') && !driveArchived && (
                 <div className='pt-2 border-t border-line'>

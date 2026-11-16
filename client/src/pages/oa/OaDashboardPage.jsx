@@ -1,7 +1,7 @@
 import React from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight, CalendarClock, Check, ClipboardList, Plus, Radio, Users, Video } from 'lucide-react'
+import { ArrowRight, CalendarClock, Check, ClipboardList, Plus, Radio, UserCheck, Users, Video } from 'lucide-react'
 import { oaApi } from '../../api/oaApi'
 import Button from '../../components/Button'
 import { CountUp } from '../../components/ui/motionKit'
@@ -74,6 +74,29 @@ export default function OaDashboardPage() {
                         <Stat icon={Users} label='Candidates invited' value={data?.students} tone='accent' loading={isLoading} />
                         <Stat icon={Video} label='Sitting right now' value={data?.attempts.inProgress} tone='warning' loading={isLoading} />
                     </div>
+
+                    {data?.pending?.total > 0 && (
+                        <section className='oa-rise mb-6 rounded-2xl border border-[var(--color-warning)]/30 bg-[var(--color-warning-soft)] p-5' aria-label='Registrations waiting for approval'>
+                            <div className='flex items-center gap-3 mb-3'>
+                                <span className='w-10 h-10 rounded-xl bg-white text-[var(--color-warning)] flex items-center justify-center shrink-0' aria-hidden='true'><UserCheck size={18} /></span>
+                                <div>
+                                    <h2 className='text-[15px] font-bold text-ink'>{data.pending.total} registration{data.pending.total === 1 ? '' : 's'} waiting for your approval</h2>
+                                    <p className='text-[12.5px] text-text-secondary'>People registered through your open links. Approve them and they are emailed their access code.</p>
+                                </div>
+                            </div>
+                            <ul className='divide-y divide-[var(--color-warning)]/20'>
+                                {data.pending.rounds.map((r) => (
+                                    <li key={r.id}>
+                                        <Link to={r.driveId ? `/oa/admin/drives/${r.driveId}?round=${r.id}&step=candidates` : `/oa/admin/assessments/${r.id}`} className='flex items-center gap-3 py-2.5 group'>
+                                            <span className='flex-1 min-w-0 text-[13.5px] font-semibold text-ink truncate group-hover:text-accent'>{r.title}<span className='font-normal text-text-secondary'> · Round {r.roundNumber}</span></span>
+                                            <span className='text-[13px] font-bold text-[var(--color-warning)] tabular-nums'>{r.count} waiting</span>
+                                            <ArrowRight size={15} className='text-text-secondary transition-transform group-hover:translate-x-0.5' aria-hidden='true' />
+                                        </Link>
+                                    </li>
+                                ))}
+                            </ul>
+                        </section>
+                    )}
 
                     <div className='grid lg:grid-cols-[1fr_360px] gap-6 items-start'>
                         <Panel title='Starting soon' description='Published rounds with a future start.' actions={<Link to='/oa/admin/drives' className='text-[13px] font-semibold text-accent hover:underline inline-flex items-center gap-1'>All drives <ArrowRight size={14} /></Link>} bodyClassName='!p-0'>

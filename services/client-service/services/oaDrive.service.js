@@ -63,7 +63,8 @@ const roundsOf = async (driveIds) => {
     const rounds = await OaAssessment.find({ driveId: { $in: driveIds } }).select("driveId roundNumber kind title roundLabel status schedule questions.id").sort({ roundNumber: 1, createdAt: 1 }).lean()
     const ids = rounds.map((r) => r._id)
     const [students, attempts] = await Promise.all([
-        OaStudent.aggregate([{ $match: { assessmentId: { $in: ids } } }, { $group: { _id: "$assessmentId", n: { $sum: 1 } } }]),
+        // People still waiting for approval (or turned down) are not candidates yet.
+        OaStudent.aggregate([{ $match: { assessmentId: { $in: ids }, "approval.status": { $nin: ["PENDING", "REJECTED"] } } }, { $group: { _id: "$assessmentId", n: { $sum: 1 } } }]),
         OaAttempt.aggregate([{ $match: { assessmentId: { $in: ids } } }, { $group: { _id: { a: "$assessmentId", done: { $in: ["$status", FINISHED] } }, n: { $sum: 1 } } }]),
     ])
     const stats = new Map()
