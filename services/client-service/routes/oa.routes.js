@@ -12,7 +12,7 @@ import { brandForAssessmentId, resolveLogo } from "../services/oaBrand.service.j
 import { placeName } from "../services/oaPlace.service.js"
 import { rateLimit } from "../utils/oaSecurity.js"
 import { aiConfigured, aiStatus } from "../services/oaAi.service.js"
-import { VIDEO_MAX_BYTES, VIDEO_MIME_TYPES, verifyVideoSignature } from "../utils/oaVideo.js"
+import { VIDEO_MAX_BYTES, verifyVideoSignature } from "../utils/oaVideo.js"
 
 // The Online Assessment room. Mounted at /api/v1/oa. Its sign-in and tokens are separate from the platform's, so
 // the same email can exist here and as an organization admin, college admin or candidate at the same time.
@@ -56,7 +56,7 @@ const clientIp = (req) => {
 const videoUpload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: VIDEO_MAX_BYTES, files: 1 },
-    fileFilter: (req, file, cb) => cb(null, VIDEO_MIME_TYPES.includes(String(file.mimetype || "").split(";")[0].trim().toLowerCase())),
+    // No filter on the declared type: the file's contents are checked (and a precise reason given) when it is saved.
 }).single("video")
 const receiveVideo = (req, res, next) => videoUpload(req, res, (error) => {
     if (!error) return next()

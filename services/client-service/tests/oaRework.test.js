@@ -114,3 +114,14 @@ test("the invitation for an open-window round says there is no fixed time and na
     assert.match(mail.body, /share your location/i)
     assert.doesNotMatch(mail.body, /Choose your time slot/)
 })
+
+test("a recording is judged by its contents, not by the label the browser gave it", async () => {
+    const { sniffVideoType } = await import("../utils/oaVideo.js")
+    const webm = Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), Buffer.alloc(40)])
+    const mp4 = Buffer.concat([Buffer.from([0, 0, 0, 0x18]), Buffer.from("ftypmp42"), Buffer.alloc(40)])
+    assert.equal(sniffVideoType(webm), "video/webm")
+    assert.equal(sniffVideoType(mp4), "video/mp4")
+    assert.equal(sniffVideoType(Buffer.from("not a video at all, just text")), null)
+    assert.equal(sniffVideoType(Buffer.alloc(0)), null)
+    assert.equal(sniffVideoType(null), null)
+})
