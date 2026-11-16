@@ -16,7 +16,7 @@ export const oaTokens = {
 const http = axios.create({ baseURL: `${GatewayUrl}/api/v1/oa` })
 
 const roleFor = (url = '') => {
-    if (url.startsWith('/auth/') || url === '/exam/login' || url === '/exam/whoami' || url.startsWith('/exam/brand')) return null
+    if (url.startsWith('/auth/') || url === '/exam/login' || url === '/exam/whoami' || url.startsWith('/exam/brand') || url.startsWith('/exam/place') || url.startsWith('/join/')) return null
     return url.startsWith('/exam/') ? 'student' : 'admin'
 }
 
@@ -109,6 +109,8 @@ export const oaApi = {
     addStudents: (id, students) => post(`/assessments/${id}/students`, { students }),
     removeStudent: (id, sid) => del(`/assessments/${id}/students/${sid}`),
     invite: (id, body) => post(`/assessments/${id}/students/invite`, body),
+    decideStudents: (id, body) => post(`/assessments/${id}/students/decide`, body),
+    setRegistration: (id, body) => put(`/assessments/${id}/registration`, body),
 
     // monitoring + results
     live: (id) => get(`/assessments/${id}/live`),
@@ -128,11 +130,17 @@ export const oaApi = {
     },
 }
 
+export const joinApi = {
+    info: (token) => get(`/join/${encodeURIComponent(token)}`),
+    register: (token, body) => post(`/join/${encodeURIComponent(token)}`, body),
+}
+
 export const examApi = {
     login: async (body) => { const r = await post('/exam/login', body); oaTokens.set('student', r.token) },
     logout: () => oaTokens.clear('student'),
     whoami: () => get('/exam/whoami'),
     brand: (assessmentId) => get(`/exam/brand?a=${encodeURIComponent(assessmentId)}`),
+    place: (lat, lng) => get(`/exam/place?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`),
     session: () => get('/exam/session'),
     bookSlot: (slotId) => put('/exam/slot', { slotId }),
     start: (environment) => post('/exam/start', { environment }),

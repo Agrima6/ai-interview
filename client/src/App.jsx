@@ -6,6 +6,7 @@ import OaExamPage from './pages/oa/OaExamPage'
 import OaDashboardPage from './pages/oa/OaDashboardPage'
 import OaDrivesPage from './pages/oa/OaDrivesPage'
 import OaDrivePage from './pages/oa/OaDrivePage'
+import OaJoinPage from './pages/oa/OaJoinPage'
 import OaLegacyRoundRedirect from './pages/oa/OaLegacyRoundRedirect'
 import WorkspaceChooserPage from './pages/WorkspaceChooserPage'
 import OaApprovalsPage from './pages/oa/OaApprovalsPage'
@@ -157,6 +158,7 @@ function App() {
       <Route path='/oa/admin/assessments' element={<Navigate to='/oa/admin/drives' replace/>}/>
       <Route path='/oa/admin/assessments/:id' element={<RequireOaAdmin><OaLegacyRoundRedirect/></RequireOaAdmin>}/>
       <Route path='/workspace' element={<RequireClientAuth><WorkspaceChooserPage/></RequireClientAuth>}/>
+      <Route path='/oa/join/:token' element={<OaJoinPage/>}/>
       <Route path='/oa/exam' element={<OaExamEntryPage/>}/>
       <Route path='/oa/exam/test' element={<OaExamPage/>}/>
       <Route path='/platform/admin/oa-approvals' element={<RequirePlatformAuth permission='CLIENT_APPROVE'><OaApprovalsPage/></RequirePlatformAuth>}/>

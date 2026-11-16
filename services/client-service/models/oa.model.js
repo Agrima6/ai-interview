@@ -72,6 +72,13 @@ const assessmentSchema = new Schema({
     roundNumber: { type: Number, default: 1 },
     kind: { type: String, enum: ["TEST", "AI_INTERVIEW"], default: "TEST" },
     aiInterviewDriveId: { type: String, default: null },
+    // An open link candidates use to register themselves. Every registration waits for the organizer's approval.
+    registration: {
+        enabled: { type: Boolean, default: false },
+        token: { type: String, unique: true, sparse: true },
+        closesAt: { type: Date, default: null },
+        maxRegistrations: { type: Number, default: null },
+    },
     schedule: {
         // FIXED: everyone starts together. FLEXIBLE: any time inside the window, each candidate gets the full duration.
         // SLOTS (older rounds only): the organizer offered several start times and each student booked one.
@@ -128,6 +135,13 @@ const studentSchema = new Schema({
     details: { type: Map, of: String, default: {} },
     codeHash: { type: String, required: true },
     codeEncrypted: { type: String, required: true },
+    // HR adds are approved at once. Someone who registered through the open link waits (PENDING) until approved; until then
+    // they cannot sign in and are not emailed their access code.
+    approval: {
+        status: { type: String, enum: ["APPROVED", "PENDING", "REJECTED"], default: "APPROVED", index: true },
+        source: { type: String, enum: ["HR", "SELF"], default: "HR" },
+        decidedAt: { type: Date, default: null },
+    },
     invite: {
         status: { type: String, enum: ["NOT_SENT", "SENT", "FAILED"], default: "NOT_SENT" },
         sentAt: { type: Date, default: null },

@@ -9,6 +9,8 @@ import * as assessments from "../services/oaAssessment.service.js"
 import * as exam from "../services/oaExam.service.js"
 import * as drives from "../services/oaDrive.service.js"
 import { brandForAssessmentId, resolveLogo } from "../services/oaBrand.service.js"
+import { placeName } from "../services/oaPlace.service.js"
+import { rateLimit } from "../utils/oaSecurity.js"
 import { aiConfigured, aiStatus } from "../services/oaAi.service.js"
 import { VIDEO_MAX_BYTES, VIDEO_MIME_TYPES, verifyVideoSignature } from "../utils/oaVideo.js"
 
@@ -67,6 +69,14 @@ router.post("/oa/auth/login", handle((req) => accounts.login(req.body || {})))
 router.post("/oa/exam/login", handle((req) => exam.studentLogin(req.body || {})))
 // What we can see of the visitor's connection, shown to them before they sign in.
 router.get("/oa/exam/whoami", handle((req) => ({ ip: clientIp(req) })))
+// Open registration: a candidate registers through the link the organizer shared; the organizer approves them later.
+router.get("/oa/join/:token", handle((req) => assessments.registrationInfo(req.params.token)))
+router.post("/oa/join/:token", handle((req) => assessments.registerSelf(req.params.token, req.body || {}, { ip: clientIp(req) })))
+// A place name for coordinates the candidate's browser gave, so the sign-in page can show "Gurugram, Haryana" instead of numbers.
+router.get("/oa/exam/place", handle(async (req) => {
+    rateLimit({ key: `oa-place:${clientIp(req) || "unknown"}`, max: 40, windowMs: 60 * 1000 })
+    return { place: await placeName(req.query.lat, req.query.lng) }
+}))
 // The organization behind a test (name, logo), so the sign-in page can look like theirs. Nothing else about the test.
 router.get("/oa/exam/brand", handle(async (req) => {
     const brand = await brandForAssessmentId(String(req.query.a || ""))
@@ -136,6 +146,8 @@ router.delete("/oa/assessments/:id/questions/:questionId", ...admin, handle((req
 
 router.get("/oa/assessments/:id/students", ...admin, handle((req) => assessments.listStudents(req.oa.accountId, req.params.id, req.query), { list: true }))
 router.post("/oa/assessments/:id/students", ...admin, handle((req) => assessments.addStudents(req.oa.accountId, req.params.id, req.body)))
+router.post("/oa/assessments/:id/students/decide", ...admin, handle((req) => assessments.decideStudents(req.oa.accountId, req.params.id, req.body || {})))
+router.put("/oa/assessments/:id/registration", ...admin, handle((req) => assessments.setRegistration(req.oa.accountId, req.params.id, req.body || {})))
 router.post("/oa/assessments/:id/students/invite", ...admin, handle((req) => assessments.sendInvites(req.oa.accountId, req.params.id, req.body || {})))
 router.delete("/oa/assessments/:id/students/:studentId", ...admin, handle((req) => assessments.removeStudent(req.oa.accountId, req.params.id, req.params.studentId)))
 

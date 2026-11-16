@@ -6,6 +6,7 @@ import useNow from '../../../hooks/useNow'
 import { formatDateTime } from '../oaFormat'
 import DeviceDetails from '../DeviceDetails'
 import ExamBrand from '../ExamBrand'
+import usePlaceName from '../../../hooks/usePlaceName'
 import { describeDevice, describeEnvironment, mobileDevice, requestCamera, requestLocation, requestScreen, stopStream } from './examMedia'
 import SlotPicker from './SlotPicker'
 
@@ -41,6 +42,7 @@ export default function ExamLobby({ session, screenStream, onScreenStream, onSta
     const [screen, setScreen] = useState({ ok: Boolean(screenStream), error: '' })
     const [place, setPlace] = useState({ ok: false, error: '', checking: false })
     const [ip, setIp] = useState('')
+    const here = usePlaceName(place.ok ? place.latitude : undefined, place.ok ? place.longitude : undefined)
     const [agreed, setAgreed] = useState(false)
     const [starting, setStarting] = useState(false)
     const [error, setError] = useState('')
@@ -141,13 +143,13 @@ export default function ExamLobby({ session, screenStream, onScreenStream, onSta
                     <ul className='divide-y divide-line mt-2'>
                         {needCamera && <Check done={camera.ok} label='Webcam' hint='We show your own video during the test.' error={camera.error} action={<Button size='xs' variant='secondary' onClick={checkCamera}><Camera size={13} /> Allow</Button>} />}
                         {needScreen && <Check done={screen.ok} label='Share your entire screen' hint='Choose “Entire screen” in the browser prompt.' error={screen.error} action={<Button size='xs' variant='secondary' onClick={checkScreen}><MonitorUp size={13} /> Share</Button>} />}
-                        {needLocation && <Check done={place.ok} label='Your location' hint={place.ok ? `Shared: ${place.latitude.toFixed(4)}, ${place.longitude.toFixed(4)}` : 'Your organizer needs to know where you are sitting the test.'} error={place.error} action={<Button size='xs' variant='secondary' disabled={place.checking} onClick={checkLocation}><MapPin size={13} /> {place.checking ? 'Checking…' : 'Allow'}</Button>} />}
+                        {needLocation && <Check done={place.ok} label='Your location' hint={place.ok ? `Shared: ${here.place || (here.loading ? 'finding the place name…' : 'your position')}` : 'Your organizer needs to know where you are sitting the test.'} error={place.error} action={<Button size='xs' variant='secondary' disabled={place.checking} onClick={checkLocation}><MapPin size={13} /> {place.checking ? 'Checking…' : 'Allow'}</Button>} />}
                         {cfg.requireFullscreen && <Check done label='Full screen' hint='Turns on automatically when you start.' />}
                         <Check done={!extended} label='One screen only' hint={extended ? 'A second display is connected. Disconnect it to begin.' : 'No second display found.'} error={extended && cfg.level === 'HARD' ? 'Disconnect the second monitor.' : ''} />
                     </ul>
                     <div className='mt-4 rounded-xl bg-surface-muted p-3.5'>
                         <p className='text-[12px] font-bold text-ink mb-2'>What your organizer will see about this device</p>
-                        <DeviceDetails dense ip={ip} env={{ ...describeDevice(), ...(place.ok ? place : {}) }} pending={{ location: place.checking }} />
+                        <DeviceDetails dense ip={ip} env={{ ...describeDevice(), ...(place.ok ? { ...place, place: here.place } : {}) }} pending={{ location: place.checking, place: here.loading }} />
                     </div>
                     <label className='flex items-start gap-3 mt-4 cursor-pointer'>
                         <input type='checkbox' checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className='mt-1 w-4 h-4 accent-[var(--color-accent)]' />

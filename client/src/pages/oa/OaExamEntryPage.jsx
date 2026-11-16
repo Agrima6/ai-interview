@@ -11,6 +11,7 @@ import { describeDevice, requestLocation } from '../../components/oa/exam/examMe
 import { FILTERS } from '../../components/oa/oaRules'
 import ExamBrand from '../../components/oa/ExamBrand'
 import useExamBrand from '../../hooks/useExamBrand'
+import usePlaceName from '../../hooks/usePlaceName'
 
 // Where candidates enter their test. The invitation email links here with the test and their email filled in.
 export default function OaExamEntryPage() {
@@ -22,6 +23,7 @@ export default function OaExamEntryPage() {
     const [ip, setIp] = useState('')
     const [place, setPlace] = useState({ state: 'asking' })
     const [device] = useState(describeDevice)
+    const here = usePlaceName(place.state === 'ok' ? place.latitude : undefined, place.state === 'ok' ? place.longitude : undefined)
     const [code, setCode] = useState('')
     const [error, setError] = useState(params.get('expired') ? 'Your session ended. Please sign in again.' : '')
     const [loading, setLoading] = useState(false)
@@ -58,7 +60,7 @@ export default function OaExamEntryPage() {
                     <p className='text-[14px] text-gray-500 mb-6'>Use the email your invitation was sent to and the access code from it.</p>
                     <div className='mb-5 rounded-xl border border-line bg-surface-muted/70 p-3.5' aria-label='Details of this device'>
                         <p className='text-[12px] font-bold text-ink mb-2'>Your connection and device</p>
-                        <DeviceDetails dense ip={ip} pending={{ ip: !ip, location: place.state === 'asking' }} env={{ ...device, ...(place.state === 'ok' ? place : {}) }} />
+                        <DeviceDetails dense ip={ip} pending={{ ip: !ip, location: place.state === 'asking', place: here.loading }} env={{ ...device, ...(place.state === 'ok' ? { ...place, place: here.place } : {}) }} />
                         {place.state === 'denied' && <p role='status' className='text-[12.5px] text-[var(--color-warning)] mt-2'>{place.message} <button type='button' onClick={retryLocation} className='font-semibold underline'>Try again</button></p>}
                     </div>
                     {error && <div role='alert' className='mb-4 text-[13.5px] text-[var(--color-danger)] bg-[var(--color-danger-soft)] rounded-xl px-4 py-3'>{error}</div>}

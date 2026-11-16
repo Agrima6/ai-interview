@@ -4,6 +4,7 @@ import { ApiError } from "../utils/response.js"
 import { OA_ROLES, clearRateLimit, codesMatch, normalizeEmail, rateLimit, signOaToken } from "../utils/oaSecurity.js"
 import { sectionName, studentQuestionView } from "../utils/oaQuestions.js"
 import { brandForAssessmentId } from "./oaBrand.service.js"
+import { placeName } from "./oaPlace.service.js"
 import { RECORDINGS_BUCKET, getObjectStream, uploadBuffer } from "../config/s3Client.js"
 import { VIDEO_MIME_TYPES, videoObjectKey } from "../utils/oaVideo.js"
 import { SLOT_CHANGE_CUTOFF_MINUTES, attemptDeadline, buildPaperOrder, effectiveSchedule, gradeAttempt, inWaitingRoom, schedulePhase, slotChangeDeadline } from "../utils/oaExam.js"
@@ -39,6 +40,8 @@ export const studentLogin = async ({ assessmentId, email, code }) => {
         OaStudent.findOne({ assessmentId, emailNormalized }),
     ])
     // One message whichever part was wrong, so the form cannot be used to discover who is invited.
+    // Someone still waiting for approval (or turned down) cannot sign in, even if they somehow know their code.
+    if (student && ["PENDING", "REJECTED"].includes(student.approval?.status)) throw new ApiError(401, "INVALID_CREDENTIALS", "The email or access code is not right. Check the invitation email.")
     if (!assessment || !student || !codesMatch(code, student.codeHash)) throw new ApiError(401, "INVALID_CREDENTIALS", "The email or access code is not right. Check the invitation email.")
 
     clearRateLimit(limiterKey)
@@ -232,6 +235,8 @@ export const start = async (ctx, { environment } = {}, { ip } = {}) => {
     if (phase !== "OPEN") throw new ApiError(409, "NOT_OPEN", NOT_OPEN[phase] || "The test is not open.")
     if (!assessment.questions.length) throw new ApiError(409, "NO_QUESTIONS", "This test has no questions yet.")
     const env = pickEnvironment(environment)
+    // The place name is a nicety: wait a moment for it, never hold the candidate up.
+    env.place = (await Promise.race([placeName(env.latitude, env.longitude), new Promise((resolve) => setTimeout(() => resolve(null), 2500))])) || null
     if (assessment.proctoring.requireLocation && env.latitude === null) throw new ApiError(409, "LOCATION_REQUIRED", "Allow location access in your browser to start this test. Your organizer requires it.")
 
     const _id = new mongoose.Types.ObjectId()

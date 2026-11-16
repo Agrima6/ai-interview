@@ -12,6 +12,7 @@ import Pagination from '../ui/Pagination'
 import SearchInput from '../ui/SearchInput'
 import { useToast } from '../ui/Toast'
 import { AttemptStatus, ErrorState, TableSkeleton } from './oaUi'
+import RegistrationQueue from './RegistrationQueue'
 import { downloadText, formatDateTime, formatDay, formatTime } from './oaFormat'
 import { PhoneField, TextField } from './oaFields'
 import { FILTERS, LIMITS, emailError, lengthError, nameError, normalizePhone, phoneError } from './oaRules'
@@ -168,6 +169,7 @@ export default function StudentsTab({ assessment: a }) {
                     {isTest && <Button size='sm' disabled={!published || invite.isPending || !list.data?.total} title={published ? undefined : 'Publish this round first'} onClick={() => invite.mutate({})}><Send size={14} /> {invite.isPending ? 'Sending…' : 'Email invitations'}</Button>}
                 </div>
             </div>
+            {isTest && <RegistrationQueue assessment={a} />}
             {isTest && !published && <p className='text-[12.5px] text-text-secondary mb-3'>{a.status === 'PUBLISHED' ? 'This round has closed, so invitations can no longer be sent.' : 'Publish this round to email invitations. You can add candidates any time.'}</p>}
 
             <div className='bg-card border border-line rounded-2xl overflow-hidden'>

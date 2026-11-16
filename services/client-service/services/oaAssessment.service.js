@@ -2,15 +2,16 @@ import mongoose from "mongoose"
 import { OaAccount, OaAssessment, OaAttempt, OaEvent, OaStudent } from "../models/oa.model.js"
 import { ApiError } from "../utils/response.js"
 import { csvEscape } from "../utils/csv.js"
-import { EMAIL_RE, generateAccessCode, hashAccessCode, normalizeEmail } from "../utils/oaSecurity.js"
+import { EMAIL_RE, generateAccessCode, hashAccessCode, normalizeEmail, rateLimit } from "../utils/oaSecurity.js"
 import { decryptSecret, encryptSecret } from "../utils/crypto.js"
 import { newId, normalizeQuestion, normalizeQuestions, sectionName } from "../utils/oaQuestions.js"
 import { signedVideoPath } from "../utils/oaVideo.js"
 import { gradeAttempt, parseSchedule, rankRows, schedulePhase } from "../utils/oaExam.js"
 import { LIMITS, intInRange, nameProblem, normalizePhone, phoneProblem, textLength, throwFields } from "../utils/oaValidate.js"
 import { inviteEmail, sendOaEmail } from "./oaMail.js"
-import { emailBrand } from "./oaBrand.service.js"
+import { brandForAssessmentId, emailBrand } from "./oaBrand.service.js"
 import { generateQuestions } from "./oaAi.service.js"
+import crypto from "node:crypto"
 
 const MAX_STUDENTS_PER_UPLOAD = 2000
 const FINISHED = ["SUBMITTED", "AUTO_SUBMITTED", "TERMINATED"]
@@ -42,6 +43,7 @@ export const assessmentView = (a, extra = {}) => {
         id: String(o._id), title: o.title, description: o.description, instructions: o.instructions, status: o.status,
         roundLabel: o.roundLabel, previousAssessmentId: o.previousAssessmentId ? String(o.previousAssessmentId) : null,
         driveId: o.driveId ? String(o.driveId) : null, roundNumber: o.roundNumber || 1, kind: o.kind || "TEST", aiInterviewDriveId: o.aiInterviewDriveId || null,
+        registration: { enabled: Boolean(o.registration?.enabled), token: o.registration?.token || null, closesAt: o.registration?.closesAt || null, maxRegistrations: o.registration?.maxRegistrations ?? null },
         schedule: o.schedule, settings: o.settings, proctoring: o.proctoring,
         sections: (o.sections || []).map((s) => ({ id: s.id, title: sectionName(s.title) })), questions: o.questions,
         questionCount: o.questions?.length || 0,
@@ -66,10 +68,12 @@ export const listAssessments = async (accountId, { status, search, page, pageSiz
         OaAssessment.countDocuments(filter),
     ])
     const ids = items.map((a) => a._id)
-    const [students, attempts] = await Promise.all([
-        OaStudent.aggregate([{ $match: { assessmentId: { $in: ids } } }, { $group: { _id: "$assessmentId", n: { $sum: 1 } } }]),
+    const [students, attempts, waiting] = await Promise.all([
+        OaStudent.aggregate([{ $match: { assessmentId: { $in: ids }, "approval.status": { $nin: ["PENDING", "REJECTED"] } } }, { $group: { _id: "$assessmentId", n: { $sum: 1 } } }]),
         OaAttempt.aggregate([{ $match: { assessmentId: { $in: ids } } }, { $group: { _id: { a: "$assessmentId", done: { $in: ["$status", FINISHED] } }, n: { $sum: 1 } } }]),
+        OaStudent.aggregate([{ $match: { assessmentId: { $in: ids }, "approval.status": "PENDING" } }, { $group: { _id: "$assessmentId", n: { $sum: 1 } } }]),
     ])
+    const pendingCount = new Map(waiting.map((s) => [String(s._id), s.n]))
     const studentCount = new Map(students.map((s) => [String(s._id), s.n]))
     const started = new Map(); const finished = new Map()
     for (const row of attempts) {
@@ -80,23 +84,27 @@ export const listAssessments = async (accountId, { status, search, page, pageSiz
     return {
         items: items.map((a) => assessmentView(a, {
             questions: undefined,
-            stats: { students: studentCount.get(String(a._id)) || 0, started: started.get(String(a._id)) || 0, finished: finished.get(String(a._id)) || 0 },
+            stats: { students: studentCount.get(String(a._id)) || 0, pending: pendingCount.get(String(a._id)) || 0, started: started.get(String(a._id)) || 0, finished: finished.get(String(a._id)) || 0 },
         })),
         total, ...p,
     }
 }
 
 export const dashboard = async (accountId) => {
-    const [assessments, students, attempts] = await Promise.all([
-        OaAssessment.find({ accountId, status: { $ne: "ARCHIVED" } }).select("title status schedule createdAt").lean(),
-        OaStudent.countDocuments({ accountId }),
+    const [assessments, students, attempts, waiting] = await Promise.all([
+        OaAssessment.find({ accountId, status: { $ne: "ARCHIVED" } }).select("title status schedule createdAt driveId roundNumber").lean(),
+        OaStudent.countDocuments({ accountId, "approval.status": { $nin: ["PENDING", "REJECTED"] } }),
         OaAttempt.aggregate([{ $match: { accountId: new mongoose.Types.ObjectId(String(accountId)) } }, { $group: { _id: "$status", n: { $sum: 1 } } }]),
+        OaStudent.aggregate([{ $match: { accountId: new mongoose.Types.ObjectId(String(accountId)), "approval.status": "PENDING" } }, { $group: { _id: "$assessmentId", n: { $sum: 1 } } }]),
     ])
+    const titleOf = new Map(assessments.map((a) => [String(a._id), a]))
+    const pendingRounds = waiting.map((w) => ({ w, a: titleOf.get(String(w._id)) })).filter((x) => x.a).sort((x, y) => y.w.n - x.w.n).slice(0, 5)
+        .map(({ w, a }) => ({ id: String(a._id), driveId: a.driveId ? String(a.driveId) : null, title: a.title, roundNumber: a.roundNumber || 1, count: w.n }))
     const phaseOf = (a) => (a.status === "PUBLISHED" && a.schedule?.startAt ? schedulePhase(a.schedule) : null)
     const byStatus = Object.fromEntries(attempts.map((a) => [a._id, a.n]))
     return {
         assessments: { total: assessments.length, draft: assessments.filter((a) => a.status === "DRAFT").length, upcoming: assessments.filter((a) => phaseOf(a) === "UPCOMING").length, live: assessments.filter((a) => ["OPEN", "CLOSED_TO_ENTRY"].includes(phaseOf(a))).length, ended: assessments.filter((a) => phaseOf(a) === "ENDED").length },
-        students, attempts: { inProgress: byStatus.IN_PROGRESS || 0, finished: FINISHED.reduce((s, k) => s + (byStatus[k] || 0), 0) },
+        students, pending: { total: waiting.reduce((s, w) => s + (titleOf.has(String(w._id)) ? w.n : 0), 0), rounds: pendingRounds }, attempts: { inProgress: byStatus.IN_PROGRESS || 0, finished: FINISHED.reduce((s, k) => s + (byStatus[k] || 0), 0) },
         next: assessments.filter((a) => phaseOf(a) === "UPCOMING").sort((a, b) => new Date(a.schedule.startAt) - new Date(b.schedule.startAt)).slice(0, 3).map((a) => ({ id: String(a._id), title: a.title, startAt: a.schedule.startAt })),
     }
 }
@@ -178,12 +186,13 @@ const slotUsage = async (assessment) => {
 // `locked`: someone has started, so questions, sections, rules and schedule can no longer change.
 export const getAssessment = async (accountId, id) => {
     const assessment = await owned(accountId, id)
-    const [students, started, finished] = await Promise.all([
-        OaStudent.countDocuments({ assessmentId: assessment._id }),
+    const [students, started, finished, pending] = await Promise.all([
+        OaStudent.countDocuments({ assessmentId: assessment._id, "approval.status": { $nin: ["PENDING", "REJECTED"] } }),
         OaAttempt.countDocuments({ assessmentId: assessment._id }),
         OaAttempt.countDocuments({ assessmentId: assessment._id, status: { $in: FINISHED } }),
+        OaStudent.countDocuments({ assessmentId: assessment._id, "approval.status": "PENDING" }),
     ])
-    return assessmentView(assessment, { locked: started > 0, slotUsage: await slotUsage(assessment), stats: { students, started, finished } })
+    return assessmentView(assessment, { locked: started > 0, slotUsage: await slotUsage(assessment), stats: { students, pending, started, finished } })
 }
 
 export const updateAssessment = async (accountId, id, patch = {}) => {
@@ -325,6 +334,7 @@ const studentView = (s, attempt, schedule) => ({
     details: s.details ? Object.fromEntries(s.details) : {},
     accessCode: (() => { try { return decryptSecret(s.codeEncrypted) } catch { return null } })(),
     invite: s.invite,
+    approval: { status: s.approval?.status || "APPROVED", source: s.approval?.source || "HR", registeredAt: s.approval?.source === "SELF" ? s.createdAt : null },
     attempt: attempt ? { id: String(attempt._id), status: attempt.status, percent: attempt.percent, violationCount: attempt.violationCount } : null,
 })
 
@@ -360,12 +370,15 @@ export const addStudents = async (accountId, id, { students } = {}) => {
     return { added: docs.length, skipped }
 }
 
-export const listStudents = async (accountId, id, { search, status, page, pageSize } = {}) => {
+export const listStudents = async (accountId, id, { search, status, approval, page, pageSize } = {}) => {
     const assessment = await owned(accountId, id)
     const filter = { assessmentId: assessment._id }
     const term = String(search || "").trim().slice(0, 80)
     if (term) { const rx = new RegExp(escapeRegex(term), "i"); filter.$or = [{ name: rx }, { email: rx }, { rollNumber: rx }] }
     if (["NOT_SENT", "SENT", "FAILED"].includes(status)) filter["invite.status"] = status
+    // "Waiting for approval" and "Rejected" are their own lists; the main list shows only people who are approved.
+    if (approval === "PENDING" || approval === "REJECTED") filter["approval.status"] = approval
+    else filter["approval.status"] = { $nin: ["PENDING", "REJECTED"] }
     const p = pageParams({ page, pageSize })
     const [items, total, attempts] = await Promise.all([
         OaStudent.find(filter).sort({ createdAt: 1 }).skip((p.page - 1) * p.pageSize).limit(p.pageSize),
@@ -393,6 +406,7 @@ export const sendInvites = async (accountId, id, { studentIds, resend = false } 
     const filter = { assessmentId: assessment._id }
     if (Array.isArray(studentIds) && studentIds.length) filter._id = { $in: studentIds.filter((x) => mongoose.isValidObjectId(x)) }
     // Idempotent: a repeated click only mails people who have not been mailed (unless the admin asks to resend).
+    filter["approval.status"] = { $nin: ["PENDING", "REJECTED"] }     // someone waiting for approval is never emailed their code
     if (!resend) filter["invite.status"] = { $ne: "SENT" }
     const students = await OaStudent.find(filter).limit(MAX_STUDENTS_PER_UPLOAD)
 
@@ -421,7 +435,7 @@ const durationSec = (a) => (a.submittedAt ? Math.max(0, Math.round((new Date(a.s
 
 const buildResultRows = async (assessment) => {
     const [students, attempts] = await Promise.all([
-        OaStudent.find({ assessmentId: assessment._id }).lean(),
+        OaStudent.find({ assessmentId: assessment._id, "approval.status": { $nin: ["PENDING", "REJECTED"] } }).lean(),
         OaAttempt.find({ assessmentId: assessment._id }).select("-answers -grades -order").lean(),
     ])
     const byStudent = new Map(attempts.map((a) => [String(a.studentId), a]))
@@ -445,7 +459,7 @@ const buildResultRows = async (assessment) => {
             submittedAt: a?.submittedAt || null,
             endReason: a?.endReason || null,
             // Where and on what the candidate sat the test, as recorded when they pressed Start.
-            ip: a?.ip || null, latitude: a?.environment?.latitude ?? null, longitude: a?.environment?.longitude ?? null,
+            ip: a?.ip || null, place: a?.environment?.place || null, latitude: a?.environment?.latitude ?? null, longitude: a?.environment?.longitude ?? null,
             browser: a?.environment?.browser || null, os: a?.environment?.os || null, device: a?.environment?.device || null,
         }
     })
@@ -503,14 +517,14 @@ const label = (value) => String(value || "").toLowerCase().split("_").map((w) =>
 export const exportResultsCsv = async (accountId, id, query = {}) => {
     const assessment = await owned(accountId, id)
     const rows = filterRows(await buildResultRows(assessment), query)
-    const head = ["Rank", "Name", "Email", "Roll number", "Status", "Score", "Out of", "Percent", "Result", "Violations", "Time taken (min)", "Submitted at", "Decision", "IP address", "Latitude", "Longitude", "Browser", "Operating system", "Device"]
+    const head = ["Rank", "Name", "Email", "Roll number", "Status", "Score", "Out of", "Percent", "Result", "Violations", "Time taken (min)", "Submitted at", "Decision", "IP address", "Location", "Latitude", "Longitude", "Browser", "Operating system", "Device"]
     const lines = [head.map(csvEscape).join(",")]
     for (const r of rows) {
         lines.push([
             r.rank ?? "", r.name, r.email, r.rollNumber, label(r.status), r.score ?? "", r.maxScore ?? "", r.percent ?? "",
             r.passed === null ? "" : r.passed ? "Passed" : "Not passed", r.violationCount,
             r.timeTakenSec === null ? "" : Math.round(r.timeTakenSec / 6) / 10, r.submittedAt ? new Date(r.submittedAt).toISOString() : "", label(r.adminDecision),
-            r.ip ?? "", r.latitude ?? "", r.longitude ?? "", r.browser ?? "", r.os ?? "", r.device ?? "",
+            r.ip ?? "", r.place ?? "", r.latitude ?? "", r.longitude ?? "", r.browser ?? "", r.os ?? "", r.device ?? "",
         ].map(csvEscape).join(","))
     }
     return { filename: `${assessment.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "results"}-results.csv`, csv: lines.join("\r\n") }
@@ -597,7 +611,7 @@ const slotStartOf = (assessment, slotId) => (assessment.schedule?.mode === "SLOT
 export const live = async (accountId, id) => {
     const assessment = await owned(accountId, id)
     const [students, attempts] = await Promise.all([
-        OaStudent.find({ assessmentId: assessment._id }).select("name email rollNumber slotId").lean(),
+        OaStudent.find({ assessmentId: assessment._id, "approval.status": { $nin: ["PENDING", "REJECTED"] } }).select("name email rollNumber slotId").lean(),
         OaAttempt.find({ assessmentId: assessment._id }).select("studentId status violationCount lastHeartbeatAt startedAt deadline").lean(),
     ])
     const byStudent = new Map(attempts.map((a) => [String(a.studentId), a]))
@@ -661,4 +675,121 @@ export const createNextRound = async (accountId, id, { title, minPercent, topN, 
     })
     if (docs.length) await OaStudent.insertMany(docs, { ordered: false })
     return { assessmentId: String(next._id), students: docs.length }
+}
+
+// ---------- open registration: candidates register themselves, the organizer approves ----------
+
+/** Turn the open link on or off, set when it closes and how many may register. `rotate` replaces the link (the old one stops working). */
+export const setRegistration = async (accountId, id, { enabled, closesAt, maxRegistrations, rotate } = {}) => {
+    const assessment = await owned(accountId, id)
+    if (assessment.status === "ARCHIVED") throw new ApiError(409, "ARCHIVED", "This round is archived.")
+    const reg = assessment.registration?.toObject?.() || assessment.registration || {}
+    const next = { enabled: Boolean(reg.enabled), token: reg.token, closesAt: reg.closesAt || null, maxRegistrations: reg.maxRegistrations ?? null }
+    if (typeof enabled === "boolean") next.enabled = enabled
+    if (closesAt !== undefined) {
+        if (closesAt === null || closesAt === "") next.closesAt = null
+        else {
+            const when = new Date(closesAt)
+            if (Number.isNaN(when.getTime())) throw new ApiError(400, "VALIDATION_ERROR", "Choose a valid closing date.", { closesAt: "Choose a valid date and time." })
+            next.closesAt = when
+        }
+    }
+    if (maxRegistrations !== undefined) {
+        if (maxRegistrations === null || maxRegistrations === "") next.maxRegistrations = null
+        else {
+            const n = Number(maxRegistrations)
+            if (!Number.isInteger(n) || n < 1 || n > 100000) throw new ApiError(400, "VALIDATION_ERROR", "The limit must be a whole number from 1 to 100000.", { maxRegistrations: "A whole number from 1 to 100000." })
+            next.maxRegistrations = n
+        }
+    }
+    if (next.enabled && (!next.token || rotate === true)) next.token = crypto.randomBytes(18).toString("base64url")
+    assessment.registration = next
+    await assessment.save()
+    return getAssessment(accountId, id)
+}
+
+const registrationOpen = async (assessment) => {
+    const reg = assessment.registration || {}
+    if (!reg.enabled) return { open: false, reason: "Registration for this test is not open." }
+    if (assessment.status === "ARCHIVED") return { open: false, reason: "This test is no longer available." }
+    if (assessment.schedule?.endAt && schedulePhase(assessment.schedule) === "ENDED") return { open: false, reason: "This test has already closed." }
+    if (reg.closesAt && new Date(reg.closesAt).getTime() <= Date.now()) return { open: false, reason: "Registration has closed." }
+    if (reg.maxRegistrations) {
+        const used = await OaStudent.countDocuments({ assessmentId: assessment._id, "approval.source": "SELF" })
+        if (used >= reg.maxRegistrations) return { open: false, reason: "Registration is full." }
+    }
+    return { open: true, reason: null }
+}
+
+const byToken = async (token) => {
+    const value = String(token || "")
+    if (!/^[A-Za-z0-9_-]{16,40}$/.test(value)) return null
+    return OaAssessment.findOne({ "registration.token": value })
+}
+
+/** What the public registration page shows: who is hosting, and whether it can take registrations right now. */
+export const registrationInfo = async (token) => {
+    const assessment = await byToken(token)
+    if (!assessment) throw new ApiError(404, "NOT_FOUND", "This registration link is not valid. Ask the organizer for a new one.")
+    const [state, brand] = await Promise.all([registrationOpen(assessment), brandForAssessmentId(assessment._id)])
+    return { title: assessment.title, round: assessment.roundNumber || 1, roundLabel: assessment.roundLabel || "", brand: { name: brand.name, logoPath: brand.logoPath }, ...state, closesAt: assessment.registration?.closesAt || null }
+}
+
+/** A candidate registers. They wait for approval: no access code is sent, and they cannot sign in until the organizer approves. */
+export const registerSelf = async (token, body = {}, { ip } = {}) => {
+    const assessment = await byToken(token)
+    if (!assessment) throw new ApiError(404, "NOT_FOUND", "This registration link is not valid. Ask the organizer for a new one.")
+    rateLimit({ key: `oa-join-all:${assessment._id}`, max: 5000, windowMs: 60 * 60 * 1000 })
+    if (ip) rateLimit({ key: `oa-join-ip:${ip}`, max: 20, windowMs: 60 * 60 * 1000 })
+    // A hidden field real people never fill in: bots do. Answer as if it worked so they learn nothing.
+    if (String(body?.website || "").trim()) return { received: true }
+
+    const name = cleanText(body?.name, LIMITS.studentName.max + 1)
+    const email = cleanText(body?.email, 201)
+    const rollNumber = cleanText(body?.rollNumber, LIMITS.rollNumber.max + 1)
+    const fields = {}
+    const nameIssue = nameProblem(name, { ...LIMITS.studentName, label: "Name" }); if (nameIssue) fields.name = nameIssue
+    if (email.length > 200 || !EMAIL_RE.test(email)) fields.email = "Enter a valid email address."
+    const phoneIssue = phoneProblem(body?.phone); if (phoneIssue) fields.phone = phoneIssue
+    if (rollNumber.length > LIMITS.rollNumber.max) fields.rollNumber = `At most ${LIMITS.rollNumber.max} characters.`
+    if (Object.keys(fields).length) throw new ApiError(400, "VALIDATION_ERROR", Object.values(fields)[0], fields)
+
+    const emailNormalized = normalizeEmail(email)
+    rateLimit({ key: `oa-join-email:${assessment._id}:${emailNormalized}`, max: 4, windowMs: 60 * 60 * 1000 })
+    const state = await registrationOpen(assessment)
+    if (!state.open) throw new ApiError(409, "REGISTRATION_CLOSED", state.reason)
+
+    // Already on the list (added by the organizer, or registered before): the same answer as a new registration, so this
+    // page cannot be used to find out who is invited.
+    if (await OaStudent.exists({ assessmentId: assessment._id, emailNormalized })) return { received: true }
+    const code = generateAccessCode()
+    try {
+        await OaStudent.create({
+            accountId: assessment.accountId, assessmentId: assessment._id, name, email, emailNormalized,
+            phone: normalizePhone(body?.phone), rollNumber, codeHash: hashAccessCode(code), codeEncrypted: encryptSecret(code),
+            approval: { status: "PENDING", source: "SELF", decidedAt: null },
+        })
+    } catch (error) {
+        if (error.code !== 11000) throw error
+    }
+    return { received: true }
+}
+
+/** Approve or reject registrations. Approving emails the invitation (with the access code) at once when the round is published. */
+export const decideStudents = async (accountId, id, { studentIds, decision } = {}) => {
+    const assessment = await owned(accountId, id)
+    if (!["APPROVE", "REJECT"].includes(decision)) throw new ApiError(400, "VALIDATION_ERROR", "Choose approve or reject.")
+    const ids = [...new Set((Array.isArray(studentIds) ? studentIds : []).map(String))].filter((x) => mongoose.isValidObjectId(x)).slice(0, 500)
+    if (!ids.length) throw new ApiError(400, "VALIDATION_ERROR", "Select at least one candidate.")
+    const target = decision === "APPROVE" ? ["PENDING", "REJECTED"] : ["PENDING"]
+    const found = await OaStudent.find({ _id: { $in: ids }, assessmentId: assessment._id, "approval.status": { $in: target } }).select("_id").lean()
+    if (!found.length) throw new ApiError(409, "NOTHING_TO_DECIDE", "Those candidates have already been decided.")
+    const decided = found.map((s) => s._id)
+    await OaStudent.updateMany({ _id: { $in: decided } }, { $set: { "approval.status": decision === "APPROVE" ? "APPROVED" : "REJECTED", "approval.decidedAt": new Date() } })
+    if (decision === "REJECT") return { decision, decided: decided.length, invited: null }
+
+    // Approved: mail them now if the round can take candidates; otherwise they are mailed with everyone else when it is published.
+    let invited = null
+    if (assessment.status === "PUBLISHED" && schedulePhase(assessment.schedule) !== "ENDED") invited = await sendInvites(accountId, id, { studentIds: decided.map(String) })
+    return { decision, decided: decided.length, invited }
 }
