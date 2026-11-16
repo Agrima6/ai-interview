@@ -63,6 +63,16 @@ const receiveVideo = (req, res, next) => videoUpload(req, res, (error) => {
     next(new ApiError(400, "VALIDATION_ERROR", error.code === "LIMIT_FILE_SIZE" ? `The recording is too large (the limit is ${Math.round(VIDEO_MAX_BYTES / 1024 / 1024)} MB). Record a shorter answer.` : "The recording could not be read. Record it again."))
 })
 
+// Say so in the log when a request is slow, with how long it took, so a slow server can be pinned down to a route.
+router.use((req, res, next) => {
+    const started = Date.now()
+    res.on("finish", () => {
+        const ms = Date.now() - started
+        if (ms > 1500) console.warn(`[client-service] SLOW ${req.method} ${req.originalUrl.split("?")[0]} took ${ms}ms (status ${res.statusCode})`)
+    })
+    next()
+})
+
 // ---- public ----
 router.post("/oa/auth/register", handle((req) => accounts.register(req.body)))
 router.post("/oa/auth/login", handle((req) => accounts.login(req.body || {})))
@@ -166,6 +176,7 @@ router.put("/oa/assessments/:id/attempts/:attemptId/grades", ...admin, handle((r
 router.put("/oa/assessments/:id/attempts/:attemptId/decision", ...admin, handle((req) => assessments.setDecision(req.oa.accountId, req.params.id, req.params.attemptId, req.body?.decision ?? null)))
 
 // ---- student ----
+router.post("/oa/exam/run", ...student, handle((req) => exam.runCode(req.oa, req.body || {})))
 router.get("/oa/exam/session", ...student, handle((req) => exam.session(req.oa)))
 router.put("/oa/exam/slot", ...student, handle((req) => exam.bookSlot(req.oa, req.body || {})))
 router.post("/oa/exam/start", ...student, handle((req) => exam.start(req.oa, req.body || {}, { ip: clientIp(req) })))

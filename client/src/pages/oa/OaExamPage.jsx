@@ -41,13 +41,30 @@ function Finished({ session, info, onLeave }) {
     )
 }
 
+// "Loading" that admits when it is taking long, and offers a way out instead of leaving the candidate staring at a spinner.
+function SlowLoading({ onRetry }) {
+    const [slow, setSlow] = useState(false)
+    useEffect(() => { const id = setTimeout(() => setSlow(true), 12000); return () => clearTimeout(id) }, [])
+    return (
+        <div className='min-h-screen bg-bg flex flex-col items-center justify-center gap-3 px-6 text-center' role='status'>
+            <p className='text-[14px] text-text-secondary'>Loading your test…</p>
+            {slow && (
+                <>
+                    <p className='text-[13px] text-text-secondary max-w-sm'>This is taking longer than usual. Your answers are safe. You can wait, or try again.</p>
+                    <Button size='sm' variant='secondary' onClick={onRetry}>Try again</Button>
+                </>
+            )}
+        </div>
+    )
+}
+
 export default function OaExamPage() {
     const navigate = useNavigate()
     const hasToken = Boolean(oaTokens.get('student'))
     const [paper, setPaper] = useState(null)
     const [screenStream, setScreenStream] = useState(null)
     const [finish, setFinish] = useState(null)
-    const session = useQuery({ queryKey: ['oa-exam', 'session'], queryFn: examApi.session, enabled: hasToken, retry: false, refetchInterval: (q) => (!paper && !finish && q.state.data && q.state.data.attempt?.status !== 'SUBMITTED' ? 5000 : false) })
+    const session = useQuery({ queryKey: ['oa-exam', 'session'], queryFn: examApi.session, enabled: hasToken, retry: false, refetchInterval: (q) => (!paper && !finish && q.state.data && q.state.data.attempt?.status !== 'SUBMITTED' ? 15000 : false) })
 
     useEffect(() => () => stopStream(screenStream), [screenStream])
 
@@ -61,7 +78,7 @@ export default function OaExamPage() {
 
     if (!hasToken) return <Navigate to='/oa/exam' replace />
     if (session.isError) return <div className='min-h-screen bg-bg flex items-center justify-center'><ErrorState title='Could not open your test' message={session.error.message} onRetry={session.refetch} /></div>
-    if (!session.data) return <div className='min-h-screen bg-bg flex items-center justify-center text-[14px] text-text-secondary'>Loading your test…</div>
+    if (!session.data) return <SlowLoading onRetry={session.refetch} />
 
     const s = session.data
     const done = finish || (s.attempt && s.attempt.status !== 'IN_PROGRESS')

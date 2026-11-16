@@ -13,7 +13,8 @@ export const oaTokens = {
     clear: (role) => { try { sessionStorage.removeItem(KEYS[role]) } catch { /* nothing to clear */ } },
 }
 
-const http = axios.create({ baseURL: `${GatewayUrl}/api/v1/oa` })
+// No request may hang forever: a stuck server shows an error with a retry instead of an endless spinner. Uploads and AI drafting override this.
+const http = axios.create({ baseURL: `${GatewayUrl}/api/v1/oa`, timeout: 30000 })
 
 const roleFor = (url = '') => {
     if (url.startsWith('/auth/') || url === '/exam/login' || url === '/exam/whoami' || url.startsWith('/exam/brand') || url.startsWith('/exam/place') || url.startsWith('/join/')) return null
@@ -40,8 +41,9 @@ http.interceptors.response.use((res) => res, (error) => {
 
 const fail = (error) => {
     const envelope = error.response?.data
-    const wrapped = new Error(envelope?.error?.message || (error.response ? 'Something went wrong. Please try again.' : 'Cannot reach the server. Check your connection.'))
-    wrapped.code = envelope?.error?.code || 'NETWORK_ERROR'
+    const timedOut = error.code === 'ECONNABORTED'
+    const wrapped = new Error(envelope?.error?.message || (error.response?.status === 413 ? 'That upload is too large for the server. Record a shorter answer, or ask your organizer to raise the upload limit.' : error.response ? 'Something went wrong. Please try again.' : timedOut ? 'The server is taking too long to answer. Please try again in a moment.' : 'Cannot reach the server. Check your connection.'))
+    wrapped.code = envelope?.error?.code || (timedOut ? 'TIMEOUT' : 'NETWORK_ERROR')
     wrapped.status = error.response?.status || 0
     if (envelope?.error?.fields) wrapped.fields = envelope.error.fields
     return wrapped
@@ -100,7 +102,7 @@ export const oaApi = {
 
     // questions
     addQuestions: (id, body) => post(`/assessments/${id}/questions`, body),
-    generateQuestions: (id, body) => post(`/assessments/${id}/questions/generate`, body),
+    generateQuestions: (id, body) => run(http.post(`/assessments/${id}/questions/generate`, body ?? {}, { timeout: 120000 })),
     updateQuestion: (id, qid, body) => patch(`/assessments/${id}/questions/${qid}`, body),
     deleteQuestion: (id, qid) => del(`/assessments/${id}/questions/${qid}`),
 
@@ -146,11 +148,12 @@ export const examApi = {
     start: (environment) => post('/exam/start', { environment }),
     paper: () => get('/exam/paper'),
     saveAnswers: (answers) => put('/exam/answers', { answers }),
+    runCode: (body) => run(http.post('/exam/run', body, { timeout: 90000 })),
     uploadVideo: (questionId, blob, durationSec, onProgress) => {
         const form = new FormData()
         form.append('video', blob, 'answer.webm')
         form.append('durationSec', String(Math.round(durationSec)))
-        return run(http.post(`/exam/video/${questionId}`, form, { onUploadProgress: (e) => onProgress?.(e.total ? e.loaded / e.total : 0) }))
+        return run(http.post(`/exam/video/${questionId}`, form, { timeout: 0, onUploadProgress: (e) => onProgress?.(e.total ? e.loaded / e.total : 0) }))
     },
     heartbeat: (snapshot) => post('/exam/heartbeat', { snapshot }),
     violation: (body) => post('/exam/violation', body),

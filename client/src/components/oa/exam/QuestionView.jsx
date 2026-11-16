@@ -1,11 +1,12 @@
 import React from 'react'
 import { languageLabel } from '../oaLanguages'
 import VideoAnswer from './VideoAnswer'
+import CodeRunPanel from './CodeRunPanel'
 
 const words = (text) => (text.trim() ? text.trim().split(/\s+/).length : 0)
 
 // One question, one answer control. `value` is what the server stores: option ids, text, or { code, language }.
-export default function QuestionView({ question: q, value, onChange }) {
+export default function QuestionView({ question: q, value, onChange, runnable = [] }) {
     const areaClass = 'w-full bg-card border-[1.5px] border-line rounded-xl px-4 py-3 text-[15px] text-ink outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent/15 select-text'
 
     if (q.type === 'MCQ' || q.type === 'MSQ') {
@@ -72,7 +73,8 @@ export default function QuestionView({ question: q, value, onChange }) {
                         }
                     }}
                     className='w-full rounded-xl px-4 py-3 font-mono text-[13.5px] leading-relaxed select-text outline-none transition-all bg-[#1a1215] text-[#f4eaea] border-[1.5px] border-[#3a2a2e] caret-white focus:border-accent focus:ring-4 focus:ring-accent/20' />
-                <p className='text-[12px] text-text-secondary mt-1.5'>Your code is saved as you type. It is read and marked by your organizer.</p>
+                <CodeRunPanel question={q} language={language} code={code} runnable={runnable} />
+                <p className='text-[12px] text-text-secondary mt-2'>Your code is saved as you type.{runnable.length ? ' When you submit, every test case is run to score it.' : ' It is read and marked by your organizer.'}</p>
             </div>
         )
     }

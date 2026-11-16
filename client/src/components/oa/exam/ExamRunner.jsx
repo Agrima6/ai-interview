@@ -193,7 +193,7 @@ export default function ExamRunner({ paper, screenStream, onScreenStream, onFini
                         <h1 className='text-[17px] sm:text-[18px] font-semibold text-ink leading-relaxed break-words select-text whitespace-pre-wrap'>{q.text}</h1>
                         <span className='shrink-0 text-[12.5px] font-semibold text-text-secondary bg-[var(--color-neutral-soft)] px-2.5 py-1 rounded-full'>{q.marks} mark{q.marks === 1 ? '' : 's'}</span>
                     </div>
-                    <QuestionView key={q.id} question={q} value={answers[q.id]} onChange={(v) => change(q.id, v)} />
+                    <QuestionView key={q.id} question={q} value={answers[q.id]} onChange={(v) => change(q.id, v)} runnable={paper.runnableLanguages || []} />
                     <div className='flex flex-wrap items-center justify-between gap-3 mt-8 pt-5 border-t border-line'>
                         <div className='flex gap-2'>
                             <Button variant='secondary' size='sm' disabled={index === 0 || !paper.allowBackNavigation} onClick={() => goto(index - 1)}><ChevronLeft size={15} /> Previous</Button>
