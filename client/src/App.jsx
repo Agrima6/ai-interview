@@ -15,8 +15,11 @@ import RequireCandidateAuth from './components/RequireCandidateAuth'
 import { featurePermissions } from './permissions/featurePermissions'
 import { ServerUrl } from './constants'
 
-// Shown for the instant a page's code is being fetched.
+// Shown while a page's code is being fetched. Nothing at all for the first moments (a fast load then never flashes), then a quiet message.
 function RouteFallback() {
+  const [show, setShow] = useState(false)
+  useEffect(() => { const id = setTimeout(() => setShow(true), 400); return () => clearTimeout(id) }, [])
+  if (!show) return null
   return <div role='status' aria-label='Loading' style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-background, #F8FAFC)', color: 'var(--color-text-secondary, #6B7280)', fontSize: 14 }}>Loading…</div>
 }
 
