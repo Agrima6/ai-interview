@@ -119,6 +119,7 @@ const applySettings = (target, input = {}) => {
         allowBackNavigation: flag("allowBackNavigation", s.allowBackNavigation ?? true),
         showResultToStudent: flag("showResultToStudent", s.showResultToStudent ?? false),
         partialMarking: flag("partialMarking", s.partialMarking ?? false),
+        aiMarking: flag("aiMarking", s.aiMarking ?? false),
         passPercent: input.passPercent === undefined ? (s.passPercent ?? 40) : intInRange(input.passPercent, { ...LIMITS.passPercent, field: "passPercent", label: "Pass mark" }),
     }
 }
@@ -161,7 +162,8 @@ export const createAssessment = async (accountId, input = {}) => {
         sections: [{ id: newId(), title: "" }],
     })
     if (input.driveId) Object.assign(assessment, { driveId: input.driveId, roundNumber: input.roundNumber || 1 })
-    assessment.settings = applySettings(assessment, input.settings)
+    // New rounds let AI suggest marks for written and coding answers (it only runs when an AI key is set); it can be switched off.
+    assessment.settings = applySettings(assessment, { aiMarking: true, ...(input.settings || {}) })
     // New rounds ask for the candidate's location; rounds made before this existed keep working as they were.
     assessment.proctoring = applyProctoring(assessment, { requireLocation: true, ...(input.proctoring || {}) })
     if (input.schedule) assessment.schedule = scheduleFrom(assessment, input.schedule)

@@ -114,7 +114,7 @@ router.get("/oa/video/:attemptId/:questionId", async (req, res, next) => {
         res.status(file.contentRange ? 206 : 200)
         res.setHeader("Content-Type", file.contentType || "video/webm")
         res.setHeader("Accept-Ranges", "bytes")
-        res.setHeader("Cache-Control", "private, no-store")
+        res.setHeader("Cache-Control", "private, max-age=3600")      // the link is signed and short-lived; replaying or seeking need not refetch
         if (file.contentLength) res.setHeader("Content-Length", file.contentLength)
         if (file.contentRange) res.setHeader("Content-Range", file.contentRange)
         file.stream.on("error", next).pipe(res)

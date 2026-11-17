@@ -97,7 +97,7 @@ export const gradeAttempt = ({ questions, answers = {}, grades = {}, settings = 
     for (const q of questions) {
         maxScore += q.marks
         const existing = grades[q.id]
-        const entry = existing && (existing.auto === false || existing.runner) && existing.marks !== null && existing.marks !== undefined
+        const entry = existing && (existing.auto === false || existing.runner || existing.ai) && existing.marks !== null && existing.marks !== undefined
             ? existing
             : { ...gradeAnswer(q, answers[q.id]?.value, { partialMarking: Boolean(settings.partialMarking) }), ...(existing?.feedback ? { feedback: existing.feedback } : {}) }
         nextGrades[q.id] = entry

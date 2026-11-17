@@ -29,7 +29,18 @@ http.interceptors.request.use((config) => {
     return config
 })
 
+// A request that stalls (the connection freezes for many seconds, then dies) is abandoned after a few seconds and sent again
+// on a fresh connection, which almost always goes straight through. Only reads and token exchanges are repeated, never writes.
+const RETRY_AFTER_MS = 8000
+const MAX_RETRIES = 2
 http.interceptors.response.use((res) => res, (error) => {
+    const cfg = error.config
+    const stalled = !error.response && (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK' || error.message === 'Network Error')
+    if (stalled && cfg && (cfg.method === 'get' || cfg.__retry === true) && (cfg.__tries || 0) < MAX_RETRIES) {
+        cfg.__tries = (cfg.__tries || 0) + 1
+        cfg.timeout = RETRY_AFTER_MS
+        return http(cfg)
+    }
     const role = error.config?.__role
     if (error.response?.status === 401 && role && read(role)) {
         oaTokens.clear(role)
@@ -56,8 +67,8 @@ const run = async (promise, { meta = false } = {}) => {
     } catch (error) { throw fail(error) }
 }
 
-const get = (url, params) => run(http.get(url, { params }))
-const list = (url, params) => run(http.get(url, { params }), { meta: true })
+const get = (url, params) => run(http.get(url, { params, timeout: RETRY_AFTER_MS }))
+const list = (url, params) => run(http.get(url, { params, timeout: RETRY_AFTER_MS }), { meta: true })
 const post = (url, body) => run(http.post(url, body ?? {}))
 const patch = (url, body) => run(http.patch(url, body))
 const put = (url, body) => run(http.put(url, body))
@@ -75,7 +86,7 @@ export const oaApi = {
     orgSession: async () => {
         const platformToken = getAccessToken()
         if (!platformToken) { const e = new Error('Sign in to continue.'); e.code = 'UNAUTHENTICATED'; throw e }
-        const r = await run(http.post('/auth/org-session', {}, { headers: { Authorization: `Bearer ${platformToken}` } }))
+        const r = await run(http.post('/auth/org-session', {}, { __retry: true, timeout: RETRY_AFTER_MS, headers: { Authorization: `Bearer ${platformToken}` } }))
         oaTokens.set('admin', r.token)
         return r.account
     },

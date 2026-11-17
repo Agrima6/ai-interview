@@ -99,6 +99,8 @@ const assessmentSchema = new Schema({
         showResultToStudent: { type: Boolean, default: false },
         // Multiple-correct questions: part marks for some right options and no wrong one.
         partialMarking: { type: Boolean, default: false },
+        // AI reads written and coding answers after submission and suggests marks, which the organizer can change.
+        aiMarking: { type: Boolean, default: false },
     },
     proctoring: {
         level: { type: String, enum: ["HARD", "STANDARD"], default: "HARD" },

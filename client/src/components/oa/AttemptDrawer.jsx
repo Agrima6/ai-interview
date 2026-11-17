@@ -72,7 +72,9 @@ function Answer({ q, grade, onGrade, locked }) {
                         <label className='flex items-center gap-2'>Marks
                             <input inputMode='decimal' disabled={locked} aria-label={`Marks for: ${q.text.slice(0, 40)}`} aria-invalid={Number(value) > q.marks} className={`${inputClass} !w-24 !py-1.5 ${Number(value) > q.marks ? '!border-[var(--color-danger)]' : ''}`} value={value}
                                 onChange={(e) => { const raw = e.target.value.replace(/[^\d.]/g, '').replace(/^(\d*\.?\d{0,2}).*$/, '$1'); onGrade(q.id, raw === '' ? '' : Math.min(Number(raw), q.marks) === Number(raw) ? raw : String(q.marks)) }} /> / {q.marks}</label>
-                        {grade?.needsReview && grade?.auto && !grade?.runner && <Badge variant='warning'>Auto-scored from keywords: please check</Badge>}
+                        {grade?.needsReview && grade?.auto && !grade?.runner && !grade?.ai && <Badge variant='warning'>Auto-scored from keywords: please check</Badge>}
+                        {grade?.ai && <Badge variant='info'>AI suggested: please check</Badge>}
+                        {grade?.ai?.feedback && <p className='basis-full text-[12.5px] text-text-secondary'>AI's reason: {grade.ai.feedback}</p>}
                         {grade?.runner && <Badge variant={grade.runner.passed === grade.runner.total ? 'success' : 'warning'}>{grade.runner.ran ? `Test cases: ${grade.runner.passed} of ${grade.runner.total} passed (run automatically)` : 'Nothing was run: no code was written'}</Badge>}
                         {grade?.marks === null && <Badge variant='warning'>Waiting for you</Badge>}
                     </>

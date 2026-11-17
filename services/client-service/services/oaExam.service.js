@@ -6,6 +6,7 @@ import { sectionName, studentQuestionView } from "../utils/oaQuestions.js"
 import { brandForAssessmentId } from "./oaBrand.service.js"
 import { placeName } from "./oaPlace.service.js"
 import { canRunLanguage, runCases, runnableLanguages } from "./oaCodeRunner.service.js"
+import { aiMarkingAvailable, markAnswer } from "./oaAi.service.js"
 import { RECORDINGS_BUCKET, getObjectStream, uploadBuffer } from "../config/s3Client.js"
 import { sniffVideoType, videoObjectKey } from "../utils/oaVideo.js"
 import { SLOT_CHANGE_CUTOFF_MINUTES, attemptDeadline, buildPaperOrder, effectiveSchedule, gradeAttempt, inWaitingRoom, schedulePhase, slotChangeDeadline } from "../utils/oaExam.js"
@@ -79,7 +80,7 @@ export const finalizeAttempt = async (attemptId, { status, reason = null }) => {
     const result = gradeAttempt({ questions: assessment.questions.map(asObject), answers: claimed.answers || {}, grades: claimed.grades || {}, settings: assessment.settings?.toObject?.() || {} })
     const saved = await OaAttempt.findByIdAndUpdate(attemptId, { $set: { grades: result.grades, score: result.score, maxScore: result.maxScore, percent: result.percent, gradingStatus: result.gradingStatus } }, { new: true })
     // Coding answers with test cases are run and scored in the background, so submitting never waits for the code runner.
-    setImmediate(() => autoGradeCoding(attemptId).catch((e) => console.error("[client-service] OA coding auto-grade failed:", e.message)))
+    setImmediate(() => markAfterSubmit(attemptId))
     return saved
 }
 
@@ -505,6 +506,53 @@ export const autoGradeCoding = async (attemptId) => {
         const held = grades[id]
         if (held && held.auto === false && held.marks !== null && held.marks !== undefined) continue
         grades[id] = { marks: Math.round((q.marks * f.passed / f.total) * 100) / 100, auto: true, needsReview: true, runner: { passed: f.passed, total: f.total, ran: f.ran, at: new Date() } }
+    }
+    const result = gradeAttempt({ questions: assessment.questions.map(asObject), answers: fresh.answers || {}, grades, settings: assessment.settings?.toObject?.() || {} })
+    await OaAttempt.updateOne({ _id: attemptId }, { $set: { grades: result.grades, score: result.score, maxScore: result.maxScore, percent: result.percent, gradingStatus: result.gradingStatus } })
+}
+
+const STARTER_OR_EMPTY = (q, given) => {
+    if (given === null || given === undefined) return true
+    if (typeof given === "object") return STARTER_ONLY(q, given.code)
+    return !String(given).trim()
+}
+
+/**
+ * After a test is submitted, in this order: coding answers with test cases are run, then AI suggests marks for the
+ * written and coding answers that are still unmarked. Never throws; the organizer can change every mark.
+ */
+export const markAfterSubmit = async (attemptId) => {
+    try { await autoGradeCoding(attemptId) } catch (e) { console.error("[client-service] OA coding auto-grade failed:", e.message) }
+    try { await aiMarkAnswers(attemptId) } catch (e) { console.error("[client-service] OA AI marking failed:", e.message) }
+}
+
+export const aiMarkAnswers = async (attemptId) => {
+    if (!aiMarkingAvailable()) return
+    const attempt = await OaAttempt.findById(attemptId)
+    if (!attempt || attempt.status === "IN_PROGRESS") return
+    const assessment = await OaAssessment.findById(attempt.assessmentId)
+    if (!assessment?.settings?.aiMarking) return
+    const done = {}
+    let asked = 0
+    for (const question of assessment.questions) {
+        const q = asObject(question)
+        if (!["SHORT", "LONG", "CODING"].includes(q.type) || asked >= 15) continue
+        const held = attempt.grades?.[q.id]
+        if (held && ((held.auto === false && held.marks !== null && held.marks !== undefined) || held.runner)) continue    // marked by hand, or by test cases
+        const given = attempt.answers?.[q.id]?.value
+        if (STARTER_OR_EMPTY(q, given)) continue                                                                          // nothing to mark: stays 0
+        asked += 1
+        const text = typeof given === "object" ? String(given.code || "") : String(given)
+        const r = await markAnswer({ question: q, answer: text, language: typeof given === "object" ? given.language : undefined })
+        if (r) done[q.id] = r
+    }
+    if (!Object.keys(done).length) return
+    const fresh = await OaAttempt.findById(attemptId)
+    const grades = { ...(fresh.grades || {}) }
+    for (const [id, r] of Object.entries(done)) {
+        const held = grades[id]
+        if (held && ((held.auto === false && held.marks !== null && held.marks !== undefined) || held.runner)) continue
+        grades[id] = { marks: r.marks, auto: true, needsReview: true, ai: { feedback: r.feedback, model: r.model, at: new Date() } }
     }
     const result = gradeAttempt({ questions: assessment.questions.map(asObject), answers: fresh.answers || {}, grades, settings: assessment.settings?.toObject?.() || {} })
     await OaAttempt.updateOne({ _id: attemptId }, { $set: { grades: result.grades, score: result.score, maxScore: result.maxScore, percent: result.percent, gradingStatus: result.gradingStatus } })

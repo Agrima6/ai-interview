@@ -98,12 +98,21 @@ export default function ExamLobby({ session, screenStream, onScreenStream, onSta
         <div className='min-h-screen bg-bg'>
             <header className='bg-card border-b border-line'>
                 <div className='max-w-[1100px] mx-auto px-5 h-16 flex items-center justify-between'>
-                    <span className='flex items-center gap-4 min-w-0'><ExamBrand brand={a.brand} size={34} /><span className='hidden sm:inline text-[13px] text-text-secondary truncate border-l border-line pl-4'>{a.title}</span></span>
+                    <span className='text-[14px] font-semibold text-text-secondary'>Test instructions</span>
                     <span className='text-[13px] text-text-secondary'>Signed in as <b className='text-ink'>{student.name}</b></span>
                 </div>
             </header>
             <main className='max-w-[1100px] mx-auto px-5 py-8 grid lg:grid-cols-[1fr_420px] gap-8 items-start'>
                 <section className='space-y-6 oa-stagger'>
+                    {a.brand?.name && (
+                        <div className='flex items-center gap-4 bg-card border border-line rounded-2xl px-5 py-4'>
+                            <ExamBrand brand={a.brand} size={52} />
+                            <div className='min-w-0 ml-auto text-right'>
+                                <div className='text-[11.5px] font-semibold uppercase tracking-wide text-text-secondary'>Test</div>
+                                <div className='text-[14px] font-bold text-ink break-words'>{a.title}</div>
+                            </div>
+                        </div>
+                    )}
                     <div className='oa-mesh bg-card border border-line rounded-2xl p-6'>
                         <div className='flex items-center gap-2 text-[13px] font-semibold text-accent mb-2'><Clock size={15} />
                             {a.phase === 'UPCOMING' ? 'Starts in' : a.phase === 'OPEN' ? 'The test is open' : resuming ? 'You are part-way through' : a.phase === 'CHOOSE_SLOT' ? 'Pick your time' : a.phase === 'NO_SLOT' ? 'No slot booked' : ''}</div>

@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, Download, FileUp, Loader2, Pencil, Plus, RefreshCw, Sparkles, Trash2, TriangleAlert, Wand2 } from 'lucide-react'
+import { Download, FileUp, Loader2, Pencil, Plus, RefreshCw, Sparkles, Trash2, TriangleAlert, Wand2 } from 'lucide-react'
 import { oaApi } from '../../api/oaApi'
 import { parseCsv } from '../../utils/csvRows'
 import Badge from '../ui/Badge'
@@ -117,7 +117,8 @@ function UploadModal({ open, onClose, assessment, onDone }) {
 function AiConnection({ status }) {
     if (status.isPending || status.isFetching) return <div role='status' className='mb-4 flex items-center gap-2 text-[13px] text-text-secondary bg-surface-muted rounded-xl px-3.5 py-2.5'><Loader2 size={15} className='animate-spin' /> Checking the AI connection…</div>
     const d = status.data
-    if (d?.ok) return <div role='status' className='mb-4 flex items-center gap-2 text-[13px] bg-[var(--color-success-soft)] text-[var(--color-success)] rounded-xl px-3.5 py-2.5'><CheckCircle2 size={15} className='shrink-0' /><span>AI is connected{d.provider ? ` · ${d.provider}` : ''}{d.model ? ` · ${d.model}` : ''}</span></div>
+    // When everything works there is nothing to say: the banner appears only when AI is not available.
+    if (d?.ok) return null
     const message = status.isError ? status.error.message : d?.configured ? d.message || 'The AI service did not answer.' : 'No AI key is set on the server. Add OA_AI_API_KEY (or GROQ_API_KEY) to the client-service .env and restart it.'
     return (
         <div role='alert' className='mb-4 flex items-start gap-2.5 text-[13px] bg-[var(--color-warning-soft)] text-[var(--color-warning)] rounded-xl px-3.5 py-2.5'>
