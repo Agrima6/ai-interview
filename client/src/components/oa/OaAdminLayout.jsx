@@ -105,8 +105,7 @@ export function RequireOaAdmin({ children }) {
                     <span className='font-display text-[14px] font-bold text-ink'>Online Assessment</span>
                 </header>
                 <main className='flex-1 w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8'>
-                    {me.isError ? <ErrorState message={me.error.message} onRetry={() => me.refetch()} /> : {/* The sidebar stays on screen while the next page's code loads; the content area waits quietly. */}
-                    <Suspense fallback={null}><div key={pathname} className='oa-page'>{children}</div></Suspense>}
+                    {me.isError ? <ErrorState message={me.error.message} onRetry={() => me.refetch()} /> : <Suspense fallback={null}><div key={pathname} className='oa-page'>{children}</div></Suspense>}
                 </main>
             </div>
         </div>
