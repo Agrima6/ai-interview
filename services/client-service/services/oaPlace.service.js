@@ -21,6 +21,7 @@ export const placeName = async (latitude, longitude, { timeoutMs = 3500 } = {}) 
             params: { format: "jsonv2", lat: round(latitude), lon: round(longitude), zoom: 14, addressdetails: 1, "accept-language": "en" },
             headers: { "User-Agent": "WorkmateIQ/1.0 (online assessment; https://workmateiq.com)" },
             timeout: timeoutMs,
+            signal: AbortSignal.timeout(timeoutMs + 500),     // a hard limit for the whole request, connecting included
         })
         const a = res.data?.address || {}
         const local = a.suburb || a.neighbourhood || a.city_district || a.quarter || ""

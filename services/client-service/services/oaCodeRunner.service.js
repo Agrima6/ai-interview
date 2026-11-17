@@ -39,6 +39,7 @@ export const runOnce = async ({ language, code, stdin }) => {
             params: { base64_encoded: true, wait: true, fields: "stdout,stderr,compile_output,message,status,time,memory" },
             headers: { "Content-Type": "application/json", "User-Agent": "WorkmateIQ/1.0 (online assessment)", ...(key ? { "X-Auth-Token": key } : {}) },
             timeout: 35000,
+            signal: AbortSignal.timeout(40000),
         })
         const d = res.data || {}
         const verdict = verdictOf(d.status?.id)

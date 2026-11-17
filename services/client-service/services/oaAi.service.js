@@ -101,7 +101,7 @@ const modelMissing = (error) => {
 }
 
 const listModels = async ({ key, base }) => {
-    const res = await axios.get(`${base}/models`, { headers: { Authorization: `Bearer ${key}` }, timeout: 15000 })
+    const res = await axios.get(`${base}/models`, { headers: { Authorization: `Bearer ${key}` }, timeout: 15000, signal: AbortSignal.timeout(18000) })
     return (res.data?.data || res.data?.models || []).map((m) => m?.id || m?.name).filter(Boolean)
 }
 
@@ -130,12 +130,12 @@ const callModel = async ({ key, base, model, messages }) => {
     const headers = { Authorization: `Bearer ${key}` }
     const body = { model, messages, temperature: 0.4, response_format: { type: "json_object" } }
     try {
-        return await axios.post(`${base}/chat/completions`, body, { headers, timeout: 60000 })
+        return await axios.post(`${base}/chat/completions`, body, { headers, timeout: 60000, signal: AbortSignal.timeout(65000) })
     } catch (error) {
         // Some providers and models refuse JSON mode or a custom temperature: retry once with the plain request.
         if (error.response?.status === 400) {
             const { response_format, temperature, ...plain } = body // eslint-disable-line no-unused-vars
-            return axios.post(`${base}/chat/completions`, plain, { headers, timeout: 60000 })
+            return axios.post(`${base}/chat/completions`, plain, { headers, timeout: 60000, signal: AbortSignal.timeout(65000) })
         }
         throw error
     }
