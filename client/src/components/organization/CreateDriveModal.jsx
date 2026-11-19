@@ -571,8 +571,9 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null, pref
       customQuestionsList: formData.questionMode === 'CUSTOM' ? customQuestions : [],
       skillRubrics: skillWeightages,
       passingThreshold: Number(formData.passingThreshold) || 70,
-      candidatesCount: importedCandidates.length,
-      importedCandidateList: importedCandidates,
+      // The AI interview of a test round never holds candidates: whoever is added here goes to the test round's own list.
+      candidatesCount: partOfTest ? 0 : importedCandidates.length,
+      importedCandidateList: partOfTest ? [] : importedCandidates,
       enablePublicLink: formData.enablePublicLink,
       languagePolicy: formData.languagePolicy,
       communicationSettings: communication,
@@ -603,6 +604,7 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null, pref
         // if this call fails the admin sees the real error and nothing is
         // created, rather than believing a drive exists that was never saved.
         : await createInterviewDrive(payload)
+      if (partOfTest && importedCandidates.length) await prefill.onCandidates?.(importedCandidates)
       onCreateDrive(response)
       onClose()
       setStep(1)
@@ -752,7 +754,7 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null, pref
             <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
               <div className="flex items-start gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent"><Users size={20} /></div>
-                <div><h3 className="text-[18px] font-bold text-ink">Candidate Details</h3><p className="mt-1 text-[12px] text-text-secondary">Add students and choose how they will access this interview drive.</p></div>
+                <div><h3 className="text-[18px] font-bold text-ink">Candidate Details</h3><p className="mt-1 text-[12px] text-text-secondary">{partOfTest ? 'People added here go to your test round and reach this AI interview after the test.' : 'Add students and choose how they will access this interview drive.'}</p></div>
               </div>
               <div className="rounded-xl border border-accent/15 bg-accent/5 px-3 py-2 text-[11px] font-semibold text-accent"><Users size={14} className="mr-1.5 inline" />{importedCandidates.length} candidates added</div>
             </div>

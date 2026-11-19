@@ -72,7 +72,7 @@ export default function AiPartCard({ assessment: a, drive, disabled = false, sho
                     </ol>
                     <div className='mt-4 border-t border-line pt-4'>
                         <AiInterviewPicker value={part.aiInterviewDriveId} onChange={choose} disabled={disabled} pending={save.isPending}
-                            getPrefill={async () => ({ partOfTest: true, title: `${drive?.title || a.title} · AI interview`, department: drive?.department, roleCategory: drive?.roleCategory, experienceLevel: drive?.experienceLevel })} />
+                            getPrefill={async () => ({ partOfTest: true, onCandidates: async (list) => { await oaApi.addStudents(a.id, list.map((c) => ({ name: c.name, email: c.email, phone: c.phone || undefined }))); queryClient.invalidateQueries({ queryKey: ['oa'] }); toast.success(`${list.length} candidate${list.length === 1 ? '' : 's'} added to the test round.`) }, title: `${drive?.title || a.title} · AI interview`, department: drive?.department, roleCategory: drive?.roleCategory, experienceLevel: drive?.experienceLevel })} />
                     </div>
                     {part.enabled && part.aiInterviewDriveId && (
                         <div role='status' className='mt-4 rounded-xl bg-[var(--color-warning-soft)] px-4 py-3 text-[13px] text-ink'>
