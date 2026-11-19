@@ -1,3 +1,4 @@
+import { ApiError } from "../utils/response.js"
 import { OaAccount, OaAssessment, OaAttempt, OaStudent } from "../models/oa.model.js"
 import { addCandidatesToDrive } from "./interviewDrive.service.js"
 
@@ -8,7 +9,7 @@ import { addCandidatesToDrive } from "./interviewDrive.service.js"
  */
 export const handOffToAiInterview = async (attemptId) => {
     try {
-        const claimed = await OaAttempt.findOneAndUpdate({ _id: attemptId, "aiHandoff.at": null }, { $set: { "aiHandoff.at": new Date(), "aiHandoff.status": "SENDING" } }, { new: true })
+        const claimed = await OaAttempt.findOneAndUpdate({ _id: attemptId, $or: [{ "aiHandoff.at": null }, { "aiHandoff.status": "FAILED" }] }, { $set: { "aiHandoff.at": new Date(), "aiHandoff.status": "SENDING" } }, { new: true })
         if (!claimed) return
         const [assessment, student, account] = await Promise.all([OaAssessment.findById(claimed.assessmentId), OaStudent.findById(claimed.studentId), OaAccount.findById(claimed.accountId)])
         const part = assessment?.aiPart
@@ -24,4 +25,24 @@ export const handOffToAiInterview = async (attemptId) => {
     } catch (error) {
         console.error("[client-service] OA AI interview hand-off crashed:", error.message)
     }
+}
+
+/**
+ * The organizer invites finished candidates to the AI interview after looking at the scores. `minPercent` limits it to
+ * those who scored at least that; anyone removed for cheating or disqualified is never invited. Safe to repeat: someone
+ * already invited is skipped, and an earlier failed invite is tried again.
+ */
+export const inviteToAiInterview = async (accountId, assessmentId, { minPercent = 0 } = {}) => {
+    const assessment = await OaAssessment.findOne({ _id: assessmentId, accountId })
+    if (!assessment) throw new ApiError(404, "NOT_FOUND", "Round not found.")
+    if (!assessment.aiPart?.enabled || !assessment.aiPart.aiInterviewDriveId) throw new ApiError(409, "NO_AI_PART", "Add an AI interview to this round first.")
+    const min = Math.max(0, Math.min(100, Number(minPercent) || 0))
+    const attempts = await OaAttempt.find({ assessmentId, status: { $in: ["SUBMITTED", "AUTO_SUBMITTED"] }, adminDecision: { $ne: "DISQUALIFIED" }, percent: { $gte: min }, $or: [{ "aiHandoff.at": null }, { "aiHandoff.status": "FAILED" }] }).select("_id").lean()
+    let invited = 0, failed = 0
+    for (const a of attempts) {
+        await handOffToAiInterview(a._id)
+        const after = await OaAttempt.findById(a._id).select("aiHandoff").lean()
+        if (["SENT", "ALREADY"].includes(after?.aiHandoff?.status)) invited += 1; else failed += 1
+    }
+    return { invited, failed, considered: attempts.length }
 }

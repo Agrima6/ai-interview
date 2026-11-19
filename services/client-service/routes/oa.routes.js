@@ -7,6 +7,7 @@ import { OA_ROLES, requireOa } from "../utils/oaSecurity.js"
 import * as accounts from "../services/oaAccount.service.js"
 import * as assessments from "../services/oaAssessment.service.js"
 import * as exam from "../services/oaExam.service.js"
+import { inviteToAiInterview } from "../services/oaAiPart.service.js"
 import * as drives from "../services/oaDrive.service.js"
 import { brandForAssessmentId, resolveLogo } from "../services/oaBrand.service.js"
 import { placeName } from "../services/oaPlace.service.js"
@@ -163,6 +164,7 @@ router.delete("/oa/assessments/:id/students/:studentId", ...admin, handle((req) 
 
 router.get("/oa/assessments/:id/live", ...admin, handle((req) => assessments.live(req.oa.accountId, req.params.id)))
 router.get("/oa/assessments/:id/results", ...admin, handle((req) => assessments.results(req.oa.accountId, req.params.id, req.query), { list: true }))
+router.post("/oa/assessments/:id/ai-invites", ...admin, handle((req) => inviteToAiInterview(req.oa.accountId, req.params.id, req.body || {})))
 router.get("/oa/assessments/:id/results/export", ...admin, async (req, res, next) => {
     try {
         const { filename, csv } = await assessments.exportResultsCsv(req.oa.accountId, req.params.id, req.query)

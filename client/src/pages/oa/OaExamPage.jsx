@@ -15,8 +15,8 @@ function Finished({ session, info, onLeave }) {
     const result = info?.result || session.result
     const reason = info?.endReason || session.attempt?.endReason
     const view = {
-        SUBMITTED: [CheckCircle2, 'var(--color-success)', 'Your test has been submitted', session.assessment?.aiNext ? 'Your answers are saved. Next is a short AI interview: check your email for the invitation and use that link to take it.' : 'Your answers are saved. Your organizer will share the results.'],
-        AUTO_SUBMITTED: [Clock, 'var(--color-warning)', 'Time is up', session.assessment?.aiNext ? 'Your answers were submitted automatically. Next is a short AI interview: check your email for the invitation and use that link to take it.' : 'Your answers were submitted automatically. Your organizer will share the results.'],
+        SUBMITTED: [CheckCircle2, 'var(--color-success)', 'Your test has been submitted', session.assessment?.aiNext === 'AUTO' ? 'Your answers are saved. Next is a short AI interview: check your email for the invitation and use that link to take it.' : session.assessment?.aiNext === 'REVIEW' ? 'Your answers are saved. If you qualify, you will be invited to a short AI interview by email.' : 'Your answers are saved. Your organizer will share the results.'],
+        AUTO_SUBMITTED: [Clock, 'var(--color-warning)', 'Time is up', session.assessment?.aiNext === 'AUTO' ? 'Your answers were submitted automatically. Next is a short AI interview: check your email for the invitation and use that link to take it.' : session.assessment?.aiNext === 'REVIEW' ? 'Your answers were submitted automatically. If you qualify, you will be invited to a short AI interview by email.' : 'Your answers were submitted automatically. Your organizer will share the results.'],
         TERMINATED: [ShieldAlert, 'var(--color-danger)', 'Your test has ended', 'It ended automatically because of repeated proctoring violations. Your answers so far were saved, and your organizer will review what happened.'],
     }[status] || [CheckCircle2, 'var(--color-success)', 'Your test is complete', 'Thank you.']
     const [Icon, color, title, text] = view

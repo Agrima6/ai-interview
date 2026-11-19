@@ -83,7 +83,7 @@ export const finalizeAttempt = async (attemptId, { status, reason = null }) => {
     // Coding answers with test cases are run and scored in the background, so submitting never waits for the code runner.
     setImmediate(() => markAfterSubmit(attemptId))
     // Someone who finished the test (not someone removed for cheating) goes on to the AI interview part, if the round has one.
-    if (status !== "TERMINATED" && assessment.aiPart?.enabled) setImmediate(() => handOffToAiInterview(attemptId))
+    if (status !== "TERMINATED" && assessment.aiPart?.enabled && assessment.aiPart.when !== "AFTER_REVIEW") setImmediate(() => handOffToAiInterview(attemptId))
     return saved
 }
 
@@ -150,7 +150,7 @@ export const session = async (ctx) => {
             questionCount: assessment.questions.length, totalMarks: assessment.questions.reduce((sum, q) => sum + q.marks, 0),
             sectionCount: assessment.sections.length, allowBackNavigation: assessment.settings.allowBackNavigation,
             proctoring: proctoringView(assessment.proctoring),
-            aiNext: Boolean(assessment.aiPart?.enabled),
+            aiNext: assessment.aiPart?.enabled ? (assessment.aiPart.when === "AFTER_REVIEW" ? "REVIEW" : "AUTO") : null,
         },
         attempt: fresh ? { status: fresh.status, startedAt: fresh.startedAt, deadline: fresh.deadline, submittedAt: fresh.submittedAt, endReason: fresh.endReason } : null,
         canStart: !finished && (fresh ? fresh.status === "IN_PROGRESS" : phase === "OPEN"),

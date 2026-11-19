@@ -77,6 +77,8 @@ const assessmentSchema = new Schema({
         enabled: { type: Boolean, default: false },
         aiInterviewDriveId: { type: String, default: null },
         roundNumber: { type: Number, default: 1 },
+        // AFTER_SUBMIT: invited automatically when they submit. AFTER_REVIEW: the organizer invites chosen candidates from Results.
+        when: { type: String, enum: ["AFTER_SUBMIT", "AFTER_REVIEW"], default: "AFTER_SUBMIT" },
     },
     // An open link candidates use to register themselves. Every registration waits for the organizer's approval.
     registration: {

@@ -43,7 +43,7 @@ export const assessmentView = (a, extra = {}) => {
         id: String(o._id), title: o.title, description: o.description, instructions: o.instructions, status: o.status,
         roundLabel: o.roundLabel, previousAssessmentId: o.previousAssessmentId ? String(o.previousAssessmentId) : null,
         driveId: o.driveId ? String(o.driveId) : null, roundNumber: o.roundNumber || 1, kind: o.kind || "TEST", aiInterviewDriveId: o.aiInterviewDriveId || null,
-        aiPart: { enabled: Boolean(o.aiPart?.enabled), aiInterviewDriveId: o.aiPart?.aiInterviewDriveId || null, roundNumber: o.aiPart?.roundNumber || 1 },
+        aiPart: { enabled: Boolean(o.aiPart?.enabled), aiInterviewDriveId: o.aiPart?.aiInterviewDriveId || null, roundNumber: o.aiPart?.roundNumber || 1, when: o.aiPart?.when === "AFTER_REVIEW" ? "AFTER_REVIEW" : "AFTER_SUBMIT" },
         registration: { enabled: Boolean(o.registration?.enabled), token: o.registration?.token || null, closesAt: o.registration?.closesAt || null, maxRegistrations: o.registration?.maxRegistrations ?? null },
         schedule: o.schedule, settings: o.settings, proctoring: o.proctoring,
         sections: (o.sections || []).map((s) => ({ id: s.id, title: sectionName(s.title) })), questions: o.questions,
@@ -221,7 +221,7 @@ export const updateAssessment = async (accountId, id, patch = {}) => {
         const p = patch.aiPart || {}
         const driveId = cleanText(p.aiInterviewDriveId, 64).replace(/[^a-zA-Z0-9_-]/g, "") || null
         if (p.enabled && !driveId) throw new ApiError(400, "VALIDATION_ERROR", "Choose the AI interview first.", { aiInterviewDriveId: "Choose the AI interview." })
-        assessment.aiPart = { enabled: Boolean(p.enabled), aiInterviewDriveId: p.enabled ? driveId : (driveId || assessment.aiPart?.aiInterviewDriveId || null), roundNumber: Math.max(1, Math.min(20, Number(p.roundNumber) || 1)) }
+        assessment.aiPart = { enabled: Boolean(p.enabled), aiInterviewDriveId: p.enabled ? driveId : (driveId || assessment.aiPart?.aiInterviewDriveId || null), roundNumber: Math.max(1, Math.min(20, Number(p.roundNumber) || 1)), when: p.when === "AFTER_REVIEW" ? "AFTER_REVIEW" : "AFTER_SUBMIT" }
     }
 
     const structural = patch.sections !== undefined || patch.settings !== undefined || patch.proctoring !== undefined || patch.schedule !== undefined
