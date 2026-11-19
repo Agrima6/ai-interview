@@ -6,6 +6,7 @@ import CriteriaWeightageBuilder from './CriteriaWeightageBuilder'
 import QuestionSetBuilder from './QuestionSetBuilder'
 import CandidateImportModal from './CandidateImportModal'
 import InterviewLanguageSettings from './InterviewLanguageSettings'
+import { rolesForDepartment, roleFitsDepartment } from '../../constants/departmentRoles'
 import { createInterviewDrive, getQuestionBanks, getNotificationTemplates, getOrganizationProfile, updateRound } from '../../api/organization/organizationApi'
 import { BLUE_COLLAR_ROLES, questionBanksForRole } from '../../constants/blueCollarRoles'
 import { PROFESSIONAL_ROLES } from '../../constants/professionalRoles'
@@ -32,6 +33,7 @@ const DEPARTMENTS = [
   { value: 'Quality Assurance', label: 'Quality Assurance' },
   { value: 'Human Resources', label: 'Human Resources' },
   { value: 'Finance & Accounts', label: 'Finance & Accounts' },
+  { value: 'Legal', label: 'Legal' },
   { value: 'Sales & Business Dev', label: 'Sales & Business Dev' },
   { value: 'Operations', label: 'Operations' },
   { value: 'Marketing', label: 'Marketing' },
@@ -347,6 +349,13 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
+  // Department comes first and decides which positions are offered; a role that no longer fits is cleared.
+  const roleOptions = useMemo(() => rolesForDepartment(formData.department, ROLE_CATEGORIES, isEditing ? formData.roleCategory : ''), [formData.department, formData.roleCategory, isEditing])
+  const handleDepartmentChange = (department) => {
+    setErrorMessage('')
+    setFormData((prev) => ({ ...prev, department, roleCategory: roleFitsDepartment(department, prev.roleCategory, ROLE_CATEGORIES) ? prev.roleCategory : '' }))
+  }
+
   const handleCriteriaNameChange = (idx, newName) =>
     setSkillWeightages((prev) => prev.map((item, i) => (i === idx ? { ...item, name: newName } : item)))
 
@@ -609,7 +618,9 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
                 <ArrowLeft size={14} /> Back
               </Button>
             ) : (
-              <div />
+              <Button type="button" variant="secondary" size="sm" onClick={onClose} disabled={submitting}>
+                <ArrowLeft size={14} /> Cancel
+              </Button>
             )}
 
             {step < 6 ? (
@@ -670,8 +681,8 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
               <div className="space-y-4">
                 <Input label="Interview name *" placeholder="e.g. Senior Product Manager Interview Drive" value={formData.title} onChange={(e) => handleChange('title', e.target.value)} required />
                 <div className="grid gap-4 sm:grid-cols-2">
-              <EditableSelect label="Position / role *" placeholder="Select or add a role" options={ROLE_CATEGORIES} value={formData.roleCategory} onChange={(e) => handleChange('roleCategory', e.target.value)} />
-              <EditableSelect label="Department *" placeholder="Select or add a department" options={DEPARTMENTS} value={formData.department} onChange={(e) => handleChange('department', e.target.value)} />
+              <EditableSelect label="Department *" placeholder="Select or add a department" options={DEPARTMENTS} value={formData.department} onChange={(e) => handleDepartmentChange(e.target.value)} />
+              <EditableSelect label="Position / role *" placeholder="Select or add a role" hint={formData.department ? undefined : 'Choose a department first; the roles that fit it appear here.'} options={roleOptions} value={formData.roleCategory} onChange={(e) => handleChange('roleCategory', e.target.value)} />
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
               <EditableSelect label="Experience" placeholder="Select or add experience" options={EXPERIENCE_LEVELS} value={formData.experienceLevel} onChange={(e) => handleChange('experienceLevel', e.target.value)} />
