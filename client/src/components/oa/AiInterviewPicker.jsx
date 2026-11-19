@@ -10,6 +10,7 @@ import { inputClass } from './oaFormat'
 
 // The existing Create Interview form, used exactly as it is: it is loaded only when someone asks to create an AI interview.
 const CreateInterviewForm = lazy(() => import('../organization/CreateDriveModal'))
+const QuickSetup = lazy(() => import('./QuickAiInterviewModal'))
 
 /**
  * Choose the AI interview for a round. The main path is to set one up right here with the usual Create Interview form
@@ -18,13 +19,13 @@ const CreateInterviewForm = lazy(() => import('../organization/CreateDriveModal'
 export default function AiInterviewPicker({ value, onChange, disabled = false, pending = false, getPrefill = null }) {
     const base = useOaBase()
     const { signedIn, query, options } = useAiInterviews()
-    const [creating, setCreating] = useState(false)
+    const [creating, setCreating] = useState(false)           // false | 'quick' | 'full'
     const [prefill, setPrefill] = useState(null)
     const [preparing, setPreparing] = useState(false)
     const openForm = async () => {
         setPreparing(true)
         try { setPrefill(getPrefill ? await getPrefill() : null) } catch { setPrefill(null) } finally { setPreparing(false) }
-        setCreating(true)
+        setCreating('quick')
     }
     const chosen = options.find((o) => o.id === value)
     const openRounds = (chosen?.rounds || []).filter((r) => r.status === 'ACTIVE')
@@ -59,7 +60,12 @@ export default function AiInterviewPicker({ value, onChange, disabled = false, p
                     <p className='text-[12px] text-text-secondary mt-1.5'><Bot size={12} className='inline -mt-0.5 mr-1' aria-hidden='true' />These are the AI interviews already in your organization, not rounds of this drive.</p>
                 </div>
             )}
-            {creating && (
+            {creating === 'quick' && (
+                <Suspense fallback={null}>
+                    <QuickSetup prefill={prefill} onClose={() => setCreating(false)} onAdvanced={() => setCreating('full')} onCreated={(drive) => { const id = String(drive?._id || drive?.id || ''); setCreating(false); if (id) onChange(id) }} />
+                </Suspense>
+            )}
+            {creating === 'full' && (
                 <Suspense fallback={null}>
                     <CreateInterviewForm open prefill={prefill} onClose={() => setCreating(false)} onCreateDrive={(drive) => { const id = String(drive?._id || drive?.id || ''); if (id) onChange(id) }} />
                 </Suspense>
