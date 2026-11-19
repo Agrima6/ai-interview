@@ -134,6 +134,8 @@ export default function ExamLobby({ session, screenStream, onScreenStream, onSta
                         {a.instructions && <p className='text-[14px] text-ink whitespace-pre-wrap leading-relaxed mb-4'>{a.instructions}</p>}
                         <ul className='text-[13.5px] text-ink space-y-2 list-disc pl-5'>
                             <li>The clock starts when you press Start and does not stop. Your answers save automatically.</li>
+                            {a.aiNext === 'AUTO' && <li><b>Your AI interview follows this test.</b> When you submit, it opens straight away on this screen. Keep your camera and microphone ready.</li>}
+                            {a.aiNext === 'REVIEW' && <li>After this test, you may be invited by email to a short AI interview.</li>}
                             {a.schedule.mode === 'FLEXIBLE' && <li>You can take this test at any time while it is open, until {formatDateTime(a.schedule.endAt, a.schedule.timezone)}.</li>}
                             <li>Your questions are in an order of your own. Other students see them differently.</li>
                             {!a.allowBackNavigation && <li>You cannot go back to a question once you move on.</li>}

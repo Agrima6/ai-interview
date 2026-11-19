@@ -208,3 +208,13 @@ test("a test can have several sections, added and filled", opts, async () => {
     const after = await call("GET", `/oa/assessments/${id}`, { token: state.admin })
     assert.equal(after.data.questions[0].sectionId, two.data.sections[2].id)
 })
+
+test("two organization sessions opened at the same moment still share ONE Online Assessment account", opts, async () => {
+    const tenant = "6a00000000000000000000aa"
+    await models.OaAccount.deleteMany({ tenantId: tenant })
+    const { orgSession } = await import("../services/oaAccount.service.js")
+    const user = { tenantId: tenant, email: "boss@race.test" }
+    const sessions = await Promise.all(Array.from({ length: 6 }, () => orgSession(user)))
+    assert.equal(await models.OaAccount.countDocuments({ tenantId: tenant }), 1)
+    assert.equal(new Set(sessions.map((s) => s.account.id)).size, 1)
+})

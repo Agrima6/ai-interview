@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, FileUp, Loader2, Pencil, Plus, RefreshCw, Sparkles, Trash2, TriangleAlert, Wand2 } from 'lucide-react'
+import { Bot, Download, FileUp, Loader2, Pencil, Plus, RefreshCw, Sparkles, Trash2, TriangleAlert, Wand2 } from 'lucide-react'
 import { oaApi } from '../../api/oaApi'
 import { parseCsv } from '../../utils/csvRows'
 import Badge from '../ui/Badge'
@@ -14,6 +14,7 @@ import { DIFFICULTIES, TYPE_LABELS, difficultyLabel, downloadText, inputClass, s
 import { NumberField, TextField } from './oaFields'
 import { FILTERS, LIMITS, lengthError, rangeError } from './oaRules'
 import QuestionEditorModal from './QuestionEditorModal'
+import useAiInterviews from '../../hooks/useAiInterviews'
 
 const TEMPLATE = [
     'section,type,question,optionA,optionB,optionC,optionD,correct,marks,negative,keywords,answer,difficulty',
@@ -201,6 +202,22 @@ function AiModal({ open, onClose, assessment, onDone }) {
     )
 }
 
+// The AI interview is the last item of the paper, so HR sees the whole order: sections, then the interview.
+function AiInterviewLastRow({ assessment: a }) {
+    const { options } = useAiInterviews()
+    if (!a.aiPart?.enabled || a.aiPart.when === 'AFTER_REVIEW') return null
+    const title = options.find((o) => o.id === a.aiPart.aiInterviewDriveId)?.title
+    return (
+        <div className='mt-6 flex items-center gap-3 rounded-2xl border-2 border-accent bg-accent/[0.05] px-5 py-4' aria-label='The AI interview comes last'>
+            <span className='w-9 h-9 shrink-0 rounded-xl bg-accent text-white flex items-center justify-center' aria-hidden='true'><Bot size={18} strokeWidth={1.8} /></span>
+            <div className='min-w-0'>
+                <p className='text-[14px] font-bold text-ink'>Last: AI interview{title ? ` · ${title}` : ''}</p>
+                <p className='text-[12.5px] text-text-secondary'>After the last question above, candidates go straight into it on the same screen.</p>
+            </div>
+        </div>
+    )
+}
+
 export default function QuestionsTab({ assessment: a }) {
     const toast = useToast()
     const queryClient = useQueryClient()
@@ -280,6 +297,7 @@ export default function QuestionsTab({ assessment: a }) {
                     </Panel>
                 ))}
             </div>
+            <AiInterviewLastRow assessment={a} />
             {!locked && a.sections.length < 12 && (
                 <button className='mt-4 text-[13px] font-semibold text-accent inline-flex items-center gap-1.5' onClick={() => sections.mutate([...a.sections, { title: '' }])} disabled={sections.isPending}><Plus size={14} /> Add a section</button>
             )}

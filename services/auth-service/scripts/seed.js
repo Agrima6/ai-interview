@@ -4,6 +4,8 @@ import connectDb from "../config/connectDb.js"
 import * as roleRepo from "../repositories/role.repository.js"
 import * as userRepo from "../repositories/user.repository.js"
 
+const isProd = process.env.NODE_ENV === "production"
+
 const run = async () => {
     await connectDb()
 

@@ -253,6 +253,7 @@ export default function ExamRunner({ paper, screenStream, onScreenStream, onFini
                 <p className='text-[14px] text-ink'>You have answered <b>{answeredCount} of {flat.length}</b> questions{flat.length - answeredCount > 0 && <>, leaving <b>{flat.length - answeredCount}</b> blank</>}.</p>
                 {review.size > 0 && <p className='text-[13px] text-[var(--color-warning)] mt-2'>{review.size} question{review.size === 1 ? ' is' : 's are'} still marked for review.</p>}
                 <p className='text-[13px] text-text-secondary mt-3'>You cannot change your answers after submitting.</p>
+                {paper.aiNext === 'AUTO' && <p className='text-[13px] text-ink mt-2 font-semibold'>Your AI interview opens right after you submit.</p>}
             </Modal>
         </div>
     )

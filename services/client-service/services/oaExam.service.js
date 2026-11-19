@@ -195,6 +195,8 @@ const paperPayload = (assessment, attempt) => {
         // Languages the candidate can run against the sample test cases (empty when no code runner is set up).
         runnableLanguages: runnableLanguages(),
         allowBackNavigation: assessment.settings.allowBackNavigation,
+        // Whether an AI interview follows the test in the same sitting, so the candidate is told before they start and before they submit.
+        aiNext: assessment.aiPart?.enabled ? (assessment.aiPart.when === "AFTER_REVIEW" ? "REVIEW" : "AUTO") : null,
         proctoring: proctoringView(assessment.proctoring), violationCount: attempt.violationCount,
         sections: attempt.order.sections.map((s) => ({
             id: s.sectionId, number: assessment.sections.findIndex((x) => x.id === s.sectionId) + 1,
