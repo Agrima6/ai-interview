@@ -1,22 +1,19 @@
-import React, { Suspense, lazy, useState } from 'react'
+import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bot, CheckCircle2, Download, ExternalLink, Link2, Plus, Send, Users } from 'lucide-react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { CheckCircle2, Download, ExternalLink, Link2, Send, Users } from 'lucide-react'
 import { oaApi } from '../../api/oaApi'
-import { addCandidatesToDrive, listInterviewDrives } from '../../api/organization/organizationApi'
+import { addCandidatesToDrive } from '../../api/organization/organizationApi'
 import { useAuth } from '../../hooks/useAuth.jsx'
 import Button from '../Button'
 import ConfirmModal from '../ui/ConfirmModal'
-import Skeleton from '../ui/Skeleton'
 import { useToast } from '../ui/Toast'
 import { DriveStepper, StepFooter, StepIntro } from './DriveStepper'
-import { ErrorState } from './oaUi'
+import AiInterviewPicker from './AiInterviewPicker'
+import useAiInterviews from '../../hooks/useAiInterviews'
 import { downloadText, inputClass } from './oaFormat'
 import StudentsTab from './StudentsTab'
 import useOaBase from '../../hooks/useOaBase'
-
-// The existing Create Interview form, used exactly as it is: it is loaded only when someone asks to create an AI interview.
-const CreateInterviewForm = lazy(() => import('../organization/CreateDriveModal'))
 
 const BATCH = 100
 const csvCell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
@@ -42,14 +39,12 @@ export default function AiInterviewRound({ assessment: a, driveArchived, step, o
     const auth = useAuth()
     const signedIn = auth.status === 'authenticated'
     const base = useOaBase()
-    const [creating, setCreating] = useState(false)
     const [confirm, setConfirm] = useState(false)
     const [outcome, setOutcome] = useState(null)
     const candidates = a.stats?.students || 0
     const archived = a.status === 'ARCHIVED' || driveArchived
 
-    const interviews = useQuery({ queryKey: ['oa', 'ai-interviews'], queryFn: () => listInterviewDrives({ status: 'ACTIVE', page: 1, pageSize: 100 }), enabled: signedIn, staleTime: 60 * 1000 })
-    const options = (interviews.data?.items || []).map((d) => ({ id: String(d._id || d.id), title: d.title, rounds: (d.rounds || []).map((r) => ({ roundNumber: r.roundNumber, title: r.title, status: r.status })) }))
+    const { options } = useAiInterviews()
     const chosen = options.find((o) => o.id === a.aiInterviewDriveId)
     const openRounds = (chosen?.rounds || []).filter((r) => r.status === 'ACTIVE')
     const [roundChoice, setRoundChoice] = useState('')
@@ -115,31 +110,7 @@ export default function AiInterviewRound({ assessment: a, driveArchived, step, o
 
             {current === 'interview' && (
                 <div className='bg-card border border-line rounded-2xl p-5 max-w-2xl'>
-                    {!signedIn ? (
-                        <p className='text-[13.5px] text-text-secondary'>AI interviews belong to your organization account. Sign in through the main WorkmateIQ sign-in to choose one here, or download the list in step 3 and upload it in AI Interview.</p>
-                    ) : interviews.isError ? <ErrorState title='Could not load your AI interviews' message={interviews.error.message} onRetry={interviews.refetch} />
-                        : interviews.isLoading ? <div className='space-y-3'><Skeleton className='h-4 w-1/3' /><Skeleton className='h-11 w-full' /></div>
-                            : options.length === 0 ? (
-                                <div>
-                                    <p className='text-[14px] font-bold text-ink'>You have no active AI interview yet</p>
-                                    <p className='text-[13px] text-text-secondary mt-1 mb-4'>Set one up now. It uses the same Create Interview form as everywhere else, and is linked to this round when you finish.</p>
-                                    <Button size='sm' disabled={archived} onClick={() => setCreating(true)}><Plus size={15} /> Create an AI interview</Button>
-                                </div>
-                            ) : (
-                                <>
-                                    <label htmlFor='ai-drive' className='block text-[13px] font-semibold text-ink mb-1.5'>AI interview</label>
-                                    <select id='ai-drive' className={inputClass} disabled={archived || link.isPending} value={chosen?.id || ''} onChange={(e) => link.mutate(e.target.value)}>
-                                        <option value=''>Choose an AI interview…</option>
-                                        {options.map((o) => <option key={o.id} value={o.id}>{o.title}</option>)}
-                                    </select>
-                                    <button type='button' disabled={archived} onClick={() => setCreating(true)} className='mt-3 inline-flex items-center gap-1.5 text-[13px] font-semibold text-accent hover:underline disabled:opacity-50'><Plus size={14} /> Create a new AI interview instead</button>
-                                    {a.aiInterviewDriveId && !chosen && <p className='text-[12.5px] text-[var(--color-warning)] mt-2'>The AI interview chosen earlier is no longer active. Choose another one.</p>}
-                                    {chosen && (
-                                        <p className='oa-rise flex items-start gap-2 text-[13px] text-ink mt-3'><CheckCircle2 size={16} className='text-[var(--color-success)] mt-0.5 shrink-0' aria-hidden='true' />
-                                            <span>Selected: <strong>{chosen.title}</strong>. {openRounds.length ? 'Continue to step 3 to send the candidates.' : 'It has no active round yet, so activate a round in AI Interview before sending.'} {base.aiDrive && <Link to={base.aiDrive(chosen.id)} className='font-semibold text-accent hover:underline'>Open this AI interview</Link>}</span></p>
-                                    )}
-                                </>
-                            )}
+                    <AiInterviewPicker value={a.aiInterviewDriveId} onChange={(id) => link.mutate(id)} disabled={archived} pending={link.isPending} />
                 </div>
             )}
 
@@ -177,12 +148,6 @@ export default function AiInterviewRound({ assessment: a, driveArchived, step, o
             )}
 
             <StepFooter previous={steps[index - 1]} next={steps[index + 1]} onSelect={onStep} />
-
-            {creating && (
-                <Suspense fallback={null}>
-                    <CreateInterviewForm open onClose={() => setCreating(false)} onCreateDrive={(drive) => { const id = String(drive?._id || drive?.id || ''); if (id) link.mutate(id) }} />
-                </Suspense>
-            )}
 
             <ConfirmModal open={confirm} onClose={() => setConfirm(false)} title={`Send ${candidates} candidate${candidates === 1 ? '' : 's'} to the AI interview?`} confirmLabel='Send and invite' onConfirm={() => send.mutateAsync().catch(() => {})}>
                 They are added to "{chosen?.title}" and each one is emailed an interview invitation straight away. Anyone already on that interview is skipped, so nobody is invited twice.
