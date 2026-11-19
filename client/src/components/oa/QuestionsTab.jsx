@@ -233,8 +233,9 @@ export default function QuestionsTab({ assessment: a }) {
     return (
         <>
             <div className='flex flex-wrap items-center justify-between gap-3 mb-5'>
-                <p className='text-[13.5px] text-text-secondary'>{a.questionCount} question{a.questionCount === 1 ? '' : 's'} · {a.totalMarks} marks in total</p>
+                <p className='text-[13.5px] text-text-secondary'>{a.questionCount} question{a.questionCount === 1 ? '' : 's'} · {a.totalMarks} marks in total · {a.sections.length} section{a.sections.length === 1 ? '' : 's'}</p>
                 <div className='flex flex-wrap gap-2'>
+                    <Button size='sm' variant='secondary' disabled={locked || sections.isPending || a.sections.length >= 12} onClick={() => sections.mutate([...a.sections, { title: '' }])}><Plus size={14} /> Add section</Button>
                     <Button size='sm' variant='secondary' disabled={locked} onClick={() => setAi(true)}><Sparkles size={14} /> Generate with AI</Button>
                     <Button size='sm' variant='secondary' disabled={locked} onClick={() => setUpload(true)}><FileUp size={14} /> Upload file</Button>
                     <Button size='sm' disabled={locked} onClick={() => setEditing({ sectionId: a.sections[0].id })}><Plus size={14} /> Write a question</Button>

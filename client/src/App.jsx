@@ -93,6 +93,7 @@ const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage'))
 const CandidateChangePassword = lazy(() => import('./pages/candidate/CandidateChangePassword'))
 const CandidateRoomPage = lazy(() => import('./pages/candidate/CandidateRoomPage'))
 const InterviewRoomPage = lazy(() => import('./pages/candidate/InterviewRoomPage'))
+const CandidateHandoffPage = lazy(() => import('./pages/candidate/CandidateHandoffPage'))
 
 export { ServerUrl }
 
@@ -226,6 +227,7 @@ function App() {
       <Route path='/candidate/login' element={<Navigate to='/login' replace />} />
       <Route path='/candidate/change-password' element={<CandidateChangePassword/>}/>
       <Route path='/candidate/room' element={<RequireCandidateAuth><CandidateRoomPage/></RequireCandidateAuth>}/>
+      <Route path='/candidate/handoff' element={<CandidateHandoffPage/>}/>
       <Route path='/candidate/interview/:driveId/:roundNumber' element={<RequireCandidateAuth><InterviewRoomPage/></RequireCandidateAuth>}/>
       <Route path='/dashboard' element={<RequireAuth><Home/></RequireAuth>}/>
       <Route path='/interview' element={<RequireAuth><InterviewPage/></RequireAuth>}/>

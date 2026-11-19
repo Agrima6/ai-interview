@@ -170,6 +170,8 @@ export const examApi = {
     heartbeat: (snapshot) => post('/exam/heartbeat', { snapshot }),
     violation: (body) => post('/exam/violation', body),
     submit: () => post('/exam/submit'),
+    // After the test, in the same sitting: a one-time ticket into the AI interview (or `emailed` when that is not possible).
+    aiInterview: () => run(http.post('/exam/ai-interview', {}, { timeout: 30000 })),
 }
 
 /** An organization signed in to WorkmateIQ trades that sign-in for an Online Assessment session the first time it is needed. */

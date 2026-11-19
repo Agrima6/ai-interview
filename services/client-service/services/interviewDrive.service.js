@@ -519,7 +519,7 @@ export const resendInvites = async (tenantId, driveId, roundNumber, candidateIds
     return { inviteSummary, sent: toInvite.length, skipped }
 }
 
-export const addCandidatesToDrive = async (tenantId, driveId, candidates, ctx, roundNumber = 1) => {
+export const addCandidatesToDrive = async (tenantId, driveId, candidates, ctx, roundNumber = 1, { invite = true } = {}) => {
     if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
     requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
     if (!Array.isArray(candidates) || candidates.length === 0) throw new ApiError(400, "CANDIDATES_REQUIRED", "At least one candidate is required.")
@@ -557,7 +557,8 @@ export const addCandidatesToDrive = async (tenantId, driveId, candidates, ctx, r
     drive.candidatesCount = drive.rounds.reduce((total, item) => total + item.candidates.length, 0)
     await drive.save()
     drive.$locals.addSummary = { added: additions.length, skipped }
-    drive.$locals.inviteSummary = await inviteCandidates(tenantId, drive, additions, ctx, round)
+    // invite: false adds people to the roster without emailing them (they are being taken straight into the interview).
+    drive.$locals.inviteSummary = invite ? await inviteCandidates(tenantId, drive, additions, ctx, round) : { attempted: 0, failed: [], skipped: "NOT_REQUESTED" }
     return drive
 }
 

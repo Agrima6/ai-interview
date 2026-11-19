@@ -50,19 +50,19 @@ export default function AiPartCard({ assessment: a, drive, disabled = false }) {
                     <div className='flex items-start justify-between gap-3'>
                         <div>
                             <h3 className='text-[15px] font-bold text-ink'>AI interview in this round</h3>
-                            <p className='text-[13px] text-text-secondary mt-0.5'>After a candidate submits the test, they are emailed their AI interview invitation automatically.</p>
+                            <p className='text-[13px] text-text-secondary mt-0.5'>One round: the AI interview follows the test questions.</p>
                         </div>
                         <Button size='sm' variant='secondary' disabled={disabled || save.isPending} onClick={remove}><X size={14} /> Remove</Button>
                     </div>
                     <p className='mt-4 text-[13px] font-semibold text-ink'>When do candidates get the AI interview?</p>
                     <fieldset className='mt-2 grid sm:grid-cols-2 gap-3' disabled={disabled || save.isPending}>
-                        <Choice name={`ai-when-${a.id}`} selected={when === 'AFTER_SUBMIT'} onSelect={() => setWhen('AFTER_SUBMIT')} icon={Mail} title='Right after the test' text='Everyone who submits is emailed the AI interview automatically.' />
+                        <Choice name={`ai-when-${a.id}`} selected={when === 'AFTER_SUBMIT'} onSelect={() => setWhen('AFTER_SUBMIT')} icon={Mail} title='Right after the test, in one sitting' text='Candidates finish the test and go straight into the AI interview on the same screen. No email, no new sign-in.' />
                         <Choice name={`ai-when-${a.id}`} selected={when === 'AFTER_REVIEW'} onSelect={() => setWhen('AFTER_REVIEW')} icon={ClipboardCheck} title='After I review the scores' text='Nobody is invited until you choose, e.g. everyone who scored 60% or more (in Results).' />
                     </fieldset>
                     <ol className='mt-3 flex flex-wrap items-center gap-x-1.5 gap-y-2 text-[12.5px]' aria-label='What each candidate does, in order'>
                         <li className='inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-3 py-1.5 font-semibold text-ink'><ClipboardCheck size={13} aria-hidden='true' /> Takes this test</li>
                         <ChevronRight size={14} className='text-text-secondary' aria-hidden='true' />
-                        <li className='inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-3 py-1.5 font-semibold text-ink'><Mail size={13} aria-hidden='true' /> {when === 'AFTER_SUBMIT' ? 'Gets the invitation email' : 'You review, then invite'}</li>
+                        <li className='inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-3 py-1.5 font-semibold text-ink'><Mail size={13} aria-hidden='true' /> {when === 'AFTER_SUBMIT' ? 'Continues automatically' : 'You review, then invite'}</li>
                         <ChevronRight size={14} className='text-text-secondary' aria-hidden='true' />
                         <li className='inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1.5 font-semibold text-accent'><Bot size={13} aria-hidden='true' /> Takes the AI interview</li>
                     </ol>

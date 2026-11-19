@@ -8,3 +8,4 @@ export const changePassword = (currentPassword, newPassword) =>
     apiPost("/api/v1/auth/change-password", { currentPassword, newPassword })
 export const forgotPassword = (email) => apiPost("/api/v1/auth/forgot-password", { email })
 export const resetPassword = (token, newPassword) => apiPost("/api/v1/auth/reset-password", { token, newPassword })
+export const handoff = (ticket) => apiPost("/api/v1/auth/handoff", { ticket })

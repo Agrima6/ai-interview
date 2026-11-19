@@ -27,6 +27,13 @@ export const communicationServiceClient = {
 // public application - same contract onboarding-service already uses for
 // createClientUser, one level down in auth-service.
 export const authServiceClient = {
+    // A one-time ticket that lets a candidate who just finished the online test continue into the AI interview
+    // without signing in again. Auth-service refuses anyone who is not a plain candidate of this organization.
+    createCandidateHandoff: (payload, ctx) =>
+        client.post(`${process.env.AUTH_SERVICE_URL}/internal/v1/candidate-handoffs`, payload, {
+            apiKey: process.env.AUTH_SERVICE_API_KEY,
+            ...ctxHeaders(ctx),
+        }),
     createCandidateUser: (payload, ctx) =>
         client.post(`${process.env.AUTH_SERVICE_URL}/internal/v1/candidate-users`, payload, {
             apiKey: process.env.AUTH_SERVICE_API_KEY,

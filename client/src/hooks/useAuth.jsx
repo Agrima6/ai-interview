@@ -74,6 +74,20 @@ export function AuthProvider({ children }) {
         return loggedInUser
     }, [resetAccountState, announce])
 
+    // A one-time ticket from the online test room becomes this browser's candidate session (no password typed).
+    const loginWithTicket = useCallback(async (ticket) => {
+        setAccessToken(null)
+        resetAccountState()
+        setUser(null)
+        setStatus('anonymous')
+        const { user: loggedInUser, accessToken } = await authApi.handoff(ticket)
+        setAccessToken(accessToken)
+        setUser(loggedInUser)
+        setStatus('authenticated')
+        announce('login')
+        return loggedInUser
+    }, [resetAccountState, announce])
+
     const loginWithGoogle = useCallback(async (idToken) => {
         setAccessToken(null)
         resetAccountState()
@@ -97,7 +111,7 @@ export function AuthProvider({ children }) {
     }, [resetAccountState, announce])
 
     return (
-        <AuthContext.Provider value={{ user, status, login, loginWithGoogle, logout, refresh: loadSession }}>
+        <AuthContext.Provider value={{ user, status, login, loginWithTicket, loginWithGoogle, logout, refresh: loadSession }}>
             {children}
         </AuthContext.Provider>
     )
