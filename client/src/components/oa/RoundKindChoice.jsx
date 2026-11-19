@@ -1,8 +1,9 @@
 import React from 'react'
-import { Bot, Check, ClipboardCheck } from 'lucide-react'
+import { Bot, Check, ClipboardCheck, Layers } from 'lucide-react'
 
 const KINDS = [
-    { id: 'TEST', icon: ClipboardCheck, title: 'Online test', text: 'MCQ, written, coding and video questions in a proctored test room. Add an AI interview after it if you like.' },
+    { id: 'TEST', icon: ClipboardCheck, title: 'Online test', text: 'MCQ, written, coding and video questions in a proctored test room.' },
+    { id: 'TEST_AI', icon: Layers, title: 'Online test + AI interview', text: 'Candidates take the test, then go straight into an AI interview in the same sitting.' },
     { id: 'AI_INTERVIEW', icon: Bot, title: 'AI interview', text: 'Only an AI interview in this round, no test. The AI interviewer speaks to each candidate and scores the conversation.' },
 ]
 
@@ -22,10 +23,11 @@ export function Choice({ selected, onSelect, icon, title, text, disabled, name }
     )
 }
 
-/** Online test or AI interview. */
+/** Online test, online test + AI interview, or AI interview only. `TEST_AI` is a test round that also runs an AI interview; the server stores it as a TEST round with an AI part. */
+
 export default function RoundKindChoice({ value, onChange, name = 'round-kind' }) {
     return (
-        <div className='grid sm:grid-cols-2 gap-3'>
+        <div className='grid sm:grid-cols-3 gap-3'>
             {KINDS.map((k) => <Choice key={k.id} name={name} selected={value === k.id} onSelect={() => onChange(k.id)} icon={k.icon} title={k.title} text={k.text} />)}
         </div>
     )

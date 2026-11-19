@@ -7,6 +7,7 @@ import { useToast } from '../ui/Toast'
 import { TextField } from './oaFields'
 import { FILTERS, LIMITS, lengthError } from './oaRules'
 import RoundKindChoice from './RoundKindChoice'
+import { serverKind } from './oaFormat'
 import DriveDetailsFields from './DriveDetailsFields'
 
 function NewDriveForm({ onClose, onCreated }) {
@@ -18,11 +19,11 @@ function NewDriveForm({ onClose, onCreated }) {
     const [titleError, setTitleError] = useState('')
     const problem = lengthError(title, { ...LIMITS.title, label: 'The name' })
     const create = useMutation({
-        mutationFn: async () => { await ensureOaSession(); return oaApi.createDrive({ title: title.trim(), kind, ...details }) },
+        mutationFn: async () => { await ensureOaSession(); return oaApi.createDrive({ title: title.trim(), kind: serverKind(kind), ...details }) },
         onSuccess: (drive) => {
             queryClient.invalidateQueries({ queryKey: ['oa'] }); queryClient.invalidateQueries({ queryKey: ['unified-drives'] })
-            toast.success(kind === 'TEST' ? 'Drive created. Start with step 1: add questions.' : 'Drive created. Start with step 1: add candidates.')
-            onCreated(drive)
+            toast.success(kind !== 'AI_INTERVIEW' ? 'Drive created. Start with step 1: add questions.' : 'Drive created. Start with step 1: add candidates.')
+            onCreated(drive, { withAi: kind === 'TEST_AI' })
         },
         onError: (err) => { setTitleError(err.fields?.title || err.message); toast.error(err.message) },
     })
