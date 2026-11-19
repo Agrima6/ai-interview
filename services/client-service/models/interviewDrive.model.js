@@ -164,6 +164,12 @@ const InterviewDriveSchema = new mongoose.Schema(
         passingThreshold: { type: Number, default: 70 },
         // VOICE = mic only, VIDEO = mic + camera, SCREEN = mic + camera + screen (default; matches current proctoring).
         interviewMode: { type: String, enum: ["VOICE", "VIDEO", "SCREEN"], default: "SCREEN" },
+        // Which languages the AI interviewer may use and whether the candidate may switch (see utils/languagePolicy.js).
+        languagePolicy: {
+            defaultLanguage: { type: String, enum: INTERVIEW_LANGUAGE_CODES, default: "en" },
+            allowed: [{ type: String, enum: INTERVIEW_LANGUAGE_CODES }],
+            allowSwitch: { type: Boolean, default: true },
+        },
         enablePublicLink: { type: Boolean, default: true },
         communicationSettings: { type: mongoose.Schema.Types.Mixed, default: null },
         publicLink: { type: String },

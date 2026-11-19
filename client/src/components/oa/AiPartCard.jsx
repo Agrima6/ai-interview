@@ -1,13 +1,14 @@
 import React, { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Bot } from 'lucide-react'
+import { Bot, Plus, X } from 'lucide-react'
 import { oaApi } from '../../api/oaApi'
+import Button from '../Button'
 import { useToast } from '../ui/Toast'
 import AiInterviewPicker from './AiInterviewPicker'
 
 /**
  * "Add an AI interview to this round": the candidates take the test and, as soon as they submit it, are invited to the
- * AI interview too. One round, two parts, one place for the organizer to follow it.
+ * AI interview too. One round, two parts. Sits right under the round type so nobody has to hunt for it.
  */
 export default function AiPartCard({ assessment: a, disabled = false }) {
     const toast = useToast()
@@ -18,36 +19,39 @@ export default function AiPartCard({ assessment: a, disabled = false }) {
         onSuccess: (_, next) => { queryClient.invalidateQueries({ queryKey: ['oa'] }); toast.success(next.enabled ? 'AI interview added to this round.' : 'AI interview removed from this round.') },
         onError: (err) => toast.error(err.message),
     })
-    // Switching on only opens the chooser; it is saved once an AI interview is picked or set up.
+    // "Add" only opens the chooser; it is saved once an AI interview is picked or set up.
     const [open, setOpen] = useState(part.enabled)
-    const toggle = (next) => {
-        setOpen(next)
-        if (part.enabled !== next && (!next || part.aiInterviewDriveId)) save.mutate({ enabled: next, aiInterviewDriveId: part.aiInterviewDriveId, roundNumber: part.roundNumber || 1 })
-    }
+    const remove = () => { setOpen(false); if (part.enabled) save.mutate({ enabled: false, aiInterviewDriveId: part.aiInterviewDriveId, roundNumber: part.roundNumber || 1 }) }
     const choose = (id) => save.mutate({ enabled: Boolean(id), aiInterviewDriveId: id || null, roundNumber: 1 })
 
+    if (!open) {
+        return (
+            <section className='mb-5 rounded-2xl border-2 border-dashed border-accent/40 bg-accent/[0.04] p-4 sm:p-5 flex flex-wrap items-center gap-4' aria-label='Add an AI interview to this round'>
+                <span className='w-11 h-11 shrink-0 rounded-xl bg-accent text-white flex items-center justify-center' aria-hidden='true'><Bot size={22} strokeWidth={1.8} /></span>
+                <div className='min-w-0 flex-1'>
+                    <h3 className='text-[15px] font-bold text-ink'>Want an AI interview in this round too?</h3>
+                    <p className='text-[13px] text-text-secondary mt-0.5'>Candidates take this test, then get a short AI interview straight after. One round, both parts.</p>
+                </div>
+                <Button size='sm' disabled={disabled} onClick={() => setOpen(true)}><Plus size={15} /> Add AI interview</Button>
+            </section>
+        )
+    }
+
     return (
-        <section className='mb-5 rounded-2xl border border-line bg-card p-4 sm:p-5' aria-busy={save.isPending} aria-label='AI interview part of this round'>
+        <section className='mb-5 rounded-2xl border-2 border-accent bg-card p-4 sm:p-5' aria-busy={save.isPending} aria-label='AI interview part of this round'>
             <div className='flex items-start gap-3'>
-                <span className='w-10 h-10 shrink-0 rounded-xl bg-surface-muted text-text-secondary flex items-center justify-center' aria-hidden='true'><Bot size={19} strokeWidth={1.8} /></span>
+                <span className='w-11 h-11 shrink-0 rounded-xl bg-accent text-white flex items-center justify-center' aria-hidden='true'><Bot size={22} strokeWidth={1.8} /></span>
                 <div className='min-w-0 flex-1'>
                     <div className='flex items-start justify-between gap-3'>
                         <div>
-                            <h3 className='text-[14px] font-bold text-ink'>Also run an AI interview in this round</h3>
-                            <p className='text-[12.5px] text-text-secondary mt-0.5'>Candidates take this test, then are invited to a short AI interview straight after they submit. No separate round needed.</p>
+                            <h3 className='text-[15px] font-bold text-ink'>AI interview in this round</h3>
+                            <p className='text-[13px] text-text-secondary mt-0.5'>After a candidate submits the test, they are emailed their AI interview invitation automatically.</p>
                         </div>
-                        <label className='inline-flex items-center gap-2 shrink-0 text-[13px] font-semibold text-ink cursor-pointer'>
-                            <input type='checkbox' role='switch' className='w-4 h-4 accent-[var(--color-primary)]' checked={open} disabled={disabled || save.isPending}
-                                onChange={(e) => toggle(e.target.checked)} />
-                            {open ? 'On' : 'Off'}
-                        </label>
+                        <Button size='sm' variant='secondary' disabled={disabled || save.isPending} onClick={remove}><X size={14} /> Remove</Button>
                     </div>
-                    {open && (
-                        <div className='mt-4 border-t border-line pt-4'>
-                            <AiInterviewPicker value={part.aiInterviewDriveId} onChange={choose} disabled={disabled} pending={save.isPending} />
-                            {part.enabled && part.aiInterviewDriveId && <p className='text-[12.5px] text-text-secondary mt-3'>Anyone who submits the test (not anyone removed for cheating) is added and emailed their AI interview invitation automatically. Results of the interview are in AI Interview.</p>}
-                        </div>
-                    )}
+                    <div className='mt-4 border-t border-line pt-4'>
+                        <AiInterviewPicker value={part.aiInterviewDriveId} onChange={choose} disabled={disabled} pending={save.isPending} />
+                    </div>
                 </div>
             </div>
         </section>

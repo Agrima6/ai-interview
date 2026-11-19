@@ -1,4 +1,5 @@
 import { isInterviewLanguage, normalizeInterviewLanguage } from "../utils/interviewLanguages.js"
+import { cleanLanguagePolicy, policyOf, startingLanguage } from "../utils/languagePolicy.js"
 import { isBlueCollar, blueCollarLabel } from "../utils/blueCollar.js"
 import { permissionsForMode, resolveInterviewMode, normalizeInterviewMode } from "../utils/interviewMode.js"
 import crypto from "crypto"
@@ -470,6 +471,7 @@ export const createDrive = async (tenantId, driveData, ctx) => {
         expiryDate,
         status,
         interviewMode: normalizeInterviewMode(driveData.interviewMode) || undefined,   // undefined -> schema default
+        languagePolicy: cleanLanguagePolicy(driveData.languagePolicy),
         currentRound: 1,
         questionBankId: driveData.questionBankId || null,
         questions: driveData.questions || driveData.customQuestionsList || [],
@@ -873,6 +875,7 @@ export const getMyInterviews = async (tenantId, email) => {
                 isPendingApplication,
                 resumeOptional: blueCollarDrive,
                 preferredLanguage: candidate.preferredLanguage || "en",
+                languagePolicy: policyOf(drive),
                 availability: publicAvailability(resolveAvailability(drive)),
             })
         }
@@ -1159,6 +1162,11 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber,
 
     // HR's questions for this round (see utils/interviewQuestions.js for the rule).
     const questionsToSend = resolveInterviewQuestions(round, drive)
+    // The language HR allows for this drive: the candidate's pick if it is allowed, otherwise HR's default.
+    const policy = policyOf(drive)
+    const language = startingLanguage(policy, isInterviewLanguage(chosenLanguage) ? chosenLanguage : (candidate.preferredLanguage !== "en" ? candidate.preferredLanguage : policy.defaultLanguage))
+    // When HR wrote the questions, the interviewer asks those and nothing it invented.
+    const agentOptions = { onlyHrQuestions: questionsToSend.length > 0, allowedLanguages: policy.allowed, allowLanguageSwitch: policy.allowSwitch }
 
     // What HR wants validated: the round's weighted skills (falls back to the drive's). Weights become priorities agent-side.
     const focusAreas = (round?.skillRubrics?.length ? round.skillRubrics : drive.skillRubrics || [])
@@ -1168,7 +1176,7 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber,
     if (!candidate.agentInterviewId) {
         let interview
         try {
-            interview = await agentServiceClient.createInterview(candidate.agentCandidateId, drive.agentRoleId, 30, questionsToSend, focusAreas)
+            interview = await agentServiceClient.createInterview(candidate.agentCandidateId, drive.agentRoleId, 30, questionsToSend, focusAreas, agentOptions)
         } catch (err) {
             if (!isAgentIdNotFoundError(err)) throw err
             // The cached role and/or candidate id no longer exists on the agent side (its
@@ -1182,7 +1190,7 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber,
             const agentCandidate = await agentServiceClient.createCandidate(candidate.name, candidate.email)
             candidate.agentCandidateId = agentCandidate.id
             await persistAgentFields(tenantId, drive, round, candidate, { agentCandidateId: agentCandidate.id }, { driveFields: { agentRoleId: role.id } })
-            interview = await agentServiceClient.createInterview(candidate.agentCandidateId, drive.agentRoleId, 30, questionsToSend, focusAreas)
+            interview = await agentServiceClient.createInterview(candidate.agentCandidateId, drive.agentRoleId, 30, questionsToSend, focusAreas, agentOptions)
         }
         candidate.agentInterviewId = interview.id
         plan = interview.plan
@@ -1201,8 +1209,8 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber,
                 plan = (await agentServiceClient.getInterview(winner.agentInterviewId)).plan
             }
         }
-        if (candidate.preferredLanguage && candidate.preferredLanguage !== "en") {
-            await agentServiceClient.setLanguage(candidate.agentInterviewId, candidate.preferredLanguage).catch((err) =>
+        if (language !== "en") {
+            await agentServiceClient.setLanguage(candidate.agentInterviewId, language).catch((err) =>
                 console.error(`[client-service] agent language set failed for ${candidate.email}:`, err.message)
             )
         }
@@ -1212,12 +1220,12 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber,
     // when they applied. Remembered for next time. The agent refuses a change once the interview is under way, which is
     // fine - a candidate who is already talking changes language by asking the interviewer.
     if (isInterviewLanguage(chosenLanguage) && candidate.agentInterviewId) {
-        await agentServiceClient.setLanguage(candidate.agentInterviewId, chosenLanguage).catch((err) =>
+        await agentServiceClient.setLanguage(candidate.agentInterviewId, language).catch((err) =>
             console.warn(`[client-service] agent language set failed for ${candidate.email}:`, err.message)
         )
-        if (chosenLanguage !== candidate.preferredLanguage) {
-            await persistAgentFields(tenantId, drive, round, candidate, { preferredLanguage: chosenLanguage })
-            candidate.preferredLanguage = chosenLanguage
+        if (language !== candidate.preferredLanguage) {
+            await persistAgentFields(tenantId, drive, round, candidate, { preferredLanguage: language })
+            candidate.preferredLanguage = language
         }
     }
 
@@ -1792,6 +1800,7 @@ export const updateRound = async (tenantId, driveId, roundNumber, roundData) => 
         if (details.department) drive.department = String(details.department).trim()
         if (details.experienceLevel) drive.experienceLevel = String(details.experienceLevel).trim()
         if (details.roundType) drive.roundType = String(details.roundType).trim()
+        if (details.languagePolicy) drive.languagePolicy = cleanLanguagePolicy(details.languagePolicy)
         if (details.totalRounds) drive.totalRounds = Math.min(Math.max(Number(details.totalRounds) || drive.totalRounds, drive.rounds.length), 4)
         if (details.startDate) drive.startDate = parseDateOnly(details.startDate) || drive.startDate
         if (details.expiryDate) {

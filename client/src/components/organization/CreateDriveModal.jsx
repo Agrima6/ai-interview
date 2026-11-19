@@ -5,6 +5,7 @@ import { Button, Input, Select, EditableSelect, Textarea } from '../ui'
 import CriteriaWeightageBuilder from './CriteriaWeightageBuilder'
 import QuestionSetBuilder from './QuestionSetBuilder'
 import CandidateImportModal from './CandidateImportModal'
+import InterviewLanguageSettings from './InterviewLanguageSettings'
 import { createInterviewDrive, getQuestionBanks, getNotificationTemplates, getOrganizationProfile, updateRound } from '../../api/organization/organizationApi'
 import { BLUE_COLLAR_ROLES, questionBanksForRole } from '../../constants/blueCollarRoles'
 import { PROFESSIONAL_ROLES } from '../../constants/professionalRoles'
@@ -113,6 +114,7 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
     passingThreshold: '70',
     timePerQuestion: '120',
     enablePublicLink: true,
+    languagePolicy: { defaultLanguage: 'en', allowed: [], allowSwitch: true },
   })
 
   const [communication, setCommunication] = useState({
@@ -263,6 +265,7 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
       passingThreshold: String(round1.passingThreshold || safeEditDrive.passingThreshold || 70),
       timePerQuestion: '120',
       enablePublicLink: safeEditDrive.enablePublicLink !== false,
+      languagePolicy: { defaultLanguage: safeEditDrive.languagePolicy?.defaultLanguage || 'en', allowed: safeEditDrive.languagePolicy?.allowed || [], allowSwitch: safeEditDrive.languagePolicy?.allowSwitch !== false },
     })
 
     setCommunication({
@@ -550,6 +553,7 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
       candidatesCount: importedCandidates.length,
       importedCandidateList: importedCandidates,
       enablePublicLink: formData.enablePublicLink,
+      languagePolicy: formData.languagePolicy,
       communicationSettings: communication,
     }
 
@@ -570,6 +574,7 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
               totalRounds: payload.totalRounds,
               startDate: payload.startDate,
               expiryDate: payload.expiryDate,
+              languagePolicy: payload.languagePolicy,
             },
           })
         // The backend generates and persists the real publicLink (and the
@@ -668,11 +673,11 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
               <EditableSelect label="Position / role *" placeholder="Select or add a role" options={ROLE_CATEGORIES} value={formData.roleCategory} onChange={(e) => handleChange('roleCategory', e.target.value)} />
               <EditableSelect label="Department *" placeholder="Select or add a department" options={DEPARTMENTS} value={formData.department} onChange={(e) => handleChange('department', e.target.value)} />
                 </div>
-                <div className="grid gap-4 sm:grid-cols-3">
+                <div className="grid gap-4 sm:grid-cols-2">
               <EditableSelect label="Experience" placeholder="Select or add experience" options={EXPERIENCE_LEVELS} value={formData.experienceLevel} onChange={(e) => handleChange('experienceLevel', e.target.value)} />
               <EditableSelect label="Interview type *" placeholder="Select or add interview type" options={INTERVIEW_TYPES} value={formData.roundType} onChange={(e) => handleChange('roundType', e.target.value)} />
-              <Select label="Language" value={'English'} onChange={() => {}} options={[{ value: 'English', label: 'English' }, { value: 'Hindi', label: 'Hindi' }]} />
                 </div>
+                <InterviewLanguageSettings value={formData.languagePolicy} onChange={(next) => handleChange('languagePolicy', next)} />
                 <div className="grid gap-4 sm:grid-cols-3">
               <Select label="Number of rounds" value={formData.totalRounds} onChange={(e) => handleChange('totalRounds', e.target.value)} options={[{ value: '1', label: '1 round' }, { value: '2', label: '2 rounds' }, { value: '3', label: '3 rounds' }, { value: '4', label: '4 rounds' }]} />
                 </div>

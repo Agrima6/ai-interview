@@ -79,13 +79,17 @@ export const agentServiceClient = {
         )
     },
 
-    createInterview: (candidateId, roleId, durationMinutes = 30, questions = [], focusAreas = []) => {
+    createInterview: (candidateId, roleId, durationMinutes = 30, questions = [], focusAreas = [], options = {}) => {
         const fields = { candidate_id: candidateId, role_id: roleId, duration_minutes: durationMinutes }
         // HR's weighted skills: the agent turns weights into HIGH/MEDIUM/LOW priorities and plans around them.
         if (Array.isArray(focusAreas) && focusAreas.length > 0) fields.focus_areas = JSON.stringify(focusAreas)
         if (Array.isArray(questions) && questions.length > 0) {
             fields.questions_json = JSON.stringify(questions)
         }
+        // What HR decided: ask only their questions, offer only some languages, and whether the candidate may switch.
+        if (options.onlyHrQuestions) fields.only_hr_questions = "true"
+        if (Array.isArray(options.allowedLanguages) && options.allowedLanguages.length > 0) fields.allowed_languages = options.allowedLanguages.join(",")
+        if (options.allowLanguageSwitch === false) fields.allow_language_switch = "false"
         const defaultQuestions = [
             { id: "q1", question_text: "Tell me about yourself, your technical background, and your key projects." },
             { id: "q2", question_text: "How do you design scalable applications and manage complex state?" },

@@ -51,6 +51,7 @@ function InterviewRoomPage() {
     const [started, setStarted] = useState(false)
     const cameraTrackRef = useRef(null)                                    // the published camera track, kept so the picture can be re-attached
     const [availableLanguages, setAvailableLanguages] = useState(null)     // null until known: then only languages the voice can speak
+    const [languagePolicy, setLanguagePolicy] = useState(null)         // what HR allows: { defaultLanguage, allowed, allowSwitch }
     const [interviewLanguage, setInterviewLanguage] = useState('en')     // chosen on the join screen; the candidate can still ask the interviewer to switch
     const [violationCount, setViolationCount] = useState(0)
     const [violationMessage, setViolationMessage] = useState('')
@@ -168,7 +169,12 @@ function InterviewRoomPage() {
                 const next = normalizeRequirements(item?.requiredPermissions)
                 requiredRef.current = next
                 setRequired(next)
-                if (item?.preferredLanguage) setInterviewLanguage(item.preferredLanguage)
+                const policy = item?.languagePolicy || null
+                setLanguagePolicy(policy)
+                const permitted = (code) => !policy?.allowed?.length || policy.allowed.includes(code)
+                // HR's default, unless the candidate already chose a language that HR allows.
+                if (item?.preferredLanguage && item.preferredLanguage !== 'en' && permitted(item.preferredLanguage)) setInterviewLanguage(item.preferredLanguage)
+                else if (policy?.defaultLanguage) setInterviewLanguage(policy.defaultLanguage)
             })
             .catch(() => { /* unreadable configuration: stay fail-closed (everything required) */ })
             .finally(() => { if (!cancelled) setRequirementsLoaded(true) })
@@ -1368,7 +1374,7 @@ function InterviewRoomPage() {
                                     Interview language
                                 </h3>
                                 <div className='flex flex-wrap gap-2' role='radiogroup' aria-label='Interview language'>
-                                    {INTERVIEW_LANGUAGES.filter((lang) => !availableLanguages || availableLanguages.includes(lang.value)).map((lang) => (
+                                    {INTERVIEW_LANGUAGES.filter((lang) => (!availableLanguages || availableLanguages.includes(lang.value)) && (!languagePolicy?.allowed?.length || languagePolicy.allowed.includes(lang.value))).map((lang) => (
                                         <button
                                             key={lang.value}
                                             type='button'
@@ -1381,7 +1387,7 @@ function InterviewRoomPage() {
                                         </button>
                                     ))}
                                 </div>
-                                <p className='text-[12px] text-text-secondary'>Your interviewer will speak and listen in this language. You can also ask them to switch at any time during the interview.</p>
+                                <p className='text-[12px] text-text-secondary'>Your interviewer will speak and listen in this language.{languagePolicy?.allowSwitch === false ? ' It cannot be changed during the interview.' : ' You can also ask them to switch at any time during the interview.'}</p>
                             </Card>
                             <Card className='p-5 space-y-4'>
                                 <h3 className='text-[14px] font-bold text-ink flex items-center gap-2'>
