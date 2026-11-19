@@ -428,7 +428,7 @@ export const sendInvites = async (accountId, id, { studentIds, resend = false } 
             const student = queue.shift()
             const code = decryptSecret(student.codeEncrypted)
             const mail = inviteEmail({ assessment, student, code, orgName: brand.name || account?.orgName || "Your organizer", brand })
-            const result = await sendOaEmail({ accountId, to: student.email, eventType: "OA_INVITE", ...mail, metadata: { assessmentId: String(assessment._id), studentId: String(student._id) } })
+            const result = await sendOaEmail({ accountId, to: student.email, eventType: "OA_INVITE", fromName: brand.name || account?.orgName, ...mail, metadata: { assessmentId: String(assessment._id), studentId: String(student._id) } })
             student.invite = result.ok ? { status: "SENT", sentAt: new Date(), error: null } : { status: "FAILED", sentAt: student.invite?.sentAt || null, error: String(result.error || "send failed").slice(0, 120) }
             await student.save()
             if (result.ok) sent += 1; else failed.push({ email: student.email, reason: student.invite.error })

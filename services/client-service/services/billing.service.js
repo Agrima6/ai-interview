@@ -56,8 +56,8 @@ const loadDirectory = async () => {
     ])
     const dir = new Map(); const accountKey = new Map()
     for (const c of clients) {
-        if (!c.tenantId) continue
-        const key = String(c.tenantId)
+        // An organization is keyed by the id on its sign-in tokens, which is the Client's own id when its tenantId field is empty.
+        const key = String(c.tenantId || c._id)
         dir.set(key, { key, name: c.name, kind: c.type, status: c.status, contactName: c.primaryContact?.name || "", email: c.primaryContact?.email || "", phone: c.primaryContact?.phone || "", since: c.createdAt, tenantId: key, oaAccountIds: [] })
     }
     for (const a of accounts) {

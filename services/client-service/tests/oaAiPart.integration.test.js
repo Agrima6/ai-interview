@@ -218,3 +218,21 @@ test("two organization sessions opened at the same moment still share ONE Online
     assert.equal(await models.OaAccount.countDocuments({ tenantId: tenant }), 1)
     assert.equal(new Set(sessions.map((s) => s.account.id)).size, 1)
 })
+
+test("an organization's name and logo are found by the id on its sign-in tokens (its Client _id), and served publicly", opts, async () => {
+    const Client = (await import("../models/client.model.js")).default
+    const png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+    const client = await Client.create({ onboardingId: new mongoose.Types.ObjectId(), registrationId: new mongoose.Types.ObjectId(), type: "ORGANIZATION", name: "Brand Co", status: "ACTIVE", primaryContact: { name: "A", email: "a@brand.test", phone: "9876543210" }, branding: { logoUrl: png, primaryColor: "#112233" } })
+    assert.equal(client.tenantId, null, "the Client's own tenantId field is empty, as for real organizations")
+    const account = await models.OaAccount.create({ orgName: "Typed Name", contactName: "A", email: "brand@x.test", emailNormalized: "brand@x.test", passwordHash: "x", status: "ACTIVE", tenantId: String(client._id) })
+    const { brandForAccount, orgBrand } = await import("../services/oaBrand.service.js")
+    const brand = await brandForAccount(account)
+    assert.equal(brand.name, "Brand Co")
+    assert.ok(brand.logoPath, "the logo was not found")
+    assert.equal(brand.color, "#112233")
+    assert.match(orgBrand(client).logoUrl, new RegExp(`/api/v1/oa/brand/client/${client._id}/logo$`))
+    const res = await fetch(`${base}/oa/brand/client/${client._id}/logo`)
+    assert.equal(res.status, 200)
+    assert.equal(res.headers.get("content-type"), "image/png")
+    assert.equal((await fetch(`${base}/oa/brand/client/not-an-id/logo`)).status, 404)
+})

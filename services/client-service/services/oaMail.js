@@ -9,11 +9,12 @@ export const oaUrl = (path) => `${baseUrl()}${path}`
  * Sends one OA email through communication-service. Never throws: a mail outage must not fail registration, an
  * approval or a draft - the caller gets { ok, error } and decides what to show.
  */
-export const sendOaEmail = async ({ accountId, to, subject, body, html, eventType, metadata }) => {
+export const sendOaEmail = async ({ accountId, to, subject, body, html, eventType, metadata, fromName }) => {
     try {
         await communicationServiceClient.send({
             entityType: "CLIENT", entityId: String(accountId), channel: "EMAIL",
-            eventType, recipient: to, subject, body, ...(html ? { html } : {}), variables: {}, metadata: metadata || {},
+            eventType, recipient: to, subject, body, ...(html ? { html } : {}), // `company_name` becomes the sender's display name, so the email arrives from the organization, not from a bare address.
+            variables: fromName ? { company_name: fromName } : {}, metadata: metadata || {},
         })
         return { ok: true }
     } catch (error) {
