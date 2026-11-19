@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Bot, Plus, X } from 'lucide-react'
+import { Bot, ChevronRight, ClipboardCheck, Mail, Plus, X } from 'lucide-react'
 import { oaApi } from '../../api/oaApi'
 import Button from '../Button'
 import { useToast } from '../ui/Toast'
@@ -49,6 +49,14 @@ export default function AiPartCard({ assessment: a, disabled = false }) {
                         </div>
                         <Button size='sm' variant='secondary' disabled={disabled || save.isPending} onClick={remove}><X size={14} /> Remove</Button>
                     </div>
+                    <ol className='mt-4 flex flex-wrap items-center gap-x-1.5 gap-y-2 text-[12.5px]' aria-label='What each candidate does, in order'>
+                        <li className='inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-3 py-1.5 font-semibold text-ink'><ClipboardCheck size={13} aria-hidden='true' /> 1. Takes this test ({a.questionCount} question{a.questionCount === 1 ? '' : 's'})</li>
+                        <ChevronRight size={14} className='text-text-secondary' aria-hidden='true' />
+                        <li className='inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-3 py-1.5 font-semibold text-ink'><Mail size={13} aria-hidden='true' /> 2. Submits and gets an email</li>
+                        <ChevronRight size={14} className='text-text-secondary' aria-hidden='true' />
+                        <li className='inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1.5 font-semibold text-accent'><Bot size={13} aria-hidden='true' /> 3. Takes the AI interview</li>
+                    </ol>
+                    <p className='mt-2 text-[12px] text-text-secondary'>The AI interview always comes after the whole test, never in the middle of it. The candidate books or starts it from the link in that email.</p>
                     <div className='mt-4 border-t border-line pt-4'>
                         <AiInterviewPicker value={part.aiInterviewDriveId} onChange={choose} disabled={disabled} pending={save.isPending} />
                     </div>

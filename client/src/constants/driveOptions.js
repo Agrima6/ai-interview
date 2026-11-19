@@ -27,6 +27,7 @@ export const DEPARTMENT_OPTIONS = [
   { value: 'Quality Assurance', label: 'Quality Assurance' },
   { value: 'Human Resources', label: 'Human Resources' },
   { value: 'Finance & Accounts', label: 'Finance & Accounts' },
+  { value: 'Legal', label: 'Legal' },
   { value: 'Sales & Business Dev', label: 'Sales & Business Dev' },
   { value: 'Operations', label: 'Operations' },
   { value: 'Marketing', label: 'Marketing' },
