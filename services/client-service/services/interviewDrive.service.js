@@ -218,11 +218,15 @@ const repairRoundStatuses = async (drive) => {
 const formatEmailDateTime = (value) => new Date(value).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata", timeZoneName: "short" })
 const formatEmailDate = (value) => (value ? new Date(value).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" }) : "")
 
+// The name an organization's emails come from: the 'From name' saved in Settings → Email when there is one, otherwise the
+// organization's name.
+const senderNameOf = (org) => String(org?.smtp?.fromName || org?.name || "").trim() || undefined
+
 // A message the organization wrote (plain text, paragraphs separated by blank lines) in the designed email shell, with the
 // organization's own logo and name at the top. The plain text stays as the fallback for mail apps that show only text.
-const brandedTextEmail = (org, subject, text) => renderEmailHtml({
+const brandedTextEmail = (org, subject, text, cta) => renderEmailHtml({
     brand: orgBrand(org), heading: subject || "A message from your organizer",
-    paragraphs: String(text || "").split(/\n{2,}/).map((p) => p.trim()).filter(Boolean), footer: `Sent by ${org?.name || "your organizer"} through WorkmateIQ.`,
+    paragraphs: String(text || "").split(/\n{2,}/).map((p) => p.trim()).filter(Boolean), ...(cta ? { cta } : {}), footer: `Sent by ${org?.name || "your organizer"} through WorkmateIQ.`,
 })
 
 // The invite email is one template; these variables decide whether it talks about an interview (hiring) or an exam
@@ -355,16 +359,19 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx, round = null) 
         const emailSend = communicationServiceClient.send({
             entityType: "CLIENT", entityId: tenantId, channel: "EMAIL",
             eventType: "CANDIDATE_INVITE", recipient: candidate.email,
-            ...(orgTemplate ? {
-                subject: blankUnknown(orgTemplate.subject || `You're invited to interview for {drive_title} at {company_name}`),
-                body: blankUnknown(orgTemplate.body),
-            } : {}),
+            ...(orgTemplate ? (() => {
+                const subject = blankUnknown(orgTemplate.subject || `You're invited to interview for {drive_title} at {company_name}`)
+                const body = blankUnknown(orgTemplate.body)
+                // The organization's own wording, sent as a designed email with its logo and name (plain text stays as the fallback).
+                return { subject, body, html: brandedTextEmail(org, subject, body, { label: "Open your interview", url: interviewLink }) }
+            })() : {}),
             variables: {
                 candidate_name: candidate.name || "there",
                 drive_title: drive.title,
                 company_name: org?.name || "the hiring team",
                 // The organization's own logo, shown at the top of the email (empty when it has not uploaded one).
                 company_logo_url: orgBrand(org).logoUrl,
+            from_name: senderNameOf(org),
                 interview_link: interviewLink,
                 login_url: loginUrl,
                 login_email: candidate.email,
@@ -721,6 +728,7 @@ export const applyToPublicDrive = async (link, applicationData, resumeFile, ctx)
         eventType: "CANDIDATE_APPLICATION_CONFIRMED", recipient: candidate.email,
         variables: {
             company_logo_url: orgBrand(org).logoUrl,
+            from_name: senderNameOf(org),
             candidate_name: candidate.name || "there",
             drive_title: drive.title,
             company_name: org?.name || "the hiring team",
@@ -809,6 +817,7 @@ export const completeCandidateApplication = async (tenantId, email, driveId, rou
         eventType: "CANDIDATE_APPLICATION_CONFIRMED", recipient: candidate.email,
         variables: {
             company_logo_url: orgBrand(org).logoUrl,
+            from_name: senderNameOf(org),
             candidate_name: candidate.name || "there",
             drive_title: drive.title,
             company_name: org?.name || "the hiring team",
@@ -2215,7 +2224,7 @@ export const communicateWithCandidates = async (tenantId, driveId, roundNumber, 
                 subject: template.type === "EMAIL" ? renderTemplateText(template.subject, variables) : undefined,
                 body: renderTemplateText(template.body, variables),
                 // The sender shows as the organization, and the email carries its logo and name.
-                ...(template.type === "EMAIL" ? { variables: { company_name: variables.company_name }, html: brandedTextEmail(org, renderTemplateText(template.subject, variables), renderTemplateText(template.body, variables)) } : {}),
+                ...(template.type === "EMAIL" ? { variables: { company_name: variables.company_name, from_name: senderNameOf(org) }, html: brandedTextEmail(org, renderTemplateText(template.subject, variables), renderTemplateText(template.body, variables)) } : {}),
                 metadata: { driveId: String(drive._id), candidateId: candidate.id, roundNumber: Number(roundNumber), purpose },
             }, ctx)
             communicationId = sent?.id
