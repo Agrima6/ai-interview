@@ -55,7 +55,7 @@ const roundView = (a, stats = {}) => ({
 })
 
 const driveView = (d, rounds = []) => ({
-    id: String(d._id), title: d.title, description: d.description, status: d.status, createdAt: d.createdAt, updatedAt: d.updatedAt,
+    id: String(d._id), title: d.title, description: d.description, department: d.department || "", roleCategory: d.roleCategory || "", experienceLevel: d.experienceLevel || "", status: d.status, createdAt: d.createdAt, updatedAt: d.updatedAt,
     rounds, candidates: rounds[0]?.stats.candidates || 0,
 })
 
@@ -109,12 +109,15 @@ export const getDrive = async (accountId, id) => {
 }
 
 /** A new drive always starts with Round 1, an online test in draft, so the organizer lands straight on step 1. */
+// Short free-text labels from the drive form; control characters and over-long values are dropped.
+const label80 = (v) => String(v ?? "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 80)
+
 export const createDrive = async (accountId, input = {}) => {
     const title = checkedTitle(input.title)
     const description = textLength(input.description, { max: LIMITS.description.max, field: "description", label: "Description" })
     const kind = input.kind === undefined ? "TEST" : input.kind
     if (!["TEST", "AI_INTERVIEW"].includes(kind)) throw new ApiError(400, "VALIDATION_ERROR", "Choose Online test or AI interview for Round 1.", { kind: "Choose Online test or AI interview." })
-    const drive = await OaDrive.create({ accountId, title, description })
+    const drive = await OaDrive.create({ accountId, title, description, department: label80(input.department), roleCategory: label80(input.roleCategory), experienceLevel: label80(input.experienceLevel) })
     try {
         const round = await createAssessment(accountId, { title, description, driveId: drive._id, roundNumber: 1 })
         if (kind !== "TEST") await OaAssessment.updateOne({ _id: round.id }, { $set: { kind } })
@@ -129,6 +132,7 @@ export const updateDrive = async (accountId, id, patch = {}) => {
     const drive = await ownedDrive(accountId, id)
     if (patch.title !== undefined) drive.title = checkedTitle(patch.title)
     if (patch.description !== undefined) drive.description = textLength(patch.description, { max: LIMITS.description.max, field: "description", label: "Description" })
+    for (const key of ["department", "roleCategory", "experienceLevel"]) if (patch[key] !== undefined) drive[key] = label80(patch[key])
     if (patch.status !== undefined) {
         if (!["ACTIVE", "ARCHIVED"].includes(patch.status)) throw new ApiError(400, "VALIDATION_ERROR", "Unknown status.")
         // Archiving closes every round: candidates can no longer sign in to any of them.

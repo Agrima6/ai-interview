@@ -11,7 +11,7 @@ import AiInterviewPicker from './AiInterviewPicker'
  * "Add an AI interview to this round": the candidates take the test and, as soon as they submit it, are invited to the
  * AI interview too. One round, two parts. Sits right under the round type so nobody has to hunt for it.
  */
-export default function AiPartCard({ assessment: a, disabled = false }) {
+export default function AiPartCard({ assessment: a, drive, disabled = false }) {
     const toast = useToast()
     const queryClient = useQueryClient()
     const part = a.aiPart || { enabled: false, aiInterviewDriveId: null }
@@ -67,7 +67,8 @@ export default function AiPartCard({ assessment: a, disabled = false }) {
                         <li className='inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1.5 font-semibold text-accent'><Bot size={13} aria-hidden='true' /> Takes the AI interview</li>
                     </ol>
                     <div className='mt-4 border-t border-line pt-4'>
-                        <AiInterviewPicker value={part.aiInterviewDriveId} onChange={choose} disabled={disabled} pending={save.isPending} />
+                        <AiInterviewPicker value={part.aiInterviewDriveId} onChange={choose} disabled={disabled} pending={save.isPending}
+                            getPrefill={async () => ({ title: `${drive?.title || a.title} · AI interview`, department: drive?.department, roleCategory: drive?.roleCategory, experienceLevel: drive?.experienceLevel })} />
                     </div>
                 </div>
             </div>
