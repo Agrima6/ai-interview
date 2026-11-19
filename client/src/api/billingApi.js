@@ -8,13 +8,16 @@ export const getBillingOrganization = (key, params) => apiGet(`/api/v1/admin/bil
 export const listBillingLines = (key, params) => apiGetList(`/api/v1/admin/billing/organizations/${key}/lines`, clean(params))
 export const saveBillingRates = (key, body) => apiPut(`/api/v1/admin/billing/rates/${key}`, body)
 
-/** Downloads a CSV (the whole summary, or one client's annexure). `path` is "export" or "organizations/<key>/export". */
-export const downloadBillingCsv = async (path, params) => {
+/** Downloads a CSV from `url` with the signed-in session. */
+export const downloadCsv = async (endpoint, params) => {
     let res
-    try { res = await client.get(`/api/v1/admin/billing/${path}`, { params: clean(params), responseType: 'blob' }) } catch { throw new Error('Could not prepare the file. Please try again.') }
+    try { res = await client.get(endpoint, { params: clean(params), responseType: 'blob' }) } catch { throw new Error('Could not prepare the file. Please try again.') }
     const name = /filename="([^"]+)"/.exec(res.headers['content-disposition'] || '')?.[1] || 'billing.csv'
     const url = URL.createObjectURL(res.data)
     const a = document.createElement('a')
     a.href = url; a.download = name; a.click()
     setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
+
+/** The whole summary, or one client's annexure. `path` is "export" or "organizations/<key>/export". */
+export const downloadBillingCsv = (path, params) => downloadCsv(`/api/v1/admin/billing/${path}`, params)

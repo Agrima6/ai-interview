@@ -4,6 +4,7 @@ import { ListChecks, Users, CheckCircle2, Star, Plus, AlertCircle, ArrowRight } 
 import { BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
 import OnlineTestsPanel from '../../components/organization/OnlineTestsPanel'
+import BillingPanel from '../../components/organization/BillingPanel'
 import FunnelChart from '../../components/charts/FunnelChart'
 import AttentionPanel from '../../components/organization/AttentionPanel'
 import DashboardHero from '../../components/organization/DashboardHero'
@@ -259,6 +260,7 @@ function OrganizationDashboard() {
             </Card></Reveal>
 
             {basePath !== '/college' && basePath !== '/candidate' && <OnlineTestsPanel basePath={basePath} />}
+            {basePath !== '/college' && basePath !== '/candidate' && <BillingPanel basePath={basePath} />}
 
             <Reveal className='grid lg:grid-cols-3 gap-6 mb-6'>
                 <Card className='p-6'>

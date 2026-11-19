@@ -1,4 +1,4 @@
-import { LayoutDashboard, ListChecks, FileQuestion, UsersRound, Mail, BarChart3, Settings, ClipboardCheck } from 'lucide-react'
+import { LayoutDashboard, ListChecks, FileQuestion, UsersRound, Mail, BarChart3, Settings, ClipboardCheck, Receipt } from 'lucide-react'
 import { organizationPermissions } from '../permissions/organizationPermissions'
 
 export function getNavigationForPath(pathname = '', profileType = '') {
@@ -37,6 +37,7 @@ export function getNavigationForPath(pathname = '', profileType = '') {
         { key: 'team', label: teamLabel, path: `${prefix}/team`, icon: UsersRound, permission: organizationPermissions.team },
         { key: 'templates', label: 'Templates', path: `${prefix}/templates`, icon: Mail, permission: organizationPermissions.templates },
         { key: 'reports', label: isCollege ? 'Results' : 'Reports', path: `${prefix}/reports`, icon: BarChart3, permission: organizationPermissions.reports },
+        ...(unified ? [{ key: 'billing', label: 'Billing', path: `${prefix}/billing`, icon: Receipt, permission: organizationPermissions.reports }] : []),
         { key: 'settings', label: 'Settings', path: `${prefix}/settings`, icon: Settings, permission: organizationPermissions.settings },
     ]
 }
