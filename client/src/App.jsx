@@ -32,6 +32,8 @@ const OaDrivesPage = lazy(() => import('./pages/oa/OaDrivesPage'))
 const OaDrivePage = lazy(() => import('./pages/oa/OaDrivePage'))
 const OaJoinPage = lazy(() => import('./pages/oa/OaJoinPage'))
 const BillingPage = lazy(() => import('./pages/billing/BillingPage'))
+const AllDrivesPage = lazy(() => import('./pages/organization/AllDrivesPage'))
+const HiringDrivePage = lazy(() => import('./pages/organization/HiringDrivePage'))
 const OaLegacyRoundRedirect = lazy(() => import('./pages/oa/OaLegacyRoundRedirect'))
 const WorkspaceChooserPage = lazy(() => import('./pages/WorkspaceChooserPage'))
 const OaApprovalsPage = lazy(() => import('./pages/oa/OaApprovalsPage'))
@@ -180,7 +182,9 @@ function App() {
       {/* Client portal: for approved organizations/colleges/candidates */}
       <Route path='/platform/client/change-password' element={<RequireClientAuth allowPasswordChange><ClientChangePassword/></RequireClientAuth>}/>
       <Route path='/platform/client/dashboard' element={<RequireClientAuth><OrganizationDashboard/></RequireClientAuth>}/>
-      <Route path='/platform/client/drives' element={<RequireClientAuth><DrivesListPage/></RequireClientAuth>}/>
+      <Route path='/platform/client/drives' element={<RequireClientAuth><AllDrivesPage/></RequireClientAuth>}/>
+      <Route path='/platform/client/drives/rounds/:id' element={<RequireClientAuth><HiringDrivePage/></RequireClientAuth>}/>
+      <Route path='/platform/client/interview-drives' element={<RequireClientAuth><DrivesListPage/></RequireClientAuth>}/>
       <Route path='/platform/client/drives/:id' element={<RequireClientAuth><DriveDetailPage/></RequireClientAuth>}/>
       <Route path='/platform/client/question-sets' element={<RequireClientAuth><QuestionSetsPage/></RequireClientAuth>}/>
       <Route path='/platform/client/candidates' element={<RequireClientAuth><CandidatesListPage/></RequireClientAuth>}/>
@@ -191,7 +195,9 @@ function App() {
 
       {/* Organization Portal Routes */}
       <Route path='/organization/dashboard' element={<RequireClientAuth><OrganizationDashboard/></RequireClientAuth>}/>
-      <Route path='/organization/drives' element={<RequireClientAuth><DrivesListPage/></RequireClientAuth>}/>
+      <Route path='/organization/drives' element={<RequireClientAuth><AllDrivesPage/></RequireClientAuth>}/>
+      <Route path='/organization/drives/rounds/:id' element={<RequireClientAuth><HiringDrivePage/></RequireClientAuth>}/>
+      <Route path='/organization/interview-drives' element={<RequireClientAuth><DrivesListPage/></RequireClientAuth>}/>
       <Route path='/organization/drives/:id' element={<RequireClientAuth><DriveDetailPage/></RequireClientAuth>}/>
       <Route path='/organization/question-sets' element={<RequireClientAuth><QuestionSetsPage/></RequireClientAuth>}/>
       <Route path='/organization/candidates' element={<RequireClientAuth><CandidatesListPage/></RequireClientAuth>}/>

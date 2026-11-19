@@ -2,12 +2,22 @@ import { Router } from "express"
 import * as clientController from "../controllers/client.controller.js"
 import * as portalController from "../controllers/organizationPortal.controller.js"
 import { authenticate, requirePermission } from "../middlewares/authenticate.js"
+import { ok } from "../utils/response.js"
+import { listAllDrives } from "../services/unifiedDrives.service.js"
 
 const router = Router()
 
 // "My organization" - self-service for a signed-in client-portal admin
 router.get("/organizations/me", authenticate, requirePermission("CLIENT_SELF_READ"), clientController.getMyOrganization)
 router.patch("/organizations/me/branding", authenticate, requirePermission("CLIENT_SELF_UPDATE"), clientController.updateMyOrganizationBranding)
+
+// Every drive the organization runs (multi-round drives and classic AI Interview drives) in one list
+router.get("/organization/all-drives", authenticate, requirePermission("CLIENT_SELF_READ"), async (req, res, next) => {
+    try {
+        const { items, total, page, pageSize, counts } = await listAllDrives(req.user?.tenantId, req.query)
+        ok(res, items, { total, page, pageSize, counts })
+    } catch (error) { next(error) }
+})
 
 // Team & Access Control
 router.get("/organization/team", authenticate, requirePermission("CLIENT_SELF_READ"), portalController.listTeamMembers)

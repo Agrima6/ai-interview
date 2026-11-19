@@ -94,6 +94,14 @@ export const listDrives = async (accountId, { status, search, page, pageSize } =
     return { items: items.map((d) => driveView(d, rounds.get(String(d._id)) || [])), total, ...p }
 }
 
+/** Every drive of an account (active and archived), newest first, for the organization-wide drives list. */
+export const listEveryDrive = async (accountId, { limit = 500 } = {}) => {
+    await ensureDrives(accountId)
+    const items = await OaDrive.find({ accountId }).sort({ updatedAt: -1 }).limit(limit).lean()
+    const rounds = await roundsOf(items.map((d) => d._id))
+    return items.map((d) => driveView(d, rounds.get(String(d._id)) || []))
+}
+
 export const getDrive = async (accountId, id) => {
     await ensureDrives(accountId)
     const drive = await ownedDrive(accountId, id)
