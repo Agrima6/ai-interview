@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Bot, ChevronRight, ClipboardCheck, Mail, Plus, X } from 'lucide-react'
+import { Choice } from './RoundKindChoice'
 import { oaApi } from '../../api/oaApi'
 import Button from '../Button'
 import { useToast } from '../ui/Toast'
@@ -21,8 +22,12 @@ export default function AiPartCard({ assessment: a, disabled = false }) {
     })
     // "Add" only opens the chooser; it is saved once an AI interview is picked or set up.
     const [open, setOpen] = useState(part.enabled)
-    const remove = () => { setOpen(false); if (part.enabled) save.mutate({ enabled: false, aiInterviewDriveId: part.aiInterviewDriveId, roundNumber: part.roundNumber || 1 }) }
-    const choose = (id) => save.mutate({ enabled: Boolean(id), aiInterviewDriveId: id || null, roundNumber: 1 })
+    // Remembered locally until an AI interview is chosen, so picking "when" first is not lost.
+    const [picked, setPicked] = useState(part.when || 'AFTER_SUBMIT')
+    const when = part.aiInterviewDriveId ? (part.when || 'AFTER_SUBMIT') : picked
+    const remove = () => { setOpen(false); if (part.enabled) save.mutate({ enabled: false, aiInterviewDriveId: part.aiInterviewDriveId, roundNumber: part.roundNumber || 1, when }) }
+    const choose = (id) => save.mutate({ enabled: Boolean(id), aiInterviewDriveId: id || null, roundNumber: 1, when })
+    const setWhen = (next) => { setPicked(next); if (next !== when && part.aiInterviewDriveId) save.mutate({ enabled: part.enabled, aiInterviewDriveId: part.aiInterviewDriveId, roundNumber: part.roundNumber || 1, when: next }) }
 
     if (!open) {
         return (
@@ -49,14 +54,18 @@ export default function AiPartCard({ assessment: a, disabled = false }) {
                         </div>
                         <Button size='sm' variant='secondary' disabled={disabled || save.isPending} onClick={remove}><X size={14} /> Remove</Button>
                     </div>
-                    <ol className='mt-4 flex flex-wrap items-center gap-x-1.5 gap-y-2 text-[12.5px]' aria-label='What each candidate does, in order'>
-                        <li className='inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-3 py-1.5 font-semibold text-ink'><ClipboardCheck size={13} aria-hidden='true' /> 1. Takes this test ({a.questionCount} question{a.questionCount === 1 ? '' : 's'})</li>
+                    <p className='mt-4 text-[13px] font-semibold text-ink'>When do candidates get the AI interview?</p>
+                    <fieldset className='mt-2 grid sm:grid-cols-2 gap-3' disabled={disabled || save.isPending}>
+                        <Choice name={`ai-when-${a.id}`} selected={when === 'AFTER_SUBMIT'} onSelect={() => setWhen('AFTER_SUBMIT')} icon={Mail} title='Right after the test' text='Everyone who submits is emailed the AI interview automatically.' />
+                        <Choice name={`ai-when-${a.id}`} selected={when === 'AFTER_REVIEW'} onSelect={() => setWhen('AFTER_REVIEW')} icon={ClipboardCheck} title='After I review the scores' text='Nobody is invited until you choose, e.g. everyone who scored 60% or more (in Results).' />
+                    </fieldset>
+                    <ol className='mt-3 flex flex-wrap items-center gap-x-1.5 gap-y-2 text-[12.5px]' aria-label='What each candidate does, in order'>
+                        <li className='inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-3 py-1.5 font-semibold text-ink'><ClipboardCheck size={13} aria-hidden='true' /> Takes this test</li>
                         <ChevronRight size={14} className='text-text-secondary' aria-hidden='true' />
-                        <li className='inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-3 py-1.5 font-semibold text-ink'><Mail size={13} aria-hidden='true' /> 2. Submits and gets an email</li>
+                        <li className='inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-3 py-1.5 font-semibold text-ink'><Mail size={13} aria-hidden='true' /> {when === 'AFTER_SUBMIT' ? 'Gets the invitation email' : 'You review, then invite'}</li>
                         <ChevronRight size={14} className='text-text-secondary' aria-hidden='true' />
-                        <li className='inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1.5 font-semibold text-accent'><Bot size={13} aria-hidden='true' /> 3. Takes the AI interview</li>
+                        <li className='inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1.5 font-semibold text-accent'><Bot size={13} aria-hidden='true' /> Takes the AI interview</li>
                     </ol>
-                    <p className='mt-2 text-[12px] text-text-secondary'>The AI interview always comes after the whole test, never in the middle of it. The candidate books or starts it from the link in that email.</p>
                     <div className='mt-4 border-t border-line pt-4'>
                         <AiInterviewPicker value={part.aiInterviewDriveId} onChange={choose} disabled={disabled} pending={save.isPending} />
                     </div>

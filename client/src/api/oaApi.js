@@ -122,6 +122,7 @@ export const oaApi = {
     addStudents: (id, students) => post(`/assessments/${id}/students`, { students }),
     removeStudent: (id, sid) => del(`/assessments/${id}/students/${sid}`),
     invite: (id, body) => post(`/assessments/${id}/students/invite`, body),
+    inviteToAi: (id, body) => post(`/assessments/${id}/ai-invites`, body),
     decideStudents: (id, body) => post(`/assessments/${id}/students/decide`, body),
     setRegistration: (id, body) => put(`/assessments/${id}/registration`, body),
 

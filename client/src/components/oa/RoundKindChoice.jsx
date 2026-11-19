@@ -2,8 +2,8 @@ import React from 'react'
 import { Bot, Check, ClipboardCheck } from 'lucide-react'
 
 const KINDS = [
-    { id: 'TEST', icon: ClipboardCheck, title: 'Online test', text: 'MCQ, written, coding and video questions in a proctored test room. You can add an AI interview to it too.' },
-    { id: 'AI_INTERVIEW', icon: Bot, title: 'AI interview', text: 'The AI interviewer speaks to each candidate and scores the conversation.' },
+    { id: 'TEST', icon: ClipboardCheck, title: 'Online test', text: 'MCQ, written, coding and video questions in a proctored test room. Add an AI interview after it if you like.' },
+    { id: 'AI_INTERVIEW', icon: Bot, title: 'AI interview', text: 'Only an AI interview in this round, no test. The AI interviewer speaks to each candidate and scores the conversation.' },
 ]
 
 /** A big either/or card that reads at a glance; the selected one carries a tick, not colour alone. */

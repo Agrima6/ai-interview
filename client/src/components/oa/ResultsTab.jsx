@@ -11,6 +11,7 @@ import Pagination from '../ui/Pagination'
 import SearchInput from '../ui/SearchInput'
 import { useToast } from '../ui/Toast'
 import AttemptDrawer from './AttemptDrawer'
+import AiInvitePanel from './AiInvitePanel'
 import { AttemptStatus, ErrorState, TableSkeleton } from './oaUi'
 import { formatDay, formatDuration, formatTime, inputClass } from './oaFormat'
 
@@ -44,6 +45,7 @@ export default function ResultsTab({ assessment: a, onNextRound }) {
 
     return (
         <>
+            <AiInvitePanel assessment={a} />
             {s && (
                 <dl className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 bg-card border border-line rounded-2xl divide-x divide-y lg:divide-y-0 divide-line mb-5'>
                     {[['Invited', s.invited], ['Finished', s.finished], ['Passed', s.passed], ['Average', s.average === null ? '—' : `${s.average}%`], ['Highest', s.highest === null ? '—' : `${s.highest}%`], ['To grade', s.pendingReview]].map(([label, value]) => (

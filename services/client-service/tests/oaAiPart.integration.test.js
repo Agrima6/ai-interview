@@ -124,3 +124,17 @@ test("with the AI part off, submitting adds no one", opts, async () => {
     await new Promise((r) => setTimeout(r, 800))
     assert.equal(await onAi(b), false)
 })
+
+test("review mode: nobody is invited on submit; the organizer invites by score and it is safe to repeat", opts, async () => {
+    await call("PATCH", `/oa/assessments/${state.a}`, { token: state.admin, body: { aiPart: { enabled: true, aiInterviewDriveId: state.ai, roundNumber: 1, when: "AFTER_REVIEW" } } })
+    const c = await sit("submit")
+    await new Promise((r) => setTimeout(r, 800))
+    assert.equal(await onAi(c), false, "invited automatically although the organizer reviews first")
+    const none = await call("POST", `/oa/assessments/${state.a}/ai-invites`, { token: state.admin, body: { minPercent: 101 } })
+    assert.equal(none.data.considered, 0)
+    const some = await call("POST", `/oa/assessments/${state.a}/ai-invites`, { token: state.admin, body: { minPercent: 0 } })
+    assert.ok(some.data.invited >= 1)
+    assert.ok(await onAi(c))
+    const again = await call("POST", `/oa/assessments/${state.a}/ai-invites`, { token: state.admin, body: { minPercent: 0 } })
+    assert.equal(again.data.invited, 0)
+})
