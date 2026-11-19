@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { CheckCircle2, Clock, LogOut, ShieldAlert } from 'lucide-react'
+import { CheckCircle2, Clock, Loader2, LogOut, ShieldAlert } from 'lucide-react'
 import { examApi, oaTokens } from '../../api/oaApi'
 import Button from '../../components/Button'
 import ExamLobby from '../../components/oa/exam/ExamLobby'
@@ -23,6 +23,14 @@ function useContinueToAi(enabled) {
         }).catch((err) => setState({ phase: 'failed', error: err.message }))
     }, [navigate])
     useEffect(() => { if (enabled && !started.current) { started.current = true; run() } }, [enabled, run])
+    // While the interview is opening, closing or refreshing the page would lose the way in: the browser asks first.
+    const holding = state.phase === 'working'
+    useEffect(() => {
+        if (!holding) return undefined
+        const guard = (e) => { e.preventDefault(); e.returnValue = '' }
+        window.addEventListener('beforeunload', guard)
+        return () => window.removeEventListener('beforeunload', guard)
+    }, [holding])
     const retry = useCallback(() => { setState({ phase: 'working', error: '' }); run() }, [run])
     return { ...state, retry }
 }
@@ -53,7 +61,12 @@ function Finished({ session, info, onLeave }) {
                         <div className={`text-[13px] font-semibold ${result.passed ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>{result.percent}% · {result.passed ? 'Passed' : 'Not passed'}</div>
                     </div>
                 )}
-                {session.assessment?.aiNext === 'AUTO' && continuing.phase === 'working' && <p role='status' className='mt-5 text-[13.5px] font-semibold text-ink'>Opening your AI interview…</p>}
+                {session.assessment?.aiNext === 'AUTO' && continuing.phase === 'working' && (
+                    <div role='status' className='mt-5 rounded-2xl border-2 border-accent bg-accent/5 px-4 py-4 text-left'>
+                        <p className='flex items-center gap-2 text-[14px] font-bold text-ink'><Loader2 size={16} className='animate-spin text-accent' aria-hidden='true' /> Your AI interview is beginning</p>
+                        <p className='mt-1.5 text-[13px] text-text-secondary'><b className='text-ink'>Please do not close or refresh this page.</b> It opens by itself in a few seconds. Keep your camera and microphone ready, and sit somewhere quiet.</p>
+                    </div>
+                )}
                 {continuing.phase === 'emailed' && <p role='status' className='mt-5 text-[13.5px] text-ink bg-[var(--color-warning-soft)] rounded-xl px-3.5 py-2.5'>We could not open it automatically, so we emailed you the interview link. Use that link to continue.</p>}
                 {continuing.phase === 'failed' && (
                     <div role='alert' className='mt-5'>

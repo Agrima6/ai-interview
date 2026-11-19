@@ -16,6 +16,8 @@ import { INTERVIEW_LANGUAGES } from '../../constants/interviewLanguages'
 // camera is published at a modest size with a single layer, and the shared screen is captured at a low frame rate.
 const SCREEN_CAPTURE_VIDEO = { displaySurface: 'monitor', frameRate: { ideal: 5, max: 8 }, width: { max: 1280 }, height: { max: 720 } }
 const ROOM_OPTIONS = {
+    // The browser's own noise filtering stays on, so fans, keyboards and street sounds never reach the interviewer.
+    audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
     videoCaptureDefaults: { resolution: { width: 640, height: 360, frameRate: 20 } },
     publishDefaults: { simulcast: false, videoEncoding: { maxBitrate: 500_000, maxFramerate: 20 } },
     adaptiveStream: true,

@@ -34,7 +34,12 @@ export default function CandidateHandoffPage() {
                     <p className='text-[14px] text-text-secondary mb-5'>The link was used or has expired. Check your email for the interview invitation, or sign in to find it.</p>
                     <Button onClick={() => navigate('/login', { replace: true })}>Go to sign in</Button>
                 </div>
-            ) : <p className='text-[14px] text-text-secondary'>Opening your AI interview…</p>}
+            ) : (
+                <div className='max-w-sm'>
+                    <h1 className='font-display text-[20px] font-bold text-ink mb-2'>Opening your AI interview…</h1>
+                    <p className='text-[14px] text-text-secondary'><b className='text-ink'>Please do not close or refresh this page.</b> It opens by itself in a few seconds.</p>
+                </div>
+            )}
         </div>
     )
 }
