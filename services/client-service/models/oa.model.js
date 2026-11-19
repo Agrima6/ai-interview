@@ -72,6 +72,12 @@ const assessmentSchema = new Schema({
     roundNumber: { type: Number, default: 1 },
     kind: { type: String, enum: ["TEST", "AI_INTERVIEW"], default: "TEST" },
     aiInterviewDriveId: { type: String, default: null },
+    // An AI interview taken as part of THIS test round: whoever submits the test is invited to it automatically.
+    aiPart: {
+        enabled: { type: Boolean, default: false },
+        aiInterviewDriveId: { type: String, default: null },
+        roundNumber: { type: Number, default: 1 },
+    },
     // An open link candidates use to register themselves. Every registration waits for the organizer's approval.
     registration: {
         enabled: { type: Boolean, default: false },
@@ -177,6 +183,8 @@ const attemptSchema = new Schema({
     lastViolation: { kind: { type: String }, at: { type: Date } },
     environment: { type: Schema.Types.Mixed, default: {} },
     ip: { type: String, default: null },
+    // What happened to this candidate's invitation to the AI interview part of the round (SENT, ALREADY, FAILED).
+    aiHandoff: { status: { type: String, default: null }, at: { type: Date, default: null }, error: { type: String, default: null } },
 }, { timestamps: true })
 
 attemptSchema.index({ assessmentId: 1, studentId: 1 }, { unique: true })

@@ -2,7 +2,7 @@ import React from 'react'
 import { Bot, Check, ClipboardCheck } from 'lucide-react'
 
 const KINDS = [
-    { id: 'TEST', icon: ClipboardCheck, title: 'Online test', text: 'MCQ, written, coding and video questions in a proctored test room.' },
+    { id: 'TEST', icon: ClipboardCheck, title: 'Online test', text: 'MCQ, written, coding and video questions in a proctored test room. You can add an AI interview to it too.' },
     { id: 'AI_INTERVIEW', icon: Bot, title: 'AI interview', text: 'The AI interviewer speaks to each candidate and scores the conversation.' },
 ]
 

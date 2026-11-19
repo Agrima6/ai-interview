@@ -6,6 +6,7 @@ import { sectionName, studentQuestionView } from "../utils/oaQuestions.js"
 import { brandForAssessmentId } from "./oaBrand.service.js"
 import { placeName } from "./oaPlace.service.js"
 import { canRunLanguage, runCases, runnableLanguages } from "./oaCodeRunner.service.js"
+import { handOffToAiInterview } from "./oaAiPart.service.js"
 import { aiMarkingAvailable, markAnswer } from "./oaAi.service.js"
 import { RECORDINGS_BUCKET, getObjectStream, uploadBuffer } from "../config/s3Client.js"
 import { sniffVideoType, videoObjectKey } from "../utils/oaVideo.js"
@@ -81,6 +82,8 @@ export const finalizeAttempt = async (attemptId, { status, reason = null }) => {
     const saved = await OaAttempt.findByIdAndUpdate(attemptId, { $set: { grades: result.grades, score: result.score, maxScore: result.maxScore, percent: result.percent, gradingStatus: result.gradingStatus } }, { new: true })
     // Coding answers with test cases are run and scored in the background, so submitting never waits for the code runner.
     setImmediate(() => markAfterSubmit(attemptId))
+    // Someone who finished the test (not someone removed for cheating) goes on to the AI interview part, if the round has one.
+    if (status !== "TERMINATED" && assessment.aiPart?.enabled) setImmediate(() => handOffToAiInterview(attemptId))
     return saved
 }
 
@@ -147,6 +150,7 @@ export const session = async (ctx) => {
             questionCount: assessment.questions.length, totalMarks: assessment.questions.reduce((sum, q) => sum + q.marks, 0),
             sectionCount: assessment.sections.length, allowBackNavigation: assessment.settings.allowBackNavigation,
             proctoring: proctoringView(assessment.proctoring),
+            aiNext: Boolean(assessment.aiPart?.enabled),
         },
         attempt: fresh ? { status: fresh.status, startedAt: fresh.startedAt, deadline: fresh.deadline, submittedAt: fresh.submittedAt, endReason: fresh.endReason } : null,
         canStart: !finished && (fresh ? fresh.status === "IN_PROGRESS" : phase === "OPEN"),
