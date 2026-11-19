@@ -86,7 +86,7 @@ export const orgSession = async (user) => {
     if (!tenantId || !EMAIL_RE.test(email)) throw new ApiError(403, "NOT_AN_ORGANIZATION", "Online Assessment is available to organization accounts.")
     const emailNormalized = normalizeEmail(email)
 
-    let account = await OaAccount.findOne({ tenantId })
+    let account = await OaAccount.findOne({ tenantId }).sort({ createdAt: 1, _id: 1 })
     if (!account) {
         // The same person may have registered for Online Assessment on its own before: adopt that account.
         const sameEmail = await OaAccount.findOne({ emailNormalized, tenantId: null })
@@ -106,8 +106,16 @@ export const orgSession = async (user) => {
             })
         } catch (error) {
             if (error.code !== 11000) throw error
-            account = await OaAccount.findOne({ tenantId })
+            account = await OaAccount.findOne({ tenantId }).sort({ createdAt: 1, _id: 1 })
             if (!account) throw error
+        }
+        // Two requests can arrive together the first time an organization opens Online Assessment (the dashboard and the
+        // drives page both ask). Each would create an account, splitting the organization's tests across two. The oldest
+        // account is the organization's; a newer one made in the same moment is empty, so it is dropped.
+        const oldest = await OaAccount.findOne({ tenantId }).sort({ createdAt: 1, _id: 1 })
+        if (oldest && String(oldest._id) !== String(account._id)) {
+            await OaAccount.deleteOne({ _id: account._id })
+            account = oldest
         }
     }
     // A platform organization is already verified, so a pending self-registration needs no second review.

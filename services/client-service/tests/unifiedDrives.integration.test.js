@@ -72,6 +72,7 @@ test("set up: an organization with classic AI drives and a multi-round drive tha
     const make = (tenantId, title, status, candidates, extra = {}) => InterviewDrive.create({ tenantId: String(tenantId), title, status, roleCategory: "SOFTWARE_ENGINEERING", department: "ENGINEERING", experienceLevel: "1_3_YEARS", expiryDate: new Date("2027-01-01"), rounds: [{ roundNumber: 1, title: "Screening", type: "Screening", status: "ACTIVE", candidates }], ...extra })
     await make(state.tenant, "Backend Engineer Hiring", "ACTIVE", [cand(1), cand(2), cand(3)])
     state.linked = await make(state.tenant, "AI Round For Campus", "ACTIVE", [cand(4)])
+    state.partOf = await make(state.tenant, "AI Part Of A Test", "ACTIVE", [cand(7)])
     await make(state.tenant, "Old Sales Drive", "ARCHIVED", [cand(5)])
     await make(state.other, "Someone Else's Secret Drive", "ACTIVE", [cand(6)])
 
@@ -80,6 +81,8 @@ test("set up: an organization with classic AI drives and a multi-round drive tha
     const drive = await models.OaDrive.create({ accountId: account._id, title: "Campus Hiring 2026" })
     const round = (n, kind, extra = {}) => models.OaAssessment.create({ accountId: account._id, title: `Campus Hiring 2026 - Round ${n}`, driveId: drive._id, roundNumber: n, kind, status: "PUBLISHED", sections: [{ id: "s1", title: "" }], ...extra })
     const r1 = await round(1, "TEST"); await round(2, "TEST", { roundLabel: "Coding" }); await round(3, "AI_INTERVIEW", { aiInterviewDriveId: String(state.linked._id) })
+    // a test round with an AI interview as its own part: that interview is not a separate drive either
+    await round(4, "TEST", { aiPart: { enabled: true, aiInterviewDriveId: String(state.partOf._id), roundNumber: 1, when: "AFTER_SUBMIT" } })
     for (const n of [1, 2, 3, 4]) await models.OaStudent.create({ accountId: account._id, assessmentId: r1._id, name: `S${n}`, email: `s${n}@x.test`, emailNormalized: `s${n}@x.test`, codeHash: "h", codeEncrypted: "e" })
     // a second organization with its own drive: must stay invisible
     const acc2 = await models.OaAccount.create({ orgName: "Other", contactName: "Owner", email: "oa@other.test", emailNormalized: "oa@other.test", passwordHash: "x", status: "ACTIVE", tenantId: String(state.other) })
@@ -96,7 +99,8 @@ test("one list: classic AI drives and multi-round drives together, the linked AI
     assert.equal(titles.includes("Other Org Multi Drive"), false)
     assert.equal(titles.includes("AI Round For Campus"), false)
     const multi = res.data.find((d) => d.kind === "MULTI")
-    assert.deepEqual(multi.rounds.map((r) => `${r.number}:${r.kind}`), ["1:TEST", "2:TEST", "3:AI_INTERVIEW"])
+    assert.equal(titles.includes("AI Part Of A Test"), false)
+    assert.deepEqual(multi.rounds.map((r) => `${r.number}:${r.kind}`), ["1:TEST", "2:TEST", "3:AI_INTERVIEW", "4:TEST"])
     assert.equal(multi.rounds[1].name, "Coding")
     assert.equal(multi.rounds[0].candidates, 4)
     const ai = res.data.find((d) => d.kind === "AI")

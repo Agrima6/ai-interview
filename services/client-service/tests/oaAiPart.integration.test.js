@@ -5,6 +5,7 @@ import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import net from "node:net"
+import http from "node:http"
 
 // Drives the real Express app over HTTP against a throwaway local mongod. Skipped when mongod is not installed,
 // so `npm test` still passes on machines (and CI images) without it.
@@ -70,12 +71,14 @@ const sit = async (finish = "submit") => {
     const s = (await call("GET", `/oa/assessments/${state.a}/students?search=${email}`, { token: state.admin })).data[0]
     const token = (await call("POST", "/oa/exam/login", { body: { assessmentId: state.a, email, code: s.accessCode } })).data.token
     await call("POST", "/oa/exam/start", { token, body: { environment: { userAgent: "t" } } })
+
     if (finish === "submit") await call("POST", "/oa/exam/submit", { token })
     else {
         const attempt = await models.OaAttempt.findOne({ assessmentId: state.a, studentId: s.id })
         const { finalizeAttempt } = await import("../services/oaExam.service.js")
         await finalizeAttempt(attempt._id, { status: "TERMINATED", reason: "test" })
     }
+    state.lastToken = token
     return email
 }
 const onAi = (email) => drives.InterviewDrive.findById(state.ai).then((d) => d.rounds[0].candidates.some((c) => c.email === email))
@@ -110,7 +113,7 @@ test("whoever submits the test is added to the AI interview once; someone remove
     const a = await sit("submit")
     assert.ok(await waitFor(() => onAi(a)), "the candidate was never added to the AI interview")
     const row = await waitFor(async () => (await call("GET", `/oa/assessments/${state.a}/results`, { token: state.admin })).data.find((r) => r.email === a && r.aiInvite && r.aiInvite !== "SENDING"))
-    assert.ok(["SENT", "ALREADY"].includes(row.aiInvite))
+    assert.ok(["SENT", "ALREADY", "ADDED"].includes(row.aiInvite))
     const cheat = await sit("terminate")
     await new Promise((r) => setTimeout(r, 800))
     assert.equal(await onAi(cheat), false)
@@ -148,4 +151,70 @@ test("job details are filled once on the hiring drive, kept, and cleaned", opts,
     assert.equal(edited.data.department, "Legal")
     assert.equal(edited.data.roleCategory.length, 80)
     assert.equal(edited.data.experienceLevel, "0-1 yr (Fresher)")
+})
+
+test("same sitting: after the test the candidate gets a one-time ticket into the AI interview, with no email", opts, async () => {
+    const seen = []
+    let mode = "ok"
+    const fakeAuth = http.createServer((req, res) => {
+        let body = ""
+        req.on("data", (c) => { body += c })
+        req.on("end", () => {
+            seen.push({ url: req.url, body: JSON.parse(body || "{}"), service: req.headers["x-service-name"] })
+            res.setHeader("Content-Type", "application/json")
+            if (mode === "refuse") { res.statusCode = 409; return res.end(JSON.stringify({ success: false, error: { code: "HANDOFF_NOT_ALLOWED", message: "no" } })) }
+            res.end(JSON.stringify({ success: true, data: { ticket: "ticket-abc", expiresInSeconds: 120 } }))
+        })
+    })
+    await new Promise((r) => fakeAuth.listen(0, "127.0.0.1", r))
+    process.env.AUTH_SERVICE_URL = `http://127.0.0.1:${fakeAuth.address().port}`
+    try {
+        await call("PATCH", `/oa/assessments/${state.a}`, { token: state.admin, body: { aiPart: { enabled: true, aiInterviewDriveId: state.ai, roundNumber: 1, when: "AFTER_SUBMIT" } } })
+        const e = await sit("submit")
+        const go = await call("POST", "/oa/exam/ai-interview", { token: state.lastToken })
+        assert.equal(go.status, 200)
+        assert.equal(go.data.ticket, "ticket-abc")
+        assert.equal(go.data.path, `/candidate/interview/${state.ai}/1`)
+        assert.equal(go.data.emailed, false)
+        assert.ok(await onAi(e))
+        assert.equal(seen.at(-1).url, "/internal/v1/candidate-handoffs")
+        assert.equal(seen.at(-1).body.email, e)
+        assert.equal(seen.at(-1).body.tenantId, "507f1f77bcf86cd799439011")
+
+        const cheat = await sit("terminate")
+        const no = await call("POST", "/oa/exam/ai-interview", { token: state.lastToken })
+        assert.equal(no.status, 409)
+        assert.equal(await onAi(cheat), false)
+
+        mode = "refuse"
+        const other = await sit("submit")
+        const fallback = await call("POST", "/oa/exam/ai-interview", { token: state.lastToken })
+        assert.equal(fallback.status, 200)
+        assert.equal(fallback.data.ticket, null)
+        assert.equal(fallback.data.emailed, true)
+        assert.ok(await onAi(other))
+    } finally { fakeAuth.close() }
+})
+
+test("a test can have several sections, added and filled", opts, async () => {
+    const id = (await call("POST", "/oa/assessments", { token: state.admin, body: { title: "Many sections" } })).data.id
+    const one = await call("GET", `/oa/assessments/${id}`, { token: state.admin })
+    assert.equal(one.data.sections.length, 1)
+    const two = await call("PATCH", `/oa/assessments/${id}`, { token: state.admin, body: { sections: [...one.data.sections, { title: "" }, { title: "Coding" }] } })
+    assert.equal(two.status, 200)
+    assert.equal(two.data.sections.length, 3)
+    const q = await call("POST", `/oa/assessments/${id}/questions`, { token: state.admin, body: { sectionId: two.data.sections[2].id, questions: [{ type: "MCQ", text: "Pick one?", marks: 1, options: ["a", "b"], correct: "a", sectionId: two.data.sections[2].id }] } })
+    assert.equal(q.status === 200 || q.status === 201, true)
+    const after = await call("GET", `/oa/assessments/${id}`, { token: state.admin })
+    assert.equal(after.data.questions[0].sectionId, two.data.sections[2].id)
+})
+
+test("two organization sessions opened at the same moment still share ONE Online Assessment account", opts, async () => {
+    const tenant = "6a00000000000000000000aa"
+    await models.OaAccount.deleteMany({ tenantId: tenant })
+    const { orgSession } = await import("../services/oaAccount.service.js")
+    const user = { tenantId: tenant, email: "boss@race.test" }
+    const sessions = await Promise.all(Array.from({ length: 6 }, () => orgSession(user)))
+    assert.equal(await models.OaAccount.countDocuments({ tenantId: tenant }), 1)
+    assert.equal(new Set(sessions.map((s) => s.account.id)).size, 1)
 })

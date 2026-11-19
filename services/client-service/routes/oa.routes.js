@@ -188,5 +188,6 @@ router.post("/oa/exam/video/:questionId", ...student, receiveVideo, handle((req)
 router.post("/oa/exam/heartbeat", ...student, handle((req) => exam.heartbeat(req.oa, req.body || {})))
 router.post("/oa/exam/violation", ...student, handle((req) => exam.reportViolation(req.oa, req.body || {})))
 router.post("/oa/exam/submit", ...student, handle((req) => exam.submit(req.oa)))
+router.post("/oa/exam/ai-interview", ...student, handle((req) => exam.startAiInterview(req.oa)))
 
 export default router

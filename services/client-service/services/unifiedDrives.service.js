@@ -25,13 +25,14 @@ const aiDrives = async (tenantId) => InterviewDrive.aggregate([
  */
 export const listAllDrives = async (tenantId, query = {}) => {
     if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
-    const account = await OaAccount.findOne({ tenantId: String(tenantId) }).select("_id").lean()
+    const account = await OaAccount.findOne({ tenantId: String(tenantId) }).sort({ createdAt: 1, _id: 1 }).select("_id").lean()
     const [ai, multi, linked] = await Promise.all([
         aiDrives(tenantId),
         account ? listEveryDrive(account._id) : [],
-        account ? OaAssessment.find({ accountId: account._id, kind: "AI_INTERVIEW", aiInterviewDriveId: { $ne: null } }).select("aiInterviewDriveId").lean() : [],
+        // An AI interview is part of a hiring drive when it is the AI round's interview, or the AI part of a test round.
+        account ? OaAssessment.find({ accountId: account._id, $or: [{ kind: "AI_INTERVIEW", aiInterviewDriveId: { $ne: null } }, { "aiPart.enabled": true, "aiPart.aiInterviewDriveId": { $ne: null } }] }).select("aiInterviewDriveId aiPart.aiInterviewDriveId").lean() : [],
     ])
-    const used = new Set(linked.map((a) => String(a.aiInterviewDriveId)))
+    const used = new Set(linked.flatMap((a) => [a.aiInterviewDriveId, a.aiPart?.aiInterviewDriveId]).filter(Boolean).map(String))
 
     const items = [
         ...ai.filter((d) => !used.has(String(d._id))).map((d) => ({
@@ -41,7 +42,7 @@ export const listAllDrives = async (tenantId, query = {}) => {
             rounds: d.rounds.map((r) => ({ number: r.roundNumber, kind: "AI_INTERVIEW", name: r.title || "AI interview", status: r.status, candidates: r.candidates })),
         })),
         ...multi.map((m) => ({
-            kind: "MULTI", id: m.id, title: m.title, status: m.status, createdAt: m.createdAt, updatedAt: m.updatedAt, department: "", role: "", examKind: "HIRING",
+            kind: "MULTI", id: m.id, title: m.title, status: m.status, createdAt: m.createdAt, updatedAt: m.updatedAt, department: m.department || "", role: m.roleCategory || "", examKind: "HIRING",
             candidates: m.rounds.reduce((n, r) => Math.max(n, r.stats?.candidates || 0), 0),
             rounds: m.rounds.map((r) => ({ number: r.roundNumber, kind: r.kind, name: r.name || (r.kind === "AI_INTERVIEW" ? "AI interview" : "Online test"), status: r.status, phase: r.phase, candidates: r.stats?.candidates || 0, id: r.id })),
         })),

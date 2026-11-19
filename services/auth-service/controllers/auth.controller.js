@@ -24,6 +24,16 @@ export const login = async (req, res, next) => {
     } catch (error) { next(error) }
 }
 
+// POST /auth/handoff - a one-time ticket from the online test room becomes a normal candidate session.
+export const handoff = async (req, res, next) => {
+    try {
+        const { user, accessToken, expiresIn, rawRefreshToken } = await authService.redeemHandoffTicket(req.body?.ticket, req.body?.deviceId)
+        await authService.logout(req.cookies?.[REFRESH_COOKIE]).catch(() => {})
+        setRefreshCookie(res, rawRefreshToken)
+        ok(res, { user, accessToken, expiresIn })
+    } catch (error) { next(error) }
+}
+
 export const refresh = async (req, res, next) => {
     try {
         const raw = req.cookies?.[REFRESH_COOKIE]

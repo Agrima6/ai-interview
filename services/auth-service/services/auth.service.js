@@ -4,6 +4,7 @@ import * as userRepo from "../repositories/user.repository.js"
 import * as roleRepo from "../repositories/role.repository.js"
 import * as refreshTokenRepo from "../repositories/refreshToken.repository.js"
 import * as resetTokenRepo from "../repositories/resetToken.repository.js"
+import HandoffTicket from "../models/handoffTicket.model.js"
 import { signAccessToken, generateRefreshToken, hashToken, refreshTokenExpiry } from "../utils/tokens.js"
 import { getFirebaseAuth } from "../config/firebaseAdmin.js"
 import { communicationServiceClient } from "../config/internalClients.js"
@@ -264,4 +265,40 @@ export const googleLogin = async (idToken) => {
     }
     await userRepo.touchLastLogin(user._id)
     return issueSession(user, null)
+}
+
+// ---------- hand-off from the online test room into the AI interview ----------
+
+const HANDOFF_TTL_MS = 2 * 60 * 1000
+const candidateOnly = (user) => user.roles.length > 0 && user.roles.every((r) => r === "CANDIDATE")
+
+/**
+ * Called by client-service (service credentials) for a candidate who has just finished the test. Returns a one-time
+ * ticket, never a session. Refused for anyone who holds any role besides CANDIDATE (an organizer who happens to use the
+ * same email must sign in normally) and for an account that belongs to another organization.
+ */
+export const createHandoffTicket = async ({ email, name, tenantId }) => {
+    if (typeof email !== "string" || !email.trim() || !tenantId) throw new ApiError(400, "VALIDATION_ERROR", "Email and tenant are required.")
+    await createCandidateUser({ email, name, tenantId })
+    const user = await userRepo.findByEmail(email)
+    if (!user || user.status !== "ACTIVE" || !candidateOnly(user) || String(user.tenantId) !== String(tenantId)) {
+        throw new ApiError(409, "HANDOFF_NOT_ALLOWED", "This account cannot continue automatically.")
+    }
+    const raw = crypto.randomBytes(32).toString("base64url")
+    await HandoffTicket.create({ userId: user._id, tokenHash: hashToken(raw), expiresAt: new Date(Date.now() + HANDOFF_TTL_MS) })
+    return { ticket: raw, expiresInSeconds: HANDOFF_TTL_MS / 1000 }
+}
+
+/** Exchange a ticket for a normal candidate session (same shape as login). Works once, within two minutes. */
+export const redeemHandoffTicket = async (rawTicket, deviceId) => {
+    if (typeof rawTicket !== "string" || rawTicket.length < 20 || rawTicket.length > 200) throw new ApiError(401, "INVALID_TICKET", "This link has expired. Please start again.")
+    const claimed = await HandoffTicket.findOneAndUpdate({ tokenHash: hashToken(rawTicket), usedAt: null, expiresAt: { $gt: new Date() } }, { usedAt: new Date() })
+    if (!claimed) throw new ApiError(401, "INVALID_TICKET", "This link has expired. Please start again.")
+    const user = await userRepo.findById(claimed.userId)
+    if (!user || user.status !== "ACTIVE" || !candidateOnly(user)) throw new ApiError(401, "INVALID_TICKET", "This link has expired. Please start again.")
+    // They were identified by their test access code, so a first-time candidate is not sent to "set a new password"
+    // for a temporary one they never saw. They can always use "forgot password" later.
+    if (user.mustChangePassword && !user.lastLoginAt) { await userRepo.clearMustChangePassword(user._id); user.mustChangePassword = false }
+    await userRepo.touchLastLogin(user._id)
+    return issueSession(user, deviceId)
 }

@@ -48,3 +48,13 @@ export const resetPasswordRateLimit = rateLimit({
     legacyHeaders: false,
     handler: tooManyRequests,
 })
+
+// Tickets are 256-bit random values, so guessing is hopeless; the limit only stops runaway loops. Generous, because a
+// whole campus can sit behind one IP address.
+export const handoffRateLimit = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 1000,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: tooManyRequests,
+})

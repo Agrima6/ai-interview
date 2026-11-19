@@ -6,7 +6,7 @@ import { sectionName, studentQuestionView } from "../utils/oaQuestions.js"
 import { brandForAssessmentId } from "./oaBrand.service.js"
 import { placeName } from "./oaPlace.service.js"
 import { canRunLanguage, runCases, runnableLanguages } from "./oaCodeRunner.service.js"
-import { handOffToAiInterview } from "./oaAiPart.service.js"
+import { continueToAiInterview, handOffToAiInterview } from "./oaAiPart.service.js"
 import { aiMarkingAvailable, markAnswer } from "./oaAi.service.js"
 import { RECORDINGS_BUCKET, getObjectStream, uploadBuffer } from "../config/s3Client.js"
 import { sniffVideoType, videoObjectKey } from "../utils/oaVideo.js"
@@ -83,7 +83,7 @@ export const finalizeAttempt = async (attemptId, { status, reason = null }) => {
     // Coding answers with test cases are run and scored in the background, so submitting never waits for the code runner.
     setImmediate(() => markAfterSubmit(attemptId))
     // Someone who finished the test (not someone removed for cheating) goes on to the AI interview part, if the round has one.
-    if (status !== "TERMINATED" && assessment.aiPart?.enabled && assessment.aiPart.when !== "AFTER_REVIEW") setImmediate(() => handOffToAiInterview(attemptId))
+    if (status !== "TERMINATED" && assessment.aiPart?.enabled && assessment.aiPart.when !== "AFTER_REVIEW") setImmediate(() => handOffToAiInterview(attemptId, { invite: false }))
     return saved
 }
 
@@ -195,6 +195,8 @@ const paperPayload = (assessment, attempt) => {
         // Languages the candidate can run against the sample test cases (empty when no code runner is set up).
         runnableLanguages: runnableLanguages(),
         allowBackNavigation: assessment.settings.allowBackNavigation,
+        // Whether an AI interview follows the test in the same sitting, so the candidate is told before they start and before they submit.
+        aiNext: assessment.aiPart?.enabled ? (assessment.aiPart.when === "AFTER_REVIEW" ? "REVIEW" : "AUTO") : null,
         proctoring: proctoringView(assessment.proctoring), violationCount: attempt.violationCount,
         sections: attempt.order.sections.map((s) => ({
             id: s.sectionId, number: assessment.sections.findIndex((x) => x.id === s.sectionId) + 1,
@@ -561,3 +563,6 @@ export const aiMarkAnswers = async (attemptId) => {
     const result = gradeAttempt({ questions: assessment.questions.map(asObject), answers: fresh.answers || {}, grades, settings: assessment.settings?.toObject?.() || {} })
     await OaAttempt.updateOne({ _id: attemptId }, { $set: { grades: result.grades, score: result.score, maxScore: result.maxScore, percent: result.percent, gradingStatus: result.gradingStatus } })
 }
+
+/** After the test, in the same sitting: go on to the AI interview (see oaAiPart.service). */
+export const startAiInterview = (ctx) => continueToAiInterview({ assessmentId: ctx.assessmentId, studentId: ctx.studentId }, { requestId: ctx.requestId })

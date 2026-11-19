@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { CheckCircle2, Clock, LogOut, ShieldAlert } from 'lucide-react'
@@ -10,13 +10,31 @@ import { stopStream } from '../../components/oa/exam/examMedia'
 import { ErrorState } from '../../components/oa/oaUi'
 import ExamBrand from '../../components/oa/ExamBrand'
 
+// "Right after the test" rounds go on to the AI interview in the same sitting: no email, no new sign-in.
+function useContinueToAi(enabled) {
+    const navigate = useNavigate()
+    const [state, setState] = useState({ phase: enabled ? 'working' : 'idle', error: '' })        // idle | working | emailed | failed
+    const started = useRef(false)
+    const run = useCallback(() => {
+        examApi.aiInterview().then((r) => {
+            if (r.emailed || !r.ticket || !r.path) { setState({ phase: 'emailed', error: '' }); return }
+            examApi.logout()
+            navigate(`/candidate/handoff#ticket=${encodeURIComponent(r.ticket)}&to=${encodeURIComponent(r.path)}`, { replace: true })
+        }).catch((err) => setState({ phase: 'failed', error: err.message }))
+    }, [navigate])
+    useEffect(() => { if (enabled && !started.current) { started.current = true; run() } }, [enabled, run])
+    const retry = useCallback(() => { setState({ phase: 'working', error: '' }); run() }, [run])
+    return { ...state, retry }
+}
+
 function Finished({ session, info, onLeave }) {
     const status = info?.status || session.attempt?.status
+    const continuing = useContinueToAi(session.assessment?.aiNext === 'AUTO' && ['SUBMITTED', 'AUTO_SUBMITTED'].includes(status))
     const result = info?.result || session.result
     const reason = info?.endReason || session.attempt?.endReason
     const view = {
-        SUBMITTED: [CheckCircle2, 'var(--color-success)', 'Your test has been submitted', session.assessment?.aiNext === 'AUTO' ? 'Your answers are saved. Next is a short AI interview: check your email for the invitation and use that link to take it.' : session.assessment?.aiNext === 'REVIEW' ? 'Your answers are saved. If you qualify, you will be invited to a short AI interview by email.' : 'Your answers are saved. Your organizer will share the results.'],
-        AUTO_SUBMITTED: [Clock, 'var(--color-warning)', 'Time is up', session.assessment?.aiNext === 'AUTO' ? 'Your answers were submitted automatically. Next is a short AI interview: check your email for the invitation and use that link to take it.' : session.assessment?.aiNext === 'REVIEW' ? 'Your answers were submitted automatically. If you qualify, you will be invited to a short AI interview by email.' : 'Your answers were submitted automatically. Your organizer will share the results.'],
+        SUBMITTED: [CheckCircle2, 'var(--color-success)', 'Your test has been submitted', session.assessment?.aiNext === 'AUTO' ? 'Your answers are saved. Your AI interview starts now.' : session.assessment?.aiNext === 'REVIEW' ? 'Your answers are saved. If you qualify, you will be invited to a short AI interview by email.' : 'Your answers are saved. Your organizer will share the results.'],
+        AUTO_SUBMITTED: [Clock, 'var(--color-warning)', 'Time is up', session.assessment?.aiNext === 'AUTO' ? 'Your answers were submitted automatically. Your AI interview starts now.' : session.assessment?.aiNext === 'REVIEW' ? 'Your answers were submitted automatically. If you qualify, you will be invited to a short AI interview by email.' : 'Your answers were submitted automatically. Your organizer will share the results.'],
         TERMINATED: [ShieldAlert, 'var(--color-danger)', 'Your test has ended', 'It ended automatically because of repeated proctoring violations. Your answers so far were saved, and your organizer will review what happened.'],
     }[status] || [CheckCircle2, 'var(--color-success)', 'Your test is complete', 'Thank you.']
     const [Icon, color, title, text] = view
@@ -35,7 +53,15 @@ function Finished({ session, info, onLeave }) {
                         <div className={`text-[13px] font-semibold ${result.passed ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>{result.percent}% · {result.passed ? 'Passed' : 'Not passed'}</div>
                     </div>
                 )}
-                <Button variant='secondary' size='sm' className='mt-7' onClick={onLeave}><LogOut size={14} /> Sign out</Button>
+                {session.assessment?.aiNext === 'AUTO' && continuing.phase === 'working' && <p role='status' className='mt-5 text-[13.5px] font-semibold text-ink'>Opening your AI interview…</p>}
+                {continuing.phase === 'emailed' && <p role='status' className='mt-5 text-[13.5px] text-ink bg-[var(--color-warning-soft)] rounded-xl px-3.5 py-2.5'>We could not open it automatically, so we emailed you the interview link. Use that link to continue.</p>}
+                {continuing.phase === 'failed' && (
+                    <div role='alert' className='mt-5'>
+                        <p className='text-[13px] text-[var(--color-danger)] mb-2'>{continuing.error || 'Could not open the AI interview.'}</p>
+                        <Button size='sm' onClick={continuing.retry}>Try again</Button>
+                    </div>
+                )}
+                {continuing.phase !== 'working' && <Button variant='secondary' size='sm' className='mt-7' onClick={onLeave}><LogOut size={14} /> Sign out</Button>}
             </div>
         </div>
     )

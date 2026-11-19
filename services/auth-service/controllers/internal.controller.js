@@ -20,3 +20,12 @@ export const createCandidateUser = async (req, res, next) => {
         ok(res, result)
     } catch (error) { next(error) }
 }
+
+// POST /internal/v1/candidate-handoffs - called by client-service when a candidate finishes the test part of a round that
+// continues into an AI interview. Returns a one-time ticket.
+export const createCandidateHandoff = async (req, res, next) => {
+    try {
+        const { email, name, tenantId } = req.body
+        ok(res, await authService.createHandoffTicket({ email, name, tenantId }))
+    } catch (error) { next(error) }
+}

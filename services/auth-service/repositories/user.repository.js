@@ -8,3 +8,4 @@ export const create = (data) => User.create({ ...data, emailNormalized: normaliz
 export const touchLastLogin = (id) => User.findByIdAndUpdate(id, { lastLoginAt: new Date() })
 export const setPassword = (id, passwordHash, mustChangePassword) =>
     User.findByIdAndUpdate(id, { passwordHash, mustChangePassword })
+export const clearMustChangePassword = (id) => User.findByIdAndUpdate(id, { mustChangePassword: false })

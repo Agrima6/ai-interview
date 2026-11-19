@@ -1,5 +1,5 @@
 import React from 'react'
-import { useLocation, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
 import { OrgPanel } from '../billing/BillingOrgDrawer'
 import { PERIOD_PRESETS, istToday, presetRange } from '../billing/billingFormat'
@@ -16,12 +16,10 @@ const OWN_SOURCE = {
 
 /** What the organization is billed for candidates who gave the interview, with the candidates behind it. Read-only. */
 export default function OrganizationBillingPage() {
-    const { pathname } = useLocation()
     const [params, setParams] = useSearchParams()
     const preset = params.get('preset') || (params.get('from') ? 'custom' : 'thisMonth')
     const range = preset === 'custom' ? { from: params.get('from') || presetRange('thisMonth').from, to: params.get('to') || istToday() } : presetRange(preset)
     const update = (patch) => setParams((prev) => { const next = new URLSearchParams(prev); Object.entries(patch).forEach(([k, v]) => (v ? next.set(k, v) : next.delete(k))); return next }, { replace: true })
-    const prefix = pathname.startsWith('/platform/client') ? '/platform/client' : '/organization'
 
     return (
         <OrganizationLayout title='Billing' description='What you are billed for candidates who gave the interview, and the candidates behind every charge.'>
@@ -43,7 +41,7 @@ export default function OrganizationBillingPage() {
                         </div>
                     )}
                 </div>
-                <p className='text-[12.5px] text-text-secondary mb-5'>A candidate is billed once they have given the interview or test. Candidates who only registered are not billed. Amounts are in Indian rupees and Indian time (<span className='sr-only'>{prefix}</span>IST).</p>
+                <p className='text-[12.5px] text-text-secondary mb-5'>A candidate is billed once they have given the interview or test. Candidates who only registered are not billed. Amounts are in Indian rupees and Indian time (IST).</p>
                 <OrgPanel orgKey='own' period={range} product='' source={OWN_SOURCE} readOnly />
             </div>
         </OrganizationLayout>

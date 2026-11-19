@@ -18,4 +18,11 @@ router.post(
     internalController.createCandidateUser
 )
 
+router.post(
+    "/candidate-handoffs",
+    authenticateService,
+    requireServicePermission("CANDIDATE_USER_CREATE"),
+    internalController.createCandidateHandoff
+)
+
 export default router
