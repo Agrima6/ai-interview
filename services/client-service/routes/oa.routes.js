@@ -9,7 +9,7 @@ import * as assessments from "../services/oaAssessment.service.js"
 import * as exam from "../services/oaExam.service.js"
 import { inviteToAiInterview } from "../services/oaAiPart.service.js"
 import * as drives from "../services/oaDrive.service.js"
-import { brandForAssessmentId, resolveLogo } from "../services/oaBrand.service.js"
+import { brandForAssessmentId, resolveClientLogo, resolveLogo } from "../services/oaBrand.service.js"
 import { placeName } from "../services/oaPlace.service.js"
 import { rateLimit } from "../utils/oaSecurity.js"
 import { aiConfigured, aiStatus } from "../services/oaAi.service.js"
@@ -93,10 +93,11 @@ router.get("/oa/exam/brand", handle(async (req) => {
     const brand = await brandForAssessmentId(String(req.query.a || ""))
     return { name: brand.name, logoPath: brand.logoPath }
 }))
-// The logo itself: public (a mail app or a signed-out page cannot send a login), and cacheable.
-router.get("/oa/brand/:accountId/logo", async (req, res, next) => {
+// The logo itself: public (a mail app or a signed-out page cannot send a login), and cacheable. By Online Assessment account
+// or, for emails and pages of AI interviews, by the organization's own id.
+router.get(["/oa/brand/:accountId/logo", "/oa/brand/client/:clientId/logo"], async (req, res, next) => {
     try {
-        const logo = await resolveLogo(req.params.accountId)
+        const logo = req.params.clientId ? await resolveClientLogo(req.params.clientId) : await resolveLogo(req.params.accountId)
         if (!logo) return next(new ApiError(404, "NOT_FOUND", "No logo."))
         res.setHeader("Cache-Control", "public, max-age=1800")
         if (logo.redirect) return res.redirect(302, logo.redirect)

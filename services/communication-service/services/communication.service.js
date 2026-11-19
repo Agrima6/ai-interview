@@ -10,6 +10,25 @@ import { enqueueNotification } from "../config/sqsClient.js"
 const interpolate = (template, variables) =>
     template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, key) => (variables[key] ?? ""))
 
+// HTML is interpolated with every value escaped (an organization or candidate name is data, never markup); a variable whose
+// name ends in `_html` is trusted markup built by this platform.
+const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]))
+export const interpolateHtml = (template, variables) =>
+    template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, key) => (key.endsWith("_html") ? (variables[key] ?? "") : escapeHtml(variables[key])))
+
+// The organization's logo goes above its name in the branded email shells (see utils/emailHtml.js). Done on the rendered
+// email, so templates already saved in the database get the logo without being re-seeded. Only a plain http(s) address.
+const HERO_NAME = '<p style="margin:0 0 8px;font-size:15px;font-weight:800;color:#ffffff;">'
+const PLAIN_NAME = '<span style="font-size:19px;font-weight:800;color:#1a1215;">'
+export const injectOrgLogo = (html, logoUrl, name) => {
+    if (!html || !/^https?:\/\/[^\s"'<>]+$/i.test(String(logoUrl || ""))) return html
+    const alt = escapeHtml(name || "")
+    const img = (extra) => `<img src="${logoUrl}" alt="${alt}" height="44" style="display:block;height:44px;max-width:180px;width:auto;border:0;${extra}" />`
+    if (html.includes(HERO_NAME)) return html.replace(HERO_NAME, `${img("margin:0 auto 12px;background:#ffffff;border-radius:10px;padding:5px;")}${HERO_NAME}`)
+    if (html.includes(PLAIN_NAME)) return html.replace(PLAIN_NAME, `${img("margin:0 auto 10px;")}${PLAIN_NAME}`)
+    return html
+}
+
 const view = (c) => ({
     id: String(c._id),
     entityType: c.entityType,
@@ -63,7 +82,7 @@ export const sendAndRecord = async ({ entityType, entityId, channel, eventType, 
         // what actually gets sent - without this, every "HTML email" sent
         // through this path was silently going out as the plain-text
         // fallback instead, regardless of how the template was designed.
-        if (template.htmlBody) finalHtml = interpolate(template.htmlBody, variables || {})
+        if (template.htmlBody) finalHtml = injectOrgLogo(interpolateHtml(template.htmlBody, variables || {}), variables?.company_logo_url, variables?.company_name)
     }
 
     const destinationMasked = channel === "EMAIL" ? maskEmail(recipient) : maskPhone(recipient)

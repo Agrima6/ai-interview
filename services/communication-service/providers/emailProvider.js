@@ -23,12 +23,16 @@ export const resolveSender = (eventType) => {
 // invite) shows that org's name as the sender, without needing a
 // per-organization verified domain/mailbox. The underlying address always
 // stays whatever the platform account actually controls.
-const withDisplayName = (senderString, displayName) => {
-    if (!displayName) return senderString
+// The name is the organization's own (no "via WorkmateIQ", no mailbox name such as "onboarding"). It is cleaned first:
+// quotes, angle brackets and control characters would otherwise let a name break out of the From header.
+const cleanDisplayName = (name) => String(name || "").replace(/[\u0000-\u001f\u007f"\\<>]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80)
+export const withDisplayName = (senderString, displayName) => {
+    const name = cleanDisplayName(displayName)
+    if (!name) return senderString
     const match = /<([^>]+)>/.exec(senderString || "")
     const address = match ? match[1] : senderString
     if (!address) return senderString
-    return `"${displayName} via WorkmateIQ" <${address}>`
+    return `"${name}" <${address}>`
 }
 
 class MockEmailProvider {
@@ -86,7 +90,7 @@ class GmailSmtpProvider {
     // can be swapped per-organization, never the actual address.
     async send({ to, subject, body, html, fromName }) {
         const info = await getTransporter().sendMail({
-            from: `"${fromName ? `${fromName} via WorkmateIQ` : "WorkmateIQ"}" <${process.env.EMAIL_USER}>`,
+            from: `"${cleanDisplayName(fromName) || "WorkmateIQ"}" <${process.env.EMAIL_USER}>`,
             to,
             subject,
             text: body,

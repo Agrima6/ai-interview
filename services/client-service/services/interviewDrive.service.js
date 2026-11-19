@@ -1,5 +1,7 @@
 import { isInterviewLanguage, normalizeInterviewLanguage } from "../utils/interviewLanguages.js"
 import { cleanLanguagePolicy, policyOf, startingLanguage } from "../utils/languagePolicy.js"
+import { orgBrand } from "./oaBrand.service.js"
+import { renderEmailHtml } from "../utils/oaEmailHtml.js"
 import { isBlueCollar, blueCollarLabel } from "../utils/blueCollar.js"
 import { permissionsForMode, resolveInterviewMode, normalizeInterviewMode } from "../utils/interviewMode.js"
 import crypto from "crypto"
@@ -216,6 +218,13 @@ const repairRoundStatuses = async (drive) => {
 const formatEmailDateTime = (value) => new Date(value).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata", timeZoneName: "short" })
 const formatEmailDate = (value) => (value ? new Date(value).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" }) : "")
 
+// A message the organization wrote (plain text, paragraphs separated by blank lines) in the designed email shell, with the
+// organization's own logo and name at the top. The plain text stays as the fallback for mail apps that show only text.
+const brandedTextEmail = (org, subject, text) => renderEmailHtml({
+    brand: orgBrand(org), heading: subject || "A message from your organizer",
+    paragraphs: String(text || "").split(/\n{2,}/).map((p) => p.trim()).filter(Boolean), footer: `Sent by ${org?.name || "your organizer"} through WorkmateIQ.`,
+})
+
 // The invite email is one template; these variables decide whether it talks about an interview (hiring) or an exam
 // (college), so a student is never told they are a "candidate" applying for a "role".
 const inviteWording = (drive) => (drive.driveKind === "EXAM"
@@ -354,6 +363,8 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx, round = null) 
                 candidate_name: candidate.name || "there",
                 drive_title: drive.title,
                 company_name: org?.name || "the hiring team",
+                // The organization's own logo, shown at the top of the email (empty when it has not uploaded one).
+                company_logo_url: orgBrand(org).logoUrl,
                 interview_link: interviewLink,
                 login_url: loginUrl,
                 login_email: candidate.email,
@@ -709,6 +720,7 @@ export const applyToPublicDrive = async (link, applicationData, resumeFile, ctx)
         entityType: "CLIENT", entityId: drive.tenantId, channel: "EMAIL",
         eventType: "CANDIDATE_APPLICATION_CONFIRMED", recipient: candidate.email,
         variables: {
+            company_logo_url: orgBrand(org).logoUrl,
             candidate_name: candidate.name || "there",
             drive_title: drive.title,
             company_name: org?.name || "the hiring team",
@@ -796,6 +808,7 @@ export const completeCandidateApplication = async (tenantId, email, driveId, rou
         entityType: "CLIENT", entityId: drive.tenantId, channel: "EMAIL",
         eventType: "CANDIDATE_APPLICATION_CONFIRMED", recipient: candidate.email,
         variables: {
+            company_logo_url: orgBrand(org).logoUrl,
             candidate_name: candidate.name || "there",
             drive_title: drive.title,
             company_name: org?.name || "the hiring team",
@@ -864,6 +877,7 @@ export const getMyInterviews = async (tenantId, email) => {
                 attemptedDate: candidate.attemptedDate,
                 demoAlwaysLive: candidate.demoAlwaysLive || false,
                 companyName: org?.name || null,
+                brand: org ? orgBrand(org) : null,
                 aiScore: candidate.aiScore,
                 resumeFilename: candidate.resumeFilename,
                 resumeOriginalName: candidate.resumeOriginalName,
@@ -2200,6 +2214,8 @@ export const communicateWithCandidates = async (tenantId, driveId, roundNumber, 
                 eventType: `ROUND_${purpose}`, recipient,
                 subject: template.type === "EMAIL" ? renderTemplateText(template.subject, variables) : undefined,
                 body: renderTemplateText(template.body, variables),
+                // The sender shows as the organization, and the email carries its logo and name.
+                ...(template.type === "EMAIL" ? { variables: { company_name: variables.company_name }, html: brandedTextEmail(org, renderTemplateText(template.subject, variables), renderTemplateText(template.body, variables)) } : {}),
                 metadata: { driveId: String(drive._id), candidateId: candidate.id, roundNumber: Number(roundNumber), purpose },
             }, ctx)
             communicationId = sent?.id

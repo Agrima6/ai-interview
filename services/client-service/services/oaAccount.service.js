@@ -1,3 +1,4 @@
+import { findClientByTenant } from "./oaBrand.service.js"
 import crypto from "node:crypto"
 import mongoose from "mongoose"
 import { OaAccount } from "../models/oa.model.js"
@@ -93,7 +94,7 @@ export const orgSession = async (user) => {
         if (sameEmail) { sameEmail.tenantId = tenantId; account = await sameEmail.save() }
     }
     if (!account) {
-        const client = mongoose.isValidObjectId(tenantId) ? await Client.findOne({ tenantId }).select("name").lean() : null
+        const client = await findClientByTenant(tenantId)
         const taken = await OaAccount.exists({ emailNormalized })
         try {
             account = await OaAccount.create({

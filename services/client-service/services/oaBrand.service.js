@@ -12,7 +12,10 @@ export const logoPath = (accountId) => `/api/v1/oa/brand/${accountId}/logo`
 // Where the public API lives, for links that leave the website (a logo inside an email). Set PUBLIC_API_URL in production.
 export const publicApiUrl = () => (process.env.PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "https://api.workmateiq.com" : "http://localhost:4000")).replace(/\/$/, "")
 
-const clientFor = async (account) => (account?.tenantId && mongoose.isValidObjectId(account.tenantId) ? Client.findOne({ tenantId: account.tenantId }).select("name branding onboardingId").lean() : null)
+// An organization's `tenantId` (on sign-in tokens, accounts and drives) is its Client record's _id. The Client's own
+// `tenantId` field is not always filled in, so a Client is found by either.
+export const findClientByTenant = (tenantId) => (tenantId && mongoose.isValidObjectId(tenantId) ? Client.findOne({ $or: [{ _id: tenantId }, { tenantId }] }).select("name branding onboardingId").lean() : null)
+const clientFor = (account) => findClientByTenant(account?.tenantId)
 const hasLogo = (client) => Boolean(client?.branding?.logoFileId || client?.branding?.logoUrl)
 
 /** { name, logoPath, color } for an account; `logoPath` is null when the organization has not uploaded a logo. */
@@ -24,6 +27,15 @@ export const brandForAccount = async (account) => {
         color: safeColor(client?.branding?.primaryColor),
     }
 }
+
+export const clientLogoPath = (clientId) => `/api/v1/oa/brand/client/${clientId}/logo`
+
+/** { name, color, logoUrl } of an organization (a Client record) for its candidates' emails and pages; the logo is an absolute address. */
+export const orgBrand = (client) => ({
+    name: String(client?.name || "Your organizer"),
+    color: safeColor(client?.branding?.primaryColor),
+    logoUrl: client && hasLogo(client) ? `${publicApiUrl()}${clientLogoPath(client._id)}` : "",
+})
 
 /** The same, with the logo as an absolute address, for use inside an email. */
 export const emailBrand = async (account) => {
@@ -56,11 +68,20 @@ const loadBrandForAssessment = async (assessmentId) => {
 
 const DATA_IMAGE = /^data:(image\/(?:png|jpeg|webp|gif));base64,([A-Za-z0-9+/=]+)$/
 
+/** An organization's logo (by its Client id) as a redirect or the image bytes; null when there is none. */
+export const resolveClientLogo = async (clientId) => {
+    if (!mongoose.isValidObjectId(clientId)) return null
+    return logoOf(await Client.findById(clientId).select("branding onboardingId").lean())
+}
+
 /** Resolves an account's logo to a redirect or the image bytes; null when there is none. */
 export const resolveLogo = async (accountId) => {
     if (!mongoose.isValidObjectId(accountId)) return null
     const account = await OaAccount.findById(accountId).select("tenantId").lean()
-    const client = await clientFor(account)
+    return logoOf(await clientFor(account))
+}
+
+const logoOf = (client) => {
     if (!client) return null
     const { logoFileId, logoUrl } = client.branding || {}
     if (logoFileId && client.onboardingId) {

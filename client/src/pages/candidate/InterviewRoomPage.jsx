@@ -16,6 +16,8 @@ import { INTERVIEW_LANGUAGES } from '../../constants/interviewLanguages'
 // camera is published at a modest size with a single layer, and the shared screen is captured at a low frame rate.
 const SCREEN_CAPTURE_VIDEO = { displaySurface: 'monitor', frameRate: { ideal: 5, max: 8 }, width: { max: 1280 }, height: { max: 720 } }
 const ROOM_OPTIONS = {
+    // The browser's own noise filtering stays on, so fans, keyboards and street sounds never reach the interviewer.
+    audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
     videoCaptureDefaults: { resolution: { width: 640, height: 360, frameRate: 20 } },
     publishDefaults: { simulcast: false, videoEncoding: { maxBitrate: 500_000, maxFramerate: 20 } },
     adaptiveStream: true,
@@ -51,6 +53,7 @@ function InterviewRoomPage() {
     const [started, setStarted] = useState(false)
     const cameraTrackRef = useRef(null)                                    // the published camera track, kept so the picture can be re-attached
     const [availableLanguages, setAvailableLanguages] = useState(null)     // null until known: then only languages the voice can speak
+    const [orgBrand, setOrgBrand] = useState(null)                      // the organization running this interview: { name, logoUrl }
     const [languagePolicy, setLanguagePolicy] = useState(null)         // what HR allows: { defaultLanguage, allowed, allowSwitch }
     const [interviewLanguage, setInterviewLanguage] = useState('en')     // chosen on the join screen; the candidate can still ask the interviewer to switch
     const [violationCount, setViolationCount] = useState(0)
@@ -169,6 +172,7 @@ function InterviewRoomPage() {
                 const next = normalizeRequirements(item?.requiredPermissions)
                 requiredRef.current = next
                 setRequired(next)
+                setOrgBrand(item?.brand || null)
                 const policy = item?.languagePolicy || null
                 setLanguagePolicy(policy)
                 const permitted = (code) => !policy?.allowed?.length || policy.allowed.includes(code)
@@ -1226,10 +1230,10 @@ function InterviewRoomPage() {
                 {/* Header */}
                 <header className='border-b border-line bg-card px-6 py-4 flex items-center justify-between'>
                     <div className='flex items-center gap-3'>
-                        <img src={logo} alt='Workmate.IQ' className='w-9 h-9 rounded-xl shadow-xs' />
+                        <img src={orgBrand?.logoUrl || logo} alt={orgBrand?.name || 'Workmate.IQ'} className='w-9 h-9 rounded-xl shadow-xs object-contain bg-white' onError={(e) => { e.currentTarget.src = logo }} />
                         <div>
                             <div className='flex items-center gap-2'>
-                                <h1 className='font-display text-[16px] font-bold text-ink leading-none'>Workmate.IQ</h1>
+                                <h1 className='font-display text-[16px] font-bold text-ink leading-none'>{orgBrand?.name || 'Workmate.IQ'}</h1>
                                 <span className='text-[11px] font-semibold uppercase tracking-wider bg-accent/10 text-accent px-2 py-0.5 rounded-full'>
                                     Stage 1 of 2
                                 </span>
@@ -1528,8 +1532,8 @@ function InterviewRoomPage() {
             <header className='border-b border-line bg-card shrink-0'>
                 <div className='flex items-center justify-between gap-3 px-4 sm:px-6 py-3'>
                     <div className='flex items-center gap-3 min-w-0'>
-                        <img src={logo} alt='WorkmateIQ' className='w-9 h-9 rounded-full shrink-0' />
-                        <span className='font-display text-[16px] font-bold text-ink hidden sm:inline'>WorkmateIQ</span>
+                        <img src={orgBrand?.logoUrl || logo} alt={orgBrand?.name || 'WorkmateIQ'} className='w-9 h-9 rounded-full shrink-0 object-contain bg-white' onError={(e) => { e.currentTarget.src = logo }} />
+                        <span className='font-display text-[16px] font-bold text-ink hidden sm:inline'>{orgBrand?.name || 'WorkmateIQ'}</span>
                         <span className='hidden sm:block w-px h-8 bg-line' aria-hidden='true' />
                         <div className='min-w-0'>
                             <p className='font-display text-[14.5px] font-bold text-ink leading-tight truncate'>Live AI Interview{roundNumber ? ` · Round ${roundNumber}` : ''}</p>
