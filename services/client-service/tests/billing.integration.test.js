@@ -266,3 +266,52 @@ test("CSV exports: the whole summary and one client's annexure, safe to open in 
     assert.match(csv, /'=HYPERLINK/)           // a name that starts with = is neutralised, so a spreadsheet will not run it
     assert.doesNotMatch(csv, /(^|,)"?=HYPERLINK/m)
 })
+
+const ownToken = async (tenantId, permissions = ["CLIENT_SELF_READ"]) => (await import("jsonwebtoken")).default.sign({ sub: "507f1f77bcf86cd799439011", email: "hr@acme.test", tenantId: tenantId ? String(tenantId) : undefined, permissions }, SECRET())
+const own = (path = "", token = state.ownA) => call("GET", `/organization/billing${path}`, { token })
+
+test("an organization sees its own billing: the same figures the owner invoices from, and nothing else", opts, async () => {
+    state.ownA = await ownToken(state.tA)
+    await call("PUT", `/admin/billing/rates/${state.A}`, { token: state.root, body: { aiRate: 100, unit: "CANDIDATE", gstPercent: 18, notes: "Internal: gave 10% discount, do not share" } })
+    const res = await own(`?${NOV}`)
+    assert.equal(res.status, 200)
+    const admin = (await get(`/organizations/${state.A}?${NOV}`)).data
+    assert.equal(res.data.organization.total, admin.organization.total)            // identical to the owner's invoice figure
+    assert.equal(res.data.organization.total, 413)
+    assert.equal(res.data.organization.ai.billableCandidates, 3)
+    assert.equal(res.data.rates.aiRate, 100); assert.equal(res.data.rates.gstPercent, 18)
+    // what is private to the platform owner never reaches the organization
+    const body = JSON.stringify(res.json)
+    assert.equal(body.includes("Internal: gave 10% discount"), false)
+    assert.equal(res.data.rates.notes, "")
+    assert.equal(res.data.organization.hasCustomRate, false)
+    assert.equal(body.includes("Delhi College"), false); assert.equal(body.includes("Solo Tests"), false)
+})
+
+test("it can see its own candidates and download its own annexure, and only its own", opts, async () => {
+    const lines = await own(`/lines?${NOV}&pageSize=100`)
+    assert.equal(lines.status, 200)
+    assert.ok(lines.data.length > 0)
+    assert.ok(lines.data.every((l) => !String(l.email).endsWith("@b.test")))      // none of the college's students
+    assert.equal(lines.data.reduce((s, l) => s + l.units, 0), 4)
+    const csv = await own(`/export?${NOV}`)
+    assert.equal(csv.status, 200)
+    assert.match(String(csv.json), /Asha Verma/)
+    assert.doesNotMatch(String(csv.json), /Student One/)                            // the college's student
+    // the other organization sees its own numbers, not Acme's
+    const other = await own(`?${NOV}`, await ownToken(state.tB))
+    assert.equal(other.data.organization.registered, 2)
+    assert.equal(JSON.stringify(other.json).includes("Acme Corp"), false)
+})
+
+test("who may ask for it, and no way to name another organization", opts, async () => {
+    assert.equal((await call("GET", `/organization/billing?${NOV}`)).status, 401)
+    assert.equal((await own(`?${NOV}`, await ownToken(state.tA, []))).status, 403)
+    assert.equal((await own(`?${NOV}`, await ownToken(null))).status, 403)
+    assert.equal((await own(`?${NOV}`, await platformToken(["SETTINGS_WRITE"]))).status, 403)    // the owner's token has no organization of its own
+    // a key or tenant in the request is ignored: it is always the signed-in organization
+    const sneaky = await own(`?${NOV}&key=${state.B}&tenantId=${state.B}`)
+    assert.equal(sneaky.data.organization.name, "Acme Corp")
+    assert.equal((await call("GET", `/organization/billing/${state.B}`, { token: state.ownA })).status, 404)
+    assert.equal((await own("?from=2026-13-40")).status, 400)
+})

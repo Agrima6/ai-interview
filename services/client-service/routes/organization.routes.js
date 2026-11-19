@@ -4,6 +4,7 @@ import * as portalController from "../controllers/organizationPortal.controller.
 import { authenticate, requirePermission } from "../middlewares/authenticate.js"
 import { ok } from "../utils/response.js"
 import { listAllDrives } from "../services/unifiedDrives.service.js"
+import * as billing from "../services/billing.service.js"
 
 const router = Router()
 
@@ -18,6 +19,17 @@ router.get("/organization/all-drives", authenticate, requirePermission("CLIENT_S
         ok(res, items, { total, page, pageSize, counts })
     } catch (error) { next(error) }
 })
+
+// An organization's own billing (read-only): what it is charged for candidates who gave the interview. The organization is
+// always the signed-in user's own; nothing in the request can name another one.
+const wrapOwn = (fn) => async (req, res, next) => { try { await fn(req, res) } catch (error) { next(error) } }
+const csv = (res, { filename, csv: body }) => { res.setHeader("Content-Type", "text/csv; charset=utf-8"); res.setHeader("Content-Disposition", `attachment; filename="${filename}"`); res.setHeader("Cache-Control", "no-store"); res.send(body) }
+router.get("/organization/billing", authenticate, requirePermission("CLIENT_SELF_READ"), wrapOwn(async (req, res) => ok(res, await billing.getOwnBilling(req.user?.tenantId, req.query))))
+router.get("/organization/billing/lines", authenticate, requirePermission("CLIENT_SELF_READ"), wrapOwn(async (req, res) => {
+    const { items, total, page, pageSize } = await billing.listOwnLines(req.user?.tenantId, req.query)
+    ok(res, items, { total, page, pageSize })
+}))
+router.get("/organization/billing/export", authenticate, requirePermission("CLIENT_SELF_READ"), wrapOwn(async (req, res) => csv(res, await billing.exportOwnCsv(req.user?.tenantId, req.query))))
 
 // Team & Access Control
 router.get("/organization/team", authenticate, requirePermission("CLIENT_SELF_READ"), portalController.listTeamMembers)

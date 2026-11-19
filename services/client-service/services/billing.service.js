@@ -429,3 +429,26 @@ export const exportOrganizationCsv = async (key, query = {}) => {
     rows.push(["", "", "", "", "", "", "", "", "", "", "", "Total billing units", units])
     return { filename: `${org.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "organization"}-annexure-${period.from}-to-${period.to}.csv`, csv: toCsv(rows) }
 }
+
+// ---------- an organization's own view: what it is billed, read-only ----------
+
+const ownKey = (tenantId) => {
+    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+    return String(tenantId)
+}
+
+/**
+ * The same figures the platform owner invoices from, for one organization only: its own usage, its own rates and the
+ * candidates behind them. Never other organizations, the platform's default rate card, or the owner's private notes.
+ */
+export const getOwnBilling = async (tenantId, query = {}) => {
+    const res = await getOrganization(ownKey(tenantId), query)
+    return {
+        period: res.period,
+        organization: { ...res.organization, hasCustomRate: false },
+        rates: { aiRate: res.rates.aiRate, oaRate: res.rates.oaRate, gstPercent: res.rates.gstPercent, unit: res.rates.unit, custom: { aiRate: null, oaRate: null, gstPercent: null, unit: null }, notes: "", defaults: { aiRate: null, oaRate: null, gstPercent: res.rates.gstPercent, unit: res.rates.unit } },
+        sources: res.sources,
+    }
+}
+export const listOwnLines = (tenantId, query = {}) => listLines(ownKey(tenantId), query)
+export const exportOwnCsv = (tenantId, query = {}) => exportOrganizationCsv(ownKey(tenantId), query)

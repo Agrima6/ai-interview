@@ -34,6 +34,7 @@ const OaJoinPage = lazy(() => import('./pages/oa/OaJoinPage'))
 const BillingPage = lazy(() => import('./pages/billing/BillingPage'))
 const AllDrivesPage = lazy(() => import('./pages/organization/AllDrivesPage'))
 const HiringDrivePage = lazy(() => import('./pages/organization/HiringDrivePage'))
+const OrganizationBillingPage = lazy(() => import('./pages/organization/OrganizationBillingPage'))
 const OaLegacyRoundRedirect = lazy(() => import('./pages/oa/OaLegacyRoundRedirect'))
 const WorkspaceChooserPage = lazy(() => import('./pages/WorkspaceChooserPage'))
 const OaApprovalsPage = lazy(() => import('./pages/oa/OaApprovalsPage'))
@@ -191,6 +192,7 @@ function App() {
       <Route path='/platform/client/team' element={<RequireClientAuth><TeamPage/></RequireClientAuth>}/>
       <Route path='/platform/client/templates' element={<RequireClientAuth><TemplatesPage/></RequireClientAuth>}/>
       <Route path='/platform/client/reports' element={<RequireClientAuth><ReportsPage/></RequireClientAuth>}/>
+      <Route path='/platform/client/billing' element={<RequireClientAuth><OrganizationBillingPage/></RequireClientAuth>}/>
       <Route path='/platform/client/settings' element={<RequireClientAuth><SettingsPage/></RequireClientAuth>}/>
 
       {/* Organization Portal Routes */}
@@ -204,6 +206,7 @@ function App() {
       <Route path='/organization/team' element={<RequireClientAuth><TeamPage/></RequireClientAuth>}/>
       <Route path='/organization/templates' element={<RequireClientAuth><TemplatesPage/></RequireClientAuth>}/>
       <Route path='/organization/reports' element={<RequireClientAuth><ReportsPage/></RequireClientAuth>}/>
+      <Route path='/organization/billing' element={<RequireClientAuth><OrganizationBillingPage/></RequireClientAuth>}/>
       <Route path='/organization/settings' element={<RequireClientAuth><SettingsPage/></RequireClientAuth>}/>
 
       {/* College Portal Routes */}

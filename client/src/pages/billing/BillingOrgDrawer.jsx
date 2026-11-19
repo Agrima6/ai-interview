@@ -3,6 +3,9 @@ import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tansta
 import { Check, Download, Mail, Phone } from 'lucide-react'
 import { Badge, Button, Drawer, Pagination, SearchInput, Select, Skeleton, useToast } from '../../components/ui'
 import { downloadBillingCsv, getBillingOrganization, listBillingLines, saveBillingRates } from '../../api/billingApi'
+
+// Where the panel reads from. The platform owner reads any client; an organization reads only itself.
+const ADMIN_SOURCE = { ns: 'admin', getOrganization: getBillingOrganization, listLines: listBillingLines, download: (key, params) => downloadBillingCsv(`organizations/${key}/export`, params), save: saveBillingRates }
 import RateForm from './RateForm'
 import { KIND, OUTCOME, PRODUCT, UNIT_LABEL, formatDay, formatWhen, inr, num } from './billingFormat'
 
@@ -27,7 +30,7 @@ function Funnel({ s }) {
     )
 }
 
-function OrgPanel({ orgKey, period, product }) {
+export function OrgPanel({ orgKey, period, product, source = ADMIN_SOURCE, readOnly = false }) {
     const toast = useToast()
     const queryClient = useQueryClient()
     const [search, setSearch] = useState(''); const [q, setQ] = useState('')
@@ -36,14 +39,14 @@ function OrgPanel({ orgKey, period, product }) {
     const [saveError, setSaveError] = useState('')
     useEffect(() => { const id = setTimeout(() => { setQ(search); setPage(1) }, 350); return () => clearTimeout(id) }, [search])
 
-    const detail = useQuery({ queryKey: ['billing', 'org', orgKey, period.from, period.to, product], queryFn: () => getBillingOrganization(orgKey, { ...period, product }) })
-    const lines = useQuery({ queryKey: ['billing', 'lines', orgKey, period.from, period.to, product, q, outcome, billableOnly, page, pageSize], queryFn: () => listBillingLines(orgKey, { ...period, product, search: q, outcome, billable: billableOnly ? '1' : '', page, pageSize }), placeholderData: keepPreviousData })
+    const detail = useQuery({ queryKey: ['billing', source.ns, 'org', orgKey, period.from, period.to, product], queryFn: () => source.getOrganization(orgKey, { ...period, product }) })
+    const lines = useQuery({ queryKey: ['billing', source.ns, 'lines', orgKey, period.from, period.to, product, q, outcome, billableOnly, page, pageSize], queryFn: () => source.listLines(orgKey, { ...period, product, search: q, outcome, billable: billableOnly ? '1' : '', page, pageSize }), placeholderData: keepPreviousData })
     const save = useMutation({
-        mutationFn: (body) => saveBillingRates(orgKey, body),
+        mutationFn: (body) => source.save(orgKey, body),
         onSuccess: () => { setSaveError(''); queryClient.invalidateQueries({ queryKey: ['billing'] }); toast.success('Rates saved. The figures are updated.') },
         onError: (err) => { setSaveError(err.message); toast.error(err.message) },
     })
-    const download = useMutation({ mutationFn: () => downloadBillingCsv(`organizations/${orgKey}/export`, { ...period, product }), onError: (err) => toast.error(err.message) })
+    const download = useMutation({ mutationFn: () => source.download(orgKey, { ...period, product }), onError: (err) => toast.error(err.message) })
 
     if (detail.isError) return <p role='alert' className='text-[14px] text-[var(--color-danger)]'>{detail.error.message}</p>
     if (detail.isLoading) return <div className='space-y-4' aria-busy='true'><Skeleton className='h-20 w-full rounded-2xl' /><Skeleton className='h-48 w-full rounded-2xl' /><Skeleton className='h-64 w-full rounded-2xl' /></div>
@@ -68,7 +71,7 @@ function OrgPanel({ orgKey, period, product }) {
             </header>
 
             <section aria-label='Invoice summary'>
-                <h3 className='text-[14px] font-bold text-ink mb-2'>What to bill</h3>
+                <h3 className='text-[14px] font-bold text-ink mb-2'>{readOnly ? 'Your charges' : 'What to bill'}</h3>
                 <div className='border border-line rounded-2xl overflow-hidden'>
                     <table className='w-full text-[13.5px]'>
                         <thead className='bg-surface-muted text-left text-[12px] font-semibold text-text-secondary'><tr><th className='px-4 py-2.5'>Item</th><th className='px-4 py-2.5 text-right'>Billable</th><th className='px-4 py-2.5 text-right'>Rate</th><th className='px-4 py-2.5 text-right'>Amount</th></tr></thead>
@@ -78,12 +81,12 @@ function OrgPanel({ orgKey, period, product }) {
                             ))}
                             <tr className='bg-surface-muted/50'><td className='px-4 py-2.5 text-text-secondary' colSpan={3}>Subtotal</td><td className='px-4 py-2.5 text-right tabular-nums'>{inr(o.amountExGst)}</td></tr>
                             <tr><td className='px-4 py-2.5 text-text-secondary' colSpan={3}>GST {o.gstPercent}%</td><td className='px-4 py-2.5 text-right tabular-nums'>{inr(o.gstAmount)}</td></tr>
-                            <tr className='bg-ink text-white'><td className='px-4 py-3 font-bold' colSpan={3}>Total to invoice</td><td className='px-4 py-3 text-right font-bold text-[16px] tabular-nums'>{inr(o.total)}</td></tr>
+                            <tr className='bg-ink text-white'><td className='px-4 py-3 font-bold' colSpan={3}>{readOnly ? 'Total payable' : 'Total to invoice'}</td><td className='px-4 py-3 text-right font-bold text-[16px] tabular-nums'>{inr(o.total)}</td></tr>
                         </tbody>
                     </table>
                 </div>
                 <p className='text-[12px] text-text-secondary mt-2'>Billed {UNIT_LABEL[o.unit]}. {o.interviews > o.billableCandidates && o.unit !== 'INTERVIEW' ? `${num(o.billableCandidates)} people sat ${num(o.interviews)} interview rounds between them, so each person is billed once.` : `${num(o.interviews)} interview${o.interviews === 1 ? '' : 's'} given in this period.`}</p>
-                {o.rateMissing && <p role='alert' className='text-[13px] text-[var(--color-warning)] mt-2'>No rate is set for part of this usage. Set one below.</p>}
+                {o.rateMissing && <p role='alert' className='text-[13px] text-[var(--color-warning)] mt-2'>{readOnly ? 'Pricing for part of this usage has not been set yet. Your account manager will confirm it.' : 'No rate is set for part of this usage. Set one below.'}</p>}
             </section>
 
             <section aria-label='Registered candidates'>
@@ -92,11 +95,11 @@ function OrgPanel({ orgKey, period, product }) {
                 <Funnel s={{ registered: o.registered, gave: o.gaveOfRegistered, pending: o.pending, started: o.startedNotFinished, missed: o.missed }} />
             </section>
 
-            <section aria-label='Rate card'>
+            {!readOnly && <section aria-label='Rate card'>
                 <h3 className='text-[14px] font-bold text-ink mb-1'>Rates for this client</h3>
                 <p className='text-[12.5px] text-text-secondary mb-3'>Leave a box empty to use your default. Changes apply to every period, so figures you have already sent should be saved as an export first.</p>
                 <RateForm key={`${r.custom.aiRate}-${r.custom.oaRate}-${r.custom.gstPercent}-${r.custom.unit}-${r.notes}`} values={{ ...r.custom, notes: r.notes }} defaults={r.defaults} saving={save.isPending} error={saveError} onSave={(body) => save.mutate(body)} />
-            </section>
+            </section>}
 
             {detail.data.sources.length > 0 && (
                 <section aria-label='By drive or test'>
