@@ -170,3 +170,6 @@ export const examApi = {
     violation: (body) => post('/exam/violation', body),
     submit: () => post('/exam/submit'),
 }
+
+/** An organization signed in to WorkmateIQ trades that sign-in for an Online Assessment session the first time it is needed. */
+export const ensureOaSession = async () => { if (!oaTokens.get('admin')) await oaApi.orgSession() }

@@ -18,6 +18,7 @@ import { DriveStepper, StepFooter, StepIntro } from '../../components/oa/DriveSt
 import AddRoundModal from '../../components/oa/AddRoundModal'
 import PublishStep from '../../components/oa/PublishStep'
 import AiInterviewRound from '../../components/oa/AiInterviewRound'
+import useOaBase from '../../hooks/useOaBase'
 import RoundKindChoice from '../../components/oa/RoundKindChoice'
 import SetupTab from '../../components/oa/SetupTab'
 import QuestionsTab from '../../components/oa/QuestionsTab'
@@ -183,6 +184,7 @@ export default function OaDrivePage() {
     const toast = useToast()
     const queryClient = useQueryClient()
     const [params, setParams] = useSearchParams()
+    const base = useOaBase()
     const [renaming, setRenaming] = useState(false)
     const [confirm, setConfirm] = useState(null)
     const [adding, setAdding] = useState(null)
@@ -194,7 +196,7 @@ export default function OaDrivePage() {
         onError: (err) => { setConfirm(null); toast.error(err.message) },
     })
 
-    if (isError) return error.status === 404 ? <Navigate to='/oa/admin/drives' replace /> : <ErrorState title='Could not open this drive' message={error.message} onRetry={refetch} />
+    if (isError) return error.status === 404 ? <Navigate to={base.drives} replace /> : <ErrorState title='Could not open this drive' message={error.message} onRetry={refetch} />
     if (isLoading) return <div className='space-y-4' aria-busy='true' aria-label='Loading the drive'><Skeleton className='h-8 w-1/2' /><Skeleton className='h-[76px] w-full rounded-2xl' /><Skeleton className='h-64 w-full rounded-2xl' /></div>
 
     const archived = drive.status === 'ARCHIVED'
@@ -207,7 +209,7 @@ export default function OaDrivePage() {
     return (
         <>
             <PageHeader
-                back={<Link to='/oa/admin/drives' className='inline-flex items-center gap-1.5 text-[13px] font-medium text-text-secondary hover:text-ink mb-2'><ArrowLeft size={14} /> All drives</Link>}
+                back={<Link to={base.drives} className='inline-flex items-center gap-1.5 text-[13px] font-medium text-text-secondary hover:text-ink mb-2'><ArrowLeft size={14} /> All drives</Link>}
                 title={<span className='inline-flex flex-wrap items-center gap-x-2.5 gap-y-1'>{drive.title}
                     {!archived && <button type='button' onClick={() => setRenaming(true)} aria-label='Rename this drive' title='Rename' className='inline-flex items-center justify-center w-8 h-8 rounded-lg text-text-secondary hover:text-accent hover:bg-accent/10'><Pencil size={15} /></button>}</span>}
                 subtitle={<span className='inline-flex flex-wrap items-center gap-2'><Badge variant={archived ? 'danger' : 'success'}>{archived ? 'Archived' : 'Active'}</Badge>

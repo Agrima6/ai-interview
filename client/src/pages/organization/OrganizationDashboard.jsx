@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { ListChecks, Users, CheckCircle2, Star, Plus, AlertCircle, ArrowRight } from 'lucide-react'
 import { BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
+import OnlineTestsPanel from '../../components/organization/OnlineTestsPanel'
 import FunnelChart from '../../components/charts/FunnelChart'
 import AttentionPanel from '../../components/organization/AttentionPanel'
 import DashboardHero from '../../components/organization/DashboardHero'
@@ -138,7 +139,7 @@ function OrganizationDashboard() {
 
     const sectionTabs = [
         { id: 'overview', label: 'Overview' },
-        { id: 'drives', label: 'Interview Drives' },
+        { id: 'drives', label: 'Drives' },
         { id: 'candidates', label: 'Candidates' },
         { id: 'team', label: 'Team Activity' },
     ]
@@ -256,6 +257,8 @@ function OrganizationDashboard() {
                 </div>
                 <ActiveDrivesTable basePath={basePath} />
             </Card></Reveal>
+
+            {basePath !== '/college' && basePath !== '/candidate' && <OnlineTestsPanel basePath={basePath} />}
 
             <Reveal className='grid lg:grid-cols-3 gap-6 mb-6'>
                 <Card className='p-6'>

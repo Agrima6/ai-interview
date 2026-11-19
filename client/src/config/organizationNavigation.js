@@ -20,11 +20,13 @@ export function getNavigationForPath(pathname = '', profileType = '') {
     }
 
     const isCollege = prefix === '/college'
-    const drivesLabel = isCollege ? 'Exam Drives' : prefix === '/candidate' ? 'My Drives' : 'Interview Drives'
+    // An organization runs online tests and AI interviews as rounds of one drive, from one list.
+    const unified = prefix === '/organization' || prefix === '/platform/client'
+    const drivesLabel = unified ? 'Drives' : isCollege ? 'Exam Drives' : prefix === '/candidate' ? 'My Drives' : 'Interview Drives'
     const teamLabel = prefix === '/college' ? 'Faculty & Team' : prefix === '/candidate' ? 'Profile' : 'Team'
 
     // Online Assessment is its own room; candidates applying for jobs never see it.
-    const onlineAssessment = prefix === '/candidate' ? [] : [{ key: 'online-assessment', label: 'Online Assessment', path: '/oa/admin', icon: ClipboardCheck, permission: organizationPermissions.drives }]
+    const onlineAssessment = prefix === '/candidate' || unified ? [] : [{ key: 'online-assessment', label: 'Online Assessment', path: '/oa/admin', icon: ClipboardCheck, permission: organizationPermissions.drives }]
 
     return [
         { key: 'dashboard', label: 'Dashboard', path: `${prefix}/dashboard`, icon: LayoutDashboard, permission: organizationPermissions.dashboard },

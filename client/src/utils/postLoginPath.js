@@ -20,8 +20,8 @@ export async function resolveWorkspacePath(user) {
     return '/organization/dashboard'
 }
 
-// Organizations and colleges have two products, so they first choose between Online Assessment and AI Interview.
+// An organization has one workspace for online tests and AI interviews. Colleges still choose between the two.
 export async function resolvePostLoginPath(user) {
     const path = await resolveWorkspacePath(user)
-    return ['/organization/dashboard', '/college/dashboard'].includes(path) ? '/workspace' : path
+    return path === '/college/dashboard' ? '/workspace' : path
 }
