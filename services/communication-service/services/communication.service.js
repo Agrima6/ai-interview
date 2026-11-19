@@ -119,7 +119,7 @@ export const sendAndRecord = async ({ entityType, entityId, channel, eventType, 
     // name in one of these variables - used as the visible sender name so
     // the recipient sees "QA Test Co", not just "WorkmateIQ", without
     // requiring every organization to have its own verified mailbox/domain.
-    const fromName = variables?.company_name || variables?.organizationName || undefined
+    const fromName = variables?.from_name || variables?.company_name || variables?.organizationName || undefined
 
     try {
         await enqueueNotification({
