@@ -20,6 +20,7 @@ import PublishStep from '../../components/oa/PublishStep'
 import AiInterviewRound from '../../components/oa/AiInterviewRound'
 import useOaBase from '../../hooks/useOaBase'
 import RoundKindChoice from '../../components/oa/RoundKindChoice'
+import AiPartCard from '../../components/oa/AiPartCard'
 import SetupTab from '../../components/oa/SetupTab'
 import QuestionsTab from '../../components/oa/QuestionsTab'
 import StudentsTab from '../../components/oa/StudentsTab'
@@ -130,6 +131,7 @@ function RoundWorkspace({ roundId, drive, step, onStep, onNextRound }) {
     return (
         <>
             {!driveArchived && <KindSwitch assessment={a} />}
+            {a.kind === 'TEST' && <AiPartCard assessment={a} disabled={driveArchived || a.status === 'ARCHIVED'} />}
             {a.kind === 'AI_INTERVIEW'
                 ? <AiInterviewRound assessment={a} driveArchived={driveArchived} step={step} onStep={onStep} />
                 : <TestRound assessment={a} driveArchived={driveArchived} step={step} onStep={onStep} onNextRound={onNextRound} />}

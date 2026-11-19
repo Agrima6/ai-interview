@@ -14,7 +14,6 @@ import { DIFFICULTIES, TYPE_LABELS, difficultyLabel, downloadText, inputClass, s
 import { NumberField, TextField } from './oaFields'
 import { FILTERS, LIMITS, lengthError, rangeError } from './oaRules'
 import QuestionEditorModal from './QuestionEditorModal'
-import AiPartCard from './AiPartCard'
 
 const TEMPLATE = [
     'section,type,question,optionA,optionB,optionC,optionD,correct,marks,negative,keywords,answer,difficulty',
@@ -233,7 +232,6 @@ export default function QuestionsTab({ assessment: a }) {
 
     return (
         <>
-            {a.kind === 'TEST' && <AiPartCard assessment={a} disabled={a.status === 'ARCHIVED'} />}
             <div className='flex flex-wrap items-center justify-between gap-3 mb-5'>
                 <p className='text-[13.5px] text-text-secondary'>{a.questionCount} question{a.questionCount === 1 ? '' : 's'} · {a.totalMarks} marks in total</p>
                 <div className='flex flex-wrap gap-2'>
