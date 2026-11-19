@@ -21,6 +21,7 @@ import AiInterviewRound from '../../components/oa/AiInterviewRound'
 import useOaBase from '../../hooks/useOaBase'
 import RoundKindChoice from '../../components/oa/RoundKindChoice'
 import AiPartCard from '../../components/oa/AiPartCard'
+import DriveDetailsFields from '../../components/oa/DriveDetailsFields'
 import SetupTab from '../../components/oa/SetupTab'
 import QuestionsTab from '../../components/oa/QuestionsTab'
 import StudentsTab from '../../components/oa/StudentsTab'
@@ -131,9 +132,9 @@ function RoundWorkspace({ roundId, drive, step, onStep, onNextRound }) {
     return (
         <>
             {!driveArchived && <KindSwitch assessment={a} />}
-            {a.kind === 'TEST' && <AiPartCard assessment={a} disabled={driveArchived || a.status === 'ARCHIVED'} />}
+            {a.kind === 'TEST' && <AiPartCard assessment={a} drive={drive} disabled={driveArchived || a.status === 'ARCHIVED'} />}
             {a.kind === 'AI_INTERVIEW'
-                ? <AiInterviewRound assessment={a} driveArchived={driveArchived} step={step} onStep={onStep} />
+                ? <AiInterviewRound assessment={a} drive={drive} driveArchived={driveArchived} step={step} onStep={onStep} />
                 : <TestRound assessment={a} driveArchived={driveArchived} step={step} onStep={onStep} onNextRound={onNextRound} />}
         </>
     )
@@ -162,19 +163,21 @@ function RenameModal({ drive, onClose }) {
     const toast = useToast()
     const queryClient = useQueryClient()
     const [title, setTitle] = useState(drive.title)
+    const [details, setDetails] = useState({ department: drive.department || '', roleCategory: drive.roleCategory || '', experienceLevel: drive.experienceLevel || '' })
     const [serverError, setServerError] = useState('')
     const problem = lengthError(title, { ...LIMITS.title, label: 'The name' })
     const save = useMutation({
-        mutationFn: () => oaApi.updateDrive(drive.id, { title: title.trim() }),
-        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['oa'] }); toast.success('Drive renamed.'); onClose() },
+        mutationFn: () => oaApi.updateDrive(drive.id, { title: title.trim(), ...details }),
+        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['oa'] }); toast.success('Drive details saved.'); onClose() },
         onError: (err) => setServerError(err.fields?.title || err.message),
     })
     const submit = (e) => { e?.preventDefault(); if (!problem && !save.isPending) save.mutate() }
     return (
-        <Modal open onClose={onClose} title='Rename this drive' size='sm'
-            footer={<><Button variant='secondary' size='sm' onClick={onClose}>Cancel</Button><Button size='sm' disabled={save.isPending || Boolean(problem) || title.trim() === drive.title} onClick={submit}>{save.isPending ? 'Saving…' : 'Save'}</Button></>}>
+        <Modal open onClose={onClose} title='Drive details' size='lg'
+            footer={<><Button variant='secondary' size='sm' onClick={onClose}>Cancel</Button><Button size='sm' disabled={save.isPending || Boolean(problem) || (title.trim() === drive.title && details.department === (drive.department || '') && details.roleCategory === (drive.roleCategory || '') && details.experienceLevel === (drive.experienceLevel || ''))} onClick={submit}>{save.isPending ? 'Saving…' : 'Save'}</Button></>}>
             <form onSubmit={submit}>
                 <TextField autoFocus label='Name of the drive' filter={FILTERS.title} value={title} onChange={(v) => { setTitle(v); setServerError('') }} max={LIMITS.title.max} error={serverError || problem} forceError />
+                <div className='mt-4'><p className='text-[13px] font-bold text-ink mb-0.5'>About the job</p><p className='text-[12.5px] text-text-secondary mb-2'>Shared by every round. The AI interview form starts from these.</p><DriveDetailsFields value={details} onChange={setDetails} /></div>
             </form>
         </Modal>
     )
@@ -213,7 +216,7 @@ export default function OaDrivePage() {
             <PageHeader
                 back={<Link to={base.drives} className='inline-flex items-center gap-1.5 text-[13px] font-medium text-text-secondary hover:text-ink mb-2'><ArrowLeft size={14} /> All drives</Link>}
                 title={<span className='inline-flex flex-wrap items-center gap-x-2.5 gap-y-1'>{drive.title}
-                    {!archived && <button type='button' onClick={() => setRenaming(true)} aria-label='Rename this drive' title='Rename' className='inline-flex items-center justify-center w-8 h-8 rounded-lg text-text-secondary hover:text-accent hover:bg-accent/10'><Pencil size={15} /></button>}</span>}
+                    {!archived && <button type='button' onClick={() => setRenaming(true)} aria-label='Edit drive details' title='Edit details' className='inline-flex items-center justify-center w-8 h-8 rounded-lg text-text-secondary hover:text-accent hover:bg-accent/10'><Pencil size={15} /></button>}</span>}
                 subtitle={<span className='inline-flex flex-wrap items-center gap-2'><Badge variant={archived ? 'danger' : 'success'}>{archived ? 'Archived' : 'Active'}</Badge>
                     <span title={formatDateTime(drive.createdAt)}>Created {formatDate(drive.createdAt)}</span><span aria-hidden='true'>·</span><span>{rounds.length} round{rounds.length === 1 ? '' : 's'}</span></span>}
                 actions={archived

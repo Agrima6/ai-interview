@@ -138,3 +138,14 @@ test("review mode: nobody is invited on submit; the organizer invites by score a
     const again = await call("POST", `/oa/assessments/${state.a}/ai-invites`, { token: state.admin, body: { minPercent: 0 } })
     assert.equal(again.data.invited, 0)
 })
+
+test("job details are filled once on the hiring drive, kept, and cleaned", opts, async () => {
+    const made = await call("POST", "/oa/drives", { token: state.admin, body: { title: "Campus 2026", kind: "TEST", department: "Engineering", roleCategory: "SOFTWARE_ENGINEERING", experienceLevel: "0-1 yr (Fresher)" } })
+    assert.equal(made.status, 201 === made.status ? 201 : 200)
+    assert.equal(made.data.department, "Engineering")
+    assert.equal(made.data.roleCategory, "SOFTWARE_ENGINEERING")
+    const edited = await call("PATCH", `/oa/drives/${made.data.id}`, { token: state.admin, body: { department: "Legal\u0007  ", roleCategory: "x".repeat(200) } })
+    assert.equal(edited.data.department, "Legal")
+    assert.equal(edited.data.roleCategory.length, 80)
+    assert.equal(edited.data.experienceLevel, "0-1 yr (Fresher)")
+})

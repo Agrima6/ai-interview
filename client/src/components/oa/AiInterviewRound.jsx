@@ -33,7 +33,7 @@ const everyCandidate = async (roundId) => {
  * A round that is run by the AI interviewer instead of a test. Three steps: the candidate list, which AI interview
  * they sit, and sending them there. Sending emails every candidate their interview invitation, so it always asks first.
  */
-export default function AiInterviewRound({ assessment: a, driveArchived, step, onStep }) {
+export default function AiInterviewRound({ assessment: a, drive, driveArchived, step, onStep }) {
     const toast = useToast()
     const queryClient = useQueryClient()
     const auth = useAuth()
@@ -110,7 +110,8 @@ export default function AiInterviewRound({ assessment: a, driveArchived, step, o
 
             {current === 'interview' && (
                 <div className='bg-card border border-line rounded-2xl p-5 max-w-2xl'>
-                    <AiInterviewPicker value={a.aiInterviewDriveId} onChange={(id) => link.mutate(id)} disabled={archived} pending={link.isPending} />
+                    <AiInterviewPicker value={a.aiInterviewDriveId} onChange={(id) => link.mutate(id)} disabled={archived} pending={link.isPending}
+                        getPrefill={async () => ({ title: `${drive?.title || a.title} · ${a.roundLabel || 'AI interview'}`, department: drive?.department, roleCategory: drive?.roleCategory, experienceLevel: drive?.experienceLevel, candidates: await everyCandidate(a.id) })} />
                 </div>
             )}
 

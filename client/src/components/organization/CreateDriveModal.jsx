@@ -86,7 +86,7 @@ const sanitizePositiveExperience = (value) => {
 const todayInput = dateInputFromToday(0)
 const defaultExpiryInput = dateInputFromToday(14)
 
-function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
+function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null, prefill = null }) {
   const isEditing = Boolean(editDrive)
   const [step, setStep] = useState(1)
   const [importModalOpen, setImportModalOpen] = useState(false)
@@ -348,6 +348,16 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null }) {
     setErrorMessage('')
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
+
+  // Details already known from the hiring drive (and its candidate list) start filled in, so nothing is typed twice.
+  useEffect(() => {
+    if (!open || editDrive || !prefill) return
+    setFormData((prev) => ({ ...prev, ...Object.fromEntries(['title', 'department', 'roleCategory', 'experienceLevel'].filter((k) => prefill[k]).map((k) => [k, prefill[k]])) }))
+    if (Array.isArray(prefill.candidates) && prefill.candidates.length) {
+      setImportedCandidates(prefill.candidates.map((c, i) => ({ id: `prefill-${i}`, name: c.name || 'Candidate', email: c.email || '', phone: c.phone || '', exp: '', status: 'INVITED', aiScore: 0, malpracticeFlags: 0 })))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   // Department comes first and decides which positions are offered; a role that no longer fits is cleared.
   const roleOptions = useMemo(() => rolesForDepartment(formData.department, ROLE_CATEGORIES, isEditing ? formData.roleCategory : ''), [formData.department, formData.roleCategory, isEditing])

@@ -7,16 +7,18 @@ import { useToast } from '../ui/Toast'
 import { TextField } from './oaFields'
 import { FILTERS, LIMITS, lengthError } from './oaRules'
 import RoundKindChoice from './RoundKindChoice'
+import DriveDetailsFields from './DriveDetailsFields'
 
 function NewDriveForm({ onClose, onCreated }) {
     const toast = useToast()
     const queryClient = useQueryClient()
     const [title, setTitle] = useState('')
     const [kind, setKind] = useState('TEST')
+    const [details, setDetails] = useState({ department: '', roleCategory: '', experienceLevel: '' })
     const [titleError, setTitleError] = useState('')
     const problem = lengthError(title, { ...LIMITS.title, label: 'The name' })
     const create = useMutation({
-        mutationFn: async () => { await ensureOaSession(); return oaApi.createDrive({ title: title.trim(), kind }) },
+        mutationFn: async () => { await ensureOaSession(); return oaApi.createDrive({ title: title.trim(), kind, ...details }) },
         onSuccess: (drive) => {
             queryClient.invalidateQueries({ queryKey: ['oa'] }); queryClient.invalidateQueries({ queryKey: ['unified-drives'] })
             toast.success(kind === 'TEST' ? 'Drive created. Start with step 1: add questions.' : 'Drive created. Start with step 1: add candidates.')
@@ -30,6 +32,11 @@ function NewDriveForm({ onClose, onCreated }) {
             footer={<><Button variant='secondary' size='sm' onClick={onClose}>Cancel</Button><Button size='sm' disabled={create.isPending || Boolean(problem)} onClick={submit}>{create.isPending ? 'Creating…' : 'Create drive'}</Button></>}>
             <form onSubmit={submit}>
                 <TextField autoFocus label='Name of the drive' filter={FILTERS.title} value={title} onChange={(v) => { setTitle(v); setTitleError('') }} max={LIMITS.title.max} error={titleError || (title ? problem : '')} placeholder='e.g. Campus Hiring 2026' />
+                <fieldset className='mt-5'>
+                    <legend className='text-[13px] font-bold text-ink mb-0.5'>About the job <span className='font-normal text-text-secondary'>(optional, filled once)</span></legend>
+                    <p className='text-[12.5px] text-text-secondary mb-2'>Used again for every AI interview in this drive, so you never type it twice.</p>
+                    <DriveDetailsFields value={details} onChange={setDetails} />
+                </fieldset>
                 <fieldset className='mt-5'>
                     <legend className='text-[13px] font-bold text-ink mb-2'>What is Round 1?</legend>
                     <RoundKindChoice value={kind} onChange={setKind} name='new-drive-kind' />

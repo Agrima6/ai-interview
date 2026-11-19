@@ -29,6 +29,10 @@ const driveSchema = new Schema({
     accountId: { type: Schema.Types.ObjectId, required: true, index: true },
     title: { type: String, required: true, trim: true, maxlength: 140 },
     description: { type: String, default: "", maxlength: 2000 },
+    // Filled once for the whole hiring drive; the AI interview's Create Interview form starts from these.
+    department: { type: String, default: "", maxlength: 80 },
+    roleCategory: { type: String, default: "", maxlength: 80 },
+    experienceLevel: { type: String, default: "", maxlength: 80 },
     status: { type: String, enum: ["ACTIVE", "ARCHIVED"], default: "ACTIVE", index: true },
 }, { timestamps: true })
 
