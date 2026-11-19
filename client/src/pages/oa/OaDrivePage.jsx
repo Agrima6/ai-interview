@@ -132,7 +132,7 @@ function RoundWorkspace({ roundId, drive, step, onStep, onNextRound }) {
     return (
         <>
             {!driveArchived && <KindSwitch assessment={a} />}
-            {a.kind === 'TEST' && <AiPartCard assessment={a} drive={drive} disabled={driveArchived || a.status === 'ARCHIVED'} />}
+            {a.kind === 'TEST' && <AiPartCard assessment={a} drive={drive} disabled={driveArchived || a.status === 'ARCHIVED'} showPrompt={driveArchived || !switchable(a)} />}
             {a.kind === 'AI_INTERVIEW'
                 ? <AiInterviewRound assessment={a} drive={drive} driveArchived={driveArchived} step={step} onStep={onStep} />
                 : <TestRound assessment={a} driveArchived={driveArchived} step={step} onStep={onStep} onNextRound={onNextRound} />}
@@ -141,20 +141,34 @@ function RoundWorkspace({ roundId, drive, step, onStep, onNextRound }) {
 }
 
 // While a round is an empty draft its type can still be changed; once it has questions or candidates have started, it is fixed.
+// Three choices: a test, a test followed by an AI interview in the same sitting, or an AI interview only.
+const switchable = (a) => a.status === 'DRAFT' && !a.locked && a.questionCount === 0
 function KindSwitch({ assessment: a }) {
     const toast = useToast()
     const queryClient = useQueryClient()
+    const [params, setParams] = useSearchParams()
+    const setAi = (on) => setParams((p) => { const n = new URLSearchParams(p); if (on) n.set('ai', '1'); else n.delete('ai'); return n }, { replace: true })
     const change = useMutation({
-        mutationFn: (kind) => oaApi.updateAssessment(a.id, { kind }),
+        mutationFn: async ({ kind, dropAi }) => {
+            if (kind !== a.kind) await oaApi.updateAssessment(a.id, { kind })
+            if (dropAi && a.aiPart?.enabled) await oaApi.updateAssessment(a.id, { aiPart: { enabled: false, aiInterviewDriveId: a.aiPart.aiInterviewDriveId, roundNumber: a.aiPart.roundNumber || 1, when: a.aiPart.when } })
+        },
         onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['oa'] }); toast.success('Round type changed.') },
         onError: (err) => toast.error(err.message),
     })
-    if (a.status !== 'DRAFT' || a.locked || a.questionCount > 0) return null
+    if (!switchable(a)) return null
+    const withAi = a.kind === 'TEST' && (a.aiPart?.enabled || params.get('ai') === '1')
+    const value = a.kind === 'AI_INTERVIEW' ? 'AI_INTERVIEW' : withAi ? 'TEST_AI' : 'TEST'
+    const pick = (next) => {
+        if (next === value) return
+        if (next === 'TEST_AI') { setAi(true); if (a.kind !== 'TEST') change.mutate({ kind: 'TEST' }) }
+        else { setAi(false); change.mutate({ kind: next, dropAi: true }) }
+    }
     return (
         <div className='mb-5 rounded-2xl border border-line bg-card p-4' aria-busy={change.isPending}>
             <p className='text-[13px] font-bold text-ink mb-0.5'>Type of this round</p>
             <p className='text-[12.5px] text-text-secondary mb-3'>You can change it until you add questions.</p>
-            <fieldset disabled={change.isPending}><RoundKindChoice value={a.kind} onChange={(kind) => kind !== a.kind && change.mutate(kind)} name={`kind-${a.id}`} /></fieldset>
+            <fieldset disabled={change.isPending}><RoundKindChoice value={value} onChange={pick} name={`kind-${a.id}`} /></fieldset>
         </div>
     )
 }
@@ -235,7 +249,7 @@ export default function OaDrivePage() {
 
             {renaming && <RenameModal drive={drive} onClose={() => setRenaming(false)} />}
             <AddRoundModal open={Boolean(adding)} drive={drive} preset={adding === 'QUALIFIED' ? 'QUALIFIED' : undefined} onClose={() => setAdding(null)}
-                onAdded={(made) => { setAdding(null); queryClient.invalidateQueries({ queryKey: ['oa'] }); setParams({ round: made.assessmentId }) }} />
+                onAdded={(made, o) => { setAdding(null); queryClient.invalidateQueries({ queryKey: ['oa'] }); setParams(o?.withAi ? { round: made.assessmentId, ai: '1' } : { round: made.assessmentId }) }} />
             <ConfirmModal open={confirm === 'archive'} onClose={() => setConfirm(null)} title='Archive this drive?' danger confirmLabel='Archive drive' onConfirm={() => setStatus.mutateAsync('ARCHIVED').catch(() => {})}>
                 All {rounds.length} round{rounds.length === 1 ? '' : 's'} of "{drive.title}" are archived with it, and candidates can no longer sign in. Results stay stored and you can restore the drive later.
             </ConfirmModal>

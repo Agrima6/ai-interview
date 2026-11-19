@@ -7,6 +7,7 @@ import { useToast } from '../ui/Toast'
 import { NumberField, TextField } from './oaFields'
 import { FILTERS, LIMITS, rangeError } from './oaRules'
 import RoundKindChoice, { Choice } from './RoundKindChoice'
+import { serverKind } from './oaFormat'
 
 function AddRoundForm({ drive, preset, onClose, onAdded }) {
     const toast = useToast()
@@ -26,12 +27,12 @@ function AddRoundForm({ drive, preset, onClose, onAdded }) {
 
     const add = useMutation({
         mutationFn: () => oaApi.addRound(drive.id, {
-            kind, name: name.trim(), candidates: who,
+            kind: serverKind(kind), name: name.trim(), candidates: who,
             ...(who === 'QUALIFIED' ? (cut === 'PERCENT' ? { minPercent: Number(minPercent) } : { topN: Number(topN) }) : {}),
         }),
         onSuccess: (made) => {
             toast.success(who === 'QUALIFIED' ? `Round ${made.roundNumber} created with ${made.students} candidate${made.students === 1 ? '' : 's'}.` : `Round ${made.roundNumber} created.`)
-            onAdded(made)
+            onAdded(made, { withAi: kind === 'TEST_AI' })
         },
         onError: (err) => setServerError(err.message),
     })

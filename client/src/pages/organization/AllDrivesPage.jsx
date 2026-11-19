@@ -107,7 +107,7 @@ export default function AllDrivesPage() {
             {list.data && list.data.total > 0 && <Pagination page={page} pageSize={pageSize} total={list.data.total} onPageChange={(p) => update({ page: p > 1 ? String(p) : '' })} onPageSizeChange={(s) => update({ pageSize: String(s), page: '' })} />}
             <p className='text-[12.5px] text-text-secondary mt-3'>Need the department, experience and date filters for AI interviews? <Link to={`${prefix}/interview-drives`} className='font-semibold text-accent hover:underline'>Open the detailed interview list</Link>.</p>
 
-            <NewDriveModal open={creating} onClose={closeNew} onCreated={(d) => { closeNew(); navigate(`${prefix}/drives/rounds/${d.id}`) }} />
+            <NewDriveModal open={creating} onClose={closeNew} onCreated={(d, o) => { closeNew(); navigate(`${prefix}/drives/rounds/${d.id}${o?.withAi ? '?ai=1' : ''}`) }} />
         </OrganizationLayout>
     )
 }

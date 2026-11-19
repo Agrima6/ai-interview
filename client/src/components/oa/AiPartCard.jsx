@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import { Bot, ChevronRight, ClipboardCheck, Mail, Plus, X } from 'lucide-react'
 import { Choice } from './RoundKindChoice'
 import { oaApi } from '../../api/oaApi'
@@ -11,7 +12,7 @@ import AiInterviewPicker from './AiInterviewPicker'
  * "Add an AI interview to this round": the candidates take the test and, as soon as they submit it, are invited to the
  * AI interview too. One round, two parts. Sits right under the round type so nobody has to hunt for it.
  */
-export default function AiPartCard({ assessment: a, drive, disabled = false }) {
+export default function AiPartCard({ assessment: a, drive, disabled = false, showPrompt = true }) {
     const toast = useToast()
     const queryClient = useQueryClient()
     const part = a.aiPart || { enabled: false, aiInterviewDriveId: null }
@@ -21,15 +22,18 @@ export default function AiPartCard({ assessment: a, drive, disabled = false }) {
         onError: (err) => toast.error(err.message),
     })
     // "Add" only opens the chooser; it is saved once an AI interview is picked or set up.
-    const [open, setOpen] = useState(part.enabled)
+    const [params, setParams] = useSearchParams()
+    const [localOpen, setOpen] = useState(false)
+    const open = part.enabled || localOpen || params.get('ai') === '1'
     // Remembered locally until an AI interview is chosen, so picking "when" first is not lost.
     const [picked, setPicked] = useState(part.when || 'AFTER_SUBMIT')
     const when = part.aiInterviewDriveId ? (part.when || 'AFTER_SUBMIT') : picked
-    const remove = () => { setOpen(false); if (part.enabled) save.mutate({ enabled: false, aiInterviewDriveId: part.aiInterviewDriveId, roundNumber: part.roundNumber || 1, when }) }
+    const remove = () => { setOpen(false); setParams((p) => { const n = new URLSearchParams(p); n.delete('ai'); return n }, { replace: true }); if (part.enabled) save.mutate({ enabled: false, aiInterviewDriveId: part.aiInterviewDriveId, roundNumber: part.roundNumber || 1, when }) }
     const choose = (id) => save.mutate({ enabled: Boolean(id), aiInterviewDriveId: id || null, roundNumber: 1, when })
     const setWhen = (next) => { setPicked(next); if (next !== when && part.aiInterviewDriveId) save.mutate({ enabled: part.enabled, aiInterviewDriveId: part.aiInterviewDriveId, roundNumber: part.roundNumber || 1, when: next }) }
 
     if (!open) {
+        if (!showPrompt) return null
         return (
             <section className='mb-5 rounded-2xl border-2 border-dashed border-accent/40 bg-accent/[0.04] p-4 sm:p-5 flex flex-wrap items-center gap-4' aria-label='Add an AI interview to this round'>
                 <span className='w-11 h-11 shrink-0 rounded-xl bg-accent text-white flex items-center justify-center' aria-hidden='true'><Bot size={22} strokeWidth={1.8} /></span>

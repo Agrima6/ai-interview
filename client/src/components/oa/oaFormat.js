@@ -68,3 +68,6 @@ export const scheduleSentence = (schedule) => {
     if (schedule.mode === 'FLEXIBLE') return `Open from ${formatDateTime(schedule.startAt, tz)} to ${formatDateTime(schedule.endAt, tz)}. A candidate can start at any time in between and gets ${schedule.durationMinutes} minutes.`
     return `Starts ${formatDateTime(schedule.startAt, tz)} for everyone. ${schedule.durationMinutes} minutes.`
 }
+
+// A round the organizer picked as `TEST_AI` (test + AI interview) is stored as a TEST round that has an AI part.
+export const serverKind = (kind) => (kind === 'TEST_AI' ? 'TEST' : kind)
