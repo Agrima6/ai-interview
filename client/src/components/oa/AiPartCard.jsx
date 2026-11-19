@@ -72,8 +72,14 @@ export default function AiPartCard({ assessment: a, drive, disabled = false, sho
                     </ol>
                     <div className='mt-4 border-t border-line pt-4'>
                         <AiInterviewPicker value={part.aiInterviewDriveId} onChange={choose} disabled={disabled} pending={save.isPending}
-                            getPrefill={async () => ({ title: `${drive?.title || a.title} · AI interview`, department: drive?.department, roleCategory: drive?.roleCategory, experienceLevel: drive?.experienceLevel })} />
+                            getPrefill={async () => ({ partOfTest: true, title: `${drive?.title || a.title} · AI interview`, department: drive?.department, roleCategory: drive?.roleCategory, experienceLevel: drive?.experienceLevel })} />
                     </div>
+                    {part.enabled && part.aiInterviewDriveId && (
+                        <div role='status' className='mt-4 rounded-xl bg-[var(--color-warning-soft)] px-4 py-3 text-[13px] text-ink'>
+                            <p className='font-bold'>The AI interview is ready, but nothing has been sent yet.</p>
+                            <p className='mt-0.5 text-text-secondary'>It only runs after the test. Still to do for this round: add the test questions (step 1), the candidates (step 2), the schedule (step 3), then <b>Publish &amp; invite</b> (step 4) to send the test. Candidates will move on to the AI interview by themselves.</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </section>

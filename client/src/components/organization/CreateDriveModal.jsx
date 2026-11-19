@@ -336,7 +336,9 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null, pref
     return true
   }, [communication, invitationTemplate, whatsappTemplate])
 
-  const communicationError = !communicationReady ? 'Choose at least one communication channel and provide a valid template before scheduling.' : ''
+  // The AI interview of a test round: nobody is invited from here (candidates reach it after the online test), so no channel is needed.
+  const partOfTest = Boolean(prefill?.partOfTest)
+  const communicationError = !partOfTest && !communicationReady ? 'Choose at least one communication channel and provide a valid template before scheduling.' : ''
 
   const timelineItems = [
     { title: 'Interview scheduled', time: 'Immediately', channel: communication.emailEnabled || communication.whatsappEnabled ? 'Email + WhatsApp' : 'Manual setup', active: true },
@@ -481,7 +483,7 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null, pref
         return
       }
     }
-    if (step === 5 && !communicationReady) {
+    if (step === 5 && !partOfTest && !communicationReady) {
       setErrorMessage(communicationError)
       return
     }
@@ -537,7 +539,7 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null, pref
       }
     }
 
-    if (!saveAsDraft && !communicationReady) {
+    if (!saveAsDraft && !partOfTest && !communicationReady) {
       setErrorMessage(communicationError)
       setSubmitting(false)
       return
@@ -638,8 +640,8 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null, pref
                 Continue <ArrowRight size={14} />
               </Button>
             ) : (
-              <Button type="button" size="sm" onClick={handleSubmit} disabled={submitting || (!isEditing && !communicationReady)}>
-                <Check size={14} /> {submitting ? (isEditing ? 'Updating...' : 'Scheduling...') : (isEditing ? 'Update Drive' : 'Schedule & Send')}
+              <Button type="button" size="sm" onClick={handleSubmit} disabled={submitting || (!isEditing && !partOfTest && !communicationReady)}>
+                <Check size={14} /> {submitting ? (isEditing ? 'Updating...' : (partOfTest ? 'Saving...' : 'Scheduling...')) : (isEditing ? 'Update Drive' : (partOfTest ? 'Save AI interview' : 'Schedule & Send'))}
               </Button>
             )}
           </div>
@@ -1004,6 +1006,13 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null, pref
                     ))}
                   </div>
                 </div>
+
+                {partOfTest && (
+                  <div role="status" className="rounded-2xl border-2 border-accent bg-accent/5 p-4 text-[13px] text-ink">
+                    <p className="font-bold">This only saves the AI interview. Nothing is sent from here.</p>
+                    <p className="mt-1 text-text-secondary">Candidates reach it after your online test. Go back to the test round to add its questions and send the test.</p>
+                  </div>
+                )}
 
                 <div className="rounded-2xl border border-line bg-card p-5">
                   <div className="flex items-center gap-2 mb-3">
