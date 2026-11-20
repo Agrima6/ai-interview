@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import { Card, Button, Input, Select, Textarea } from '../../components/ui'
 import { getOnboardingFileLink, getOnboarding, autosaveOnboarding, uploadOnboardingFile, submitOnboarding } from '../../api/onboardingApi'
-import { getCaptcha } from '../../api/registrationsApi'
+import CaptchaField from '../../components/auth/CaptchaField'
 import logo from '../../assets/logo.webp'
 
 // Helper to check if a field is of file/image type
@@ -126,8 +126,8 @@ function OnboardingFlow() {
     }
 
     // Captcha challenge states
-    const [captcha, setCaptcha] = useState(null)
-    const [captchaAnswer, setCaptchaAnswer] = useState('')
+    const [captchaPayload, setCaptchaPayload] = useState(null)      // what the verification box collected; the server is the only judge
+    const [captchaReset, setCaptchaReset] = useState(0)
 
     const saveTimer = useRef(null)
 
@@ -156,18 +156,6 @@ function OnboardingFlow() {
                 setPhase('error')
             })
     }, [type, token])
-
-    // Fetch captcha when currentStep becomes the review step (Step 4)
-    useEffect(() => {
-        if (schema && currentStep === schema.sections.length) {
-            getCaptcha()
-                .then((res) => {
-                    setCaptcha(res)
-                    setCaptchaAnswer('')
-                })
-                .catch((err) => console.error('Failed to load captcha', err))
-        }
-    }, [currentStep, schema])
 
     // Debounced autosave
     const triggerAutosave = useCallback((values, stepIndex) => {
@@ -371,15 +359,14 @@ function OnboardingFlow() {
             await submitOnboarding(onboarding.id, token, {
                 type: type.toUpperCase(),
                 consent,
-                captchaToken: captcha?.challengeToken,
-                captchaAnswer: Number(captchaAnswer)
+                ...captchaPayload,
             })
             setPhase('submitted')
         } catch (err) {
             setError(err.message || 'Submission failed.')
-            // Refresh captcha on failure
+            // A used or failed challenge cannot be reused: ask for a fresh one.
             if (err.code?.startsWith('CAPTCHA') || err.message?.includes('CAPTCHA') || err.message?.includes('captcha')) {
-                getCaptcha().then(setCaptcha)
+                setCaptchaReset((n) => n + 1)
             }
         } finally {
             setSubmitting(false)
@@ -508,18 +495,8 @@ function OnboardingFlow() {
     const activeSection = !isReviewStep ? schema.sections[currentStep] : null
     const totalSteps = schema.sections.length + 1
 
-    // Real-time client-side captcha validation check
-    const checkCaptchaAnswer = () => {
-        if (!captcha || !captchaAnswer) return false
-        try {
-            const [encoded] = captcha.challengeToken.split('.')
-            const payload = JSON.parse(atob(encoded.replace(/-/g, '+').replace(/_/g, '/')))
-            return Number(captchaAnswer) === (payload.a + payload.b)
-        } catch (e) {
-            return false
-        }
-    }
-    const isCaptchaCorrect = checkCaptchaAnswer()
+    // The answer is checked by the server when the form is submitted; here we only know whether the box was completed.
+    const isCaptchaCorrect = Boolean(captchaPayload)
 
     // Sidebar progress: how many of the required (and currently visible) fields have a value.
     const requiredFields = (schema?.sections || []).flatMap((sec) => sec.fields).filter((f) => f.required && isFieldVisible(f, formData))
@@ -1040,38 +1017,9 @@ function OnboardingFlow() {
                             <div className="border border-line rounded-2xl p-6 space-y-5 bg-card">
                                 <h3 className="font-medium text-[15px] text-ink">Declaration & Consent</h3>
 
-                                {captcha && (
-                                    <div className="border-b border-line pb-4 mb-4">
-                                        <label className='block text-[13px] font-medium text-ink mb-2.5'>
-                                            {captcha.question} <span className='text-red-500'>*</span>
-                                        </label>
-                                        <div className="relative w-full max-w-[280px]">
-                                            <input
-                                                type='number'
-                                                value={captchaAnswer}
-                                                onChange={(e) => setCaptchaAnswer(e.target.value)}
-                                                className={`w-full bg-bg border rounded-xl px-4 py-3 text-[14px] text-ink outline-none transition-all ${
-                                                    isCaptchaCorrect
-                                                        ? '!border-green-500 focus:!ring-2 focus:!ring-green-500/15'
-                                                        : captchaAnswer
-                                                        ? '!border-red-500 focus:!ring-2 focus:!ring-red-500/15'
-                                                        : 'border-line focus:ring-2 focus:ring-accent/15 focus:border-accent'
-                                                }`}
-                                                placeholder='Enter your answer'
-                                            />
-                                            {isCaptchaCorrect && (
-                                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-green-600 font-medium text-[12px] flex items-center gap-1">
-                                                    <CheckCircle2 size={16} /> Verified
-                                                </span>
-                                            )}
-                                        </div>
-                                        {captchaAnswer && !isCaptchaCorrect && (
-                                            <p className="text-[12.5px] text-red-600 font-medium mt-2">
-                                                That's not the right answer. Please try again.
-                                            </p>
-                                        )}
-                                    </div>
-                                )}
+                                <div className="border-b border-line pb-4 mb-4">
+                                    <CaptchaField onChange={setCaptchaPayload} resetKey={captchaReset} inputId="onboarding-captcha" />
+                                </div>
 
                                 <label className="flex items-start gap-3.5 text-[13.5px] text-text-secondary cursor-pointer select-none">
                                     <input
@@ -1136,7 +1084,7 @@ function OnboardingFlow() {
                     {isReviewStep ? (
                         !isCaptchaCorrect ? (
                             <span className="text-[13px] text-text-secondary font-medium italic animate-in fade-in duration-200">
-                                Solve the security challenge above to submit
+                                Complete the security check above to submit
                             </span>
                         ) : (
                             <Button
