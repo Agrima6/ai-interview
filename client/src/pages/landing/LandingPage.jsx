@@ -169,7 +169,6 @@ export default function LandingPage() {
 
 <a className="navlink" href="#who">{"Solutions"}</a>
 
-<Link className="navlink" to="/plans">{"Pricing"}</Link>
 
 </nav>
 
@@ -190,7 +189,6 @@ export default function LandingPage() {
 <a href="#product" onClick={() => setMenuOpen(false)}>{"Product"}</a>
 <a href="#how" onClick={() => setMenuOpen(false)}>{"How it works"}</a>
 <a href="#who" onClick={() => setMenuOpen(false)}>{"Solutions"}</a>
-<Link to="/plans" onClick={() => setMenuOpen(false)}>{"Pricing"}</Link>
 
 <Link to="/login" onClick={() => setMenuOpen(false)}>{"Log in"}</Link>
 </nav>)}
@@ -1009,7 +1007,6 @@ export default function LandingPage() {
 
 <a href="#about" style={{ color: "#5E4E55", textDecoration: "none", padding: "6px 0" }}>{"About"}</a>
 
-<Link to="/plans" style={{ color: "#5E4E55", textDecoration: "none", padding: "6px 0" }}>{"Pricing"}</Link>
 
 <a href="#contact" style={{ color: "#5E4E55", textDecoration: "none", padding: "6px 0" }}>{"Contact"}</a>
 </div>

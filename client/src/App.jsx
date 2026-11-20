@@ -59,7 +59,6 @@ const InviteCandidates = lazy(() => import('./pages/admin/InviteCandidates'))
 const InviteLanding = lazy(() => import('./pages/InviteLanding'))
 const WHome = lazy(() => import('./pages/workmate/WHome'))
 const LandingPage = lazy(() => import('./pages/landing/LandingPage'))
-const PricingPage = lazy(() => import('./pages/landing/PricingPage'))
 const HeroGsapExperiment = lazy(() => import('./pages/workmate/HeroGsapExperiment'))
 const HeroDotsExperiment = lazy(() => import('./pages/workmate/HeroDotsExperiment'))
 const HeroEcosystem = lazy(() => import('./pages/workmate/HeroEcosystem'))
@@ -131,8 +130,8 @@ function App() {
       <Route path='/' element={<RedirectIfAuthenticated><LandingPage/></RedirectIfAuthenticated>}/>
       <Route path='/welcome' element={<LandingPage/>}/>
       <Route path='/welcome-classic' element={<WHome/>}/>
-      {/* Public pricing page. /pricing (signed-in purchase flow) is unchanged. */}
-      <Route path='/plans' element={<PricingPage/>}/>
+      {/* The public pricing page is removed; old links go to the home page. */}
+      <Route path='/plans' element={<Navigate to='/' replace/>}/>
       <Route path='/hero-minimal' element={<WorkmateLayout showCursorSpotlight={false}><HeroMinimalExperiment/></WorkmateLayout>}/>
       <Route path='/hero-hover' element={<WorkmateLayout showCursorSpotlight={false}><HeroHoverExperiment/></WorkmateLayout>}/>
       <Route path='/hero-experiment' element={<WorkmateLayout showCursorSpotlight={false}><HeroExperiment/></WorkmateLayout>}/>

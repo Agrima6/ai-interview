@@ -126,3 +126,24 @@ test("who may ask: a signed-in organization member, with a tenant", opts, async 
     const empty = await list("", await tokenFor(oid()))                                      // a new organization with nothing yet
     assert.equal(empty.status, 200); assert.equal(empty.data.length, 0)
 })
+
+test("notifications: who recently finished a test or an AI interview, only for this organization", opts, async () => {
+    const account = await models.OaAccount.findOne({ tenantId: String(state.tenant) })
+    const assessment = await models.OaAssessment.findOne({ accountId: account._id, roundNumber: 1 })
+    const student = await models.OaStudent.findOne({ accountId: account._id, name: "S1" })
+    await models.OaAttempt.create({ accountId: account._id, assessmentId: assessment._id, studentId: student._id, status: "SUBMITTED", submittedAt: new Date(), startedAt: new Date(Date.now() - 3600e3), deadline: new Date(Date.now() + 3600e3), order: {}, percent: 82 })
+    const { InterviewDrive } = await import("../models/interviewDrive.model.js")
+    await InterviewDrive.updateOne({ tenantId: String(state.tenant), title: "Backend Engineer Hiring" }, { $set: { "rounds.0.candidates.0.status": "COMPLETED", "rounds.0.candidates.0.attemptedDate": new Date(Date.now() - 60e3) } })
+
+    const res = await call("GET", "/organization/notifications", { token: state.token })
+    assert.equal(res.status, 200)
+    const messages = res.data.map((n) => n.message)
+    assert.ok(messages.some((m) => m.startsWith("S1 finished")), JSON.stringify(messages))
+    assert.ok(messages.some((m) => m.includes("Cand 1 completed the AI interview")), JSON.stringify(messages))
+    assert.ok(new Date(res.data[0].at) >= new Date(res.data[1].at))                    // newest first
+    assert.equal(res.data.find((n) => n.message.startsWith("S1")).detail, "Scored 82%")
+    // another organization sees none of it, and a token without a tenant is refused
+    assert.deepEqual((await call("GET", "/organization/notifications", { token: await tokenFor(state.other) })).data, [])
+    assert.equal((await call("GET", "/organization/notifications", { token: await tokenFor(null) })).status, 403)
+    assert.equal((await call("GET", "/organization/notifications")).status, 401)
+})

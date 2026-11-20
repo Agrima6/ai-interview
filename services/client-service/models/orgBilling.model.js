@@ -7,6 +7,8 @@ const orgBillingSchema = new mongoose.Schema({
     key: { type: String, required: true, unique: true },
     aiRate: { type: Number, default: null, min: 0, max: 100000 },        // rupees per candidate, AI interview
     oaRate: { type: Number, default: null, min: 0, max: 100000 },        // rupees per candidate, Online Assessment
+    // rupees per candidate who gives an Online Assessment AND its linked AI interview: billed once at this rate instead of the two separately
+    comboRate: { type: Number, default: null, min: 0, max: 100000 },
     gstPercent: { type: Number, default: null, min: 0, max: 40 },
     // CANDIDATE: each person is billed once per period however many rounds they sat. INTERVIEW: every interview round counts.
     unit: { type: String, enum: ["CANDIDATE", "INTERVIEW", null], default: null },

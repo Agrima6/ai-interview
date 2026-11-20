@@ -4,6 +4,7 @@ import * as portalController from "../controllers/organizationPortal.controller.
 import { authenticate, requirePermission } from "../middlewares/authenticate.js"
 import { ok } from "../utils/response.js"
 import { listAllDrives } from "../services/unifiedDrives.service.js"
+import { listNotifications } from "../services/orgNotifications.service.js"
 import * as billing from "../services/billing.service.js"
 
 const router = Router()
@@ -11,6 +12,11 @@ const router = Router()
 // "My organization" - self-service for a signed-in client-portal admin
 router.get("/organizations/me", authenticate, requirePermission("CLIENT_SELF_READ"), clientController.getMyOrganization)
 router.patch("/organizations/me/branding", authenticate, requirePermission("CLIENT_SELF_UPDATE"), clientController.updateMyOrganizationBranding)
+
+// What happened recently: candidates who finished a test or an AI interview
+router.get("/organization/notifications", authenticate, requirePermission("CLIENT_SELF_READ"), async (req, res, next) => {
+    try { ok(res, await listNotifications(req.user?.tenantId)) } catch (error) { next(error) }
+})
 
 // Every drive the organization runs (multi-round drives and classic AI Interview drives) in one list
 router.get("/organization/all-drives", authenticate, requirePermission("CLIENT_SELF_READ"), async (req, res, next) => {

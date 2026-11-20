@@ -1,14 +1,13 @@
 # Landing page redesign
 
-The public front page (`/`, `/welcome`) and the public pricing page (`/plans`), built from the design export
+The public front page (`/`, `/welcome`) (the public pricing page was removed; `/plans` redirects home), built from the design export
 **"WorkmateIQ Redesign"** (Landing page + Pricing).
 
 | File | What it is |
 |---|---|
 | `LandingPage.jsx` | The front page. Markup is a direct translation of the design; the data blocks at the top drive the product tour, step cards, audience accordion and enquiry form. |
-| `PricingPage.jsx` | The public pricing page (credit packs, comparison table, FAQ). Buying a pack still happens on the signed-in `/pricing` page. |
 | `LandingMocks.jsx` | "Candidate report" and "Shortlist & rank" screens, drawn in code (see below). |
-| `landing.css`, `pricing.css` | Design CSS, scoped to `.wiq-landing` / `.wiq-pricing`; keyframes are prefixed `wl-` / `wp-` so nothing leaks into the app. |
+| `landing.css` | Design CSS, scoped to `.wiq-landing`; keyframes are prefixed `wl-` so nothing leaks into the app. |
 | `landing-fonts.css` | Plus Jakarta Sans (variable, self-hosted from `assets/landing/fonts`). |
 | `landingAssets.js` | Every image/video in one place - swap a photo here without touching the layout. |
 

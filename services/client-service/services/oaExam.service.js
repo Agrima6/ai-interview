@@ -21,7 +21,7 @@ const VIOLATIONS = {
     TAB_SWITCH: { counted: true }, WINDOW_BLUR: { counted: true }, FULLSCREEN_EXIT: { counted: true, needs: "requireFullscreen" },
     COPY_PASTE: { counted: true, needs: "blockCopyPaste" }, SCREEN_SHARE_STOPPED: { counted: true, needs: "requireScreenShare" },
     CAMERA_OFF: { counted: true, needs: "requireCamera" }, NO_FACE: { counted: true, needs: "faceChecks" },
-    MULTIPLE_FACES: { counted: true, needs: "faceChecks" }, LOOKING_AWAY: { counted: true, needs: "faceChecks" },
+    MULTIPLE_FACES: { counted: true, needs: "faceChecks" }, LOOKING_AWAY: { counted: false, needs: "faceChecks" },
     DEVTOOLS: { counted: true }, MULTIPLE_MONITORS: { counted: true },
     RIGHT_CLICK: { counted: false }, SHORTCUT_BLOCKED: { counted: false }, RESUMED: { counted: false }, FACE_CHECK_UNAVAILABLE: { counted: false },
 }

@@ -1,3 +1,4 @@
+import LogoCropModal from '../../components/LogoCropModal'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import {
@@ -204,10 +205,18 @@ function OnboardingFlow() {
     }
 
     // Handle file uploads
-    const handleFileUpload = async (fieldKey, file) => {
+    const [cropRequest, setCropRequest] = useState(null)
+
+    const handleFileUpload = async (fieldKey, file, { cropped = false } = {}) => {
         const activeSection = schema.sections[currentStep]
         const field = activeSection.fields.find(f => f.key === fieldKey)
         const limitMb = field?.maxFileSizeMb || 10
+
+        // A logo is positioned inside a circle first, so it looks right on the dashboard; the cropped copy is what is uploaded.
+        if (field?.type === 'IMAGE' && !cropped && file.type?.startsWith('image/')) {
+            setCropRequest({ fieldKey, file })
+            return
+        }
 
         if (file.size > limitMb * 1024 * 1024) {
             alert(`File size exceeds the limit of ${limitMb}MB`)
@@ -509,6 +518,13 @@ function OnboardingFlow() {
 
     return (
         <div className="h-screen w-full bg-card flex flex-col relative bg-noise overflow-hidden">
+            {cropRequest && (
+                <LogoCropModal
+                    file={cropRequest.file}
+                    onCancel={() => setCropRequest(null)}
+                    onDone={(cropped) => { const { fieldKey } = cropRequest; setCropRequest(null); handleFileUpload(fieldKey, cropped, { cropped: true }) }}
+                />
+            )}
             {/* Header bar */}
             <div className="flex items-center justify-between px-8 py-5 border-b border-line bg-card shrink-0 z-10 shadow-sm">
                 <div className="flex items-center gap-3.5">
