@@ -239,11 +239,42 @@ const statsOf = (lines, unit) => {
 const pct = (a, b) => (b ? round2((a / b) * 100) : 0)
 
 /**
+ * What each client has actually CREATED, so billing shows (and prices) only that: an online test on its own, an AI interview
+ * on its own, or an online test together with an AI interview. key -> { oa, ai, combo }.
+ */
+const loadUsage = async (dir) => {
+    const accountKey = new Map()
+    for (const [key, org] of dir) for (const id of org.oaAccountIds || []) accountKey.set(String(id), key)
+    const uses = new Map()
+    const mark = (key, what) => { if (!key) return; if (!uses.has(key)) uses.set(key, { oa: false, ai: false, combo: false }); uses.get(key)[what] = true }
+    const assessments = await OaAssessment.find({ status: { $ne: "ARCHIVED" } }).select("accountId driveId kind aiPart.enabled aiPart.aiInterviewDriveId aiInterviewDriveId").lean()
+    const testDrives = new Set(assessments.filter((a) => a.kind !== "AI_INTERVIEW" && a.driveId).map((a) => `${a.accountId}|${a.driveId}`))
+    const linked = new Set()
+    for (const a of assessments) {
+        const key = accountKey.get(String(a.accountId))
+        const partId = a.aiPart?.enabled ? a.aiPart.aiInterviewDriveId : null
+        if (a.kind === "AI_INTERVIEW") {
+            if (a.aiInterviewDriveId) linked.add(String(a.aiInterviewDriveId))
+            // an AI round inside a drive that also has online-test rounds is the second half of a combined drive
+            mark(key, a.driveId && testDrives.has(`${a.accountId}|${a.driveId}`) ? "combo" : "ai")
+        } else if (partId) { linked.add(String(partId)); mark(key, "combo") }
+        else mark(key, "oa")
+    }
+    for (const d of await InterviewDrive.find({}).select("tenantId").lean()) if (!linked.has(String(d._id))) mark(String(d.tenantId), "ai")
+    return uses
+}
+
+/**
  * Candidates who gave BOTH an online test and its linked AI interview in the period. When a combined rate is set they are
  * billed once at that rate instead of the AI rate plus the test rate. Returns what to take off each product's units.
  */
-const comboOf = (lines, card) => {
+const comboOf = (lines, card, uses, aiStats, oaStats) => {
     const none = { candidates: 0, aiUnits: 0, oaUnits: 0 }
+    // A client that only ever created combined drives is sold ONE package: everyone who gave any part of it is billed the package price once.
+    if (uses && uses.combo && !uses.oa && !uses.ai) {
+        const people = new Set(lines.filter((l) => l.interviewsInPeriod > 0).map((l) => l.email))
+        return { candidates: people.size, aiUnits: aiStats.billableUnits, oaUnits: oaStats.billableUnits }
+    }
     if (!(card.comboRate > 0)) return none
     const perPerson = (pred) => { const m = new Map(); for (const l of lines) if (l.interviewsInPeriod > 0 && pred(l)) m.set(l.email, (m.get(l.email) || 0) + l.interviewsInPeriod); return m }
     const ai = perPerson((l) => l.product === "AI_INTERVIEW" && l.linkedToTest)
@@ -253,10 +284,17 @@ const comboOf = (lines, card) => {
     return { candidates: both.length, aiUnits: both.reduce((n, e) => n + (byInterview ? ai.get(e) : 1), 0), oaUnits: both.reduce((n, e) => n + (byInterview ? oa.get(e) : 1), 0) }
 }
 
-const orgRow = (org, lines, card) => {
+// Which kinds of drive to show for a client. Anything that was billed is always shown, whatever the drive list says.
+const usesOf = (uses, ai, oa, combo) => {
+    const u = uses || { oa: false, ai: false, combo: false }
+    if (u.combo && !u.oa && !u.ai) return { oa: false, ai: false, combo: true }      // created only combined drives: that is all there is to price
+    return { oa: u.oa || (!combo.candidates && oa.billableUnits > 0), ai: u.ai || (!combo.candidates && ai.billableUnits > 0), combo: u.combo || combo.candidates > 0 }
+}
+
+const orgRow = (org, lines, card, uses = null) => {
     const ai = statsOf(lines.filter((l) => l.product === "AI_INTERVIEW"), card.unit)
     const oa = statsOf(lines.filter((l) => l.product === "ONLINE_ASSESSMENT"), card.unit)
-    const combo = comboOf(lines, card)
+    const combo = comboOf(lines, card, uses, ai, oa)
     const aiBilled = ai.billableUnits - combo.aiUnits; const oaBilled = oa.billableUnits - combo.oaUnits
     const comboAmount = round2(combo.candidates * card.comboRate)
     const subtotal = round2(aiBilled * card.aiRate + oaBilled * card.oaRate + comboAmount)
@@ -267,11 +305,12 @@ const orgRow = (org, lines, card) => {
         ai, oa, registered, gaveOfRegistered: gave, pending: ai.pending + oa.pending, missed: ai.missed + oa.missed, startedNotFinished: ai.started + oa.started, awaitingApproval: ai.awaiting + oa.awaiting,
         conversionPercent: pct(gave, registered), interviews: ai.interviews + oa.interviews,
         billableCandidates: ai.billableCandidates + oa.billableCandidates - combo.candidates, billableUnits: aiBilled + oaBilled + combo.candidates,
-        combo: { candidates: combo.candidates, rate: card.comboRate, amount: comboAmount }, aiBilledUnits: aiBilled, oaBilledUnits: oaBilled,
+        combo: { candidates: combo.candidates, rate: card.comboRate, amount: comboAmount },
+        uses: usesOf(uses, ai, oa, combo), aiBilledUnits: aiBilled, oaBilledUnits: oaBilled,
         unit: card.unit, aiRate: card.aiRate, oaRate: card.oaRate, comboRate: card.comboRate, gstPercent: card.gstPercent,
         amountExGst: subtotal, gstAmount: gst, total: round2(subtotal + gst),
         aiAmount: round2(aiBilled * card.aiRate), oaAmount: round2(oaBilled * card.oaRate), comboAmount,
-        rateMissing: (aiBilled > 0 && !card.aiRate) || (oaBilled > 0 && !card.oaRate),
+        rateMissing: (aiBilled > 0 && !card.aiRate) || (oaBilled > 0 && !card.oaRate) || (combo.candidates > 0 && !card.comboRate),
         hasCustomRate: Object.values(card.custom).some((v) => v !== null),
     }
 }
@@ -320,9 +359,10 @@ export const getSummary = async (query = {}) => {
     const docs = await loadRateDocs()
     const { dir, lines } = await collectLines(period, { product })
     const grouped = groupBy(lines)
-    let organizations = [...grouped].map(([key, ls]) => orgRow(orgFor(dir, key), ls, cardOf(docs, key)))
+    const usage = await loadUsage(dir)
+    let organizations = [...grouped].map(([key, ls]) => orgRow(orgFor(dir, key), ls, cardOf(docs, key), usage.get(key)))
     if (query.includeIdle === "1" || query.includeIdle === true) {
-        for (const [key, org] of dir) if (!grouped.has(key) && org.status === "ACTIVE") organizations.push(orgRow(org, [], cardOf(docs, key)))
+        for (const [key, org] of dir) if (!grouped.has(key) && org.status === "ACTIVE") organizations.push(orgRow(org, [], cardOf(docs, key), usage.get(key)))
     }
     organizations.sort((a, b) => b.billableUnits - a.billableUnits || b.registered - a.registered || a.name.localeCompare(b.name))
     const sum = (f) => organizations.reduce((s, o) => s + f(o), 0)
@@ -351,7 +391,8 @@ export const getOrganization = async (key, query = {}) => {
     const bySource = new Map()
     for (const l of lines) { const id = `${l.product}|${l.sourceId}`; if (!bySource.has(id)) bySource.set(id, { product: l.product, sourceId: l.sourceId, title: l.sourceTitle, lines: [] }); bySource.get(id).lines.push(l) }
     const sources = [...bySource.values()].map((g) => ({ product: g.product, sourceId: g.sourceId, title: g.title, ...statsOf(g.lines, card.unit) })).sort((a, b) => b.interviews - a.interviews || b.registered - a.registered)
-    return { period: { from: period.from, to: period.to }, organization: orgRow(org, lines, card), rates: { aiRate: card.aiRate, oaRate: card.oaRate, comboRate: card.comboRate, gstPercent: card.gstPercent, unit: card.unit, custom: card.custom, notes: card.notes, defaults: { aiRate: docs.defaults?.aiRate ?? null, oaRate: docs.defaults?.oaRate ?? null, comboRate: docs.defaults?.comboRate ?? null, gstPercent: docs.defaults?.gstPercent ?? FALLBACK.gstPercent, unit: docs.defaults?.unit ?? FALLBACK.unit } }, sources }
+    const usage = await loadUsage(dir)
+    return { period: { from: period.from, to: period.to }, organization: orgRow(org, lines, card, usage.get(key)), rates: { aiRate: card.aiRate, oaRate: card.oaRate, comboRate: card.comboRate, gstPercent: card.gstPercent, unit: card.unit, custom: card.custom, notes: card.notes, defaults: { aiRate: docs.defaults?.aiRate ?? null, oaRate: docs.defaults?.oaRate ?? null, comboRate: docs.defaults?.comboRate ?? null, gstPercent: docs.defaults?.gstPercent ?? FALLBACK.gstPercent, unit: docs.defaults?.unit ?? FALLBACK.unit } }, sources }
 }
 
 const annotateUnits = (lines, unit) => {

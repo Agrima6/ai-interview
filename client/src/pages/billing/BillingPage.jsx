@@ -3,15 +3,14 @@ import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, keepPreviousData } from '@tanstack/react-query'
 import { AlertTriangle, ArrowDown, ArrowUp, ChevronRight, Download, Info, SlidersHorizontal } from 'lucide-react'
 import AdminShell from '../../components/layout/AdminShell'
-import { Badge, Button, EmptyState, Modal, SearchInput, Select, Skeleton, useToast } from '../../components/ui'
+import { Badge, Button, EmptyState, Modal, SearchInput, Skeleton, useToast } from '../../components/ui'
 import { downloadBillingCsv, getBillingSummary, saveBillingRates } from '../../api/billingApi'
 import { useQueryClient } from '@tanstack/react-query'
 import BillingOrgDrawer from './BillingOrgDrawer'
 import RateForm from './RateForm'
-import { KIND, PERIOD_PRESETS, formatDay, inr, istToday, monthLabel, num, presetRange } from './billingFormat'
+import { KIND, PERIOD_PRESETS, formatDay, inr, istToday, monthLabel, num, presetRange, shownKinds, usesLabel } from './billingFormat'
 
 const STATUS_TONE = { ACTIVE: 'success', SUSPENDED: 'warning', REJECTED: 'danger', PENDING: 'neutral' }
-const PRODUCTS = [{ value: '', label: 'All products' }, { value: 'AI_INTERVIEW', label: 'AI Interview' }, { value: 'ONLINE_ASSESSMENT', label: 'Online Assessment' }]
 
 function Stat({ label, value, hint, tone = 'text-ink' }) {
     return (
@@ -127,7 +126,6 @@ export default function BillingPage() {
                                 <label className='sr-only' htmlFor='bill-to'>To</label><input id='bill-to' type='date' min={range.from} max={istToday()} value={range.to} onChange={(e) => e.target.value && update({ preset: 'custom', to: e.target.value })} className='bg-card border border-line rounded-lg px-2.5 py-1.5 text-[13px]' />
                             </div>
                         )}
-                        <div className='w-48'><Select aria-label='Product' value={product} onChange={(e) => update({ product: e.target.value })} options={PRODUCTS} /></div>
                     </div>
                 </div>
                 <p className='text-[12.5px] text-text-secondary mb-3'>{formatDay(`${range.from}T00:00:00+05:30`)} to {formatDay(`${range.to}T00:00:00+05:30`)} (Indian time)
@@ -161,7 +159,7 @@ export default function BillingPage() {
                                 <Stat label='Billable candidates' value={num(t.billableCandidates)} hint={`${num(t.interviews)} interview rounds`} tone='text-accent' />
                             </dl>
                             <div className='grid sm:grid-cols-3 bg-ink text-white divide-white/15 sm:divide-x'>
-                                <div className='px-5 py-3.5'><p className='text-[12px] text-white/70'>Amount before GST</p><p className='font-display text-[24px] font-bold tabular-nums'>{inr(t.amountExGst)}</p><p className='text-[11.5px] text-white/60'>AI {inr(t.aiAmount)} · Online tests {inr(t.oaAmount)}</p></div>
+                                <div className='px-5 py-3.5'><p className='text-[12px] text-white/70'>Amount before GST</p><p className='font-display text-[24px] font-bold tabular-nums'>{inr(t.amountExGst)}</p><p className='text-[11.5px] text-white/60'>{[t.comboAmount > 0 && `Test + AI ${inr(t.comboAmount)}`, t.oaAmount > 0 && `Online tests ${inr(t.oaAmount)}`, t.aiAmount > 0 && `AI ${inr(t.aiAmount)}`].filter(Boolean).join(' · ') || 'Nothing to bill yet'}</p></div>
                                 <div className='px-5 py-3.5'><p className='text-[12px] text-white/70'>GST</p><p className='font-display text-[24px] font-bold tabular-nums'>{inr(t.gstAmount)}</p></div>
                                 <div className='px-5 py-3.5'><p className='text-[12px] text-white/70'>Total to invoice</p><p className='font-display text-[28px] font-bold tabular-nums'>{inr(t.total)}</p></div>
                             </div>
@@ -207,7 +205,7 @@ export default function BillingPage() {
                                                 <tr key={o.key} className='ui-row group cursor-pointer' onClick={() => update({ org: o.key })}>
                                                     <td className='px-4 py-3 max-w-[280px]'>
                                                         <button type='button' onClick={(e) => { e.stopPropagation(); update({ org: o.key }) }} className='font-semibold text-ink hover:text-accent text-left break-words'>{o.name}</button>
-                                                        <div className='flex flex-wrap items-center gap-1.5 mt-0.5'><Badge variant='neutral'>{KIND[o.kind] || o.kind}</Badge>{o.status !== 'ACTIVE' && <Badge variant={STATUS_TONE[o.status] || 'neutral'}>{o.status}</Badge>}{o.hasCustomRate && <span className='text-[11px] text-text-secondary'>custom rate</span>}</div>
+                                                        <div className='flex flex-wrap items-center gap-1.5 mt-0.5'><Badge variant='neutral'>{KIND[o.kind] || o.kind}</Badge>{usesLabel(o.uses) && <Badge variant='brand' className='normal-case'>{usesLabel(o.uses)}</Badge>}{o.status !== 'ACTIVE' && <Badge variant={STATUS_TONE[o.status] || 'neutral'}>{o.status}</Badge>}{o.hasCustomRate && <span className='text-[11px] text-text-secondary'>custom rate</span>}</div>
                                                     </td>
                                                     <td className='px-3 py-3 text-right tabular-nums'>{num(o.registered)}{o.awaitingApproval > 0 && <span className='block text-[11px] text-text-secondary' title='Registered through the open link and not yet approved'>+{o.awaitingApproval} awaiting</span>}</td>
                                                     <td className='px-3 py-3 text-right tabular-nums font-semibold text-[var(--color-success)]'>{num(o.gaveOfRegistered)}</td>
@@ -217,7 +215,7 @@ export default function BillingPage() {
                                                         <div className='flex items-center justify-end gap-2'><span className='hidden xl:block w-14 h-1.5 rounded-full bg-line overflow-hidden' aria-hidden='true'><span className='block h-full bg-[var(--color-success)]' style={{ width: `${Math.min(100, o.conversionPercent)}%` }} /></span>{num(o.conversionPercent)}%</div>
                                                     </td>
                                                     <td className='px-3 py-3 text-right tabular-nums font-semibold'>{num(o.billableUnits)}<span className='block text-[11px] font-normal text-text-secondary'>{o.unit === 'INTERVIEW' ? 'interviews' : 'candidates'}</span></td>
-                                                    <td className='px-3 py-3 text-right tabular-nums text-[12.5px]'>{o.rateMissing ? <span className='text-[var(--color-warning)] font-semibold'>No rate</span> : <>{o.ai.billableUnits > 0 || !o.oa.billableUnits ? <div>AI {inr(o.aiRate)}</div> : null}{o.oa.billableUnits > 0 || !o.ai.billableUnits ? <div className='text-text-secondary'>Test {inr(o.oaRate)}</div> : null}</>}</td>
+                                                    <td className='px-3 py-3 text-right tabular-nums text-[12.5px]'>{o.rateMissing ? <span className='text-[var(--color-warning)] font-semibold'>No rate</span> : <>{shownKinds(o.uses).combo && <div>Test + AI {inr(o.comboRate)}</div>}{shownKinds(o.uses).oa && <div>Test {inr(o.oaRate)}</div>}{shownKinds(o.uses).ai && <div>AI {inr(o.aiRate)}</div>}</>}</td>
                                                     <td className='px-3 py-3 text-right tabular-nums'>{inr(o.amountExGst)}</td>
                                                     <td className='px-3 py-3 text-right tabular-nums font-bold text-ink'>{inr(o.total)}</td>
                                                     <td className='px-2 py-3 text-text-secondary'><ChevronRight size={16} className='transition-transform group-hover:translate-x-0.5 group-hover:text-accent' aria-hidden='true' /></td>
