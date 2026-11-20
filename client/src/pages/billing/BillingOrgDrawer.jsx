@@ -52,7 +52,12 @@ export function OrgPanel({ orgKey, period, product, source = ADMIN_SOURCE, readO
     if (detail.isLoading) return <div className='space-y-4' aria-busy='true'><Skeleton className='h-20 w-full rounded-2xl' /><Skeleton className='h-48 w-full rounded-2xl' /><Skeleton className='h-64 w-full rounded-2xl' /></div>
     const o = detail.data.organization; const r = detail.data.rates
     const unitWord = o.unit === 'INTERVIEW' ? ['interview round', 'interview rounds'] : ['candidate', 'candidates']
-    const rows = [['AI Interview', o.ai.billableUnits, o.aiRate, o.aiAmount], ['Online Assessment', o.oa.billableUnits, o.oaRate, o.oaAmount]]
+    const comboUnits = o.combo?.candidates || 0
+    const rows = [
+        ['AI Interview', o.aiBilledUnits ?? o.ai.billableUnits, o.aiRate, o.aiAmount],
+        ['Online Assessment', o.oaBilledUnits ?? o.oa.billableUnits, o.oaRate, o.oaAmount],
+        ...(comboUnits > 0 ? [['Online test + AI interview', comboUnits, o.comboRate, o.comboAmount]] : []),
+    ]
 
     return (
         <div className='space-y-7'>
@@ -98,7 +103,7 @@ export function OrgPanel({ orgKey, period, product, source = ADMIN_SOURCE, readO
             {!readOnly && <section aria-label='Rate card'>
                 <h3 className='text-[14px] font-bold text-ink mb-1'>Rates for this client</h3>
                 <p className='text-[12.5px] text-text-secondary mb-3'>Leave a box empty to use your default. Changes apply to every period, so figures you have already sent should be saved as an export first.</p>
-                <RateForm key={`${r.custom.aiRate}-${r.custom.oaRate}-${r.custom.gstPercent}-${r.custom.unit}-${r.notes}`} values={{ ...r.custom, notes: r.notes }} defaults={r.defaults} saving={save.isPending} error={saveError} onSave={(body) => save.mutate(body)} />
+                <RateForm key={`${r.custom.aiRate}-${r.custom.oaRate}-${r.custom.comboRate}-${r.custom.gstPercent}-${r.custom.unit}-${r.notes}`} values={{ ...r.custom, notes: r.notes }} defaults={r.defaults} saving={save.isPending} error={saveError} onSave={(body) => save.mutate(body)} />
             </section>}
 
             {detail.data.sources.length > 0 && (

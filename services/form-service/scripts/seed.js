@@ -91,7 +91,7 @@ const onboardingForms = [
                     { key: "logo", label: "Company logo", type: "IMAGE", required: false, accept: ".png,.jpg,.jpeg", maxFileSizeMb: 5 },
                     { key: "primary_color", label: "Primary Theme Color", type: "COLOR", required: false, placeholder: "#4F46E5" },
                     { key: "secondary_color", label: "Secondary Theme Color", type: "COLOR", required: false, placeholder: "#10B981" },
-                    { key: "incorporation_certificate", label: "Certificate of incorporation", type: "FILE", required: true, accept: ".pdf", maxFileSizeMb: 10 },
+                    { key: "incorporation_certificate", label: "Certificate of incorporation", type: "FILE", required: false, accept: ".pdf", maxFileSizeMb: 10 },
                 ],
             },
         ],

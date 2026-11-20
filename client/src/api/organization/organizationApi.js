@@ -188,3 +188,6 @@ export const testSmtpConnection = (payload) => apiPost("/api/v1/organization/smt
 // Recruiter: the stored AI-interview conversation for one candidate (tenant-scoped on the server).
 export const getCandidateTranscript = (driveId, roundNumber, candidateId) =>
     apiGet(`/api/v1/drives/${driveId}/rounds/${roundNumber}/candidates/${candidateId}/transcript`)
+
+// Recent happenings: candidates who finished a test or an AI interview.
+export const listOrganizationNotifications = () => apiGet("/api/v1/organization/notifications")

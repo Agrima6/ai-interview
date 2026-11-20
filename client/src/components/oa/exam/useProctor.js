@@ -10,7 +10,7 @@ const COOLDOWN = { DEFAULT: 3000, DEVTOOLS: 60000, MULTIPLE_MONITORS: 60000, NO_
 export const VIOLATION_TEXT = {
     TAB_SWITCH: 'You switched to another tab or window.', WINDOW_BLUR: 'You left the test window.', FULLSCREEN_EXIT: 'You left full screen.',
     COPY_PASTE: 'Copy, cut and paste are not allowed.', SCREEN_SHARE_STOPPED: 'Screen sharing was stopped.', CAMERA_OFF: 'Your camera was turned off.',
-    NO_FACE: 'We could not see your face.', MULTIPLE_FACES: 'More than one face was seen.', LOOKING_AWAY: 'You looked away from the screen.',
+    NO_FACE: 'We could not see your face.', MULTIPLE_FACES: 'More than one face was seen.', LOOKING_AWAY: 'Please look at the screen. This is only a warning and does not count against you.',
     DEVTOOLS: 'Developer tools appear to be open.', MULTIPLE_MONITORS: 'A second monitor was detected.',
 }
 

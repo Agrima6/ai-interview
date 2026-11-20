@@ -11,19 +11,19 @@ const text = (v) => (v === null || v === undefined ? '' : String(v))
  * that is. `values` are this card's own settings; `defaults` are what an empty box falls back to.
  */
 export default function RateForm({ values, defaults, isDefault = false, saving, onSave, error }) {
-    const [f, setF] = useState({ aiRate: text(values.aiRate), oaRate: text(values.oaRate), gstPercent: text(values.gstPercent), unit: values.unit || '', notes: values.notes || '' })
+    const [f, setF] = useState({ aiRate: text(values.aiRate), oaRate: text(values.oaRate), comboRate: text(values.comboRate), gstPercent: text(values.gstPercent), unit: values.unit || '', notes: values.notes || '' })
     const set = (key, filter) => (e) => setF((s) => ({ ...s, [key]: filter ? filter(e.target.value) : e.target.value }))
-    const changed = f.aiRate !== text(values.aiRate) || f.oaRate !== text(values.oaRate) || f.gstPercent !== text(values.gstPercent) || f.unit !== (values.unit || '') || f.notes !== (values.notes || '')
+    const changed = f.aiRate !== text(values.aiRate) || f.oaRate !== text(values.oaRate) || f.comboRate !== text(values.comboRate) || f.gstPercent !== text(values.gstPercent) || f.unit !== (values.unit || '') || f.notes !== (values.notes || '')
     const submit = (e) => {
         e.preventDefault()
         if (!changed || saving) return
         const n = (v) => (v === '' ? null : Number(v))
-        onSave({ aiRate: n(f.aiRate), oaRate: n(f.oaRate), gstPercent: n(f.gstPercent), unit: f.unit || null, ...(isDefault ? {} : { notes: f.notes.trim() }) })
+        onSave({ aiRate: n(f.aiRate), oaRate: n(f.oaRate), comboRate: n(f.comboRate), gstPercent: n(f.gstPercent), unit: f.unit || null, ...(isDefault ? {} : { notes: f.notes.trim() }) })
     }
     const hint = (v, fallback) => (isDefault ? fallback : `Default: ${v === null || v === undefined ? 'not set' : v}`)
     return (
         <form onSubmit={submit} className='space-y-4'>
-            <div className='grid sm:grid-cols-3 gap-3'>
+            <div className='grid sm:grid-cols-2 lg:grid-cols-4 gap-3'>
                 <div>
                     <label htmlFor='rate-ai' className='block text-[12.5px] font-semibold text-ink mb-1.5'>AI interview, per candidate</label>
                     <div className='relative'><span className='absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary text-[14px]'>₹</span><input id='rate-ai' inputMode='decimal' className={`${inputClass} !pl-8`} value={f.aiRate} onChange={set('aiRate', decimalOnly)} placeholder={hint(defaults.aiRate === null ? null : inr(defaults.aiRate), 'e.g. 100')} /></div>
@@ -31,6 +31,11 @@ export default function RateForm({ values, defaults, isDefault = false, saving, 
                 <div>
                     <label htmlFor='rate-oa' className='block text-[12.5px] font-semibold text-ink mb-1.5'>Online test, per candidate</label>
                     <div className='relative'><span className='absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary text-[14px]'>₹</span><input id='rate-oa' inputMode='decimal' className={`${inputClass} !pl-8`} value={f.oaRate} onChange={set('oaRate', decimalOnly)} placeholder={hint(defaults.oaRate === null ? null : inr(defaults.oaRate), 'e.g. 50')} /></div>
+                </div>
+                <div>
+                    <label htmlFor='rate-combo' className='block text-[12.5px] font-semibold text-ink mb-1.5'>Online test + AI interview, per candidate</label>
+                    <div className='relative'><span className='absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary text-[14px]'>₹</span><input id='rate-combo' inputMode='decimal' className={`${inputClass} !pl-8`} value={f.comboRate} onChange={set('comboRate', decimalOnly)} placeholder={hint(defaults.comboRate === null || defaults.comboRate === undefined ? null : inr(defaults.comboRate), 'e.g. 250')} /></div>
+                    <p className='text-[11.5px] text-text-secondary mt-1'>For a candidate who gives both the test and its AI interview: billed once at this price instead of the two above. Leave empty to bill them separately.</p>
                 </div>
                 <div>
                     <label htmlFor='rate-gst' className='block text-[12.5px] font-semibold text-ink mb-1.5'>GST</label>

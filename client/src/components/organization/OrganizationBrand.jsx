@@ -6,8 +6,7 @@ import { resolveAssetUrl } from '../../api/client'
  * hardcoded. `profile` is the view model from useOrganizationProfile():
  * { name, logoUrl, primaryColor, secondaryColor }.
  *
- * The mark is a navy tile with the logo (or the organization's initial) and
- * an accent corner dot; `subtitle` is the small line under the name.
+ * The mark is a circle with the whole logo (never cropped) or the organization's initial, with an accent corner dot; `subtitle` is the small line under the name.
  */
 function OrganizationBrand({ profile, loading, showName = true, subtitle = 'WorkmateIQ', className = '' }) {
     if (loading) {
@@ -24,9 +23,9 @@ function OrganizationBrand({ profile, loading, showName = true, subtitle = 'Work
 
     return (
         <div className={`flex items-center gap-3 min-w-0 ${className}`}>
-            <div className='relative w-11 h-11 shrink-0 rounded-[14px] bg-[var(--color-navy)] text-white flex items-center justify-center font-bold text-[18px] overflow-hidden'>
-                {logo ? <img src={logo} alt='' className='w-full h-full object-cover' /> : name.charAt(0).toUpperCase()}
-                <span aria-hidden='true' className='absolute -right-1.5 -bottom-1.5 w-5 h-5 rounded-full bg-[var(--color-accent-cyan)]' />
+            <div className={`relative w-11 h-11 shrink-0 rounded-full flex items-center justify-center font-bold text-[18px] overflow-hidden ${logo ? 'bg-white border border-line' : 'bg-[var(--color-navy)] text-white'}`}>
+                {logo ? <img src={logo} alt='' className='w-full h-full object-contain' /> : name.charAt(0).toUpperCase()}
+                {!logo && <span aria-hidden='true' className='absolute -right-1.5 -bottom-1.5 w-5 h-5 rounded-full bg-[var(--color-accent-cyan)]' />}
             </div>
             {showName && (
                 <div className='min-w-0 flex flex-col leading-tight'>

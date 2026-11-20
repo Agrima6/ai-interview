@@ -8,6 +8,7 @@ import Avatar from '../../components/ui/Avatar'
 import { resolveAssetUrl } from '../../api/client'
 import { useAuth } from '../../hooks/useAuth.jsx'
 import SmtpSettingsSection from '../../components/organization/SmtpSettingsSection'
+import LogoCropModal from '../../components/LogoCropModal'
 
 const TYPOGRAPHY_OPTIONS = [
   { value: 'Inter, sans-serif', label: 'Inter (Modern & Clean)' },
@@ -47,6 +48,7 @@ function SettingsPage() {
   const [fontFamily, setFontFamily] = useState('Inter, sans-serif')
   const [logoPreview, setLogoPreview] = useState('')
   const [logoChanged, setLogoChanged] = useState(false)
+  const [logoFile, setLogoFile] = useState(null)
 
   useEffect(() => {
     getOrganizationProfile()
@@ -73,11 +75,15 @@ function SettingsPage() {
 
   const handleLogoUpload = (e) => {
     const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = (event) => { setLogoPreview(event.target?.result || ''); setLogoChanged(true) }
-      reader.readAsDataURL(file)
-    }
+    e.target.value = ''
+    if (file) setLogoFile(file)             // positioned in a circle first (LogoCropModal), then previewed and saved
+  }
+
+  const handleLogoCropped = (cropped) => {
+    setLogoFile(null)
+    const reader = new FileReader()
+    reader.onload = (event) => { setLogoPreview(event.target?.result || ''); setLogoChanged(true) }
+    reader.readAsDataURL(cropped)
   }
 
   const handleSaveSettings = async (e) => {
@@ -143,6 +149,7 @@ function SettingsPage() {
       title="Settings"
       description="Your organization, branding, typography and email delivery."
     >
+      {logoFile && <LogoCropModal file={logoFile} onCancel={() => setLogoFile(null)} onDone={handleLogoCropped} />}
       <div className="grid lg:grid-cols-[260px_minmax(0,1fr)] gap-5 items-start">
         <nav aria-label="Settings sections" className="ui-rise flex lg:flex-col gap-1.5 p-2 rounded-[20px] bg-card border border-line overflow-x-auto lg:sticky lg:top-6">
           {SETTINGS_TABS.map((t) => {
@@ -215,7 +222,7 @@ function SettingsPage() {
                       <Upload size={14} /> Upload New Logo
                       <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
                     </label>
-                    <p className="text-[12px] text-text-secondary mt-1">PNG or SVG format (min 120x120px)</p>
+                    <p className="text-[12px] text-text-secondary mt-1">PNG or JPG. You can move and zoom it to fit the circle before saving.</p>
                   </div>
                 </div>
               </div>

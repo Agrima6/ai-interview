@@ -315,3 +315,32 @@ test("who may ask for it, and no way to name another organization", opts, async 
     assert.equal((await call("GET", `/organization/billing/${state.B}`, { token: state.ownA })).status, 404)
     assert.equal((await own("?from=2026-13-40")).status, 400)
 })
+
+test("a candidate who gives the online test AND its linked AI interview is billed once at the combined rate", opts, async () => {
+    const drv = await state.Drive.findOne({ title: "Backend Hiring" })
+    const acme = await models.OaAccount.findOne({ email: "oa@acme.test" })
+    const linked = await models.OaAssessment.create({ accountId: acme._id, title: "Backend Test", status: "PUBLISHED", sections: [{ id: "s1", title: "" }], aiPart: { enabled: true, aiInterviewDriveId: String(drv._id), roundNumber: 1, when: "AFTER_SUBMIT" } })
+    // Asha gave the AI interview in November and now also sits this test
+    const asha = await models.OaStudent.create({ accountId: acme._id, assessmentId: linked._id, name: "Asha Verma", email: "asha@a.test", emailNormalized: "asha@a.test", phone: null, codeHash: "h", codeEncrypted: "e", createdAt: at("2026-11-08T08:00:00Z") })
+    await models.OaAttempt.create({ accountId: acme._id, assessmentId: linked._id, studentId: asha._id, status: "SUBMITTED", submittedAt: at("2026-11-09T08:40:00Z"), startedAt: at("2026-11-09T08:00:00Z"), deadline: at("2026-11-09T09:00:00Z"), order: {}, percent: 70 })
+    const row = async () => (await get(`/summary?${NOV}`)).data.organizations.find((o) => o.name === "Acme Corp")
+
+    // no combined rate yet: the two are billed separately, exactly as before
+    let a = await row()
+    assert.equal(a.combo.candidates, 0)
+    assert.equal(a.amountExGst, 400)                     // AI: Asha, Ravi, Olga x 100; tests: 2 x 50
+
+    assert.equal((await call("PUT", "/admin/billing/rates/DEFAULT", { token: state.root, body: { comboRate: 120 } })).status, 200)
+    a = await row()
+    assert.equal(a.combo.candidates, 1); assert.equal(a.comboRate, 120); assert.equal(a.comboAmount, 120)
+    assert.equal(a.aiBilledUnits, 2); assert.equal(a.oaBilledUnits, 1)
+    assert.equal(a.amountExGst, 370)                     // Ravi, Olga 200 + one test 50 + Asha's combination 120
+    assert.equal(a.total, 436.6)
+    assert.equal((await get(`/summary?${NOV}`)).data.defaults.comboRate, 120)
+    assert.equal((await call("PUT", "/admin/billing/rates/DEFAULT", { token: state.root, body: { comboRate: -5 } })).status, 400)
+
+    // an organization with no linked AI interview is untouched by the combined rate
+    const solo = (await get(`/summary?${NOV}`)).data.organizations.find((o) => o.name === "Solo Tests Ltd")
+    assert.equal(solo.combo.candidates, 0)
+    await call("PUT", "/admin/billing/rates/DEFAULT", { token: state.root, body: { comboRate: null } })
+})

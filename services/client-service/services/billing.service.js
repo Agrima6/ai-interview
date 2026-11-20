@@ -25,7 +25,7 @@ const FINISHED = ["SUBMITTED", "AUTO_SUBMITTED", "TERMINATED"]
 export const PRODUCTS = ["AI_INTERVIEW", "ONLINE_ASSESSMENT"]
 const IST = "+05:30"
 const KEY_RE = /^(oa:)?[a-f0-9]{24}$/i
-const FALLBACK = Object.freeze({ aiRate: 0, oaRate: 0, gstPercent: 18, unit: "CANDIDATE" })
+const FALLBACK = Object.freeze({ aiRate: 0, oaRate: 0, comboRate: 0, gstPercent: 18, unit: "CANDIDATE" })
 
 // ---------- period ----------
 
@@ -182,6 +182,15 @@ const collectLines = async (period, { product, key } = {}) => {
         wantOa ? oaLines(period, accountKey, scope) : [],
     ])
     const lines = [...ai, ...oa].filter((l) => !key || l.key === key)
+    if (wantAi && wantOa && ai.length && oa.length) {
+        // An AI interview that a test uses as its own part (or as one of its rounds) is the other half of a combined Online test + AI interview.
+        const linked = new Set()
+        for (const a of await OaAssessment.find({ $or: [{ "aiPart.aiInterviewDriveId": { $nin: [null, ""] } }, { aiInterviewDriveId: { $nin: [null, ""] } }] }).select("aiPart.aiInterviewDriveId aiInterviewDriveId").lean()) {
+            if (a.aiPart?.aiInterviewDriveId) linked.add(String(a.aiPart.aiInterviewDriveId))
+            if (a.aiInterviewDriveId) linked.add(String(a.aiInterviewDriveId))
+        }
+        for (const l of lines) if (l.product === "AI_INTERVIEW" && linked.has(l.sourceId)) l.linkedToTest = true
+    }
     return { dir, lines }
 }
 
@@ -195,7 +204,7 @@ const cardOf = (docs, key) => {
     const own = docs.byKey.get(key) || {}
     const def = docs.defaults || {}
     const pick = (field) => own[field] ?? def[field] ?? FALLBACK[field]
-    return { aiRate: pick("aiRate"), oaRate: pick("oaRate"), gstPercent: pick("gstPercent"), unit: pick("unit"), custom: { aiRate: own.aiRate ?? null, oaRate: own.oaRate ?? null, gstPercent: own.gstPercent ?? null, unit: own.unit ?? null }, notes: own.notes || "" }
+    return { aiRate: pick("aiRate"), oaRate: pick("oaRate"), comboRate: pick("comboRate"), gstPercent: pick("gstPercent"), unit: pick("unit"), custom: { aiRate: own.aiRate ?? null, oaRate: own.oaRate ?? null, comboRate: own.comboRate ?? null, gstPercent: own.gstPercent ?? null, unit: own.unit ?? null }, notes: own.notes || "" }
 }
 const round2 = (n) => Math.round(n * 100) / 100
 
@@ -229,21 +238,40 @@ const statsOf = (lines, unit) => {
 }
 const pct = (a, b) => (b ? round2((a / b) * 100) : 0)
 
+/**
+ * Candidates who gave BOTH an online test and its linked AI interview in the period. When a combined rate is set they are
+ * billed once at that rate instead of the AI rate plus the test rate. Returns what to take off each product's units.
+ */
+const comboOf = (lines, card) => {
+    const none = { candidates: 0, aiUnits: 0, oaUnits: 0 }
+    if (!(card.comboRate > 0)) return none
+    const perPerson = (pred) => { const m = new Map(); for (const l of lines) if (l.interviewsInPeriod > 0 && pred(l)) m.set(l.email, (m.get(l.email) || 0) + l.interviewsInPeriod); return m }
+    const ai = perPerson((l) => l.product === "AI_INTERVIEW" && l.linkedToTest)
+    const oa = perPerson((l) => l.product === "ONLINE_ASSESSMENT")
+    const both = [...ai.keys()].filter((e) => oa.has(e))
+    const byInterview = card.unit === "INTERVIEW"
+    return { candidates: both.length, aiUnits: both.reduce((n, e) => n + (byInterview ? ai.get(e) : 1), 0), oaUnits: both.reduce((n, e) => n + (byInterview ? oa.get(e) : 1), 0) }
+}
+
 const orgRow = (org, lines, card) => {
     const ai = statsOf(lines.filter((l) => l.product === "AI_INTERVIEW"), card.unit)
     const oa = statsOf(lines.filter((l) => l.product === "ONLINE_ASSESSMENT"), card.unit)
-    const subtotal = round2(ai.billableUnits * card.aiRate + oa.billableUnits * card.oaRate)
+    const combo = comboOf(lines, card)
+    const aiBilled = ai.billableUnits - combo.aiUnits; const oaBilled = oa.billableUnits - combo.oaUnits
+    const comboAmount = round2(combo.candidates * card.comboRate)
+    const subtotal = round2(aiBilled * card.aiRate + oaBilled * card.oaRate + comboAmount)
     const gst = round2(subtotal * card.gstPercent / 100)
     const registered = ai.registered + oa.registered; const gave = ai.gave + oa.gave
     return {
         key: org.key, name: org.name, kind: org.kind, status: org.status, contactName: org.contactName, email: org.email, phone: org.phone, since: org.since,
         ai, oa, registered, gaveOfRegistered: gave, pending: ai.pending + oa.pending, missed: ai.missed + oa.missed, startedNotFinished: ai.started + oa.started, awaitingApproval: ai.awaiting + oa.awaiting,
         conversionPercent: pct(gave, registered), interviews: ai.interviews + oa.interviews,
-        billableCandidates: ai.billableCandidates + oa.billableCandidates, billableUnits: ai.billableUnits + oa.billableUnits,
-        unit: card.unit, aiRate: card.aiRate, oaRate: card.oaRate, gstPercent: card.gstPercent,
+        billableCandidates: ai.billableCandidates + oa.billableCandidates - combo.candidates, billableUnits: aiBilled + oaBilled + combo.candidates,
+        combo: { candidates: combo.candidates, rate: card.comboRate, amount: comboAmount }, aiBilledUnits: aiBilled, oaBilledUnits: oaBilled,
+        unit: card.unit, aiRate: card.aiRate, oaRate: card.oaRate, comboRate: card.comboRate, gstPercent: card.gstPercent,
         amountExGst: subtotal, gstAmount: gst, total: round2(subtotal + gst),
-        aiAmount: round2(ai.billableUnits * card.aiRate), oaAmount: round2(oa.billableUnits * card.oaRate),
-        rateMissing: (ai.billableUnits > 0 && !card.aiRate) || (oa.billableUnits > 0 && !card.oaRate),
+        aiAmount: round2(aiBilled * card.aiRate), oaAmount: round2(oaBilled * card.oaRate), comboAmount,
+        rateMissing: (aiBilled > 0 && !card.aiRate) || (oaBilled > 0 && !card.oaRate),
         hasCustomRate: Object.values(card.custom).some((v) => v !== null),
     }
 }
@@ -304,13 +332,13 @@ export const getSummary = async (query = {}) => {
         startedNotFinished: sum((o) => o.startedNotFinished), awaitingApproval: sum((o) => o.awaitingApproval), interviews: sum((o) => o.interviews),
         billableCandidates: sum((o) => o.billableCandidates), billableUnits: sum((o) => o.billableUnits),
         amountExGst: round2(sum((o) => o.amountExGst)), gstAmount: round2(sum((o) => o.gstAmount)), total: round2(sum((o) => o.total)),
-        aiAmount: round2(sum((o) => o.aiAmount)), oaAmount: round2(sum((o) => o.oaAmount)),
+        aiAmount: round2(sum((o) => o.aiAmount)), oaAmount: round2(sum((o) => o.oaAmount)), comboAmount: round2(sum((o) => o.comboAmount)), comboCandidates: sum((o) => o.combo.candidates),
         aiBillable: sum((o) => o.ai.billableCandidates), oaBillable: sum((o) => o.oa.billableCandidates),
         ratesMissing: organizations.filter((o) => o.rateMissing).length,
     }
     totals.conversionPercent = pct(totals.gaveOfRegistered, totals.registered)
     const defaults = cardOf(docs, "DEFAULT")
-    return { period: { from: period.from, to: period.to }, product: product || "ALL", totals, organizations, trend: await trendFor(period, dir, docs, product), defaults: { ...defaults.custom, unit: docs.defaults?.unit ?? FALLBACK.unit, gstPercent: docs.defaults?.gstPercent ?? FALLBACK.gstPercent, aiRate: docs.defaults?.aiRate ?? null, oaRate: docs.defaults?.oaRate ?? null } }
+    return { period: { from: period.from, to: period.to }, product: product || "ALL", totals, organizations, trend: await trendFor(period, dir, docs, product), defaults: { ...defaults.custom, unit: docs.defaults?.unit ?? FALLBACK.unit, gstPercent: docs.defaults?.gstPercent ?? FALLBACK.gstPercent, aiRate: docs.defaults?.aiRate ?? null, oaRate: docs.defaults?.oaRate ?? null, comboRate: docs.defaults?.comboRate ?? null } }
 }
 
 export const getOrganization = async (key, query = {}) => {
@@ -323,7 +351,7 @@ export const getOrganization = async (key, query = {}) => {
     const bySource = new Map()
     for (const l of lines) { const id = `${l.product}|${l.sourceId}`; if (!bySource.has(id)) bySource.set(id, { product: l.product, sourceId: l.sourceId, title: l.sourceTitle, lines: [] }); bySource.get(id).lines.push(l) }
     const sources = [...bySource.values()].map((g) => ({ product: g.product, sourceId: g.sourceId, title: g.title, ...statsOf(g.lines, card.unit) })).sort((a, b) => b.interviews - a.interviews || b.registered - a.registered)
-    return { period: { from: period.from, to: period.to }, organization: orgRow(org, lines, card), rates: { aiRate: card.aiRate, oaRate: card.oaRate, gstPercent: card.gstPercent, unit: card.unit, custom: card.custom, notes: card.notes, defaults: { aiRate: docs.defaults?.aiRate ?? null, oaRate: docs.defaults?.oaRate ?? null, gstPercent: docs.defaults?.gstPercent ?? FALLBACK.gstPercent, unit: docs.defaults?.unit ?? FALLBACK.unit } }, sources }
+    return { period: { from: period.from, to: period.to }, organization: orgRow(org, lines, card), rates: { aiRate: card.aiRate, oaRate: card.oaRate, comboRate: card.comboRate, gstPercent: card.gstPercent, unit: card.unit, custom: card.custom, notes: card.notes, defaults: { aiRate: docs.defaults?.aiRate ?? null, oaRate: docs.defaults?.oaRate ?? null, comboRate: docs.defaults?.comboRate ?? null, gstPercent: docs.defaults?.gstPercent ?? FALLBACK.gstPercent, unit: docs.defaults?.unit ?? FALLBACK.unit } }, sources }
 }
 
 const annotateUnits = (lines, unit) => {
@@ -386,6 +414,7 @@ export const saveRates = async (key, body = {}, actor = null) => {
     const update = {}
     if (body.aiRate !== undefined) update.aiRate = numberField(body.aiRate, { max: 100000, field: "aiRate", label: "The AI interview rate" })
     if (body.oaRate !== undefined) update.oaRate = numberField(body.oaRate, { max: 100000, field: "oaRate", label: "The online assessment rate" })
+    if (body.comboRate !== undefined) update.comboRate = numberField(body.comboRate, { max: 100000, field: "comboRate", label: "The online test + AI interview rate" })
     if (body.gstPercent !== undefined) update.gstPercent = numberField(body.gstPercent, { max: 40, field: "gstPercent", label: "GST" })
     if (body.unit !== undefined) {
         if (body.unit !== null && body.unit !== "" && !["CANDIDATE", "INTERVIEW"].includes(body.unit)) throw new ApiError(400, "VALIDATION_ERROR", "Bill per candidate or per interview.", { unit: "Choose a billing unit." })
@@ -411,9 +440,9 @@ const toCsv = (rows) => `﻿${rows.map((r) => r.map((c) => csvEscape(c)).join(",
 
 export const exportSummaryCsv = async (query = {}) => {
     const s = await getSummary(query)
-    const head = ["Organization", "Type", "Status", "Contact", "Contact email", "Contact phone", "Registered", "Gave the interview", "Not yet", "Missed", "Started, not finished", "Conversion %", "Interview rounds", "AI billable", "Online test billable", "Billing unit", "Billable units", "AI rate (INR)", "Online test rate (INR)", "Amount excl. GST (INR)", "GST %", "GST (INR)", "Total (INR)"]
+    const head = ["Organization", "Type", "Status", "Contact", "Contact email", "Contact phone", "Registered", "Gave the interview", "Not yet", "Missed", "Started, not finished", "Conversion %", "Interview rounds", "AI billable", "Online test billable", "Billing unit", "Billable units", "AI rate (INR)", "Online test rate (INR)", "Online test + AI rate (INR)", "Online test + AI candidates", "Amount excl. GST (INR)", "GST %", "GST (INR)", "Total (INR)"]
     const rows = [[`Billing ${s.period.from} to ${s.period.to}`], head]
-    for (const o of s.organizations) rows.push([text(o.name), KIND_LABEL[o.kind] || o.kind, o.status, text(o.contactName), text(o.email), text(o.phone), o.registered, o.gaveOfRegistered, o.pending, o.missed, o.startedNotFinished, o.conversionPercent, o.interviews, o.ai.billableCandidates, o.oa.billableCandidates, o.unit === "INTERVIEW" ? "Per interview" : "Per candidate", o.billableUnits, o.aiRate, o.oaRate, o.amountExGst, o.gstPercent, o.gstAmount, o.total])
+    for (const o of s.organizations) rows.push([text(o.name), KIND_LABEL[o.kind] || o.kind, o.status, text(o.contactName), text(o.email), text(o.phone), o.registered, o.gaveOfRegistered, o.pending, o.missed, o.startedNotFinished, o.conversionPercent, o.interviews, o.ai.billableCandidates, o.oa.billableCandidates, o.unit === "INTERVIEW" ? "Per interview" : "Per candidate", o.billableUnits, o.aiRate, o.oaRate, o.comboRate, o.combo.candidates, o.amountExGst, o.gstPercent, o.gstAmount, o.total])
     const t = s.totals
     rows.push(["TOTAL", "", "", "", "", "", t.registered, t.gaveOfRegistered, t.pending, t.missed, t.startedNotFinished, t.conversionPercent, t.interviews, t.aiBillable, t.oaBillable, "", t.billableUnits, "", "", t.amountExGst, "", t.gstAmount, t.total])
     return { filename: `billing-${s.period.from}-to-${s.period.to}.csv`, csv: toCsv(rows) }
@@ -446,7 +475,7 @@ export const getOwnBilling = async (tenantId, query = {}) => {
     return {
         period: res.period,
         organization: { ...res.organization, hasCustomRate: false },
-        rates: { aiRate: res.rates.aiRate, oaRate: res.rates.oaRate, gstPercent: res.rates.gstPercent, unit: res.rates.unit, custom: { aiRate: null, oaRate: null, gstPercent: null, unit: null }, notes: "", defaults: { aiRate: null, oaRate: null, gstPercent: res.rates.gstPercent, unit: res.rates.unit } },
+        rates: { aiRate: res.rates.aiRate, oaRate: res.rates.oaRate, comboRate: res.rates.comboRate, gstPercent: res.rates.gstPercent, unit: res.rates.unit, custom: { aiRate: null, oaRate: null, comboRate: null, gstPercent: null, unit: null }, notes: "", defaults: { aiRate: null, oaRate: null, comboRate: null, gstPercent: res.rates.gstPercent, unit: res.rates.unit } },
         sources: res.sources,
     }
 }

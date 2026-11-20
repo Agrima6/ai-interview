@@ -1,19 +1,15 @@
 import React from 'react'
-import { Menu, Search, Bell } from 'lucide-react'
-import { Avatar } from '../ui'
-import { useAuth } from '../../hooks/useAuth.jsx'
+import { Menu, Search } from 'lucide-react'
+import { NotificationsMenu, ProfileMenu } from './TopbarMenus'
 
 /**
  * `title`/`description` are the page header - each page passes its own, so
  * this stays generic instead of hardcoding copy. `eyebrow` is the small line
  * above the title (e.g. a greeting). `action` sits on the right of the title
- * on wide screens and wraps underneath on narrow ones. Search / bell /
- * avatar only show when a page passes `onSearch` (called with the query on Enter).
+ * on wide screens and wraps underneath on narrow ones. Search shows when a page passes `onSearch` (called with the query on Enter); the notification bell and account menu are on every page.
  * `onMenuClick` opens the mobile sidebar drawer.
  */
 function OrganizationTopbar({ title, description, eyebrow, action, onMenuClick, onSearch }) {
-    const { user } = useAuth()
-
     return (
         <header className='ui-fade mb-7 flex flex-wrap items-end justify-between gap-x-6 gap-y-4'>
             <div className='min-w-0 flex-1 basis-[280px]'>
@@ -45,13 +41,8 @@ function OrganizationTopbar({ title, description, eyebrow, action, onMenuClick, 
                         <kbd className='text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-[var(--color-surface-muted)] text-text-secondary'>⌘K</kbd>
                     </div>
                 )}
-                {onSearch && (
-                    <button aria-label='Notifications' className='relative w-11 h-11 rounded-[14px] border-[1.5px] border-line bg-card flex items-center justify-center text-ink hover:border-accent/40 transition-colors'>
-                        <Bell size={18} />
-                        <span className='absolute top-2.5 right-3 w-2 h-2 rounded-full bg-[var(--color-accent-cyan)] ring-2 ring-white' />
-                    </button>
-                )}
-                {onSearch && <Avatar name={user?.name} size='sm' />}
+                <NotificationsMenu />
+                <ProfileMenu />
                 {action}
             </div>
         </header>
