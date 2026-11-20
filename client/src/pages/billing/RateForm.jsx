@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Button } from '../../components/ui'
 import { decimalOnly } from '../../components/oa/oaRules'
-import { inr } from './billingFormat'
+import { inr, shownKinds, usesLabel } from './billingFormat'
 
 const inputClass = 'w-full bg-card border-[1.5px] border-line rounded-xl px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-accent focus:ring-4 focus:ring-accent/15 tabular-nums'
 const text = (v) => (v === null || v === undefined ? '' : String(v))
@@ -10,7 +10,9 @@ const text = (v) => (v === null || v === undefined ? '' : String(v))
  * Rates for one client (or the platform default). A box left empty means "use the default", and the placeholder says what
  * that is. `values` are this card's own settings; `defaults` are what an empty box falls back to.
  */
-export default function RateForm({ values, defaults, isDefault = false, saving, onSave, error }) {
+export default function RateForm({ values, defaults, isDefault = false, saving, onSave, error, uses = null }) {
+    const show = isDefault ? { oa: true, ai: true, combo: true } : shownKinds(uses)
+    const created = !isDefault && uses && (uses.oa || uses.ai || uses.combo)
     const [f, setF] = useState({ aiRate: text(values.aiRate), oaRate: text(values.oaRate), comboRate: text(values.comboRate), gstPercent: text(values.gstPercent), unit: values.unit || '', notes: values.notes || '' })
     const set = (key, filter) => (e) => setF((s) => ({ ...s, [key]: filter ? filter(e.target.value) : e.target.value }))
     const changed = f.aiRate !== text(values.aiRate) || f.oaRate !== text(values.oaRate) || f.comboRate !== text(values.comboRate) || f.gstPercent !== text(values.gstPercent) || f.unit !== (values.unit || '') || f.notes !== (values.notes || '')
@@ -23,20 +25,21 @@ export default function RateForm({ values, defaults, isDefault = false, saving, 
     const hint = (v, fallback) => (isDefault ? fallback : `Default: ${v === null || v === undefined ? 'not set' : v}`)
     return (
         <form onSubmit={submit} className='space-y-4'>
+            {!isDefault && <p className='text-[12.5px] text-text-secondary'>{created ? <>This client has created: <b className='text-ink'>{usesLabel(uses)}</b>. Set the price for that.</> : 'This client has not created a drive yet. Set the prices you want to charge.'}</p>}
             <div className='grid sm:grid-cols-2 lg:grid-cols-4 gap-3'>
-                <div>
+                {show.ai && <div>
                     <label htmlFor='rate-ai' className='block text-[12.5px] font-semibold text-ink mb-1.5'>AI interview, per candidate</label>
                     <div className='relative'><span className='absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary text-[14px]'>₹</span><input id='rate-ai' inputMode='decimal' className={`${inputClass} !pl-8`} value={f.aiRate} onChange={set('aiRate', decimalOnly)} placeholder={hint(defaults.aiRate === null ? null : inr(defaults.aiRate), 'e.g. 100')} /></div>
-                </div>
-                <div>
+                </div>}
+                {show.oa && <div>
                     <label htmlFor='rate-oa' className='block text-[12.5px] font-semibold text-ink mb-1.5'>Online test, per candidate</label>
                     <div className='relative'><span className='absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary text-[14px]'>₹</span><input id='rate-oa' inputMode='decimal' className={`${inputClass} !pl-8`} value={f.oaRate} onChange={set('oaRate', decimalOnly)} placeholder={hint(defaults.oaRate === null ? null : inr(defaults.oaRate), 'e.g. 50')} /></div>
-                </div>
-                <div>
+                </div>}
+                {show.combo && <div>
                     <label htmlFor='rate-combo' className='block text-[12.5px] font-semibold text-ink mb-1.5'>Online test + AI interview, per candidate</label>
                     <div className='relative'><span className='absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary text-[14px]'>₹</span><input id='rate-combo' inputMode='decimal' className={`${inputClass} !pl-8`} value={f.comboRate} onChange={set('comboRate', decimalOnly)} placeholder={hint(defaults.comboRate === null || defaults.comboRate === undefined ? null : inr(defaults.comboRate), 'e.g. 250')} /></div>
-                    <p className='text-[11.5px] text-text-secondary mt-1'>For a candidate who gives both the test and its AI interview: billed once at this price instead of the two above. Leave empty to bill them separately.</p>
-                </div>
+                    <p className='text-[11.5px] text-text-secondary mt-1'>{show.ai || show.oa ? 'For a candidate who gives both the test and its AI interview: billed once at this price instead of the two separate prices. Leave empty to bill them separately.' : 'One price per candidate for the whole drive: the online test and the AI interview together.'}</p>
+                </div>}
                 <div>
                     <label htmlFor='rate-gst' className='block text-[12.5px] font-semibold text-ink mb-1.5'>GST</label>
                     <div className='relative'><input id='rate-gst' inputMode='decimal' className={`${inputClass} !pr-8`} value={f.gstPercent} onChange={set('gstPercent', (v) => decimalOnly(v).slice(0, 5))} placeholder={hint(`${defaults.gstPercent}%`, '18')} /><span className='absolute right-3.5 top-1/2 -translate-y-1/2 text-text-secondary text-[14px]'>%</span></div>

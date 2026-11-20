@@ -41,3 +41,12 @@ export const OUTCOME = {
 export const KIND = { ORGANIZATION: 'Organization', COLLEGE: 'College', ONLINE_ASSESSMENT: 'Online tests only', UNKNOWN: 'Unknown' }
 export const PRODUCT = { AI_INTERVIEW: 'AI Interview', ONLINE_ASSESSMENT: 'Online Assessment' }
 export const UNIT_LABEL = { CANDIDATE: 'per candidate', INTERVIEW: 'per interview round' }
+
+/** What a client has created, in words: "Online test + AI interview", "Online test", "AI interview" (or several, joined). */
+export const usesLabel = (uses) => {
+    if (!uses) return ''
+    const parts = [uses.combo && 'Online test + AI interview', uses.oa && 'Online test', uses.ai && 'AI interview'].filter(Boolean)
+    return parts.join(' · ')
+}
+/** The kinds to show a price for. A client with nothing created yet (or no information) shows all of them. */
+export const shownKinds = (uses) => (uses && (uses.oa || uses.ai || uses.combo) ? uses : { oa: true, ai: true, combo: true })

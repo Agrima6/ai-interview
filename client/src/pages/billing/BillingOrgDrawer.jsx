@@ -7,7 +7,7 @@ import { downloadBillingCsv, getBillingOrganization, listBillingLines, saveBilli
 // Where the panel reads from. The platform owner reads any client; an organization reads only itself.
 const ADMIN_SOURCE = { ns: 'admin', getOrganization: getBillingOrganization, listLines: listBillingLines, download: (key, params) => downloadBillingCsv(`organizations/${key}/export`, params), save: saveBillingRates }
 import RateForm from './RateForm'
-import { KIND, OUTCOME, PRODUCT, UNIT_LABEL, formatDay, formatWhen, inr, num } from './billingFormat'
+import { KIND, OUTCOME, PRODUCT, UNIT_LABEL, formatDay, formatWhen, inr, num, shownKinds, usesLabel } from './billingFormat'
 
 const plural = (n, one, many) => `${num(n)} ${n === 1 ? one : many}`
 const STATUS_TONE = { ACTIVE: 'success', SUSPENDED: 'warning', REJECTED: 'danger', PENDING: 'neutral' }
@@ -53,10 +53,12 @@ export function OrgPanel({ orgKey, period, product, source = ADMIN_SOURCE, readO
     const o = detail.data.organization; const r = detail.data.rates
     const unitWord = o.unit === 'INTERVIEW' ? ['interview round', 'interview rounds'] : ['candidate', 'candidates']
     const comboUnits = o.combo?.candidates || 0
+    // Only what this client created: no empty AI or test rows for a client that runs combined drives, and the other way round.
+    const kinds = shownKinds(o.uses)
     const rows = [
-        ['AI Interview', o.aiBilledUnits ?? o.ai.billableUnits, o.aiRate, o.aiAmount],
-        ['Online Assessment', o.oaBilledUnits ?? o.oa.billableUnits, o.oaRate, o.oaAmount],
-        ...(comboUnits > 0 ? [['Online test + AI interview', comboUnits, o.comboRate, o.comboAmount]] : []),
+        ...(kinds.combo || comboUnits > 0 ? [['Online test + AI interview', comboUnits, o.comboRate, o.comboAmount]] : []),
+        ...(kinds.oa ? [['Online test', o.oaBilledUnits ?? o.oa.billableUnits, o.oaRate, o.oaAmount]] : []),
+        ...(kinds.ai ? [['AI interview', o.aiBilledUnits ?? o.ai.billableUnits, o.aiRate, o.aiAmount]] : []),
     ]
 
     return (
@@ -64,7 +66,7 @@ export function OrgPanel({ orgKey, period, product, source = ADMIN_SOURCE, readO
             <header>
                 <div className='flex flex-wrap items-center gap-2'>
                     <h2 className='font-display text-[22px] font-bold text-ink break-words'>{o.name}</h2>
-                    <Badge variant='neutral'>{KIND[o.kind] || o.kind}</Badge><Badge variant={STATUS_TONE[o.status] || 'neutral'}>{o.status}</Badge>
+                    <Badge variant='neutral'>{KIND[o.kind] || o.kind}</Badge><Badge variant={STATUS_TONE[o.status] || 'neutral'}>{o.status}</Badge>{usesLabel(o.uses) && <Badge variant='brand' className='normal-case'>{usesLabel(o.uses)}</Badge>}
                 </div>
                 <p className='text-[13px] text-text-secondary mt-1 flex flex-wrap items-center gap-x-4 gap-y-1'>
                     {o.contactName && <span>{o.contactName}</span>}
@@ -103,7 +105,7 @@ export function OrgPanel({ orgKey, period, product, source = ADMIN_SOURCE, readO
             {!readOnly && <section aria-label='Rate card'>
                 <h3 className='text-[14px] font-bold text-ink mb-1'>Rates for this client</h3>
                 <p className='text-[12.5px] text-text-secondary mb-3'>Leave a box empty to use your default. Changes apply to every period, so figures you have already sent should be saved as an export first.</p>
-                <RateForm key={`${r.custom.aiRate}-${r.custom.oaRate}-${r.custom.comboRate}-${r.custom.gstPercent}-${r.custom.unit}-${r.notes}`} values={{ ...r.custom, notes: r.notes }} defaults={r.defaults} saving={save.isPending} error={saveError} onSave={(body) => save.mutate(body)} />
+                <RateForm uses={o.uses} key={`${r.custom.aiRate}-${r.custom.oaRate}-${r.custom.comboRate}-${r.custom.gstPercent}-${r.custom.unit}-${r.notes}`} values={{ ...r.custom, notes: r.notes }} defaults={r.defaults} saving={save.isPending} error={saveError} onSave={(body) => save.mutate(body)} />
             </section>}
 
             {detail.data.sources.length > 0 && (

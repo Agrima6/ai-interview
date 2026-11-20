@@ -4,7 +4,10 @@ import { useQuery } from '@tanstack/react-query'
 import { ArrowRight, Receipt } from 'lucide-react'
 import { getOwnBilling } from '../../api/orgBillingApi'
 import { Skeleton } from '../ui'
-import { inr, num, presetRange } from '../../pages/billing/billingFormat'
+import { inr, num, presetRange, shownKinds, usesLabel } from '../../pages/billing/billingFormat'
+
+// Only the prices for what this organization created.
+const rateText = (o) => { const k = shownKinds(o.uses); return [k.combo && o.comboRate > 0 && inr(o.comboRate), k.oa && inr(o.oaRate), k.ai && inr(o.aiRate)].filter(Boolean).join(' / ') || 'Not set' }
 
 /** This month's billing on the dashboard: who was billed, the rates, and the total. The detail is on the Billing page. */
 export default function BillingPanel({ basePath }) {
@@ -25,7 +28,7 @@ export default function BillingPanel({ basePath }) {
                 <p className='px-5 py-6 text-[13.5px] text-text-secondary'>No candidates registered or interviewed yet this month, so there is nothing to bill.</p>
             ) : (
                 <div className='grid grid-cols-2 lg:grid-cols-5 divide-line lg:divide-x'>
-                    {[['Registered', num(o.registered), 'this month'], ['Gave the interview', num(o.gaveOfRegistered), `${num(o.conversionPercent)}% of registered`], ['Billable', num(o.billableUnits), o.unit === 'INTERVIEW' ? 'interview rounds' : 'candidates'], ['Rate', o.rateMissing ? 'Not set' : `${inr(o.aiRate)} / ${inr(o.oaRate)}`, 'AI interview / online test'], ['Total payable', inr(o.total), `incl. ${o.gstPercent}% GST`]].map(([label, value, hint], i) => (
+                    {[['Registered', num(o.registered), 'this month'], ['Gave the interview', num(o.gaveOfRegistered), `${num(o.conversionPercent)}% of registered`], ['Billable', num(o.billableUnits), o.unit === 'INTERVIEW' ? 'interview rounds' : 'candidates'], ['Rate', o.rateMissing ? 'Not set' : rateText(o), usesLabel(o.uses) || 'per candidate'], ['Total payable', inr(o.total), `incl. ${o.gstPercent}% GST`]].map(([label, value, hint], i) => (
                         <div key={label} className={`px-4 py-3.5 min-w-0 ${i === 4 ? 'col-span-2 lg:col-span-1 bg-ink text-white' : ''}`}>
                             <p className={`text-[12px] font-semibold ${i === 4 ? 'text-white/70' : 'text-text-secondary'}`}>{label}</p>
                             <p className='font-display text-[20px] leading-tight font-bold tabular-nums break-words'>{value}</p>

@@ -344,3 +344,34 @@ test("a candidate who gives the online test AND its linked AI interview is bille
     assert.equal(solo.combo.candidates, 0)
     await call("PUT", "/admin/billing/rates/DEFAULT", { token: state.root, body: { comboRate: null } })
 })
+
+test("billing shows only what each client created; a client with only combined drives pays the one package price", opts, async () => {
+    const { default: Client } = await import("../models/client.model.js")
+    const tC = oid()
+    await Client.create({ onboardingId: oid(), registrationId: oid(), tenantId: tC, type: "ORGANIZATION", name: "Combo Co", status: "ACTIVE", primaryContact: { name: "Owner", email: "owner@combo.test", phone: "9876543210" } })
+    const aiDrive = await drive(tC, "Combo AI Round", [{ roundNumber: 1, title: "AI", type: "Screening", candidates: [candidate("cc@c.test", "Cee Cee", "2026-11-05", { status: "COMPLETED", attemptedDate: at("2026-11-10T10:00:00Z"), aiScore: 70 })] }])
+    const acc = await models.OaAccount.create({ orgName: "Combo Co", contactName: "Owner", email: "oa@combo.test", emailNormalized: "oa@combo.test", passwordHash: "x", status: "ACTIVE", tenantId: String(tC) })
+    const test = await models.OaAssessment.create({ accountId: acc._id, title: "Combo Test", status: "PUBLISHED", sections: [{ id: "s1", title: "" }], aiPart: { enabled: true, aiInterviewDriveId: String(aiDrive._id), roundNumber: 1, when: "AFTER_SUBMIT" } })
+    const sit = async (email, n) => {
+        const st = await models.OaStudent.create({ accountId: acc._id, assessmentId: test._id, name: `P${n}`, email, emailNormalized: email, phone: null, codeHash: "h", codeEncrypted: "e", createdAt: at("2026-11-08T08:00:00Z") })
+        await models.OaAttempt.create({ accountId: acc._id, assessmentId: test._id, studentId: st._id, status: "SUBMITTED", submittedAt: at("2026-11-09T08:40:00Z"), startedAt: at("2026-11-09T08:00:00Z"), deadline: at("2026-11-09T09:00:00Z"), order: {}, percent: 60 })
+    }
+    await sit("cc@c.test", 1)         // gave both parts
+    await sit("dd@c.test", 2)         // gave the test only
+    const row = async () => (await get(`/summary?${NOV}`)).data.organizations.find((o) => o.name === "Combo Co")
+
+    assert.deepEqual(await row().then((o) => o.uses), { oa: false, ai: false, combo: true })
+    const acme = (await get(`/summary?${NOV}`)).data.organizations.find((o) => o.name === "Acme Corp")
+    assert.equal(acme.uses.ai, true); assert.equal(acme.uses.oa, true)            // Acme runs a test and a stand-alone AI drive
+    const solo = (await get(`/summary?${NOV}`)).data.organizations.find((o) => o.name === "Solo Tests Ltd")
+    assert.deepEqual(solo.uses, { oa: true, ai: false, combo: false })              // tests only: no AI or combined rows to show
+
+    const unpriced = await row()
+    assert.equal(unpriced.combo.candidates, 2); assert.equal(unpriced.rateMissing, true)      // people are counted, and the missing price is flagged
+    await call("PUT", "/admin/billing/rates/DEFAULT", { token: state.root, body: { comboRate: 250 } })
+    const c = await row()
+    assert.equal(c.combo.candidates, 2)                                              // both people, one package each
+    assert.equal(c.amountExGst, 500); assert.equal(c.aiBilledUnits, 0); assert.equal(c.oaBilledUnits, 0)
+    assert.equal(c.rateMissing, false)
+    await call("PUT", "/admin/billing/rates/DEFAULT", { token: state.root, body: { comboRate: null } })
+})
