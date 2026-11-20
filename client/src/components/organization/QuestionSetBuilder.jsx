@@ -1,6 +1,7 @@
-import React from 'react'
-import { Plus, FileText, Trash2 } from 'lucide-react'
+import React, { useState } from 'react'
+import { Plus, FileText, Trash2, Wand2 } from 'lucide-react'
 import { Button, Select, Textarea } from '../ui'
+import AiQuestionDraftModal from './AiQuestionDraftModal'
 
 function QuestionSetBuilder({
   questionMode,
@@ -12,8 +13,13 @@ function QuestionSetBuilder({
   onAddCustomQuestion,
   onRemoveCustomQuestion,
   onCustomQuestionChange,
+  onAppendQuestions,
   skillWeightages,
 }) {
+  const [aiOpen, setAiOpen] = useState(false)
+  const written = customQuestions.filter((q) => String(q.text || '').trim())
+  const followUpsOf = (q) => (q.followUps === undefined || q.followUps === null || q.followUps === '' ? 1 : Number(q.followUps))
+  const followUpTotal = written.reduce((sum, q) => sum + followUpsOf(q), 0)
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl border border-line bg-card">
@@ -86,10 +92,22 @@ function QuestionSetBuilder({
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-[14px] font-bold text-ink">Custom Question Prompts ({customQuestions.length})</span>
-            <Button type="button" size="sm" variant="secondary" onClick={onAddCustomQuestion}>
-              <Plus size={14} /> Add Question Prompt
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {onAppendQuestions && (
+                <Button type="button" size="sm" variant="secondary" onClick={() => setAiOpen(true)}>
+                  <Wand2 size={14} /> Write with AI
+                </Button>
+              )}
+              <Button type="button" size="sm" variant="secondary" onClick={onAddCustomQuestion}>
+                <Plus size={14} /> Add Question Prompt
+              </Button>
+            </div>
           </div>
+          <p role="status" className="rounded-xl border border-line bg-bg px-4 py-2.5 text-[13px] text-text-secondary">
+            <strong className="text-ink">{written.length} question{written.length === 1 ? '' : 's'}</strong>
+            {followUpTotal > 0 && <> + up to <strong className="text-ink">{followUpTotal} follow-up{followUpTotal === 1 ? '' : 's'}</strong> = up to <strong className="text-ink">{written.length + followUpTotal} in total</strong></>}
+            {followUpTotal === 0 && written.length > 0 && <> and no follow-ups</>}. The interviewer asks only these, nothing else. A follow-up is asked only when the answer needs one.
+          </p>
 
           {customQuestions.map((q, idx) => (
             <div key={q.id} className="p-5 rounded-2xl border border-line bg-card space-y-4 relative">
@@ -114,7 +132,18 @@ function QuestionSetBuilder({
                 onChange={(e) => onCustomQuestionChange(idx, 'text', e.target.value)}
               />
 
-              <div className="grid sm:grid-cols-2 gap-4">
+              <div className="grid sm:grid-cols-3 gap-4">
+                <Select
+                  label="Follow-up questions"
+                  value={String(followUpsOf(q))}
+                  onChange={(e) => onCustomQuestionChange(idx, 'followUps', Number(e.target.value))}
+                  options={[
+                    { value: '0', label: 'None' },
+                    { value: '1', label: 'Up to 1' },
+                    { value: '2', label: 'Up to 2' },
+                    { value: '3', label: 'Up to 3' },
+                  ]}
+                />
                 <Select
                   label="Evaluation Criteria Mapping"
                   value={q.topic}
@@ -135,6 +164,9 @@ function QuestionSetBuilder({
             </div>
           ))}
         </div>
+      )}
+      {onAppendQuestions && (
+        <AiQuestionDraftModal open={aiOpen} onClose={() => setAiOpen(false)} topics={skillWeightages.map((s) => s.name)} onAdd={onAppendQuestions} />
       )}
     </div>
   )

@@ -11,6 +11,7 @@ import Modal from '../ui/Modal'
 import { useToast } from '../ui/Toast'
 import { Panel } from './oaUi'
 import { DIFFICULTIES, TYPE_LABELS, difficultyLabel, downloadText, inputClass, sectionLabel } from './oaFormat'
+import { OA_LANGUAGES, languageLabel } from './oaLanguages'
 import { NumberField, TextField } from './oaFields'
 import { FILTERS, LIMITS, lengthError, rangeError } from './oaRules'
 import QuestionEditorModal from './QuestionEditorModal'
@@ -138,7 +139,7 @@ function AiModal({ open, onClose, assessment, onDone }) {
     const toast = useToast()
     const status = useQuery({ queryKey: ['oa', 'ai-status'], queryFn: oaApi.aiStatus, retry: false, staleTime: 60_000 })
     const aiAvailable = Boolean(status.data?.ok)
-    const [f, setF] = useState({ prompt: '', count: '8', types: ['MCQ'], difficulty: 'MEDIUM', sectionId: assessment.sections[0]?.id })
+    const [f, setF] = useState({ prompt: '', count: '8', types: ['MCQ'], difficulty: 'MEDIUM', sectionId: assessment.sections[0]?.id, codeLanguages: ['javascript', 'python'] })
     const countError = rangeError(f.count, { ...LIMITS.aiCount, label: 'Number of questions' })
     const promptError = lengthError(f.prompt, { ...LIMITS.aiPrompt, label: 'The description' })
     const [drafts, setDrafts] = useState(null)
@@ -155,13 +156,15 @@ function AiModal({ open, onClose, assessment, onDone }) {
         onSuccess: (r) => { toast.success(`${r.added} questions added.`); onDone(); onClose() },
         onError: (err) => setError(err.message),
     })
+    const toggleLanguage = (id) => setF((s) => ({ ...s, codeLanguages: s.codeLanguages.includes(id) ? s.codeLanguages.filter((x) => x !== id) : [...s.codeLanguages, id] }))
+    const needsLanguage = f.types.includes('CODING') && f.codeLanguages.length === 0
     const toggleType = (t) => setF((s) => ({ ...s, types: s.types.includes(t) ? s.types.filter((x) => x !== t) : [...s.types, t] }))
 
     return (
         <Modal open={open} onClose={onClose} title='Generate questions with AI' size='lg'
             footer={drafts
                 ? <><Button variant='secondary' size='sm' onClick={() => setDrafts(null)}>Back</Button><Button size='sm' disabled={!picked.size || add.isPending} onClick={() => add.mutate()}>{add.isPending ? 'Adding…' : `Add ${picked.size} selected`}</Button></>
-                : <><Button variant='secondary' size='sm' onClick={onClose}>Cancel</Button><Button size='sm' disabled={!aiAvailable || Boolean(promptError) || Boolean(countError) || !f.types.length || generate.isPending} onClick={() => generate.mutate()}><Wand2 size={14} /> {generate.isPending ? 'Writing questions…' : 'Generate'}</Button></>}>
+                : <><Button variant='secondary' size='sm' onClick={onClose}>Cancel</Button><Button size='sm' disabled={!aiAvailable || Boolean(promptError) || Boolean(countError) || !f.types.length || needsLanguage || generate.isPending} onClick={() => generate.mutate()}><Wand2 size={14} /> {generate.isPending ? 'Writing questions…' : 'Generate'}</Button></>}>
             {!drafts && <AiConnection status={status} />}
             {error && <div role='alert' className='mb-4 text-[13px] text-[var(--color-danger)] bg-[var(--color-danger-soft)] rounded-xl px-3.5 py-2.5'>{error}</div>}
             {!drafts ? (
@@ -176,6 +179,14 @@ function AiModal({ open, onClose, assessment, onDone }) {
                         <div className='flex flex-wrap gap-2'>{Object.entries(TYPE_LABELS).filter(([t]) => t !== 'VIDEO').map(([t, l]) => (
                             <label key={t} className={`px-3 py-1.5 rounded-full border text-[12.5px] font-medium cursor-pointer ${f.types.includes(t) ? 'border-accent bg-accent/10 text-accent' : 'border-line text-text-secondary'}`}>
                                 <input type='checkbox' className='sr-only' checked={f.types.includes(t)} onChange={() => toggleType(t)} />{l}</label>))}</div></fieldset>
+                    {f.types.includes('CODING') && (
+                        <fieldset><legend className='text-[12.5px] font-semibold text-ink mb-1.5'>Programming languages for coding questions <span className='font-normal text-text-secondary'>— {f.codeLanguages.length} selected</span></legend>
+                            <div className='flex flex-wrap gap-2'>{OA_LANGUAGES.map(([id, label]) => (
+                                <label key={id} className={`px-3 py-1.5 rounded-full border text-[12.5px] font-medium cursor-pointer ${f.codeLanguages.includes(id) ? 'border-accent bg-accent/10 text-accent' : 'border-line text-text-secondary hover:border-accent/40'}`}>
+                                    <input type='checkbox' className='sr-only' checked={f.codeLanguages.includes(id)} onChange={() => toggleLanguage(id)} />{label}</label>))}</div>
+                            {needsLanguage && <p role='alert' className='text-[12px] text-[var(--color-danger)] mt-1.5'>Choose at least one language.</p>}
+                            <p className='text-[12px] text-text-secondary mt-1.5'>The questions are written for these languages, and candidates can pick any of them in the test.</p></fieldset>
+                    )}
                     <p className='text-[12.5px] text-text-secondary'>You review every question before it is added. AI can be wrong, so check the answers.</p>
                 </div>
             ) : (
@@ -190,6 +201,7 @@ function AiModal({ open, onClose, assessment, onDone }) {
                                         <span className='flex gap-1.5 mb-1'><Badge variant='brand'>{TYPE_LABELS[q.type]}</Badge><Badge variant='neutral'>{q.marks} mark{q.marks === 1 ? '' : 's'}</Badge></span>
                                         <span className='block text-[13.5px] font-medium text-ink'>{q.text}</span>
                                         {q.options.length > 0 && <ul className='mt-1.5 text-[13px] space-y-0.5'>{q.options.map((o) => <li key={o.id} className={q.correct.includes(o.id) ? 'text-[var(--color-success)] font-semibold' : 'text-text-secondary'}>{q.correct.includes(o.id) ? '✓ ' : '• '}{o.text}</li>)}</ul>}
+                                        {q.type === 'CODING' && q.codeLanguages?.length > 0 && <span className='block mt-1.5 text-[12.5px] text-text-secondary'>Languages: {q.codeLanguages.map(languageLabel).join(', ')}</span>}
                                         {q.modelAnswer && <span className='block mt-1.5 text-[12.5px] text-text-secondary'>Model answer: {q.modelAnswer.slice(0, 200)}</span>}
                                     </span>
                                 </label>

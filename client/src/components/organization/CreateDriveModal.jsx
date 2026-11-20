@@ -391,7 +391,14 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null, pref
   const handleRemoveCriteria = (idx) => setSkillWeightages((prev) => prev.filter((_, i) => i !== idx))
 
   const handleAddCustomQuestion = () =>
-    setCustomQuestions((prev) => [...prev, { id: Date.now(), text: '', topic: skillWeightages[0]?.name || 'General', timeLimit: 120 }])
+    setCustomQuestions((prev) => [...prev, { id: Date.now(), text: '', topic: skillWeightages[0]?.name || 'General', timeLimit: 120, followUps: 1 }])
+
+  // Questions the AI drafted: they replace an untouched blank prompt, otherwise they follow the ones already written.
+  const handleAppendQuestions = (drafts) =>
+    setCustomQuestions((prev) => [
+      ...prev.filter((q) => String(q.text || '').trim()),
+      ...drafts.map((d, i) => ({ id: Date.now() + i, text: d.text, topic: d.topic || skillWeightages[0]?.name || 'General', timeLimit: 120, followUps: 1 })),
+    ])
 
   const handleRemoveCustomQuestion = (idx) => setCustomQuestions((prev) => prev.filter((_, i) => i !== idx))
 
@@ -744,6 +751,7 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null, pref
               onAddCustomQuestion={handleAddCustomQuestion}
               onRemoveCustomQuestion={handleRemoveCustomQuestion}
               onCustomQuestionChange={handleCustomQuestionChange}
+              onAppendQuestions={handleAppendQuestions}
               skillWeightages={skillWeightages}
             />
           </div>

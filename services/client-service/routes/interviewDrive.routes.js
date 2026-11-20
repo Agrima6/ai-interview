@@ -3,6 +3,8 @@ import * as driveController from "../controllers/interviewDrive.controller.js"
 import { authenticate, requirePermission } from "../middlewares/authenticate.js"
 import { uploadResume } from "../middlewares/resumeUpload.js"
 import { uploadRecording, uploadRecordingChunk } from "../middlewares/recordingUpload.js"
+import { generateInterviewQuestions } from "../services/oaAi.service.js"
+import { ok } from "../utils/response.js"
 
 const router = Router()
 
@@ -18,6 +20,10 @@ router.get("/drives/public/:link/prefill", driveController.getPublicApplicationP
 router.post("/drives/public/:link/apply", uploadResume.single("resume"), driveController.applyToPublicDrive)
 
 router.get("/drives", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.listDrives)
+// The hiring team describes the interview; the AI drafts the questions to review. Nothing is saved here.
+router.post("/drives/generate-questions", authenticate, requirePermission("CLIENT_SELF_UPDATE"), async (req, res, next) => {
+    try { ok(res, await generateInterviewQuestions(req.body || {})) } catch (error) { next(error) }
+})
 router.post("/drives", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.createDrive)
 // Must be registered before "/drives/:id" or Express would treat "export" as a drive id.
 router.get("/drives/export", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.exportDrivesCsv)

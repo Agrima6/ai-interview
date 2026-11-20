@@ -7,7 +7,7 @@ const hr = (text = MARK, extra = {}) => ({ id: "hq1", text, topic: "Production d
 
 test("the HR question reaches the interview with its text, topic and time limit intact", () => {
     const [q] = resolveInterviewQuestions({ roundNumber: 1, questions: [hr()] }, {})
-    assert.deepEqual(q, { id: "hq1", text: MARK, topic: "Production debugging", timeLimit: 150 })
+    assert.deepEqual(q, { id: "hq1", text: MARK, topic: "Production debugging", timeLimit: 150, followUps: 1 })
 })
 
 test("both ways HR can choose questions (typed, or a picked question set) are used", () => {
@@ -37,10 +37,17 @@ test("blank or malformed entries are dropped and never sent", () => {
 test("database documents are reduced to plain data (no driver internals leak into the request)", () => {
     const doc = { ...hr(), toObject() { return { id: "hq1", text: MARK, topic: "T", timeLimit: 90, _id: "x", $__: {} } } }
     const [q] = resolveInterviewQuestions({ roundNumber: 1, questions: [doc] }, {})
-    assert.deepEqual(Object.keys(q).sort(), ["id", "text", "timeLimit", "topic"])
+    assert.deepEqual(Object.keys(q).sort(), ["followUps", "id", "text", "timeLimit", "topic"])
 })
 
 test("nothing configured gives an empty list (the interview then uses its normal generation)", () => {
     assert.deepEqual(resolveInterviewQuestions(undefined, undefined), [])
     assert.deepEqual(resolveInterviewQuestions({ roundNumber: 1 }, {}), [])
+})
+
+test("each question carries HR's follow-up count: none, a number, or one when not chosen; kept within 0 to 3", () => {
+    const list = resolveInterviewQuestions({ roundNumber: 1, questions: [
+        { text: "Q zero?", followUps: 0 }, { text: "Q two?", followUps: "2" }, { text: "Q unset?" }, { text: "Q huge?", followUps: 50 }, { text: "Q negative?", followUps: -4 },
+    ] }, {})
+    assert.deepEqual(list.map((q) => q.followUps), [0, 2, 1, 3, 0])
 })

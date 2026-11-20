@@ -12,6 +12,7 @@ const clean = (list) => (Array.isArray(list) ? list : [])
         text: String(q.text || q.question_text).trim(),
         topic: q.topic ? String(q.topic).trim() : "",
         timeLimit: Number(q.timeLimit || q.time_limit) || undefined,
+        followUps: q.followUps === undefined || q.followUps === null || q.followUps === "" ? 1 : Math.max(0, Math.min(3, Math.round(Number(q.followUps)) || 0)),
     }))
 
 export function resolveInterviewQuestions(round, drive) {

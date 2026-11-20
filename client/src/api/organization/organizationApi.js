@@ -191,3 +191,6 @@ export const getCandidateTranscript = (driveId, roundNumber, candidateId) =>
 
 // Recent happenings: candidates who finished a test or an AI interview.
 export const listOrganizationNotifications = () => apiGet("/api/v1/organization/notifications")
+
+// The AI drafts interview questions from a description; nothing is saved until the hiring team adds them.
+export const generateInterviewQuestions = (body) => apiPost("/api/v1/drives/generate-questions", body, { timeout: 120000 })

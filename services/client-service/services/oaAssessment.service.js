@@ -335,7 +335,7 @@ export const aiDraft = async (accountId, id, input = {}) => {
     const assessment = await owned(accountId, id)
     const ctx = sectionContext(assessment, input.sectionId)
     if (input.count !== undefined) intInRange(input.count, { ...LIMITS.aiCount, field: "count", label: "Number of questions" })
-    return generateQuestions({ prompt: input.prompt, count: input.count, types: input.types, difficulty: input.difficulty, sectionId: ctx.defaultSectionId, sectionIds: ctx.sectionIds })
+    return generateQuestions({ prompt: input.prompt, count: input.count, types: input.types, codeLanguages: input.codeLanguages, difficulty: input.difficulty, sectionId: ctx.defaultSectionId, sectionIds: ctx.sectionIds })
 }
 
 // ---------- students ----------
