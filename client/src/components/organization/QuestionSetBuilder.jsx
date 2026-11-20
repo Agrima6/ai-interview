@@ -14,6 +14,8 @@ function QuestionSetBuilder({
   onRemoveCustomQuestion,
   onCustomQuestionChange,
   onAppendQuestions,
+  bankFollowUps = 1,
+  onBankFollowUpsChange,
   skillWeightages,
 }) {
   const [aiOpen, setAiOpen] = useState(false)
@@ -73,6 +75,21 @@ function QuestionSetBuilder({
           </div>
 
           <div className="rounded-2xl border border-line bg-card p-4 shadow-(--shadow-soft)">
+            {onBankFollowUpsChange && (
+              <div className="mb-4 flex flex-wrap items-end justify-between gap-3 rounded-xl border border-line bg-bg px-4 py-3">
+                <div className="min-w-[220px] flex-1">
+                  <Select
+                    label="Follow-up questions after each question"
+                    value={String(bankFollowUps)}
+                    onChange={(e) => onBankFollowUpsChange(Number(e.target.value))}
+                    options={[{ value: '0', label: 'None' }, { value: '1', label: 'Up to 1' }, { value: '2', label: 'Up to 2' }, { value: '3', label: 'Up to 3' }]}
+                  />
+                </div>
+                <button type="button" onClick={() => onQuestionModeChange('CUSTOM')} className="text-[13px] font-semibold text-accent hover:underline">
+                  Choose follow-ups per question, or write questions with AI
+                </button>
+              </div>
+            )}
             {(() => {
               const selectedBank = questionBanks.find((bank) => bank.id === selectedBankId)
               const questions = selectedBank?.questionList || []

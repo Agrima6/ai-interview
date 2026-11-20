@@ -4,6 +4,8 @@ import { AnimatePresence, motion } from 'motion/react'
 import { X } from 'lucide-react'
 import { useFocusTrap } from './useFocusTrap'
 
+const openModals = []
+
 /**
  * Dialog/modal. Controlled via `open`. Renders through a portal so it
  * escapes any parent overflow/stacking context (dashboards, tables, etc).
@@ -14,12 +16,16 @@ function Modal({ open, onClose, title, children, footer, size = 'md' }) {
 
   useEffect(() => {
     if (!open) return
-    const onKey = (e) => e.key === 'Escape' && onClose?.()
+    // Dialogs can be stacked (an AI question writer opened from a form): Escape closes only the one on top.
+    const token = Symbol('modal')
+    openModals.push(token)
+    const onKey = (e) => e.key === 'Escape' && openModals[openModals.length - 1] === token && onClose?.()
     document.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
     return () => {
       document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
+      openModals.splice(openModals.indexOf(token), 1)
+      if (!openModals.length) document.body.style.overflow = ''
     }
   }, [open, onClose])
 
