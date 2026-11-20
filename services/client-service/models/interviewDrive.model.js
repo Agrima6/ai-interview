@@ -6,6 +6,8 @@ const CustomQuestionSchema = new mongoose.Schema({
     text: { type: String, required: true },
     topic: { type: String, required: true },
     timeLimit: { type: Number, default: 120 },
+    // How many follow-up questions the interviewer may ask after this one (0 = none).
+    followUps: { type: Number, default: 1, min: 0, max: 3 },
 })
 
 const SkillRubricSchema = new mongoose.Schema({

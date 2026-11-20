@@ -42,6 +42,15 @@ describe("AI question drafting", () => {
         assert.deepEqual(r.questions[0].correct, [r.questions[0].options[2].id])
     })
 
+    it("writes coding questions for the languages that were chosen, and needs at least one", async () => {
+        let sent
+        reply = (body) => { sent = body; return content(JSON.stringify({ questions: [{ type: "CODING", text: "Reverse a string. Input: s. Output: reversed s.", starterCode: "def f(s): pass", modelAnswer: "return s[::-1]", testCases: [{ input: "abc", expected: "cba" }], marks: 10, difficulty: "EASY" }] })) }
+        const r = await ask({ types: ["CODING"], codeLanguages: ["java", "python", "not-a-language"] })
+        assert.deepEqual(r.questions[0].codeLanguages, ["java", "python"])
+        assert.match(sent.messages[0].content, /java, python/)
+        await assert.rejects(ask({ types: ["CODING"], codeLanguages: [] }), (e) => e.status === 400 && /language/i.test(e.message))
+    })
+
     it("reads JSON wrapped in fences and chatter", async () => {
         reply = () => content("Sure! Here you go:\n```json\n" + JSON.stringify({ questions: [mcq()] }) + "\n```\nHope this helps.")
         assert.equal((await ask()).questions.length, 1)
@@ -157,4 +166,21 @@ it("when the configured model is retired, the best available chat model is chose
     assert.equal(pickModel(["llama-3.3-70b-versatile"], "llama-3.3-70b-versatile"), null)      // never the one that just failed
     assert.equal(pickModel(["whisper-large-v3", "text-embedding-3"]), null)                    // nothing that can chat
     assert.equal(pickModel(["some-new-model"]), "some-new-model")
+})
+
+describe("AI interview question drafting", () => {
+    it("returns short spoken questions, de-duplicated, with topics from the allowed list", async () => {
+        reply = () => content(JSON.stringify({ questions: [
+            { text: "1. Tell me about a time you fixed a production outage.", topic: "debugging" },
+            { text: "Tell me about a time you fixed a production outage.", topic: "Debugging" },
+            { text: "How would you design a rate limiter for an API?", topic: "unknown skill" },
+        ] }))
+        const { generateInterviewQuestions } = await import("../services/oaAi.service.js")
+        const r = await generateInterviewQuestions({ prompt: "Backend engineer, 3 years, APIs and reliability", count: 5, topics: ["Debugging", "System design"] })
+        assert.deepEqual(r.questions.map((q) => q.topic), ["Debugging", "Debugging"])      // an unknown topic falls back to a listed one
+        assert.equal(r.questions.length, 2)                                                  // duplicate dropped, numbering removed
+        assert.equal(r.questions[0].text, "Tell me about a time you fixed a production outage.")
+        await assert.rejects(generateInterviewQuestions({ prompt: "short", count: 3 }), (e) => e.status === 400)
+        await assert.rejects(generateInterviewQuestions({ prompt: "Backend engineer questions please", count: 99 }), (e) => e.status === 400)
+    })
 })
