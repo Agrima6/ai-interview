@@ -13,6 +13,7 @@ import { AttemptStatus, ErrorState } from './oaUi'
 import { formatDateTime, formatDuration, inputClass, sectionLabel } from './oaFormat'
 import { languageLabel } from './oaLanguages'
 import DeviceDetails from './DeviceDetails'
+import AiInterviewReportCard from './AiInterviewReportCard'
 import Lightbox from './Lightbox'
 
 const VIOLATION_LABEL = {
@@ -84,7 +85,7 @@ function Answer({ q, grade, onGrade, locked }) {
     )
 }
 
-export default function AttemptDrawer({ assessmentId, attemptId, onClose }) {
+export default function AttemptDrawer({ assessmentId, attemptId, onClose, assessment }) {
     const toast = useToast()
     const queryClient = useQueryClient()
     const [tab, setTab] = useState('answers')
@@ -125,6 +126,7 @@ export default function AttemptDrawer({ assessmentId, attemptId, onClose }) {
                         <div className='px-4 py-3'><dt className='text-[11.5px] font-semibold text-text-secondary'>Percent</dt><dd className='text-[18px] font-bold tabular-nums'>{hidden ? <span className='text-[13px] font-medium text-text-secondary'>After submission</span> : <>{d.attempt.percent}%<span className={`block text-[11.5px] font-semibold ${d.attempt.percent >= d.passPercent ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>{d.attempt.percent >= d.passPercent ? 'Passed' : 'Not passed'} (pass {d.passPercent}%)</span></>}</dd></div>
                         <div className='px-4 py-3'><dt className='text-[11.5px] font-semibold text-text-secondary'>Violations</dt><dd className='text-[18px] font-bold tabular-nums'>{d.attempt.violationCount}</dd></div>
                     </dl>
+                    {assessment && <AiInterviewReportCard assessment={assessment} email={d.student?.email} />}
                     {d.attempt.endReason && <p className='text-[13px] bg-[var(--color-danger-soft)] text-[var(--color-danger)] rounded-xl px-3.5 py-2.5 flex items-center gap-2'><ShieldAlert size={15} /> {d.attempt.endReason}</p>}
                     {d.attempt.status !== 'IN_PROGRESS' && (
                         <div className='flex flex-wrap items-center gap-2 text-[13px]'>

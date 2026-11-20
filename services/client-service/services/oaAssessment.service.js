@@ -1,4 +1,5 @@
 import mongoose from "mongoose"
+import { InterviewDrive } from "../models/interviewDrive.model.js"
 import { OaAccount, OaAssessment, OaAttempt, OaEvent, OaStudent } from "../models/oa.model.js"
 import { ApiError } from "../utils/response.js"
 import { csvEscape } from "../utils/csv.js"
@@ -450,6 +451,15 @@ const buildResultRows = async (assessment) => {
         OaAttempt.find({ assessmentId: assessment._id }).select("-answers -grades -order").lean(),
     ])
     const byStudent = new Map(attempts.map((a) => [String(a.studentId), a]))
+    // The AI interview taken with this test: who has done it and how they scored, matched by email, so both results sit in one row.
+    const aiByEmail = new Map()
+    const aiDriveId = assessment.aiPart?.enabled ? assessment.aiPart.aiInterviewDriveId : assessment.kind === "AI_INTERVIEW" ? assessment.aiInterviewDriveId : null
+    if (aiDriveId && mongoose.isValidObjectId(aiDriveId)) {
+        const drive = await InterviewDrive.findById(aiDriveId).select("rounds.roundNumber rounds.candidates.email rounds.candidates.status rounds.candidates.aiScore").lean()
+        const roundNumber = assessment.aiPart?.enabled ? assessment.aiPart.roundNumber || 1 : 1
+        const round = (drive?.rounds || []).find((r) => r.roundNumber === roundNumber) || drive?.rounds?.[0]
+        for (const c of round?.candidates || []) aiByEmail.set(String(c.email || "").trim().toLowerCase(), { status: c.status, score: c.aiScore > 0 ? c.aiScore : null })
+    }
     const ranks = rankRows(attempts.map((a) => ({ id: String(a._id), percent: a.percent, durationSec: durationSec(a), eligible: isRankable(a) })))
     const pass = assessment.settings?.passPercent ?? 40
     return students.map((s) => {
@@ -465,6 +475,7 @@ const buildResultRows = async (assessment) => {
             passed: finished && isRankable(a) ? a.percent >= pass : null,
             gradingStatus: a?.gradingStatus || null,
             aiInvite: a?.aiHandoff?.status || null,
+            aiResult: aiByEmail.get(String(s.email || "").trim().toLowerCase()) || null,
             violationCount: a?.violationCount || 0,
             adminDecision: a?.adminDecision || null,
             timeTakenSec: a ? durationSec(a) : null,

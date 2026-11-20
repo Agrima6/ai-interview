@@ -114,6 +114,11 @@ test("whoever submits the test is added to the AI interview once; someone remove
     assert.ok(await waitFor(() => onAi(a)), "the candidate was never added to the AI interview")
     const row = await waitFor(async () => (await call("GET", `/oa/assessments/${state.a}/results`, { token: state.admin })).data.find((r) => r.email === a && r.aiInvite && r.aiInvite !== "SENDING"))
     assert.ok(["SENT", "ALREADY", "ADDED"].includes(row.aiInvite))
+    // the row also carries the AI interview result, so both results show side by side
+    assert.ok(row.aiResult, "the results row has no AI interview result")
+    await drives.InterviewDrive.updateOne({ _id: state.ai, "rounds.candidates.email": a }, { $set: { "rounds.0.candidates.$.status": "COMPLETED", "rounds.0.candidates.$.aiScore": 77 } })
+    const done = (await call("GET", `/oa/assessments/${state.a}/results`, { token: state.admin })).data.find((r) => r.email === a)
+    assert.deepEqual(done.aiResult, { status: "COMPLETED", score: 77 })
     const cheat = await sit("terminate")
     await new Promise((r) => setTimeout(r, 800))
     assert.equal(await onAi(cheat), false)
