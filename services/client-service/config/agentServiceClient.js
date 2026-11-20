@@ -88,6 +88,8 @@ export const agentServiceClient = {
         }
         // What HR decided: ask only their questions, offer only some languages, and whether the candidate may switch.
         if (options.onlyHrQuestions) fields.only_hr_questions = "true"
+        // What the interviewer says the interview is for: the name HR gave the drive.
+        if (options.displayRole) fields.display_role = String(options.displayRole).slice(0, 80)
         if (Array.isArray(options.allowedLanguages) && options.allowedLanguages.length > 0) fields.allowed_languages = options.allowedLanguages.join(",")
         if (options.allowLanguageSwitch === false) fields.allow_language_switch = "false"
         const defaultQuestions = [

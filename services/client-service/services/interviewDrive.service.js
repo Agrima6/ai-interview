@@ -1190,7 +1190,7 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber,
     const policy = policyOf(drive)
     const language = startingLanguage(policy, isInterviewLanguage(chosenLanguage) ? chosenLanguage : (candidate.preferredLanguage !== "en" ? candidate.preferredLanguage : policy.defaultLanguage))
     // When HR wrote the questions, the interviewer asks those and nothing it invented.
-    const agentOptions = { onlyHrQuestions: questionsToSend.length > 0, allowedLanguages: policy.allowed, allowLanguageSwitch: policy.allowSwitch }
+    const agentOptions = { displayRole: drive.title, onlyHrQuestions: questionsToSend.length > 0, allowedLanguages: policy.allowed, allowLanguageSwitch: policy.allowSwitch }
 
     // What HR wants validated: the round's weighted skills (falls back to the drive's). Weights become priorities agent-side.
     const focusAreas = (round?.skillRubrics?.length ? round.skillRubrics : drive.skillRubrics || [])
