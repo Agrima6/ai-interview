@@ -101,8 +101,8 @@ export const completeFile = async (req, res, next) => {
 
 export const submit = async (req, res, next) => {
     try {
-        const { captchaToken, captchaAnswer } = req.body
-        verifyCaptcha(captchaToken, captchaAnswer)
+        // The same challenge the registration service issues (a Cloudflare Turnstile token, or its signed arithmetic question).
+        await verifyCaptcha(req.body, req.ip)
 
         const result = await onboardingService.submit({
             onboardingId: req.params.id,

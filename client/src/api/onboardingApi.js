@@ -37,8 +37,8 @@ export const uploadOnboardingFile = async (onboardingId, token, { type, fieldKey
     }
 }
 
-export const submitOnboarding = (onboardingId, token, { type, consent, captchaToken, captchaAnswer }) =>
-    apiPost(`/api/v1/onboardings/${onboardingId}/submit`, { type, consent, captchaToken, captchaAnswer }, tokenHeaders(token))
+export const submitOnboarding = (onboardingId, token, { type, consent, captchaToken, captchaAnswer, turnstileToken }) =>
+    apiPost(`/api/v1/onboardings/${onboardingId}/submit`, { type, consent, captchaToken, captchaAnswer, turnstileToken }, tokenHeaders(token))
 
 // Private files open only through a short-lived signed link issued by the API (never a bare file URL).
 export const getOnboardingFileLink = async (onboardingId, fileId, token, type) => {
