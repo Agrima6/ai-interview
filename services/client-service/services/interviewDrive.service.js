@@ -14,7 +14,7 @@ import { validatePersonName, normalizePhone } from "../utils/personInput.js"
 import { closingInstant, openingInstant, parseDateOnly, todayDateOnly } from "../utils/deadline.js"
 import { ApiError } from "../utils/response.js"
 import mongoose from "mongoose"
-import { resolveInterviewQuestions } from "../utils/interviewQuestions.js"
+import { NOT_STARTED, planMatchesHrQuestions, resolveInterviewQuestions } from "../utils/interviewQuestions.js"
 import { ACTIVE_STATUSES, SKIP_MESSAGES, advanceStatus, mapServiceStatus, planDispatch } from "../utils/communicationPlan.js"
 import { bookSlot, releaseSlot } from "./slotBooking.service.js"
 import { resolveAvailability, publicAvailability } from "../utils/slotPolicy.js"
@@ -1158,6 +1158,8 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber,
     }
 
     let plan = null
+    // HR's questions for this round (see utils/interviewQuestions.js for the rule).
+    const hrQuestionsNow = resolveInterviewQuestions(round, drive)
     const interviewIdOnLoad = candidate.agentInterviewId || null      // what the database held when this request began
     if (candidate.agentInterviewId) {
         // Resuming a room the candidate already started (e.g. they reloaded the page) - the
@@ -1174,6 +1176,10 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber,
                 candidate.attemptedDate = null
                 candidate.status = "SCHEDULED"
                 demoReset = true
+            } else if (hrQuestionsNow.length && NOT_STARTED.has(String(existing?.status || "").toUpperCase()) && !planMatchesHrQuestions(existing.plan, hrQuestionsNow)) {
+                // Built before HR set (or changed) their questions and nothing has been said yet: start from a fresh plan.
+                console.log(`[client-service] interview ${candidate.agentInterviewId} was planned before HR's current questions; rebuilding for ${candidate.email}`)
+                candidate.agentInterviewId = null
             } else {
                 plan = existing.plan
             }
@@ -1184,8 +1190,7 @@ export const startAgentInterview = async (tenantId, email, driveId, roundNumber,
         }
     }
 
-    // HR's questions for this round (see utils/interviewQuestions.js for the rule).
-    const questionsToSend = resolveInterviewQuestions(round, drive)
+    const questionsToSend = hrQuestionsNow
     // The language HR allows for this drive: the candidate's pick if it is allowed, otherwise HR's default.
     const policy = policyOf(drive)
     const language = startingLanguage(policy, isInterviewLanguage(chosenLanguage) ? chosenLanguage : (candidate.preferredLanguage !== "en" ? candidate.preferredLanguage : policy.defaultLanguage))

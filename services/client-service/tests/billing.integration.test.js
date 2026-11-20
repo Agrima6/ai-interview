@@ -375,3 +375,19 @@ test("billing shows only what each client created; a client with only combined d
     assert.equal(c.rateMissing, false)
     await call("PUT", "/admin/billing/rates/DEFAULT", { token: state.root, body: { comboRate: null } })
 })
+
+test("a test and its AI interview read as ONE drive with two parts, per candidate and in the drive list", opts, async () => {
+    const lines = (await get(`/organizations/${state.tA ? String(state.tA) : state.A}/lines?${NOV}&pageSize=100&search=asha`)).data
+    const ashas = lines.filter((l) => l.email === "asha@a.test" && l.part)
+    assert.deepEqual(ashas.map((l) => l.part), ["Online test", "AI interview"])            // together, test first
+    assert.equal(new Set(ashas.map((l) => l.source)).size, 1)                                // under the same drive name
+    assert.equal(ashas.reduce((n, l) => n + l.units, 0), 1)                                  // billed once for the drive, not once per part
+    const detail = (await get(`/organizations/${state.A}?${NOV}`)).data
+    const pkg = detail.sources.find((s) => s.product === "PACKAGE")
+    assert.ok(pkg, "no combined drive in the list")
+    assert.equal(pkg.title, "Backend Test")
+    assert.equal(detail.sources.some((s) => s.product === "AI_INTERVIEW" && s.title === "Backend Hiring"), false)    // the two halves are not listed on their own
+    assert.equal(detail.sources.some((s) => s.product === "ONLINE_ASSESSMENT" && /Backend Test/.test(s.title)), false)
+    const csv = await call("GET", `/admin/billing/organizations/${state.A}/export?${NOV}`, { token: state.root })
+    assert.match(String(csv.json), /Online test \+ AI interview \(AI interview\)/)
+})

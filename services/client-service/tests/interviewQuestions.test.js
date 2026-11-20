@@ -51,3 +51,15 @@ test("each question carries HR's follow-up count: none, a number, or one when no
     ] }, {})
     assert.deepEqual(list.map((q) => q.followUps), [0, 2, 1, 3, 0])
 })
+
+test("a stored interview plan is reused only while it is exactly HR's current questions", async () => {
+    const { planMatchesHrQuestions, NOT_STARTED } = await import("../utils/interviewQuestions.js")
+    const hr = [{ text: "Q one?", followUps: 2 }, { text: "Q two?", followUps: 0 }]
+    const plan = (extra = []) => ({ questions: [{ id: "p_intro", type: "introduction" }, { id: "hr_1", type: "hr", question_text: "Q one?", max_followups: 2 }, { id: "hr_2", type: "hr", question_text: "Q two?", max_followups: 0 }, ...extra] })
+    assert.equal(planMatchesHrQuestions(plan(), hr), true)
+    assert.equal(planMatchesHrQuestions(plan([{ id: "g1", type: "scenario", question_text: "Invented" }]), hr), false)       // the interviewer added its own
+    assert.equal(planMatchesHrQuestions(plan(), [{ text: "Q one?", followUps: 1 }, hr[1]]), false)                        // follow-ups changed
+    assert.equal(planMatchesHrQuestions(plan(), [{ text: "Q changed?", followUps: 2 }, hr[1]]), false)                    // wording changed
+    assert.equal(planMatchesHrQuestions({ questions: [{ id: "hr_1", type: "hr", question_text: "Q one?" }] }, hr), false)  // an older plan with no counts
+    assert.ok(NOT_STARTED.has("READY") && !NOT_STARTED.has("IN_PROGRESS"))
+})

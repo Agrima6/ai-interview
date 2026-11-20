@@ -15,6 +15,17 @@ const clean = (list) => (Array.isArray(list) ? list : [])
         followUps: q.followUps === undefined || q.followUps === null || q.followUps === "" ? 1 : Math.max(0, Math.min(3, Math.round(Number(q.followUps)) || 0)),
     }))
 
+// An interview that has not begun yet is a plan on paper. If HR has changed their questions since it was built, it must be rebuilt,
+// or the candidate is asked yesterday's questions. A plan matches when its HR questions are exactly HR's list (same words, same
+// order, same follow-up count) and it holds nothing the interviewer invented.
+const SPOKEN_ONLY = new Set(["introduction", "candidate_introduction"])
+export function planMatchesHrQuestions(plan, hrQuestions) {
+    const items = Array.isArray(plan?.questions) ? plan.questions.filter((q) => !SPOKEN_ONLY.has(q.type)) : []
+    if (items.length !== hrQuestions.length) return false
+    return items.every((q, i) => q.type === "hr" && String(q.question_text || "").trim() === hrQuestions[i].text && Number(q.max_followups) === hrQuestions[i].followUps)
+}
+export const NOT_STARTED = new Set(["CREATED", "PLANNED", "READY"])
+
 export function resolveInterviewQuestions(round, drive) {
     const own = clean(round?.questions)
     if (own.length) return own

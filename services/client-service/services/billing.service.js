@@ -172,6 +172,31 @@ const scopeFor = (dir, key) => {
     return { tenantId: org.tenantId || undefined, oaAccountIds: org.oaAccountIds, noAi: !org.tenantId }
 }
 
+/**
+ * Combined drives: an online test and the AI interview it leads into, so billing can show them as ONE drive with two parts.
+ * A multi-round drive whose rounds include both tests and AI interviews is one; so is a test with an AI part of its own.
+ */
+const loadPackages = async () => {
+    const byAssessment = new Map(); const byAiDrive = new Map()
+    const rounds = await OaAssessment.find({ status: { $ne: "ARCHIVED" } }).select("title driveId kind aiInterviewDriveId aiPart.enabled aiPart.aiInterviewDriveId").lean()
+    const driveTitles = new Map((await OaDrive.find({ _id: { $in: [...new Set(rounds.map((r) => r.driveId).filter(Boolean).map(String))] } }).select("title").lean()).map((d) => [String(d._id), d.title]))
+    const groups = new Map()
+    for (const r of rounds) {
+        const id = r.driveId ? `drv:${r.driveId}` : `asm:${r._id}`
+        if (!groups.has(id)) groups.set(id, { key: id, title: r.driveId ? driveTitles.get(String(r.driveId)) || r.title : r.title, tests: [], ai: new Set() })
+        const g = groups.get(id)
+        const aiId = r.kind === "AI_INTERVIEW" ? r.aiInterviewDriveId : r.aiPart?.enabled ? r.aiPart.aiInterviewDriveId : null
+        if (aiId) g.ai.add(String(aiId))
+        if (r.kind !== "AI_INTERVIEW") g.tests.push(String(r._id))
+    }
+    for (const g of groups.values()) {
+        if (!g.ai.size || !g.tests.length) continue
+        for (const id of g.tests) byAssessment.set(id, g)
+        for (const id of g.ai) byAiDrive.set(id, g)
+    }
+    return { byAssessment, byAiDrive }
+}
+
 const collectLines = async (period, { product, key } = {}) => {
     const { dir, accountKey } = await loadDirectory()
     const scope = scopeFor(dir, key)
@@ -182,14 +207,15 @@ const collectLines = async (period, { product, key } = {}) => {
         wantOa ? oaLines(period, accountKey, scope) : [],
     ])
     const lines = [...ai, ...oa].filter((l) => !key || l.key === key)
-    if (wantAi && wantOa && ai.length && oa.length) {
-        // An AI interview that a test uses as its own part (or as one of its rounds) is the other half of a combined Online test + AI interview.
-        const linked = new Set()
-        for (const a of await OaAssessment.find({ $or: [{ "aiPart.aiInterviewDriveId": { $nin: [null, ""] } }, { aiInterviewDriveId: { $nin: [null, ""] } }] }).select("aiPart.aiInterviewDriveId aiInterviewDriveId").lean()) {
-            if (a.aiPart?.aiInterviewDriveId) linked.add(String(a.aiPart.aiInterviewDriveId))
-            if (a.aiInterviewDriveId) linked.add(String(a.aiInterviewDriveId))
+    if (ai.length && oa.length) {
+        // An AI interview that a test uses (as its own part, or as a round of the same drive) belongs to ONE combined drive with it.
+        const { byAssessment, byAiDrive } = await loadPackages()
+        for (const l of lines) {
+            const pkg = l.product === "AI_INTERVIEW" ? byAiDrive.get(l.sourceId) : byAssessment.get(l.sourceId)
+            if (!pkg) continue
+            l.packageKey = pkg.key; l.packageTitle = pkg.title; l.part = l.product === "AI_INTERVIEW" ? "AI interview" : "Online test"
+            if (l.product === "AI_INTERVIEW") l.linkedToTest = true
         }
-        for (const l of lines) if (l.product === "AI_INTERVIEW" && linked.has(l.sourceId)) l.linkedToTest = true
     }
     return { dir, lines }
 }
@@ -389,10 +415,25 @@ export const getOrganization = async (key, query = {}) => {
     if (!dir.has(key)) throw new ApiError(404, "NOT_FOUND", "Organization not found.")
     const card = cardOf(docs, key)
     const bySource = new Map()
-    for (const l of lines) { const id = `${l.product}|${l.sourceId}`; if (!bySource.has(id)) bySource.set(id, { product: l.product, sourceId: l.sourceId, title: l.sourceTitle, lines: [] }); bySource.get(id).lines.push(l) }
-    const sources = [...bySource.values()].map((g) => ({ product: g.product, sourceId: g.sourceId, title: g.title, ...statsOf(g.lines, card.unit) })).sort((a, b) => b.interviews - a.interviews || b.registered - a.registered)
+    for (const l of lines) { const id = l.packageKey || `${l.product}|${l.sourceId}`; if (!bySource.has(id)) bySource.set(id, { product: l.packageKey ? "PACKAGE" : l.product, sourceId: l.packageKey || l.sourceId, title: l.packageTitle || l.sourceTitle, lines: [] }); bySource.get(id).lines.push(l) }
+    const sources = [...bySource.values()].map((g) => ({ product: g.product, sourceId: g.sourceId, title: g.title, ...statsOf(g.product === "PACKAGE" ? mergeByPerson(g.lines) : g.lines, card.unit) })).sort((a, b) => b.interviews - a.interviews || b.registered - a.registered)
     const usage = await loadUsage(dir)
     return { period: { from: period.from, to: period.to }, organization: orgRow(org, lines, card, usage.get(key)), rates: { aiRate: card.aiRate, oaRate: card.oaRate, comboRate: card.comboRate, gstPercent: card.gstPercent, unit: card.unit, custom: card.custom, notes: card.notes, defaults: { aiRate: docs.defaults?.aiRate ?? null, oaRate: docs.defaults?.oaRate ?? null, comboRate: docs.defaults?.comboRate ?? null, gstPercent: docs.defaults?.gstPercent ?? FALLBACK.gstPercent, unit: docs.defaults?.unit ?? FALLBACK.unit } }, sources }
+}
+
+// One entry per person for a combined drive: they registered once and gave the drive once, whichever part they have reached.
+const OUTCOME_RANK = ["GAVE", "STARTED_NOT_FINISHED", "MISSED", "AWAITING_APPROVAL", "PENDING"]
+const mergeByPerson = (lines) => {
+    const people = new Map()
+    for (const l of lines) {
+        const p = people.get(l.email)
+        if (!p) { people.set(l.email, { ...l }); continue }
+        p.registeredInPeriod = p.registeredInPeriod || l.registeredInPeriod
+        p.interviewsInPeriod += l.interviewsInPeriod
+        if (OUTCOME_RANK.indexOf(l.outcome) < OUTCOME_RANK.indexOf(p.outcome)) p.outcome = l.outcome
+        if (l.score !== null && l.score !== undefined) p.score = Math.max(p.score ?? 0, l.score)
+    }
+    return [...people.values()]
 }
 
 const annotateUnits = (lines, unit) => {
@@ -401,7 +442,7 @@ const annotateUnits = (lines, unit) => {
     const units = new Map()
     for (const l of order) {
         if (unit === "INTERVIEW") { units.set(l, l.interviewsInPeriod); continue }
-        const id = `${l.product}|${l.email}`
+        const id = `${l.packageKey || l.product}|${l.email}`        // a combined drive bills a person once, not once per part
         if (l.interviewsInPeriod > 0 && !seen.has(id)) { seen.add(id); units.set(l, 1) } else units.set(l, 0)
     }
     return lines.map((l) => ({ ...l, units: units.get(l) || 0 }))
@@ -426,15 +467,19 @@ export const listLines = async (key, query = {}) => {
     let rows = lines
     if (outcome) rows = rows.filter((l) => l.outcome === outcome)
     if (query.billable === "1") rows = rows.filter((l) => l.units > 0)
-    if (term) rows = rows.filter((l) => `${l.name} ${l.email} ${l.phone} ${l.sourceTitle}`.toLowerCase().includes(term))
-    rows.sort((a, b) => new Date(b.lastInterviewAt || b.registeredAt || 0) - new Date(a.lastInterviewAt || a.registeredAt || 0))
+    if (term) rows = rows.filter((l) => `${l.name} ${l.email} ${l.phone} ${l.sourceTitle} ${l.packageTitle || ""}`.toLowerCase().includes(term))
+    const latest = new Map()
+    for (const l of rows) { const t = new Date(l.lastInterviewAt || l.registeredAt || 0).getTime(); latest.set(l.email, Math.max(latest.get(l.email) || 0, t)) }
+    const partOrder = (l) => (l.part === "AI interview" ? 1 : 0)
+    // newest person first; each person's parts stay together, the test before the AI interview
+    rows.sort((a, b) => latest.get(b.email) - latest.get(a.email) || a.email.localeCompare(b.email) || partOrder(a) - partOrder(b))
     const pageSize = [10, 25, 50, 100].includes(Number(query.pageSize)) ? Number(query.pageSize) : 25
     const page = Math.max(1, Number(query.page) || 1)
     return { items: rows.slice((page - 1) * pageSize, page * pageSize).map(lineView), total: rows.length, page, pageSize }
 }
 
 const lineView = (l) => ({
-    product: l.product, source: l.sourceTitle, name: l.name, email: l.email, phone: l.phone,
+    product: l.packageKey ? "PACKAGE" : l.product, part: l.part || null, source: l.packageTitle || l.sourceTitle, name: l.name, email: l.email, phone: l.phone,
     registeredAt: l.registeredAt, registeredInPeriod: l.registeredInPeriod, interviewedAt: l.lastInterviewAt, interviewsInPeriod: l.interviewsInPeriod,
     outcome: l.outcome, score: l.score, flags: l.flags, units: l.units,
 })
@@ -494,7 +539,7 @@ export const exportOrganizationCsv = async (key, query = {}) => {
     const sorted = [...lines].sort((a, b) => new Date(a.registeredAt || 0) - new Date(b.registeredAt || 0))
     const head = ["#", "Product", "Drive / test", "Candidate", "Email", "Phone", "Registered on", "Interviewed on", "Interview rounds in period", "Status", "Score", "Proctoring flags", "Billing units"]
     const rows = [[`${org.name}: billing annexure ${period.from} to ${period.to}`], [`Billing unit: ${card.unit === "INTERVIEW" ? "per interview round" : "per candidate (each person once)"}. AI rate ${card.aiRate} INR, online test rate ${card.oaRate} INR, GST ${card.gstPercent}%`], head]
-    sorted.forEach((l, i) => rows.push([i + 1, PRODUCT_LABEL[l.product], text(l.sourceTitle), text(l.name), text(l.email), text(l.phone), when(l.registeredAt), when(l.lastInterviewAt), l.interviewsInPeriod, OUTCOME_LABEL[l.outcome], l.score ?? "", l.flags, l.units]))
+    sorted.forEach((l, i) => rows.push([i + 1, l.packageKey ? `Online test + AI interview (${l.part})` : PRODUCT_LABEL[l.product], text(l.packageTitle || l.sourceTitle), text(l.name), text(l.email), text(l.phone), when(l.registeredAt), when(l.lastInterviewAt), l.interviewsInPeriod, OUTCOME_LABEL[l.outcome], l.score ?? "", l.flags, l.units]))
     const units = sorted.reduce((s, l) => s + l.units, 0)
     rows.push(["", "", "", "", "", "", "", "", "", "", "", "Total billing units", units])
     return { filename: `${org.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "organization"}-annexure-${period.from}-to-${period.to}.csv`, csv: toCsv(rows) }
