@@ -63,6 +63,7 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
     { id: 3, name: 'Cultural Alignment & HR', weight: 30 },
   ])
 
+  const [bankFollowUps, setBankFollowUps] = useState(1)       // follow-ups after each ready-made question
   const [customQuestions, setCustomQuestions] = useState([
     { id: 1, text: 'Design a high-concurrency real-time notification engine for 10M users.', topic: 'System Architecture & Design Patterns', timeLimit: 180 },
     { id: 2, text: 'How do you handle conflict between senior architects regarding tech stack migration?', topic: 'Leadership & Team Management', timeLimit: 180 },
@@ -228,7 +229,7 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
       questionMode: formData.questionMode,
       questionBankId: formData.questionMode === 'PREBUILT' ? formData.questionBankId : null,
       questionBankTitle: formData.questionMode === 'PREBUILT' ? (selectedBank ? selectedBank.title : existingRound?.questionBankTitle || 'Pre-built Question Set') : `Custom Question Set (${customQuestions.length} Qs)`,
-      questions: formData.questionMode === 'PREBUILT' ? (selectedBank?.questions || []) : customQuestions,
+      questions: formData.questionMode === 'PREBUILT' ? (selectedBank?.questions || []).map((q) => ({ ...q, followUps: bankFollowUps })) : customQuestions,
       skillRubrics: skillWeightages,
       customQuestions,
       candidates: roundCandidateRoster,
@@ -456,6 +457,8 @@ function CreateRoundModal({ open, onClose, driveId, roundNumber = 2, shortlisted
               onRemoveCustomQuestion={handleRemoveCustomQuestion}
               onCustomQuestionChange={handleCustomQuestionChange}
               onAppendQuestions={handleAppendQuestions}
+              bankFollowUps={bankFollowUps}
+              onBankFollowUpsChange={setBankFollowUps}
               skillWeightages={skillWeightages}
             />
           </div>

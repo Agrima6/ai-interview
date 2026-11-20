@@ -146,6 +146,7 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null, pref
     { id: 4, name: 'Behavioral & Culture Fit', weight: 20 },
   ])
 
+  const [bankFollowUps, setBankFollowUps] = useState(1)       // follow-ups after each ready-made question
   const [customQuestions, setCustomQuestions] = useState([
     { id: 1, text: 'Describe a complex challenge you solved in your recent role.', topic: 'Problem Solving & Analytical Thinking', timeLimit: 120 },
     { id: 2, text: 'How do you handle disagreement with team members during a project deadline?', topic: 'Communication & Soft Skills', timeLimit: 120 },
@@ -574,7 +575,7 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null, pref
       questionMode: formData.questionMode,
       questionBankId: formData.questionMode === 'PREBUILT' ? formData.questionBankId : null,
       questionBankTitle: formData.questionMode === 'PREBUILT' ? (selectedBank ? selectedBank.title : 'Pre-built Question Set') : `Custom Question Set (${customQuestions.length} Qs)`,
-      questions: formData.questionMode === 'PREBUILT' ? (selectedBank?.questions || []) : customQuestions,
+      questions: formData.questionMode === 'PREBUILT' ? (selectedBank?.questions || []).map((q) => ({ ...q, followUps: bankFollowUps })) : customQuestions,
       customQuestionsList: formData.questionMode === 'CUSTOM' ? customQuestions : [],
       skillRubrics: skillWeightages,
       passingThreshold: Number(formData.passingThreshold) || 70,
@@ -752,6 +753,8 @@ function CreateDriveModal({ open, onClose, onCreateDrive, editDrive = null, pref
               onRemoveCustomQuestion={handleRemoveCustomQuestion}
               onCustomQuestionChange={handleCustomQuestionChange}
               onAppendQuestions={handleAppendQuestions}
+              bankFollowUps={bankFollowUps}
+              onBankFollowUpsChange={setBankFollowUps}
               skillWeightages={skillWeightages}
             />
           </div>

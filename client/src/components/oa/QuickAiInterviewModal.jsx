@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, X } from 'lucide-react'
+import { Plus, Wand2, X } from 'lucide-react'
 import { createInterviewDrive, getQuestionBanks } from '../../api/organization/organizationApi'
 import { questionBanksForRole } from '../../constants/blueCollarRoles'
 import { dateInputFromToday } from '../../utils/dateOnly'
@@ -9,10 +9,12 @@ import Modal from '../ui/Modal'
 import Skeleton from '../ui/Skeleton'
 import { useToast } from '../ui/Toast'
 import InterviewLanguageSettings from '../organization/InterviewLanguageSettings'
+import AiQuestionDraftModal from '../organization/AiQuestionDraftModal'
 import DriveDetailsFields from './DriveDetailsFields'
 import { inputClass } from './oaFormat'
 
-const MAX_QUESTIONS = 12
+const MAX_QUESTIONS = 20
+const FOLLOW_UP_CHOICES = [[0, 'No follow-up'], [1, 'Up to 1 follow-up'], [2, 'Up to 2 follow-ups'], [3, 'Up to 3 follow-ups']]
 // The same four skills the full form starts with; the interviewer weighs them when it scores.
 const DEFAULT_SKILLS = [
     { name: 'Domain Knowledge & Technical Competency', weight: 30 },
@@ -34,7 +36,9 @@ export default function QuickAiInterviewModal({ prefill, onClose, onCreated, onA
     const [language, setLanguage] = useState({ defaultLanguage: 'en', allowed: [], allowSwitch: true })
     const [passing, setPassing] = useState('60')
     const [bankId, setBankId] = useState('')
-    const [own, setOwn] = useState([])
+    const [own, setOwn] = useState([])                 // [{ text, topic, followUps }]: typed by hand or written by the AI
+    const [followUpsByKey, setFollowUpsByKey] = useState({})   // follow-ups chosen for ready-made questions, by question key
+    const [aiOpen, setAiOpen] = useState(false)
     const [draft, setDraft] = useState('')
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState('')
@@ -50,12 +54,19 @@ export default function QuickAiInterviewModal({ prefill, onClose, onCreated, onA
     const picked = pickedByBank[bankKey] ?? new Set(bankQuestions.slice(0, 6).map(keyOf))
 
     const chosenQuestions = [
-        ...bankQuestions.map((q, i) => ({ q, k: keyOf(q, i) })).filter(({ k }) => picked.has(k)).map(({ q }) => ({ id: String(q.id ?? q._id ?? ''), text: q.text, topic: q.topic || 'General', timeLimit: q.timeLimit || 120 })),
-        ...own.map((text, i) => ({ id: `own-${i + 1}`, text, topic: 'General', timeLimit: 120 })),
+        ...bankQuestions.map((q, i) => ({ q, k: keyOf(q, i) })).filter(({ k }) => picked.has(k)).map(({ q, k }) => ({ id: String(q.id ?? q._id ?? ''), text: q.text, topic: q.topic || 'General', timeLimit: q.timeLimit || 120, followUps: followUpsByKey[k] ?? 1 })),
+        ...own.map((o, i) => ({ id: `own-${i + 1}`, text: o.text, topic: o.topic || 'General', timeLimit: 120, followUps: o.followUps ?? 1 })),
     ].map((q, i) => ({ ...q, id: q.id || `q-${i + 1}` }))
 
     const toggle = (k) => setPickedByBank((prev) => { const n = new Set(prev[bankKey] ?? picked); if (n.has(k)) n.delete(k); else n.add(k); return { ...prev, [bankKey]: n } })
-    const addOwn = () => { const text = draft.trim(); if (!text || chosenQuestions.length >= MAX_QUESTIONS) return; setOwn((p) => [...p, text.slice(0, 500)]); setDraft('') }
+    const addOwn = () => { const text = draft.trim(); if (!text || chosenQuestions.length >= MAX_QUESTIONS) return; setOwn((p) => [...p, { text: text.slice(0, 500), topic: 'General', followUps: 1 }]); setDraft('') }
+    const addDrafted = (drafts) => setOwn((p) => [...p, ...drafts.slice(0, Math.max(0, MAX_QUESTIONS - chosenQuestions.length)).map((d) => ({ text: d.text.slice(0, 500), topic: d.topic || 'General', followUps: 1 }))])
+    const followUpTotal = chosenQuestions.reduce((sum, q) => sum + q.followUps, 0)
+    const followUpSelect = (value, onChange, label) => (
+        <select aria-label={label} value={value} onChange={(e) => onChange(Number(e.target.value))} className='shrink-0 bg-card border border-line rounded-lg px-2 py-1 text-[12px] text-ink outline-none focus:border-accent'>
+            {FOLLOW_UP_CHOICES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+    )
 
     const problem = !title.trim() ? 'Give the interview a name.' : !details.department.trim() || !details.roleCategory.trim() ? 'Choose the department and position.' : chosenQuestions.length === 0 ? 'Choose at least one question.' : chosenQuestions.length > MAX_QUESTIONS ? `Choose at most ${MAX_QUESTIONS} questions.` : ''
 
@@ -76,7 +87,7 @@ export default function QuickAiInterviewModal({ prefill, onClose, onCreated, onA
     }
 
     return (
-        <Modal open onClose={() => !saving && onClose()} title='Set up the AI interview' size='lg'
+        <Modal open onClose={() => !saving && !aiOpen && onClose()} title='Set up the AI interview' size='lg'
             footer={<><button type='button' className='mr-auto text-[13px] font-semibold text-text-secondary hover:text-ink' disabled={saving} onClick={onAdvanced}>More options</button><Button variant='secondary' size='sm' disabled={saving} onClick={onClose}>Cancel</Button><Button size='sm' disabled={saving || Boolean(problem)} onClick={create}>{saving ? 'Creating…' : 'Create AI interview'}</Button></>}>
             <div className='space-y-6'>
                 <label className='block'><span className='text-[13px] font-bold text-ink'>Name</span>
@@ -86,7 +97,8 @@ export default function QuickAiInterviewModal({ prefill, onClose, onCreated, onA
 
                 <div>
                     <p className='text-[13px] font-bold text-ink'>Questions the AI will ask <span className='font-normal text-text-secondary'>({chosenQuestions.length} chosen)</span></p>
-                    <p className='text-[12.5px] text-text-secondary mb-2'>It asks exactly these, in this order, and nothing else.</p>
+                    <p className='text-[12.5px] text-text-secondary mb-2'>It asks exactly these, in this order, and nothing else. For each question you choose how many follow-ups it may ask.</p>
+                    <p role='status' className='mb-2 rounded-xl border border-line bg-bg px-3.5 py-2 text-[13px] text-text-secondary'><b className='text-ink'>{chosenQuestions.length} question{chosenQuestions.length === 1 ? '' : 's'}</b>{followUpTotal > 0 ? <> + up to <b className='text-ink'>{followUpTotal} follow-up{followUpTotal === 1 ? '' : 's'}</b> = up to <b className='text-ink'>{chosenQuestions.length + followUpTotal} in total</b></> : ' and no follow-ups'}</p>
                     {banks.isLoading ? <Skeleton className='h-24 w-full rounded-xl' /> : (
                         <>
                             {offered.length > 1 && (
@@ -99,20 +111,23 @@ export default function QuickAiInterviewModal({ prefill, onClose, onCreated, onA
                                     {bankQuestions.map((q, i) => {
                                         const k = keyOf(q, i)
                                         return (
-                                            <li key={k}><label className='flex items-start gap-3 px-3.5 py-2.5 cursor-pointer hover:bg-black/[0.02]'>
+                                            <li key={k} className='flex items-start gap-2 px-3.5 py-2.5 hover:bg-black/[0.02]'><label className='flex flex-1 min-w-0 items-start gap-3 cursor-pointer'>
                                                 <input type='checkbox' className='mt-1 accent-[var(--color-accent)]' checked={Boolean(picked.has(k))} onChange={() => toggle(k)} />
-                                                <span className='text-[13.5px] text-ink'>{q.text}</span></label></li>
+                                                <span className='text-[13.5px] text-ink'>{q.text}</span></label>
+                                                {picked.has(k) && followUpSelect(followUpsByKey[k] ?? 1, (n) => setFollowUpsByKey((prev) => ({ ...prev, [k]: n })), 'Follow-ups for this question')}</li>
                                         )
                                     })}
                                 </ul>
                             )}
                         </>
                     )}
-                    {own.length > 0 && <ul className='mt-2 space-y-1.5'>{own.map((t, i) => <li key={i} className='flex items-start gap-2 text-[13.5px] text-ink bg-surface-muted rounded-lg px-3 py-2'><span className='flex-1'>{t}</span><button type='button' aria-label='Remove this question' className='text-text-secondary hover:text-[var(--color-danger)]' onClick={() => setOwn((p) => p.filter((_, j) => j !== i))}><X size={14} /></button></li>)}</ul>}
+                    {own.length > 0 && <ul className='mt-2 space-y-1.5'>{own.map((o, i) => <li key={i} className='flex items-start gap-2 text-[13.5px] text-ink bg-surface-muted rounded-lg px-3 py-2'><span className='flex-1'>{o.text}</span>{followUpSelect(o.followUps, (n) => setOwn((p) => p.map((x, j) => (j === i ? { ...x, followUps: n } : x))), 'Follow-ups for this question')}<button type='button' aria-label='Remove this question' className='text-text-secondary hover:text-[var(--color-danger)]' onClick={() => setOwn((p) => p.filter((_, j) => j !== i))}><X size={14} /></button></li>)}</ul>}
                     <div className='mt-2 flex gap-2'>
                         <input className={inputClass} value={draft} maxLength={500} placeholder='Add your own question…' onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addOwn() } }} />
                         <Button size='sm' variant='secondary' disabled={!draft.trim() || chosenQuestions.length >= MAX_QUESTIONS} onClick={addOwn}><Plus size={14} /> Add</Button>
                     </div>
+                    <div className='mt-2'><Button size='sm' variant='secondary' disabled={chosenQuestions.length >= MAX_QUESTIONS} onClick={() => setAiOpen(true)}><Wand2 size={14} /> Write questions with AI</Button></div>
+                    <AiQuestionDraftModal open={aiOpen} onClose={() => setAiOpen(false)} topics={DEFAULT_SKILLS.map((k) => k.name)} onAdd={addDrafted} />
                 </div>
 
                 <InterviewLanguageSettings value={language} onChange={setLanguage} />
