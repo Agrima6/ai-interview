@@ -9,6 +9,12 @@ const ADMIN_SOURCE = { ns: 'admin', getOrganization: getBillingOrganization, lis
 import RateForm from './RateForm'
 import { KIND, OUTCOME, PRODUCT, UNIT_LABEL, formatDay, formatWhen, inr, num, shownKinds, usesLabel } from './billingFormat'
 
+// "5 drives · 4 completed": a candidate in many drives still takes one line.
+const summary = (items) => {
+    const done = items.filter((l) => l.outcome === 'GAVE').length
+    const open = items.filter((l) => l.outcome === 'STARTED_NOT_FINISHED').length
+    return [`${items.length} ${items.length === 1 ? 'drive' : 'drives'}`, done && `${done} completed`, open && `${open} in progress`].filter(Boolean).join(' · ')
+}
 const plural = (n, one, many) => `${num(n)} ${n === 1 ? one : many}`
 const STATUS_TONE = { ACTIVE: 'success', SUSPENDED: 'warning', REJECTED: 'danger', PENDING: 'neutral' }
 
@@ -151,10 +157,8 @@ export function OrgPanel({ orgKey, period, product, source = ADMIN_SOURCE, readO
                                         <span className='block font-medium text-ink text-[13.5px] truncate'>{c.name || '—'}</span>
                                         <span className='block text-[12px] text-text-secondary truncate'>{c.email}</span>
                                     </span>
-                                    <span className='hidden sm:flex flex-wrap gap-1.5 justify-end max-w-[40%]'>
-                                        {c.items.map((l, i) => <Badge key={i} variant={OUTCOME[l.outcome][0]} className='normal-case'>{l.part || PRODUCT[l.product] || 'Drive'}: {OUTCOME[l.outcome][1]}</Badge>)}
-                                    </span>
-                                    <span className='w-16 text-right shrink-0'>{c.units > 0 ? <span className='inline-flex items-center gap-1 font-semibold text-[var(--color-success)] text-[13px]'><Check size={13} aria-hidden='true' />{c.units} billed</span> : <span className='text-text-secondary text-[12px]'>Not billed</span>}</span>
+                                    <span className='hidden sm:block text-[12.5px] text-text-secondary text-right shrink-0'>{summary(c.items)}</span>
+                                    <span className='w-24 text-right shrink-0'>{c.units > 0 ? <span className='inline-flex items-center gap-1 font-semibold text-[var(--color-success)] text-[13px]'><Check size={13} aria-hidden='true' />{c.units} billed</span> : <span className='text-text-secondary text-[12px]'>Not billed</span>}</span>
                                 </button>
                                 {isOpen && (
                                     <div className='bg-surface-muted/40 px-4 pb-3 pt-1 sm:pl-11'>
