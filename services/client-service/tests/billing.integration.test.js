@@ -213,6 +213,10 @@ test("one organization in detail, line by line, adding up to the invoice", opts,
     assert.equal(found.meta?.total ?? found.json.meta.total, 1)
     const billable = await get(`/organizations/${state.A}/lines?${NOV}&billable=1&pageSize=100`)
     assert.equal(billable.data.length, 4)
+    const people = await get(`/organizations/${state.A}/lines?${NOV}&pageSize=100&view=people`)
+    assert.equal(people.data.reduce((sum, c) => sum + c.units, 0), 4)                          // one row per candidate; billed units still add up
+    assert.equal(new Set(people.data.map((c) => c.email)).size, people.data.length)
+    assert.equal(people.data.reduce((n, c) => n + c.items.length, 0), lines.data.length)       // every drive/test line sits under its candidate
     const page = await get(`/organizations/${state.A}/lines?${NOV}&pageSize=10&page=2`)
     assert.equal(page.json.meta.pageSize, 10); assert.equal(page.json.meta.page, 2)
     // the standalone online-test account works as an organization too
