@@ -11,7 +11,7 @@ import { NotificationsMenu, ProfileMenu } from './TopbarMenus'
  */
 function OrganizationTopbar({ title, description, eyebrow, action, onMenuClick, onSearch }) {
     return (
-        <header className='ui-fade mb-7 flex flex-wrap items-end justify-between gap-x-6 gap-y-4'>
+        <header className='ui-fade relative z-[var(--z-sticky-header)] mb-7 flex flex-wrap items-end justify-between gap-x-6 gap-y-4'>
             <div className='min-w-0 flex-1 basis-[280px]'>
                 <div className='flex items-start gap-3'>
                     <button onClick={onMenuClick} aria-label='Open menu' className='lg:hidden mt-1 -ml-1 p-1.5 text-text-secondary hover:text-ink shrink-0'>
