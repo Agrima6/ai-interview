@@ -475,6 +475,20 @@ export const listLines = async (key, query = {}) => {
     rows.sort((a, b) => latest.get(b.email) - latest.get(a.email) || a.email.localeCompare(b.email) || partOrder(a) - partOrder(b))
     const pageSize = [10, 25, 50, 100].includes(Number(query.pageSize)) ? Number(query.pageSize) : 25
     const page = Math.max(1, Number(query.page) || 1)
+    if (query.view === "people") {
+        // One row per person, with every drive or test they took underneath it.
+        const people = new Map()
+        for (const l of rows) {
+            const id = String(l.email || "").toLowerCase()
+            if (!people.has(id)) people.set(id, { name: l.name, email: l.email, phone: l.phone, lastAt: null, units: 0, items: [] })
+            const p = people.get(id)
+            p.items.push(lineView(l)); p.units += l.units || 0
+            const t = l.lastInterviewAt || l.registeredAt
+            if (t && (!p.lastAt || new Date(t) > new Date(p.lastAt))) p.lastAt = t
+        }
+        const all = [...people.values()]
+        return { items: all.slice((page - 1) * pageSize, page * pageSize), total: all.length, page, pageSize }
+    }
     return { items: rows.slice((page - 1) * pageSize, page * pageSize).map(lineView), total: rows.length, page, pageSize }
 }
 

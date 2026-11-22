@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query'
-import { Check, Download, Mail, Phone } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, Download, Mail, Phone } from 'lucide-react'
 import { Badge, Button, Drawer, Pagination, SearchInput, Select, Skeleton, useToast } from '../../components/ui'
 import { downloadBillingCsv, getBillingOrganization, listBillingLines, saveBillingRates } from '../../api/billingApi'
 
@@ -37,10 +37,12 @@ export function OrgPanel({ orgKey, period, product, source = ADMIN_SOURCE, readO
     const [outcome, setOutcome] = useState(''); const [billableOnly, setBillableOnly] = useState(false)
     const [page, setPage] = useState(1); const [pageSize, setPageSize] = useState(25)
     const [saveError, setSaveError] = useState('')
+    const [open, setOpen] = useState(() => new Set())
+    const toggle = (id) => setOpen((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
     useEffect(() => { const id = setTimeout(() => { setQ(search); setPage(1) }, 350); return () => clearTimeout(id) }, [search])
 
     const detail = useQuery({ queryKey: ['billing', source.ns, 'org', orgKey, period.from, period.to, product], queryFn: () => source.getOrganization(orgKey, { ...period, product }) })
-    const lines = useQuery({ queryKey: ['billing', source.ns, 'lines', orgKey, period.from, period.to, product, q, outcome, billableOnly, page, pageSize], queryFn: () => source.listLines(orgKey, { ...period, product, search: q, outcome, billable: billableOnly ? '1' : '', page, pageSize }), placeholderData: keepPreviousData })
+    const lines = useQuery({ queryKey: ['billing', source.ns, 'lines', orgKey, period.from, period.to, product, q, outcome, billableOnly, page, pageSize], queryFn: () => source.listLines(orgKey, { ...period, product, view: 'people', search: q, outcome, billable: billableOnly ? '1' : '', page, pageSize }), placeholderData: keepPreviousData })
     const save = useMutation({
         mutationFn: (body) => source.save(orgKey, body),
         onSuccess: () => { setSaveError(''); queryClient.invalidateQueries({ queryKey: ['billing'] }); toast.success('Rates saved. The figures are updated.') },
@@ -109,8 +111,8 @@ export function OrgPanel({ orgKey, period, product, source = ADMIN_SOURCE, readO
             </section>}
 
             {detail.data.sources.length > 0 && (
-                <section aria-label='By drive or test'>
-                    <h3 className='text-[14px] font-bold text-ink mb-2'>By drive or test</h3>
+                <details aria-label='By drive or test' className='group'>
+                    <summary className='text-[14px] font-bold text-ink mb-2 cursor-pointer'>Totals by drive or test</summary>
                     <div className='border border-line rounded-2xl overflow-x-auto'>
                         <table className='w-full text-[13px] min-w-[560px]'>
                             <thead className='bg-surface-muted text-left text-[12px] font-semibold text-text-secondary'><tr><th className='px-4 py-2.5'>Drive / test</th><th className='px-3 py-2.5 text-right'>Registered</th><th className='px-3 py-2.5 text-right'>Gave</th><th className='px-3 py-2.5 text-right'>Not yet</th><th className='px-3 py-2.5 text-right'>Missed</th><th className='px-3 py-2.5 text-right'>Interviews</th></tr></thead>
@@ -121,12 +123,12 @@ export function OrgPanel({ orgKey, period, product, source = ADMIN_SOURCE, readO
                             </tbody>
                         </table>
                     </div>
-                </section>
+                </details>
             )}
 
             <section aria-label='Candidates'>
                 <div className='flex flex-wrap items-center justify-between gap-2 mb-3'>
-                    <div><h3 className='text-[14px] font-bold text-ink'>Every candidate</h3><p className='text-[12.5px] text-text-secondary'>The lines behind the invoice. "Billed" adds up to the billable total above.</p></div>
+                    <div><h3 className='text-[14px] font-bold text-ink'>Candidates</h3><p className='text-[12.5px] text-text-secondary'>One row per candidate. Click a candidate to see the drives and tests they took.</p></div>
                     <Button size='sm' variant='secondary' disabled={download.isPending} onClick={() => download.mutate()}><Download size={14} /> {download.isPending ? 'Preparing…' : 'Download annexure (CSV)'}</Button>
                 </div>
                 <div className='flex flex-wrap items-center gap-2 mb-3'>
@@ -134,26 +136,51 @@ export function OrgPanel({ orgKey, period, product, source = ADMIN_SOURCE, readO
                     <div className='w-52'><Select aria-label='Filter by status' value={outcome} onChange={(e) => { setOutcome(e.target.value); setPage(1) }} options={[{ value: '', label: 'All statuses' }, ...Object.entries(OUTCOME).map(([value, [, label]]) => ({ value, label }))]} /></div>
                     <label className='inline-flex items-center gap-2 text-[13px] text-ink cursor-pointer'><input type='checkbox' checked={billableOnly} onChange={(e) => { setBillableOnly(e.target.checked); setPage(1) }} className='w-4 h-4 accent-[var(--color-accent)]' /> Billed only</label>
                 </div>
-                <div className='border border-line rounded-2xl overflow-x-auto'>
-                    <table className='w-full text-[13px] min-w-[760px]'>
-                        <thead className='bg-surface-muted text-left text-[12px] font-semibold text-text-secondary'><tr><th className='px-4 py-2.5'>Candidate</th><th className='px-3 py-2.5'>Drive / test</th><th className='px-3 py-2.5'>Registered</th><th className='px-3 py-2.5'>Interviewed</th><th className='px-3 py-2.5'>Status</th><th className='px-3 py-2.5 text-right'>Score</th><th className='px-3 py-2.5 text-right'>Billed</th></tr></thead>
-                        <tbody className='divide-y divide-line'>
-                            {lines.isError && <tr><td colSpan={7} className='px-4 py-6 text-[var(--color-danger)]'>{lines.error.message}</td></tr>}
-                            {lines.isLoading && <tr><td colSpan={7} className='px-4 py-6'><Skeleton className='h-6 w-full' /></td></tr>}
-                            {lines.data?.items.length === 0 && <tr><td colSpan={7} className='px-4 py-8 text-center text-text-secondary'>No candidates match.</td></tr>}
-                            {lines.data?.items.map((l, i) => (
-                                <tr key={`${l.email}-${l.source}-${i}`}>
-                                    <td className='px-4 py-2.5'><div className='font-medium text-ink'>{l.name || '—'}</div><div className='text-[11.5px] text-text-secondary break-all'>{l.email}</div></td>
-                                    <td className='px-3 py-2.5'><div className='break-words'>{l.source}</div><div className='text-[11.5px] text-text-secondary'>{l.part ? <><span className='font-semibold text-ink'>{l.part}</span> · part of a combined drive</> : PRODUCT[l.product]}</div></td>
-                                    <td className='px-3 py-2.5 whitespace-nowrap text-text-secondary'>{formatDay(l.registeredAt)}</td>
-                                    <td className='px-3 py-2.5 whitespace-nowrap'>{l.interviewedAt ? formatWhen(l.interviewedAt) : '—'}{l.interviewsInPeriod > 1 && <span className='block text-[11.5px] text-text-secondary'>{l.interviewsInPeriod} rounds</span>}</td>
-                                    <td className='px-3 py-2.5'><Badge variant={OUTCOME[l.outcome][0]} className='normal-case'>{OUTCOME[l.outcome][1]}</Badge></td>
-                                    <td className='px-3 py-2.5 text-right tabular-nums'>{l.score ?? '—'}</td>
-                                    <td className='px-3 py-2.5 text-right tabular-nums'>{l.units > 0 ? <span className='inline-flex items-center gap-1 font-semibold text-[var(--color-success)]'><Check size={13} aria-hidden='true' />{l.units}</span> : <span className='text-text-secondary'>—</span>}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                <div className='border border-line rounded-2xl overflow-hidden divide-y divide-line'>
+                    {lines.isError && <p role='alert' className='px-4 py-6 text-[var(--color-danger)]'>{lines.error.message}</p>}
+                    {lines.isLoading && <div className='p-4'><Skeleton className='h-6 w-full' /></div>}
+                    {lines.data?.items.length === 0 && <p className='px-4 py-8 text-center text-text-secondary text-[13px]'>No candidates match.</p>}
+                    {lines.data?.items.map((c) => {
+                        const id = c.email || c.name
+                        const isOpen = open.has(id)
+                        return (
+                            <div key={id}>
+                                <button type='button' onClick={() => toggle(id)} aria-expanded={isOpen} className='w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent'>
+                                    {isOpen ? <ChevronDown size={16} aria-hidden='true' className='shrink-0 text-text-secondary' /> : <ChevronRight size={16} aria-hidden='true' className='shrink-0 text-text-secondary' />}
+                                    <span className='min-w-0 flex-1'>
+                                        <span className='block font-medium text-ink text-[13.5px] truncate'>{c.name || '—'}</span>
+                                        <span className='block text-[12px] text-text-secondary truncate'>{c.email}</span>
+                                    </span>
+                                    <span className='hidden sm:flex flex-wrap gap-1.5 justify-end max-w-[40%]'>
+                                        {c.items.map((l, i) => <Badge key={i} variant={OUTCOME[l.outcome][0]} className='normal-case'>{l.part || PRODUCT[l.product] || 'Drive'}: {OUTCOME[l.outcome][1]}</Badge>)}
+                                    </span>
+                                    <span className='w-16 text-right shrink-0'>{c.units > 0 ? <span className='inline-flex items-center gap-1 font-semibold text-[var(--color-success)] text-[13px]'><Check size={13} aria-hidden='true' />{c.units} billed</span> : <span className='text-text-secondary text-[12px]'>Not billed</span>}</span>
+                                </button>
+                                {isOpen && (
+                                    <div className='bg-surface-muted/40 px-4 pb-3 pt-1 sm:pl-11'>
+                                        <p className='text-[12px] text-text-secondary mb-2'>{c.phone ? `${c.phone} · ` : ''}Last activity {formatWhen(c.lastAt)}</p>
+                                        <ul className='space-y-2'>
+                                            {c.items.map((l, i) => (
+                                                <li key={i} className='bg-card border border-line rounded-xl px-3 py-2.5 text-[12.5px] grid gap-x-4 gap-y-1 sm:grid-cols-[1fr_auto]'>
+                                                    <div className='min-w-0'>
+                                                        <div className='font-semibold text-ink break-words'>{l.source}</div>
+                                                        <div className='text-text-secondary'>{l.part ? `${l.part} · part of a combined drive` : PRODUCT[l.product]}</div>
+                                                    </div>
+                                                    <div className='sm:text-right'><Badge variant={OUTCOME[l.outcome][0]} className='normal-case'>{OUTCOME[l.outcome][1]}</Badge></div>
+                                                    <div className='text-text-secondary sm:col-span-2 flex flex-wrap gap-x-5 gap-y-0.5'>
+                                                        <span>Registered {formatDay(l.registeredAt)}</span>
+                                                        <span>Interviewed {l.interviewedAt ? formatWhen(l.interviewedAt) : '—'}{l.interviewsInPeriod > 1 ? ` (${l.interviewsInPeriod} rounds)` : ''}</span>
+                                                        <span>Score {l.score ?? '—'}</span>
+                                                        <span>Billed {l.units > 0 ? l.units : '—'}</span>
+                                                    </div>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+                        )
+                    })}
                 </div>
                 {lines.data?.total > 0 && <Pagination page={page} pageSize={pageSize} total={lines.data.total} onPageChange={setPage} onPageSizeChange={(n) => { setPageSize(n); setPage(1) }} />}
             </section>
