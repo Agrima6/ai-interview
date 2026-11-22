@@ -142,23 +142,30 @@ export function OrgPanel({ orgKey, period, product, source = ADMIN_SOURCE, readO
                     <div className='w-52'><Select aria-label='Filter by status' value={outcome} onChange={(e) => { setOutcome(e.target.value); setPage(1) }} options={[{ value: '', label: 'All statuses' }, ...Object.entries(OUTCOME).map(([value, [, label]]) => ({ value, label }))]} /></div>
                     <label className='inline-flex items-center gap-2 text-[13px] text-ink cursor-pointer'><input type='checkbox' checked={billableOnly} onChange={(e) => { setBillableOnly(e.target.checked); setPage(1) }} className='w-4 h-4 accent-[var(--color-accent)]' /> Billed only</label>
                 </div>
-                <div className='border border-line rounded-2xl overflow-hidden divide-y divide-line'>
+                <div className='border border-line rounded-2xl overflow-hidden'>
+                    <div className='hidden md:grid grid-cols-[minmax(0,2.2fr)_70px_90px_110px_90px] gap-3 px-4 py-2.5 bg-surface-muted text-[12px] font-semibold text-text-secondary' aria-hidden='true'>
+                        <span className='pl-7'>Candidate</span><span className='text-right'>Drives</span><span className='text-right'>Completed</span><span>Last activity</span><span className='text-right'>Billed</span>
+                    </div>
+                    <div className='divide-y divide-line'>
                     {lines.isError && <p role='alert' className='px-4 py-6 text-[var(--color-danger)]'>{lines.error.message}</p>}
                     {lines.isLoading && <div className='p-4'><Skeleton className='h-6 w-full' /></div>}
                     {lines.data?.items.length === 0 && <p className='px-4 py-8 text-center text-text-secondary text-[13px]'>No candidates match.</p>}
                     {lines.data?.items.map((c) => {
                         const id = c.email || c.name
                         const isOpen = open.has(id)
+                        const done = c.items.filter((l) => l.outcome === 'GAVE').length
                         return (
                             <div key={id}>
-                                <button type='button' onClick={() => toggle(id)} aria-expanded={isOpen} className='w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent'>
-                                    {isOpen ? <ChevronDown size={16} aria-hidden='true' className='shrink-0 text-text-secondary' /> : <ChevronRight size={16} aria-hidden='true' className='shrink-0 text-text-secondary' />}
-                                    <span className='min-w-0 flex-1'>
-                                        <span className='block font-medium text-ink text-[13.5px] truncate'>{c.name || '—'}</span>
-                                        <span className='block text-[12px] text-text-secondary truncate'>{c.email}</span>
+                                <button type='button' onClick={() => toggle(id)} aria-expanded={isOpen} className='w-full grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,2.2fr)_70px_90px_110px_90px] items-center gap-x-3 gap-y-0.5 px-4 py-3 text-left hover:bg-surface-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent'>
+                                    <span className='flex items-center gap-2 min-w-0'>
+                                        {isOpen ? <ChevronDown size={16} aria-hidden='true' className='shrink-0 text-text-secondary' /> : <ChevronRight size={16} aria-hidden='true' className='shrink-0 text-text-secondary' />}
+                                        <span className='min-w-0'><span className='block font-medium text-ink text-[13.5px] truncate'>{c.name || '—'}</span><span className='block text-[12px] text-text-secondary truncate'>{c.email}</span></span>
                                     </span>
-                                    <span className='hidden sm:block text-[12.5px] text-text-secondary text-right shrink-0'>{summary(c.items)}</span>
-                                    <span className='w-24 text-right shrink-0'>{c.units > 0 ? <span className='inline-flex items-center gap-1 font-semibold text-[var(--color-success)] text-[13px]'><Check size={13} aria-hidden='true' />{c.units} billed</span> : <span className='text-text-secondary text-[12px]'>Not billed</span>}</span>
+                                    <span className='md:hidden text-right text-[12px] text-text-secondary'>{summary(c.items)}</span>
+                                    <span className='hidden md:block text-right tabular-nums text-[13px]'>{c.items.length}</span>
+                                    <span className='hidden md:block text-right tabular-nums text-[13px]'>{done}</span>
+                                    <span className='hidden md:block text-[12.5px] text-text-secondary'>{formatDay(c.lastAt)}</span>
+                                    <span className='hidden md:block text-right text-[13px]'>{c.units > 0 ? <span className='font-semibold text-[var(--color-success)]'>{c.units}</span> : <span className='text-text-secondary'>—</span>}</span>
                                 </button>
                                 {isOpen && (
                                     <div className='bg-surface-muted/40 px-4 pb-3 pt-1 sm:pl-11'>
@@ -185,6 +192,7 @@ export function OrgPanel({ orgKey, period, product, source = ADMIN_SOURCE, readO
                             </div>
                         )
                     })}
+                    </div>
                 </div>
                 {lines.data?.total > 0 && <Pagination page={page} pageSize={pageSize} total={lines.data.total} onPageChange={setPage} onPageSizeChange={(n) => { setPageSize(n); setPage(1) }} />}
             </section>
