@@ -122,6 +122,11 @@ describe("AI question drafting", () => {
 })
 
 describe("helpers", () => {
+    it("extractJson keeps the complete questions of a reply that was cut off", () => {
+        const cut = '{"questions":[{"type":"MCQ","text":"A } brace"},{"type":"MCQ","text":"Two"},{"type":"MCQ","text":"Thr'
+        assert.deepEqual(extractJson(cut).questions.map((q) => q.text), ["A } brace", "Two"])
+        assert.equal(extractJson("no json here"), null)
+    })
     it("extractJson", () => {
         assert.deepEqual(extractJson('{"a":1}'), { a: 1 })
         assert.deepEqual(extractJson('text {"a":1} more'), { a: 1 })
