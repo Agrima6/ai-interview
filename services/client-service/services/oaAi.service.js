@@ -62,7 +62,23 @@ export const extractJson = (content) => {
         const from = text.indexOf(open); const to = text.lastIndexOf(close)
         if (from >= 0 && to > from) { try { return JSON.parse(text.slice(from, to + 1)) } catch { /* try the next shape */ } }
     }
-    return null
+    return salvageObjects(text)
+}
+
+// A long reply that the provider cut off mid-way is not valid JSON, but every question before the cut is complete. Keep those.
+const salvageObjects = (text) => {
+    const start = text.indexOf("[", Math.max(0, text.indexOf('"questions"')))
+    if (start < 0) return null
+    const found = []
+    let depth = 0; let from = -1; let inString = false; let escaped = false
+    for (let i = start + 1; i < text.length; i++) {
+        const c = text[i]
+        if (inString) { if (escaped) escaped = false; else if (c === "\\") escaped = true; else if (c === '"') inString = false; continue }
+        if (c === '"') inString = true
+        else if (c === "{") { if (depth === 0) from = i; depth++ }
+        else if (c === "}" && depth > 0 && --depth === 0) { try { found.push(JSON.parse(text.slice(from, i + 1))) } catch { /* skip a broken one */ } }
+    }
+    return found.length ? { questions: found } : null
 }
 
 const OPTION_PREFIX = /^\s*(?:\(?[A-Ha-h]\)|[A-Ha-h][.):]|\d{1,2}[.)]|[-•*])\s+/
@@ -187,7 +203,8 @@ export const generateQuestions = async ({ prompt, count = 10, types = ["MCQ"], d
 
     const parsed = extractJson(response.data?.choices?.[0]?.message?.content)
     if (!parsed) {
-        console.error("[client-service] OA AI returned unreadable output:", String(response.data?.choices?.[0]?.message?.content || "").slice(0, 300))
+        const reply = String(response.data?.choices?.[0]?.message?.content || "")
+        console.error(`[client-service] OA AI returned unreadable output (finish: ${response.data?.choices?.[0]?.finish_reason}, ${reply.length} chars):`, reply.slice(0, 200), "...", reply.slice(-120))
         throw new ApiError(502, "AI_BAD_RESPONSE", "The AI answered, but not in a form we could read. Please try again.")
     }
 
