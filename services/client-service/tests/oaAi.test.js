@@ -1,7 +1,7 @@
 import { after, before, beforeEach, describe, it } from "node:test"
 import assert from "node:assert/strict"
 import http from "http"
-import { explainUpstreamFailure, extractJson, pickModel } from "../services/oaAi.service.js"
+import { aiConfig, explainUpstreamFailure, extractJson, fallbackConfig, pickModel } from "../services/oaAi.service.js"
 
 // A stand-in for an OpenAI-compatible provider (OpenAI, Groq...). Each test sets what it should answer with.
 let server; let port; let reply
@@ -126,6 +126,18 @@ describe("helpers", () => {
         const cut = '{"questions":[{"type":"MCQ","text":"A } brace"},{"type":"MCQ","text":"Two"},{"type":"MCQ","text":"Thr'
         assert.deepEqual(extractJson(cut).questions.map((q) => q.text), ["A } brace", "Two"])
         assert.equal(extractJson("no json here"), null)
+    })
+    it("the fallback key is optional and never the same as the main key", () => {
+        const saved = { ...process.env }
+        try {
+            process.env.OA_AI_API_KEY = "gsk_main"; delete process.env.OA_AI_FALLBACK_API_KEY; delete process.env.OA_AI_BASE_URL; delete process.env.OA_AI_MODEL
+            assert.equal(fallbackConfig(), null)
+            process.env.OA_AI_FALLBACK_API_KEY = "gsk_main"
+            assert.equal(fallbackConfig(), null)
+            process.env.OA_AI_FALLBACK_API_KEY = "sk-or-backup"
+            assert.equal(fallbackConfig().provider, "OpenRouter")
+            assert.equal(aiConfig().provider, "Groq")
+        } finally { for (const k of ["OA_AI_API_KEY", "OA_AI_FALLBACK_API_KEY", "OA_AI_BASE_URL", "OA_AI_MODEL"]) { if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k] } }
     })
     it("extractJson", () => {
         assert.deepEqual(extractJson('{"a":1}'), { a: 1 })

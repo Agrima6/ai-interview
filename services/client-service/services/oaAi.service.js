@@ -20,14 +20,38 @@ const envValue = (name) => String(process.env[name] || "").trim().replace(/^["']
  * the endpoint and model follow from the key when they are not spelled out - so a Groq key alone is a full setup,
  * and a Groq key is never sent to OpenAI with an OpenAI model name.
  */
-export const aiConfig = () => {
-    const key = envValue("OA_AI_API_KEY") || envValue("GROQ_API_KEY") || envValue("XAI_API_KEY") || envValue("GROK_API_KEY") || envValue("OPENROUTER_API_KEY") || envValue("OPENAI_API_KEY")
-    const explicitBase = envValue("OA_AI_BASE_URL").replace(/\/(chat\/completions)?\/?$/, "")
+const buildConfig = (keyNames, baseName, modelName) => {
+    const key = keyNames.map(envValue).find(Boolean) || ""
+    const explicitBase = envValue(baseName).replace(/\/(chat\/completions)?\/?$/, "")
     const provider = (explicitBase ? PROVIDERS.find((p) => explicitBase.includes(p.host)) : PROVIDERS.find((p) => key.startsWith(p.prefix))) || (explicitBase ? null : PROVIDERS[2])
-    const model = envValue("OA_AI_MODEL")
+    const model = envValue(modelName)
     // A model name left over from another provider (gpt-* on Groq) would fail every request: use the provider's own default.
     const foreign = provider && model && ((provider.name === "xAI Grok" && /^(gpt-|o\d|llama|mixtral|gemma)/i.test(model)) || (provider.name === "Groq" && /^(gpt-|o\d|grok)/i.test(model)) || (provider.name === "OpenAI" && /llama|mixtral|gemma|grok/i.test(model)))
     return { key, base: explicitBase || provider.base, model: model && !foreign ? model : provider?.model || "gpt-4o-mini", provider: provider?.name || "Custom" }
+}
+
+export const aiConfig = () => buildConfig(["OA_AI_API_KEY", "GROQ_API_KEY", "XAI_API_KEY", "GROK_API_KEY", "OPENROUTER_API_KEY", "OPENAI_API_KEY"], "OA_AI_BASE_URL", "OA_AI_MODEL")
+
+/** An optional second key (OA_AI_FALLBACK_API_KEY, with _BASE_URL / _MODEL if it is another provider), used when the first cannot serve a request. */
+export const fallbackConfig = () => {
+    const c = buildConfig(["OA_AI_FALLBACK_API_KEY"], "OA_AI_FALLBACK_BASE_URL", "OA_AI_FALLBACK_MODEL")
+    return c.key && c.key !== aiConfig().key ? c : null
+}
+
+// Out of credit, over the limit, rejected, or unreachable: another key may still work. A bad request (400) would fail on any key.
+const worthSwitching = (error) => !error.response || [401, 402, 403, 429, 500, 502, 503, 504].includes(error.response.status)
+
+/** One chat request: the main key first, and the fallback key if the main one cannot serve it. */
+const callWithFallback = async (messages) => {
+    const main = aiConfig()
+    try {
+        return (await withModel(main, (m) => callModel({ ...main, model: m, messages }))).result
+    } catch (error) {
+        const backup = fallbackConfig()
+        if (!backup || !worthSwitching(error)) throw error
+        console.warn(`[client-service] OA AI: main key failed (${error.response?.status || error.code || error.message}); trying the fallback key (${backup.provider}).`)
+        return (await withModel(backup, (m) => callModel({ ...backup, model: m, messages }))).result
+    }
 }
 
 const config = aiConfig
@@ -158,7 +182,7 @@ const callModel = async ({ key, base, model, messages }) => {
 }
 
 export const generateQuestions = async ({ prompt, count = 10, types = ["MCQ"], difficulty = "MEDIUM", sectionId, sectionIds, codeLanguages }) => {
-    const { key, base, model } = config()
+    const { key } = config()
     if (!key) throw new ApiError(503, "AI_NOT_CONFIGURED", "AI question generation is not set up on this server yet. Upload your questions instead, or ask your platform admin to add an AI key.")
 
     const topic = String(prompt || "").trim()
@@ -195,7 +219,7 @@ export const generateQuestions = async ({ prompt, count = 10, types = ["MCQ"], d
             { role: "system", content: system },
             { role: "user", content: `Write ${ask} questions at ${level} difficulty.\n<topic>\n${topic}\n</topic>\nMix the allowed types sensibly. Return JSON only.` },
         ]
-        response = (await withModel({ key, base, model }, (m) => callModel({ key, base, model: m, messages }))).result
+        response = await callWithFallback(messages)
     } catch (error) {
         console.error("[client-service] OA AI generation failed:", error.response?.status, error.response?.data?.error?.message || error.message)
         throw new ApiError(502, "AI_UNAVAILABLE", explainUpstreamFailure(error))
@@ -223,7 +247,7 @@ export const generateQuestions = async ({ prompt, count = 10, types = ["MCQ"], d
  * reviews and edits them before use. Returns [{ text, topic }].
  */
 export const generateInterviewQuestions = async ({ prompt, count = 5, topics = [] }) => {
-    const { key, base, model } = config()
+    const { key } = config()
     if (!key) throw new ApiError(503, "AI_NOT_CONFIGURED", "AI question writing is not set up on this server yet. Type your questions instead, or ask your platform admin to add an AI key.")
     const topic = String(prompt || "").trim()
     if (topic.length < 10) throw new ApiError(400, "VALIDATION_ERROR", "Describe what the interview should cover (at least 10 characters).", { prompt: "Describe the role, level and skills to test." })
@@ -243,7 +267,7 @@ export const generateInterviewQuestions = async ({ prompt, count = 5, topics = [
     let response
     try {
         const messages = [{ role: "system", content: system }, { role: "user", content: `Write ${wanted} interview questions.\n<topic>\n${topic}\n</topic>\nReturn JSON only.` }]
-        response = (await withModel({ key, base, model }, (m) => callModel({ key, base, model: m, messages }))).result
+        response = await callWithFallback(messages)
     } catch (error) {
         console.error("[client-service] interview question generation failed:", error.response?.status, error.response?.data?.error?.message || error.message)
         throw new ApiError(502, "AI_UNAVAILABLE", explainUpstreamFailure(error))
@@ -269,6 +293,13 @@ export const aiStatus = async () => {
         return { configured: true, ok: true, provider, model: used, message: used === model ? `${provider} is connected.` : `${provider} is connected. The model "${model}" is no longer offered, so "${used}" is being used instead.` }
     } catch (error) {
         console.error("[client-service] OA AI status check failed:", error.response?.status, error.response?.data?.error?.message || error.message)
+        const backup = worthSwitching(error) ? fallbackConfig() : null
+        if (backup) {
+            try {
+                const { model: used } = await withModel(backup, (m) => axios.post(`${backup.base}/chat/completions`, { model: m, messages: [{ role: "user", content: "Reply with the word ok." }], max_tokens: 5 }, { headers: { Authorization: `Bearer ${backup.key}` }, timeout: 20000 }))
+                return { configured: true, ok: true, provider: backup.provider, model: used, message: `${provider} is not answering (${explainUpstreamFailure(error)}) so the backup key (${backup.provider}) is being used.` }
+            } catch (backupError) { console.error("[client-service] OA AI fallback status check failed:", backupError.response?.status, backupError.message) }
+        }
         return { configured: true, ok: false, provider, model, message: explainUpstreamFailure(error) }
     }
 }
