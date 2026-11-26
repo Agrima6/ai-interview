@@ -338,10 +338,11 @@ test("a candidate who gives the online test AND its linked AI interview is bille
 
     assert.equal((await call("PUT", "/admin/billing/rates/DEFAULT", { token: state.root, body: { comboRate: 120 } })).status, 200)
     a = await row()
-    assert.equal(a.combo.candidates, 1); assert.equal(a.comboRate, 120); assert.equal(a.comboAmount, 120)
-    assert.equal(a.aiBilledUnits, 2); assert.equal(a.oaBilledUnits, 1)
-    assert.equal(a.amountExGst, 370)                     // Ravi, Olga 200 + one test 50 + Asha's combination 120
-    assert.equal(a.total, 436.6)
+    // Anyone invited to any part of the combined drive pays the combined price, once: Asha, and Ravi and Olga who were invited to its AI interview
+    assert.equal(a.combo.candidates, 3); assert.equal(a.comboRate, 120); assert.equal(a.comboAmount, 360)
+    assert.equal(a.aiBilledUnits, 0); assert.equal(a.oaBilledUnits, 1)
+    assert.equal(a.amountExGst, 410)                     // three combined 360 + one separate test 50
+    assert.equal(a.total, 483.8)
     assert.equal((await get(`/summary?${NOV}`)).data.defaults.comboRate, 120)
     assert.equal((await call("PUT", "/admin/billing/rates/DEFAULT", { token: state.root, body: { comboRate: -5 } })).status, 400)
 
@@ -480,4 +481,25 @@ test("deleting a drive never removes what was already billed: the invitations we
     assert.equal(after.amountExGst, before.amountExGst)
     assert.equal(after.invites, before.invites)
     await hr.restoreDrive(String(state.tA), String(mine._id))
+})
+
+test("a test + AI interview drive is billed at the combined price from the first invitation, before anyone reaches the AI part", opts, async () => {
+    const { default: Client } = await import("../models/client.model.js")
+    const tN = oid()
+    await Client.create({ onboardingId: oid(), registrationId: oid(), tenantId: tN, type: "ORGANIZATION", name: "Nifco Combo", status: "ACTIVE", primaryContact: { name: "Owner", email: "owner@nifcocombo.test", phone: "9876543210" } })
+    const acc = await models.OaAccount.create({ orgName: "Nifco Combo", contactName: "Owner", email: "oa@nifcocombo.test", emailNormalized: "oa@nifcocombo.test", passwordHash: "x", status: "ACTIVE", tenantId: String(tN) })
+    const driveDoc = await models.OaDrive.create({ accountId: acc._id, title: "Nifco Campus Hiring 2026" })
+    const round = (n, kind) => models.OaAssessment.create({ accountId: acc._id, title: `Nifco Campus - Round ${n}`, driveId: driveDoc._id, roundNumber: n, kind, status: "PUBLISHED", sections: [{ id: "s1", title: "" }] })
+    const test = await round(1, "TEST"); await round(2, "AI_INTERVIEW")           // the AI round exists but no AI interview has been attached or reached yet
+    for (let n = 1; n <= 3; n++) await models.OaStudent.create({ accountId: acc._id, assessmentId: test._id, name: `N${n}`, email: `n${n}@nifco.test`, emailNormalized: `n${n}@nifco.test`, phone: null, codeHash: "h", codeEncrypted: "e", createdAt: at("2026-11-08T08:00:00Z"), invite: { status: "SENT", sentAt: at("2026-11-09T08:00:00Z"), firstSentAt: at("2026-11-09T08:00:00Z") } })
+    await call("PUT", `/admin/billing/rates/${String(tN)}`, { token: state.root, body: { comboRate: 250, gstPercent: 18 } })      // only the combined price is set, like Nifco
+
+    const detail = (await get(`/organizations/${String(tN)}?${NOV}`)).data
+    assert.deepEqual(detail.organization.uses, { oa: false, ai: false, combo: true })        // one combined drive: not "online test" usage
+    assert.equal(detail.organization.combo.candidates, 3)
+    assert.equal(detail.organization.amountExGst, 750)                                        // 3 x 250
+    assert.equal(detail.organization.rateMissing, false)
+    assert.equal(detail.sources.length, 1); assert.equal(detail.sources[0].product, "PACKAGE"); assert.equal(detail.sources[0].title, "Nifco Campus Hiring 2026"); assert.equal(detail.sources[0].amountExGst, 750)
+    const people = await get(`/organizations/${String(tN)}/lines?${NOV}&pageSize=100&view=people`)
+    assert.equal(people.data.reduce((n, p) => n + p.amountExGst, 0), 750)
 })
