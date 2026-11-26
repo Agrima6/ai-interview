@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, ClipboardCheck, Building2, LogOut, MessageCircleQuestion, FileText, Menu, X, Settings, ClipboardList, Receipt, Trash2, Megaphone } from 'lucide-react'
+import { LayoutDashboard, ClipboardCheck, Building2, LogOut, MessageCircleQuestion, FileText, Menu, X, Settings, ClipboardList, Receipt, Trash2, Megaphone, BarChart3 } from 'lucide-react'
 import { useAuth, usePermission } from '../../hooks/useAuth.jsx'
 import { featurePermissions } from '../../permissions/featurePermissions'
 import logo from '../../assets/logo.webp'
@@ -11,6 +11,7 @@ const NAV = [
     { to: '/platform/admin/onboarding', label: 'Onboarding Review', icon: ClipboardCheck, permission: featurePermissions.onboarding },
     { to: '/platform/admin/clients', label: 'Clients', icon: Building2, permission: featurePermissions.clients },
     { to: '/platform/admin/oa-approvals', label: 'Online Assessment', icon: ClipboardList, permission: 'CLIENT_APPROVE' },
+    { to: '/platform/admin/test-results', label: 'Test results', icon: BarChart3, permission: featurePermissions.settings },
     { to: '/platform/admin/billing', label: 'Billing', icon: Receipt, permission: featurePermissions.settings },
     { to: '/platform/admin/announcements', label: 'Announcements', icon: Megaphone, permission: featurePermissions.settings },
     { to: '/platform/admin/deleted-drives', label: 'Deleted drives', icon: Trash2, permission: featurePermissions.settings },
