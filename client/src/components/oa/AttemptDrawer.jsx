@@ -77,7 +77,7 @@ function Answer({ q, grade, onGrade, locked }) {
                         {grade?.ai && <Badge variant='info'>AI suggested: please check</Badge>}
                         {grade?.ai?.feedback && <p className='basis-full text-[12.5px] text-text-secondary'>AI's reason: {grade.ai.feedback}</p>}
                         {grade?.runner && <Badge variant={grade.runner.passed === grade.runner.total ? 'success' : 'warning'}>{grade.runner.ran ? `Test cases: ${grade.runner.passed} of ${grade.runner.total} passed (run automatically)` : 'Nothing was run: no code was written'}</Badge>}
-                        {grade?.marks === null && <Badge variant='warning'>Waiting for you</Badge>}
+                        {grade?.marks === null && <Badge variant='warning'>{locked ? 'Not marked yet' : 'Waiting for you'}</Badge>}
                     </>
                 ) : <span className={`font-semibold ${grade?.marks > 0 ? 'text-[var(--color-success)]' : grade?.marks < 0 ? 'text-[var(--color-danger)]' : 'text-text-secondary'}`}>{grade?.marks ?? 0} / {q.marks}</span>}
             </div>
@@ -85,13 +85,14 @@ function Answer({ q, grade, onGrade, locked }) {
     )
 }
 
-export default function AttemptDrawer({ assessmentId, attemptId, onClose, assessment }) {
+// `api` and `readOnly` let the platform owner open the same screen on any organization's candidate, without being able to change marks.
+export default function AttemptDrawer({ assessmentId, attemptId, onClose, assessment, api = oaApi, readOnly = false }) {
     const toast = useToast()
     const queryClient = useQueryClient()
     const [tab, setTab] = useState('answers')
     const [edits, setEdits] = useState({})
     const [zoom, setZoom] = useState(null)   // null | { images, index }
-    const q = useQuery({ queryKey: ['oa', 'attempt', attemptId], queryFn: () => oaApi.attempt(assessmentId, attemptId), enabled: Boolean(attemptId) })
+    const q = useQuery({ queryKey: ['oa', readOnly ? 'admin-attempt' : 'attempt', attemptId], queryFn: () => api.attempt(assessmentId, attemptId), enabled: Boolean(attemptId) })
     const d = q.data
     const refresh = () => queryClient.invalidateQueries({ queryKey: ['oa'] })
 
@@ -114,7 +115,7 @@ export default function AttemptDrawer({ assessmentId, attemptId, onClose, assess
 
     return (
         <Drawer open={Boolean(attemptId)} onClose={onClose} title={d?.student?.name || 'Attempt'} widthClassName='max-w-2xl'
-            footer={tab === 'answers' && d && !hidden ? <><span className='text-[12.5px] text-text-secondary mr-auto'>{unsaved ? 'Unsaved marks' : ''}</span><Button size='sm' disabled={!unsaved || grade.isPending} onClick={() => grade.mutate()}>{grade.isPending ? 'Saving…' : 'Save marks'}</Button></> : undefined}>
+            footer={!readOnly && tab === 'answers' && d && !hidden ? <><span className='text-[12.5px] text-text-secondary mr-auto'>{unsaved ? 'Unsaved marks' : ''}</span><Button size='sm' disabled={!unsaved || grade.isPending} onClick={() => grade.mutate()}>{grade.isPending ? 'Saving…' : 'Save marks'}</Button></> : undefined}>
             {q.isError ? <ErrorState message={q.error.message} onRetry={q.refetch} /> : !d ? <div className='space-y-3'><Skeleton className='h-6 w-1/2' /><Skeleton className='h-40 w-full' /></div> : (
                 <div className='space-y-5'>
                     <div className='flex flex-wrap items-center gap-2 text-[13px]'>
@@ -126,9 +127,10 @@ export default function AttemptDrawer({ assessmentId, attemptId, onClose, assess
                         <div className='px-4 py-3'><dt className='text-[11.5px] font-semibold text-text-secondary'>Percent</dt><dd className='text-[18px] font-bold tabular-nums'>{hidden ? <span className='text-[13px] font-medium text-text-secondary'>After submission</span> : <>{d.attempt.percent}%<span className={`block text-[11.5px] font-semibold ${d.attempt.percent >= d.passPercent ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>{d.attempt.percent >= d.passPercent ? 'Passed' : 'Not passed'} (pass {d.passPercent}%)</span></>}</dd></div>
                         <div className='px-4 py-3'><dt className='text-[11.5px] font-semibold text-text-secondary'>Violations</dt><dd className='text-[18px] font-bold tabular-nums'>{d.attempt.violationCount}</dd></div>
                     </dl>
+                    {readOnly && d.attempt.adminDecision && <p className='text-[13px] text-text-secondary'>The organizer's decision: <b className='text-ink'>{d.attempt.adminDecision === 'DISQUALIFIED' ? 'Disqualified' : 'Flags cleared'}</b></p>}
                     {assessment && <AiInterviewReportCard assessment={assessment} email={d.student?.email} />}
                     {d.attempt.endReason && <p className='text-[13px] bg-[var(--color-danger-soft)] text-[var(--color-danger)] rounded-xl px-3.5 py-2.5 flex items-center gap-2'><ShieldAlert size={15} /> {d.attempt.endReason}</p>}
-                    {d.attempt.status !== 'IN_PROGRESS' && (
+                    {!readOnly && d.attempt.status !== 'IN_PROGRESS' && (
                         <div className='flex flex-wrap items-center gap-2 text-[13px]'>
                             <span className='font-semibold'>Decision:</span>
                             {[['CLEARED', 'Clear flags'], ['DISQUALIFIED', 'Disqualify'], [null, 'No decision']].map(([v, label]) => (
@@ -147,7 +149,7 @@ export default function AttemptDrawer({ assessmentId, attemptId, onClose, assess
                     {tab === 'answers' && hidden && <HiddenAnswers sections={d.sections} />}
                     {tab === 'answers' && !hidden && d.sections.map((s, i) => (
                         <section key={s.sectionId}><h3 className='text-[13px] font-bold text-ink mb-2'>{sectionLabel(s, (s.number || i + 1) - 1)}</h3>
-                            <ol className='space-y-3'>{s.questions.map((qq) => <Answer key={qq.id} q={qq} grade={gradeOf(qq)} locked={d.attempt.status === 'IN_PROGRESS'} onGrade={(id, v) => setEdits((e) => ({ ...e, [id]: v }))} />)}</ol></section>
+                            <ol className='space-y-3'>{s.questions.map((qq) => <Answer key={qq.id} q={qq} grade={gradeOf(qq)} locked={readOnly || d.attempt.status === 'IN_PROGRESS'} onGrade={(id, v) => setEdits((e) => ({ ...e, [id]: v }))} />)}</ol></section>
                     ))}
 
                     {tab === 'proctoring' && (

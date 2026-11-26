@@ -91,7 +91,7 @@ export const apiDelete = (url, config) => unwrap(client.delete(url, config))
 export const apiGetList = async (url, params) => {
     try {
         const { data } = await client.get(url, { params })
-        return { items: data.data, cursor: data.meta.cursor, hasNext: data.meta.hasNext, total: data.meta.total, page: data.meta.page, pageSize: data.meta.pageSize }
+        return { items: data.data, cursor: data.meta.cursor, hasNext: data.meta.hasNext, total: data.meta.total, page: data.meta.page, pageSize: data.meta.pageSize, meta: data.meta }
     } catch (error) {
         const envelope = error.response?.data
         const status = error.response?.status || 0
