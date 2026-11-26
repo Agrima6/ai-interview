@@ -4,6 +4,7 @@ import * as portalController from "../controllers/organizationPortal.controller.
 import { authenticate, requirePermission } from "../middlewares/authenticate.js"
 import { ok } from "../utils/response.js"
 import { listAllDrives } from "../services/unifiedDrives.service.js"
+import { aiCandidateOf } from "../services/adminResults.service.js"
 import { listNotifications } from "../services/orgNotifications.service.js"
 import * as billing from "../services/billing.service.js"
 
@@ -32,9 +33,10 @@ const wrapOwn = (fn) => async (req, res, next) => { try { await fn(req, res) } c
 const csv = (res, { filename, csv: body }) => { res.setHeader("Content-Type", "text/csv; charset=utf-8"); res.setHeader("Content-Disposition", `attachment; filename="${filename}"`); res.setHeader("Cache-Control", "no-store"); res.send(body) }
 router.get("/organization/billing", authenticate, requirePermission("CLIENT_SELF_READ"), wrapOwn(async (req, res) => ok(res, await billing.getOwnBilling(req.user?.tenantId, req.query))))
 router.get("/organization/billing/lines", authenticate, requirePermission("CLIENT_SELF_READ"), wrapOwn(async (req, res) => {
-    const { items, total, page, pageSize } = await billing.listOwnLines(req.user?.tenantId, req.query)
-    ok(res, items, { total, page, pageSize })
+    const { items, total, page, pageSize, summary } = await billing.listOwnLines(req.user?.tenantId, req.query)
+    ok(res, items, { total, page, pageSize, summary })
 }))
+router.get("/organization/billing/ai-candidate", authenticate, requirePermission("CLIENT_SELF_READ"), wrapOwn(async (req, res) => ok(res, await aiCandidateOf(req.query.driveId, req.query.email, req.user?.tenantId))))
 router.get("/organization/billing/export", authenticate, requirePermission("CLIENT_SELF_READ"), wrapOwn(async (req, res) => csv(res, await billing.exportOwnCsv(req.user?.tenantId, req.query))))
 
 // Team & Access Control

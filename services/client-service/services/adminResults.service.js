@@ -1,5 +1,6 @@
 import mongoose from "mongoose"
 import Client from "../models/client.model.js"
+import { InterviewDrive } from "../models/interviewDrive.model.js"
 import { OaAccount, OaAssessment, OaAttempt, OaDrive, OaStudent } from "../models/oa.model.js"
 import { ApiError } from "../utils/response.js"
 import { attemptDetail, results } from "./oaAssessment.service.js"
@@ -208,4 +209,33 @@ export const testInsights = async (id) => {
     if (!notes.some((x) => x.level !== "ok") && n >= 10) notes.push({ level: "ok", text: "Nothing unusual: the scores are spread out, no cluster of identical scores, no closely matching answers." })
     const verdict = notes.some((x) => x.level === "concern") ? "CONCERN" : notes.some((x) => x.level === "watch") ? "WATCH" : n >= 10 ? "NORMAL" : "TOO_FEW"
     return { verdict, notes, spread, repeatedScores: repeated, questions: questionRows, similarAnswers: similar.slice(0, 20), timing, sharedNetwork, proctoring, basedOn: { attempts: n, capped: n >= INSIGHT_ATTEMPT_CAP } }
+}
+
+// ---------- a candidate's AI interview report ----------
+
+/**
+ * The AI interview of one candidate (found by email in an AI interview drive): score, summary, strengths and gaps, and each question's
+ * evaluation. `tenantId` limits it to one organization's own drives (the organization's billing page); the platform owner passes none.
+ * Recordings, the transcript and screenshots stay with the organization: only the written evaluation is returned.
+ */
+export const aiCandidateOf = async (driveId, email, tenantId = null) => {
+    if (!mongoose.isValidObjectId(driveId)) throw new ApiError(404, "NOT_FOUND", "AI interview not found.")
+    const filter = { _id: driveId, ...(tenantId ? { tenantId: String(tenantId) } : {}) }
+    if (!(await InterviewDrive.exists(filter))) throw new ApiError(404, "NOT_FOUND", "AI interview not found.")
+    try {
+        const { refreshDriveReports } = await import("./interviewDrive.service.js")
+        await Promise.race([refreshDriveReports(driveId), new Promise((resolve) => setTimeout(resolve, 6000))])
+    } catch { /* the report is shown if it is already stored */ }
+    const drive = await InterviewDrive.findOne(filter).select("title rounds").lean()
+    const wanted = String(email || "").trim().toLowerCase()
+    const hits = []
+    for (const r of drive.rounds || []) for (const c of r.candidates || []) if (String(c.email || "").trim().toLowerCase() === wanted) hits.push({ c, round: r })
+    if (!hits.length) throw new ApiError(404, "NOT_FOUND", "This candidate has not been added to the AI interview.")
+    const best = hits.find((h) => h.c.agentReport) || hits[0]
+    const c = best.c
+    return {
+        id: c.id, name: c.name, email: c.email, phone: c.phone, exp: c.exp, status: c.status, aiScore: c.aiScore ?? 0, agentReport: c.agentReport || null,
+        attemptedDate: c.attemptedDate || null, interviewSlot: c.interviewSlot || null, malpracticeFlags: c.malpracticeFlags || 0, preferredLanguage: c.preferredLanguage || "en",
+        driveTitle: drive.title, driveId: String(driveId), roundNumber: best.round.roundNumber, roundTitle: best.round.title,
+    }
 }

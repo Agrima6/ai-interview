@@ -3,11 +3,16 @@ import { useSearchParams } from 'react-router-dom'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
 import { OrgPanel } from '../billing/BillingOrgDrawer'
 import { PERIOD_PRESETS, istToday, presetRange } from '../billing/billingFormat'
-import { downloadOwnBillingCsv, getOwnBilling, listOwnBillingLines } from '../../api/orgBillingApi'
+import { downloadOwnBillingCsv, getOwnAiCandidate, getOwnBilling, listOwnBillingLines } from '../../api/orgBillingApi'
+import { ensureOaSession, oaApi } from '../../api/oaApi'
 
 // The organization reads only itself: the server ignores any other organization, so the key here is just a label.
 const OWN_SOURCE = {
     ns: 'own',
+    // the organization opens its own candidates' detailed scores, exactly as on its results screen (read-only here)
+    detailApi: oaApi,
+    prepareDetail: ensureOaSession,
+    aiCandidate: getOwnAiCandidate,
     getOrganization: (_key, params) => getOwnBilling(params),
     listLines: (_key, params) => listOwnBillingLines(params),
     download: (_key, params) => downloadOwnBillingCsv(params),

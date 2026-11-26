@@ -141,3 +141,19 @@ test("the score check flags identical scores, matching wrong answers, fast finis
     // question 1 was answered correctly by 11 of 12 (the zero-scorer got it wrong): a real percentage, not a guess
     const q1 = ins.questions.find((x) => x.id === "q1"); assert.equal(q1.fullMarksRate, 91.7)
 })
+
+test("a candidate's AI interview report: for the platform owner, or for the organization's own drive only", opts, async () => {
+    const { InterviewDrive } = await import("../models/interviewDrive.model.js")
+    const other = oid()
+    const drive = await InterviewDrive.create({ tenantId: String(state.tenant), title: "Nifco AI", roleCategory: "X", department: "Y", experienceLevel: "Z", expiryDate: new Date("2027-01-01"), rounds: [{ roundNumber: 1, title: "R1", type: "T", candidates: [{ name: "AI Cand", email: "ai@n.test", status: "COMPLETED", aiScore: 48, agentInterviewId: "iv1", agentReport: { final_score: 48.5, competency_scores: { Communication: 60 }, content: { overall: { summary: "Fair answers", recommendation: "no_hire" } } }, violations: [{ reason: "x", snapshot: "secret-path" }] }] }] })
+    const q = `driveId=${drive._id}&email=AI@n.test`
+    const asOwner = await call("GET", `/admin/oa-results/ai-candidate?${q}`, { token: state.root })
+    assert.equal(asOwner.status, 200); assert.equal(asOwner.data.aiScore, 48); assert.equal(asOwner.data.agentReport.content.overall.summary, "Fair answers")
+    assert.equal(JSON.stringify(asOwner.data).includes("secret-path"), false)                                 // no screenshots, recordings or transcript
+    assert.equal((await call("GET", `/admin/oa-results/ai-candidate?${q}`, { token: state.hr })).status, 403)  // an organization cannot use the platform route
+    const mine = await call("GET", `/organization/billing/ai-candidate?${q}`, { token: state.hr })
+    assert.equal(mine.status, 200); assert.equal(mine.data.name, "AI Cand")
+    const stranger = await jwt({ tenantId: String(other), permissions: ["CLIENT_SELF_READ"] })
+    assert.equal((await call("GET", `/organization/billing/ai-candidate?${q}`, { token: stranger })).status, 404)    // another organization's candidate is not reachable
+    assert.equal((await call("GET", `/admin/oa-results/ai-candidate?driveId=${drive._id}&email=nobody@x.test`, { token: state.root })).status, 404)
+})

@@ -18,6 +18,7 @@ router.get("/admin/oa-results/tests/:id/results", ...adminOnly, wrap(async (req,
 }))
 router.get("/admin/oa-results/tests/:id/paper", ...adminOnly, wrap(async (req, res) => ok(res, await adminResults.testPaper(req.params.id))))
 router.get("/admin/oa-results/tests/:id/insights", ...adminOnly, wrap(async (req, res) => ok(res, await adminResults.testInsights(req.params.id))))
+router.get("/admin/oa-results/ai-candidate", ...adminOnly, wrap(async (req, res) => ok(res, await adminResults.aiCandidateOf(req.query.driveId, req.query.email))))
 router.get("/admin/oa-results/tests/:id/attempts/:attemptId", ...adminOnly, wrap(async (req, res) => ok(res, await adminResults.testAttempt(req.params.id, req.params.attemptId))))
 
 export default router
