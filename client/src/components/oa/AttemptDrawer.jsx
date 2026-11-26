@@ -77,7 +77,7 @@ function Answer({ q, grade, onGrade, locked }) {
                         {grade?.ai && <Badge variant='info'>AI suggested: please check</Badge>}
                         {grade?.ai?.feedback && <p className='basis-full text-[12.5px] text-text-secondary'>AI's reason: {grade.ai.feedback}</p>}
                         {grade?.runner && <Badge variant={grade.runner.passed === grade.runner.total ? 'success' : 'warning'}>{grade.runner.ran ? `Test cases: ${grade.runner.passed} of ${grade.runner.total} passed (run automatically)` : 'Nothing was run: no code was written'}</Badge>}
-                        {grade?.marks === null && <Badge variant='warning'>{locked ? 'Not marked yet' : 'Waiting for you'}</Badge>}
+                        {grade?.marks === null && <Badge variant='warning'>{locked ? 'Not marked yet' : 'Being marked'}</Badge>}
                     </>
                 ) : <span className={`font-semibold ${grade?.marks > 0 ? 'text-[var(--color-success)]' : grade?.marks < 0 ? 'text-[var(--color-danger)]' : 'text-text-secondary'}`}>{grade?.marks ?? 0} / {q.marks}</span>}
             </div>

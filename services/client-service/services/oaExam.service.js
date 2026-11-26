@@ -537,7 +537,7 @@ export const aiMarkAnswers = async (attemptId) => {
     const attempt = await OaAttempt.findById(attemptId)
     if (!attempt || attempt.status === "IN_PROGRESS") return
     const assessment = await OaAssessment.findById(attempt.assessmentId)
-    if (!assessment?.settings?.aiMarking) return
+    if (!assessment) return
     const done = {}
     let asked = 0
     for (const question of assessment.questions) {
@@ -562,6 +562,28 @@ export const aiMarkAnswers = async (attemptId) => {
     }
     const result = gradeAttempt({ questions: assessment.questions.map(asObject), answers: fresh.answers || {}, grades, settings: assessment.settings?.toObject?.() || {} })
     await OaAttempt.updateOne({ _id: attemptId }, { $set: { grades: result.grades, score: result.score, maxScore: result.maxScore, percent: result.percent, gradingStatus: result.gradingStatus } })
+}
+
+/**
+ * Written and coding answers are marked by AI with nobody asking. A failed attempt (the AI provider busy, over its limit, or briefly
+ * down) is simply tried again in a few minutes, a handful of times, so no organizer ever has to mark anything for a result to appear.
+ * Runs on a timer; also picks up everything that was left unmarked before this existed.
+ */
+const MARK_RETRY_MS = 10 * 60 * 1000
+const MARK_MAX_TRIES = 6
+export const sweepPendingMarking = async ({ limit = 10 } = {}) => {
+    if (!aiMarkingAvailable()) return { marked: 0, tried: 0 }
+    const due = await OaAttempt.find({
+        status: { $in: ["SUBMITTED", "AUTO_SUBMITTED", "TERMINATED"] }, gradingStatus: "PENDING_REVIEW", aiMarkTries: { $lt: MARK_MAX_TRIES },
+        $or: [{ aiMarkTriedAt: null }, { aiMarkTriedAt: { $lt: new Date(Date.now() - MARK_RETRY_MS) } }],
+    }).select("_id").sort({ submittedAt: 1 }).limit(limit).lean()
+    let marked = 0
+    for (const { _id } of due) {
+        await OaAttempt.updateOne({ _id }, { $inc: { aiMarkTries: 1 }, $set: { aiMarkTriedAt: new Date() } })
+        await markAfterSubmit(_id)
+        if ((await OaAttempt.findById(_id).select("gradingStatus").lean())?.gradingStatus === "COMPLETE") marked += 1
+    }
+    return { marked, tried: due.length }
 }
 
 /** After the test, in the same sitting: go on to the AI interview (see oaAiPart.service). */

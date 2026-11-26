@@ -198,6 +198,9 @@ const attemptSchema = new Schema({
     ip: { type: String, default: null },
     // What happened to this candidate's invitation to the AI interview part of the round (SENT, ALREADY, FAILED).
     aiHandoff: { status: { type: String, default: null }, at: { type: Date, default: null }, error: { type: String, default: null } },
+    // Automatic marking of written / coding answers: how many times it was tried and when, so a failure is retried a few times, not forever.
+    aiMarkTries: { type: Number, default: 0 },
+    aiMarkTriedAt: { type: Date, default: null },
 }, { timestamps: true })
 
 attemptSchema.index({ assessmentId: 1, studentId: 1 }, { unique: true })
