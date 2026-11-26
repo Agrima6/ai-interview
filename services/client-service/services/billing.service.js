@@ -200,11 +200,13 @@ const loadPackages = async () => {
         if (!groups.has(id)) groups.set(id, { key: id, title: r.driveId ? driveTitles.get(String(r.driveId)) || r.title : r.title, tests: [], ai: new Set() })
         const g = groups.get(id)
         const aiId = r.kind === "AI_INTERVIEW" ? r.aiInterviewDriveId : r.aiPart?.enabled ? r.aiPart.aiInterviewDriveId : null
+        // A drive with an AI round is a combined drive even before that AI interview has been created and attached.
+        if (r.kind === "AI_INTERVIEW" || r.aiPart?.enabled) g.hasAi = true
         if (aiId) g.ai.add(String(aiId))
         if (r.kind !== "AI_INTERVIEW") g.tests.push(String(r._id))
     }
     for (const g of groups.values()) {
-        if (!g.ai.size || !g.tests.length) continue
+        if (!g.hasAi || !g.tests.length) continue
         for (const id of g.tests) byAssessment.set(id, g)
         for (const id of g.ai) byAiDrive.set(id, g)
     }
@@ -221,7 +223,7 @@ const collectLines = async (period, { product, key } = {}) => {
         wantOa ? oaLines(period, accountKey, scope) : [],
     ])
     const lines = [...ai, ...oa].filter((l) => !key || l.key === key)
-    if (ai.length && oa.length) {
+    if (ai.length || oa.length) {
         // An AI interview that a test uses (as its own part, or as a round of the same drive) belongs to ONE combined drive with it.
         const { byAssessment, byAiDrive } = await loadPackages()
         for (const l of lines) {
@@ -289,6 +291,7 @@ const loadUsage = async (dir) => {
     const mark = (key, what) => { if (!key) return; if (!uses.has(key)) uses.set(key, { oa: false, ai: false, combo: false }); uses.get(key)[what] = true }
     const assessments = await OaAssessment.find({ status: { $ne: "ARCHIVED" } }).select("accountId driveId kind aiPart.enabled aiPart.aiInterviewDriveId aiInterviewDriveId").lean()
     const testDrives = new Set(assessments.filter((a) => a.kind !== "AI_INTERVIEW" && a.driveId).map((a) => `${a.accountId}|${a.driveId}`))
+    const aiRoundDrives = new Set(assessments.filter((a) => a.kind === "AI_INTERVIEW" && a.driveId).map((a) => `${a.accountId}|${a.driveId}`))
     const linked = new Set()
     for (const a of assessments) {
         const key = accountKey.get(String(a.accountId))
@@ -298,7 +301,7 @@ const loadUsage = async (dir) => {
             // an AI round inside a drive that also has online-test rounds is the second half of a combined drive
             mark(key, a.driveId && testDrives.has(`${a.accountId}|${a.driveId}`) ? "combo" : "ai")
         } else if (partId) { linked.add(String(partId)); mark(key, "combo") }
-        else mark(key, "oa")
+        else mark(key, a.driveId && aiRoundDrives.has(`${a.accountId}|${a.driveId}`) ? "combo" : "oa")
     }
     for (const d of await InterviewDrive.find({}).select("tenantId").lean()) if (!linked.has(String(d._id))) mark(String(d.tenantId), "ai")
     return uses
@@ -316,12 +319,15 @@ const comboOf = (lines, card, uses, aiStats, oaStats) => {
         return { candidates: people.size, aiUnits: aiStats.billableUnits, oaUnits: oaStats.billableUnits }
     }
     if (!(card.comboRate > 0)) return none
-    const perPerson = (pred) => { const m = new Map(); for (const l of lines) if (l.invitesInPeriod > 0 && pred(l)) m.set(l.email, (m.get(l.email) || 0) + l.invitesInPeriod); return m }
-    const ai = perPerson((l) => l.product === "AI_INTERVIEW" && l.linkedToTest)
-    const oa = perPerson((l) => l.product === "ONLINE_ASSESSMENT")
-    const both = [...ai.keys()].filter((e) => oa.has(e))
+    // Invited to any part of a combined drive (a test, or its AI interview): one combined price, from the first invitation.
+    const inPackage = lines.filter((l) => l.packageKey && l.invitesInPeriod > 0)
+    const perPerson = (product) => { const m = new Map(); for (const l of inPackage) if (l.product === product) m.set(l.email, (m.get(l.email) || 0) + l.invitesInPeriod); return m }
+    const ai = perPerson("AI_INTERVIEW")
+    const oa = perPerson("ONLINE_ASSESSMENT")
+    const people = [...new Set(inPackage.map((l) => l.email))]
     const byInterview = card.unit === "INTERVIEW"
-    return { candidates: both.length, aiUnits: both.reduce((n, e) => n + (byInterview ? ai.get(e) : 1), 0), oaUnits: both.reduce((n, e) => n + (byInterview ? oa.get(e) : 1), 0) }
+    const units = (m, e) => (m.has(e) ? (byInterview ? m.get(e) : 1) : 0)
+    return { candidates: people.length, aiUnits: people.reduce((n, e) => n + units(ai, e), 0), oaUnits: people.reduce((n, e) => n + units(oa, e), 0) }
 }
 
 // Which kinds of drive to show for a client. Anything that was billed is always shown, whatever the drive list says.
