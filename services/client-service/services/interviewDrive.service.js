@@ -1335,6 +1335,21 @@ const refreshPendingReports = async (tenantId, drive) => {
     }))
 }
 
+/**
+ * Fetch the finished AI reports that were not stored yet, for one AI interview drive. Called when HR opens the drive, and when the
+ * Results tab of a test that has this interview as its AI part is opened: the agent builds a report some minutes after the
+ * interview, so it is rarely ready at the moment the candidate finishes. Best-effort, bounded, and at most once every 20 seconds
+ * per drive, so a busy page never hammers the interviewer service.
+ */
+const recentlyChecked = new Map()
+export const refreshDriveReports = async (driveId) => {
+    const key = String(driveId)
+    if (process.env.NODE_ENV !== "test" && Date.now() - (recentlyChecked.get(key) || 0) < 20000) return
+    recentlyChecked.set(key, Date.now())
+    const drive = await InterviewDrive.findById(driveId)
+    if (drive) await refreshPendingReports(String(drive.tenantId), drive)
+}
+
 // Candidate-scoped - stores the candidate's own camera/mic recording of
 // the session, captured client-side and uploaded once the interview ends.
 // Best-effort by design (called from the same finish flow as
