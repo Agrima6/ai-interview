@@ -28,7 +28,7 @@ export const listNotifications = async (tenantId) => {
             const what = title.get(String(a.assessmentId)) || "the assessment"
             const at = a.submittedAt || a.updatedAt
             const message = a.status === "TERMINATED" ? `${who}'s test "${what}" was ended` : `${who} finished "${what}"`
-            const detail = a.status === "TERMINATED" ? "Ended after too many proctoring warnings" : a.gradingStatus === "PENDING_REVIEW" ? "Waiting for your review" : `Scored ${Math.round(a.percent || 0)}%`
+            const detail = a.status === "TERMINATED" ? "Ended after too many proctoring warnings" : a.gradingStatus === "PENDING_REVIEW" ? "Written answers are being marked" : `Scored ${Math.round(a.percent || 0)}%`
             items.push({ id: `oa-${a._id}`, type: a.status === "TERMINATED" ? "TEST_ENDED" : "TEST_FINISHED", message, detail, at })
         }
     }

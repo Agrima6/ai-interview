@@ -18,7 +18,7 @@ const VERDICT = {
     TOO_FEW: ['neutral', 'Too few candidates to judge', AlertTriangle],
 }
 const NOTE_TONE = { ok: 'text-[var(--color-success)]', watch: 'text-[var(--color-warning)]', concern: 'text-[var(--color-danger)]' }
-const GRADING = { PENDING_REVIEW: ['warning', 'Needs marking'], COMPLETE: ['success', 'Marked'], NOT_GRADED: ['neutral', 'Not graded'] }
+const GRADING = { PENDING_REVIEW: ['warning', 'Being marked'], COMPLETE: ['success', 'Marked'], NOT_GRADED: ['neutral', 'Not graded'] }
 const RESULTS = [['', 'All results'], ['PASSED', 'Passed'], ['FAILED', 'Not passed']]
 const STATUSES = [['', 'All statuses'], ['SUBMITTED', 'Submitted'], ['AUTO_SUBMITTED', 'Time up'], ['TERMINATED', 'Ended by proctor'], ['IN_PROGRESS', 'In progress'], ['NOT_STARTED', 'Not started']]
 
@@ -57,10 +57,10 @@ function ResultsPanel({ test, params, update, onOpen }) {
                     <Stat label='Passed' value={num(s.passed)} hint={`pass mark ${s.passPercent}%`} tone='text-[var(--color-success)]' />
                     <Stat label='Average' value={s.average === null ? '—' : `${s.average}%`} />
                     <Stat label='Highest' value={s.highest === null ? '—' : `${s.highest}%`} />
-                    <Stat label='Needs marking' value={num(s.pendingReview)} hint='written / coding answers' tone={s.pendingReview ? 'text-[var(--color-warning)]' : 'text-ink'} />
+                    <Stat label='Being marked' value={num(s.pendingReview)} hint='AI marking written answers' tone={s.pendingReview ? 'text-[var(--color-warning)]' : 'text-ink'} />
                 </dl>
             )}
-            {s?.pendingReview > 0 && <p role='note' className='mb-4 rounded-xl bg-[var(--color-warning-soft)] text-[var(--color-warning)] px-4 py-2.5 text-[13px]'>{num(s.pendingReview)} candidate{s.pendingReview === 1 ? ' has' : 's have'} written or coding answers that are not marked yet, so those scores count only the auto-marked part and will change.</p>}
+            {s?.pendingReview > 0 && <p role='note' className='mb-4 rounded-xl bg-[var(--color-warning-soft)] text-[var(--color-warning)] px-4 py-2.5 text-[13px]'>{num(s.pendingReview)} candidate{s.pendingReview === 1 ? ' has' : 's have'} written or coding answers that are still being marked by AI, so those scores count only the auto-marked part and will change.</p>}
             <div className='flex flex-wrap items-center gap-2 mb-3'>
                 <SearchInput value={search} onChange={(e) => { setSearch(e.target.value.slice(0, 80)); update({ page: '' }) }} placeholder='Search name or email' className='sm:w-64' />
                 <div className='w-40'><Select aria-label='Result' value={filters.result} onChange={(e) => update({ result: e.target.value, page: '' })} options={RESULTS.map(([value, label]) => ({ value, label }))} /></div>
@@ -119,7 +119,7 @@ function PaperPanel({ test }) {
                 <Stat label='Time allowed' value={p.durationMinutes ? `${p.durationMinutes} min` : '—'} />
                 <Stat label='Pass mark' value={`${p.passPercent}%`} />
                 <Stat label='Marked automatically' value={`${p.autoMarked.questions} Q`} hint={`${p.autoMarked.marks} marks`} />
-                <Stat label='Needs a person' value={`${p.needsReview.questions} Q`} hint={`${p.needsReview.marks} marks`} tone={p.needsReview.questions ? 'text-[var(--color-warning)]' : 'text-ink'} />
+                <Stat label='Marked by AI' value={`${p.needsReview.questions} Q`} hint={`${p.needsReview.marks} marks`} tone={p.needsReview.questions ? 'text-[var(--color-warning)]' : 'text-ink'} />
             </dl>
             <p className='text-[12.5px] text-text-secondary mb-4'>{p.negativeMarking ? 'Wrong answers lose marks (negative marking is on). ' : 'No negative marking. '}Questions are {p.shuffle.questions ? 'shuffled' : 'in a fixed order'} and options are {p.shuffle.options ? 'shuffled' : 'in a fixed order'} for each candidate. {p.proctoring.level ? `Proctoring: ${String(p.proctoring.level).toLowerCase()}${p.proctoring.camera ? ', camera on' : ''}${p.proctoring.screenShare ? ', screen shared' : ''}${p.proctoring.maxViolations ? `, ended after ${p.proctoring.maxViolations} warnings` : ''}.` : ''}</p>
             <div className='space-y-3'>

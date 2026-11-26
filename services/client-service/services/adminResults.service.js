@@ -168,7 +168,7 @@ export const testInsights = async (id) => {
     if (everybody.length >= 3) notes.push({ level: "watch", text: `${everybody.length} multiple-choice questions were answered correctly by everyone, so they separate no one.` })
     const unmarked = questions.filter((q) => !["MCQ", "MSQ"].includes(q.type))
     const pending = attempts.filter((x) => x.gradingStatus === "PENDING_REVIEW").length
-    if (pending) notes.push({ level: "watch", text: `${pending} candidate${pending === 1 ? "'s" : "s'"} written or coding answers (${unmarked.length} question${unmarked.length === 1 ? "" : "s"} per paper) are not marked yet. Until they are, these scores only count the multiple-choice part, so they are provisional and will change.` })
+    if (pending) notes.push({ level: "watch", text: `${pending} candidate${pending === 1 ? "'s" : "s'"} written or coding answers (${unmarked.length} question${unmarked.length === 1 ? "" : "s"} per paper) are still being marked by AI. Until that finishes, these scores only count the multiple-choice part, so they are provisional and will change.` })
 
     // 4. answers that match too closely (objective questions only)
     const objectiveIds = questions.filter((q) => ["MCQ", "MSQ"].includes(q.type)).map((q) => q.id)

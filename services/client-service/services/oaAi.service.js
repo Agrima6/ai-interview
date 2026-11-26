@@ -311,8 +311,7 @@ export const aiMarkingAvailable = () => Boolean(config().key)
  * could not answer; the organizer always has the last word, so a failure here just leaves the answer for them to mark.
  */
 export const markAnswer = async ({ question, answer, language }) => {
-    const { key, base, model } = config()
-    if (!key) return null
+    if (!config().key) return null
     const max = Number(question.marks) || 1
     const code = question.type === "CODING"
     const reference = String(question.modelAnswer || "").slice(0, 3000)
@@ -330,12 +329,12 @@ export const markAnswer = async ({ question, answer, language }) => {
         `<answer>\n${String(answer || "").slice(0, 8000)}\n</answer>${code && language ? `\n(Language: ${language})` : ""}`,
     ].filter(Boolean).join("\n\n")
     try {
-        const out = await withModel({ key, base, model }, (m) => callModel({ key, base, model: m, messages: [{ role: "system", content: system }, { role: "user", content: user }] }))
-        const parsed = extractJson(out.result.data?.choices?.[0]?.message?.content)
+        const out = await callWithFallback([{ role: "system", content: system }, { role: "user", content: user }])
+        const parsed = extractJson(out.data?.choices?.[0]?.message?.content)
         const raw = Number(parsed?.marks)
         if (!parsed || !Number.isFinite(raw)) return null
         const marks = Math.min(max, Math.max(0, Math.round(raw * 2) / 2))
-        return { marks, feedback: String(parsed.feedback || "").replace(/\s+/g, " ").trim().slice(0, 400), model: out.model }
+        return { marks, feedback: String(parsed.feedback || "").replace(/\s+/g, " ").trim().slice(0, 400), model: out.data?.model || config().model }
     } catch (error) {
         console.error("[client-service] OA AI marking failed:", error.response?.status, error.response?.data?.error?.message || error.message)
         return null

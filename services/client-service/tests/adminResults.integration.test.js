@@ -133,7 +133,7 @@ test("the score check flags identical scores, matching wrong answers, fast finis
     const text = ins.notes.map((n) => n.text).join(" | ")
     assert.match(text, /8 of 12 candidates .* scored exactly/)
     assert.match(text, /almost the same multiple-choice answers/)
-    assert.match(text, /not marked yet/)
+    assert.match(text, /still being marked by AI/)
     assert.ok(ins.similarAnswers.length >= 1); assert.ok(ins.similarAnswers[0].identicalWrong >= 3)
     assert.equal(ins.sharedNetwork[0].count, 12)
     assert.ok(ins.spread.average > 30 && ins.spread.average < 35)
