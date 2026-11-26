@@ -34,3 +34,11 @@ export const listInvites = ({ driveIds = [], assessmentIds = [] }, limit = 20000
         ...(driveIds.length ? [{ "metadata.driveId": { $in: driveIds }, eventType: "CANDIDATE_INVITE" }] : []),
         ...(assessmentIds.length ? [{ "metadata.assessmentId": { $in: assessmentIds }, eventType: "OA_INVITE" }] : []),
     ] }).select("status sentAt openedAt createdAt metadata").sort({ createdAt: -1 }).limit(limit).lean()
+
+// Failed emails worth sending again: a temporary reason, not too many tries, recent. Oldest first.
+export const listRetryable = ({ codes, maxAttempts, since, limit }) =>
+    Communication.find({ channel: "EMAIL", status: "FAILED", lastErrorCode: { $in: codes }, attempts: { $lt: maxAttempts }, failedAt: { $gte: since } }).sort({ failedAt: 1 }).limit(limit)
+
+// Take a failed email for retrying, once: two sweeps (or two processes) never send the same one twice.
+export const claimForRetry = (id) =>
+    Communication.findOneAndUpdate({ _id: id, status: "FAILED" }, { $set: { status: "QUEUED", lastRetryAt: new Date() } }, { new: true })

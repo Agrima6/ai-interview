@@ -104,6 +104,7 @@ export const sendAndRecord = async ({ entityType, entityId, channel, eventType, 
         html: finalHtml,
         destinationMasked, provider: providerLabel, status: "QUEUED",
         metadata: metadata || null,
+        fromName: variables?.from_name || variables?.company_name || variables?.organizationName || null,
     })
 
     // Open-tracking pixel - only for real HTML emails, appended after the
@@ -147,6 +148,24 @@ export const sendAndRecord = async ({ entityType, entityId, channel, eventType, 
     }
 }
 
+// Why a send failed, in a form a person can act on and a retry can decide on.
+//  RATE_LIMITED / PROVIDER_ERROR_5XX / NETWORK: temporary: worth trying again.   REJECTED: the provider refused it (bad address, unverified sender...): retrying will not help.
+export const RETRYABLE_CODES = ["RATE_LIMITED", "PROVIDER_5XX", "NETWORK"]
+export const classifyFailure = (error) => {
+    const status = error?.response?.status
+    const data = error?.response?.data
+    const reason = status
+        ? `${status} ${typeof data === "string" ? data : data?.message || data?.error?.message || data?.error || data?.name || JSON.stringify(data || {})}`
+        : `${error?.code || "no response"}: ${error?.message || "unknown error"}`
+    const text = String(error?.message || "")
+    let code = "PROVIDER_ERROR"
+    if (status === 429 || /rate.?limit|too many|quota|exceeded|\b4[0-9]{2}\b.*(limit|quota)/i.test(`${reason} ${text}`)) code = "RATE_LIMITED"
+    else if (status >= 500) code = "PROVIDER_5XX"
+    else if (!status && /ECONNRESET|ETIMEDOUT|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|socket hang up|timeout|timed out|Greeting never received/i.test(`${error?.code} ${text}`)) code = "NETWORK"
+    else if (status >= 400) code = "REJECTED"
+    return { code, reason: reason.replace(/\s+/g, " ").slice(0, 300) }
+}
+
 // Performs the actual provider call + final status update - shared by the
 // synchronous fallback above and the notification-delivery worker
 // (worker.js), which is the normal path once a job is enqueued.
@@ -164,11 +183,13 @@ export const dispatchCommunication = async (communication, { channel, recipient,
             sentAt: sentLike ? new Date() : null,
         })
     } catch (error) {
-        console.error(`[${process.env.SERVICE_NAME}] ${channel} send failed:`, error.message)
+        const { code, reason } = classifyFailure(error)
+        console.error(`[${process.env.SERVICE_NAME}] ${channel} send failed (${code}) to ${communication.destinationMasked}: ${reason}`)
         return await communicationRepo.updateStatus(communication._id, {
             status: "FAILED",
             attempts: communication.attempts + 1,
-            lastErrorCode: "PROVIDER_ERROR",
+            lastErrorCode: code,
+            lastError: reason,
             failedAt: new Date(),
         })
     }
@@ -263,4 +284,33 @@ export const getInviteStatuses = async ({ driveIds, assessmentIds }) => {
         if (record.openedAt && row.status !== "FAILED") row.status = "OPENED"
     }
     return [...rows.values()]
+}
+
+// ---------- retrying temporary failures ----------
+
+const RETRY_MAX_ATTEMPTS = 4
+const RETRY_WINDOW_MS = 6 * 60 * 60 * 1000
+const retryDelayMs = (attempts) => [60 * 1000, 5 * 60 * 1000, 15 * 60 * 1000][Math.min(Math.max(attempts, 1), 3) - 1]
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+/**
+ * Emails that failed for a temporary reason (the provider busy or over its rate limit, a network blip) are sent again, a few times with
+ * growing gaps, so a burst of invitations never leaves some candidates without their email. Emails the provider refused are not retried.
+ * Sends are spaced out so the retry itself does not trip the rate limit again.
+ */
+export const retryFailedEmails = async ({ limit = 10, spacingMs = 700 } = {}) => {
+    const now = Date.now()
+    const due = await communicationRepo.listRetryable({ codes: RETRYABLE_CODES, maxAttempts: RETRY_MAX_ATTEMPTS, since: new Date(now - RETRY_WINDOW_MS), limit })
+    let sent = 0; let tried = 0
+    for (const c of due) {
+        if (c.failedAt && now - new Date(c.failedAt).getTime() < retryDelayMs(c.attempts)) continue
+        const claimed = await communicationRepo.claimForRetry(c._id)
+        if (!claimed) continue
+        tried += 1
+        const html = claimed.html ? `${claimed.html}<img src="${TRACKING_BASE_URL}/track/open/${claimed._id}.gif" width="1" height="1" style="display:none" alt="" />` : null
+        const result = await dispatchCommunication(claimed, { channel: claimed.channel, recipient: claimed.recipient, finalSubject: claimed.subject, finalBody: claimed.body, finalHtml: html, from: claimed.channel === "EMAIL" ? resolveSender(claimed.eventType) : undefined, fromName: claimed.fromName || undefined })
+        if (result?.status && result.status !== "FAILED") sent += 1
+        await pause(spacingMs)
+    }
+    return { tried, sent }
 }
