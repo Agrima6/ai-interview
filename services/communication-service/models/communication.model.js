@@ -17,6 +17,11 @@ const communicationSchema = new mongoose.Schema({
     status: { type: String, enum: ["QUEUED", "SENT", "DELIVERED", "OPENED", "READ", "FAILED", "MOCK_SENT"], default: "QUEUED" },
     attempts: { type: Number, default: 0 },
     lastErrorCode: { type: String, default: null },
+    // The provider's own words for why it failed (short), so a failure can be understood without digging through logs.
+    lastError: { type: String, default: null },
+    lastRetryAt: { type: Date, default: null },
+    // The sender's display name, kept so a retry goes out exactly as the first attempt would have.
+    fromName: { type: String, default: null },
     queuedAt: { type: Date, default: Date.now },
     sentAt: { type: Date, default: null },
     deliveredAt: { type: Date, default: null },
