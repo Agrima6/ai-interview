@@ -497,6 +497,7 @@ test("a test + AI interview drive is billed at the combined price from the first
     const detail = (await get(`/organizations/${String(tN)}?${NOV}`)).data
     assert.deepEqual(detail.organization.uses, { oa: false, ai: false, combo: true })        // one combined drive: not "online test" usage
     assert.equal(detail.organization.combo.candidates, 3)
+    assert.equal(detail.organization.billableCandidates, 3)                                    // three people emailed, counted once each
     assert.equal(detail.organization.amountExGst, 750)                                        // 3 x 250
     assert.equal(detail.organization.rateMissing, false)
     assert.equal(detail.sources.length, 1); assert.equal(detail.sources[0].product, "PACKAGE"); assert.equal(detail.sources[0].title, "Nifco Campus Hiring 2026"); assert.equal(detail.sources[0].amountExGst, 750)
