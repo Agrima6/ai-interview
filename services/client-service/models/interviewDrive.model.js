@@ -29,6 +29,8 @@ const CandidateRosterSchema = new mongoose.Schema({
     batch: { type: String, trim: true, maxlength: 40 },
     malpracticeFlags: { type: Number, default: 0 },
     lastInviteAt: { type: Date, default: null },   // last time an invite email was attempted (re-invite cooldown)
+    // When the invitation email was FIRST accepted for sending. Set once and never moved by a re-send: this is the billing event.
+    invitedAt: { type: Date, default: null },
     // CLOSED: the round ended (HR completed or closed it) before this candidate's interview was conducted.
     status: { type: String, enum: ["INVITED", "SCHEDULED", "SHORTLISTED", "COMPLETED", "REJECTED", "CLOSED"], default: "INVITED" },
     closedAt: { type: Date },

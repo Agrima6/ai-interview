@@ -423,13 +423,23 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx, round = null) 
     const attempted = candidates.filter((c) => c.email).length
     // Remember when this went out so a re-invite can refuse a double-click.
     const invitedIds = candidates.filter((c) => c.email).map((c) => c.id)
+    const roundNumber = round?.roundNumber || 1
     await InterviewDrive.updateOne(
         { _id: drive._id },
         { $set: { "rounds.$[r].candidates.$[c].lastInviteAt": new Date() } },
-        { arrayFilters: [{ "r.roundNumber": round?.roundNumber || 1 }, { "c.id": { $in: invitedIds } }] }
+        { arrayFilters: [{ "r.roundNumber": roundNumber }, { "c.id": { $in: invitedIds } }] }
     ).catch((err) => console.error("[client-service] could not record invite time:", err.message))
+    // Billing counts invitations: once the sends have settled, stamp the first successful one on each candidate, and clear the
+    // double-click guard on the ones that failed so they can be sent again straight away.
+    const recordOutcome = Promise.all(pending).then(async () => {
+        const failedEmails = new Set(failed.map((f) => String(f.email).toLowerCase()))
+        const sentIds = candidates.filter((c) => c.email && !failedEmails.has(String(c.email).toLowerCase())).map((c) => c.id)
+        const failedIds = invitedIds.filter((id) => !sentIds.includes(id))
+        if (sentIds.length) await InterviewDrive.updateOne({ _id: drive._id }, { $set: { "rounds.$[r].candidates.$[c].invitedAt": new Date() } }, { arrayFilters: [{ "r.roundNumber": roundNumber }, { "c.id": { $in: sentIds }, "c.invitedAt": null }] })
+        if (failedIds.length) await InterviewDrive.updateOne({ _id: drive._id }, { $unset: { "rounds.$[r].candidates.$[c].lastInviteAt": "" } }, { arrayFilters: [{ "r.roundNumber": roundNumber }, { "c.id": { $in: failedIds }, "c.invitedAt": null }] })
+    }).catch((err) => console.error("[client-service] could not record the invitation outcome:", err.message))
     if (candidates.length > INVITE_AWAIT_LIMIT) return { attempted, failed: [], pending: true }
-    await Promise.all(pending)
+    await recordOutcome
     return { attempted, failed }
 }
 

@@ -5,18 +5,21 @@ import OrgBilling from "../models/orgBilling.model.js"
 import { OaAccount, OaAssessment, OaAttempt, OaDrive, OaStudent } from "../models/oa.model.js"
 import { ApiError } from "../utils/response.js"
 import { csvEscape } from "../utils/csv.js"
+import { communicationServiceClient } from "../config/internalClients.js"
 
 /**
  * Candidate-wise billing for the platform owner.
  *
  *  Registered      a candidate added to a drive or test during the period (by HR, an upload or self-registration).
  *                  Registrations still waiting for approval, or rejected, are not candidates yet.
- *  Gave interview  the candidate finished, or was ended automatically by proctoring: the moment the platform records an
- *                  attempt as done (an AI interview's attempt date; an online test's submission).
- *  Billable        unique candidates who gave an interview during the period (or every interview round, when an
- *                  organization is set to bill per interview).
- *  Of the registered, those who have since given the interview, are still waiting, missed it (the round closed), or
- *  started and did not finish, so the funnel is always visible next to the money.
+ *  Invited         the invitation email was sent to the candidate (an AI interview candidate's invitedAt; an online test
+ *                  student's invite.firstSentAt). THIS is the billing event: a candidate is billed once their email has gone out,
+ *                  whether or not they ever sit it.
+ *  Billable        unique candidates invited during the period (or every round invited, when an organization is set to bill
+ *                  per round).
+ *  Gave interview  the candidate finished, or was ended automatically by proctoring. Not billed on, but shown: of the
+ *                  registered, those who have since given the interview, are still waiting, missed it (the round closed),
+ *                  or started and did not finish, so the funnel is always visible next to the money.
  *
  * Dates are Indian time (IST), the way the business bills.
  */
@@ -87,8 +90,14 @@ const aiLines = async ({ start, end }, scope) => {
             email: { $toLower: { $ifNull: ["$rounds.candidates.email", ""] } }, name: "$rounds.candidates.name", phone: "$rounds.candidates.phone",
             status: "$rounds.candidates.status", aiScore: "$rounds.candidates.aiScore", flags: { $ifNull: ["$rounds.candidates.malpracticeFlags", 0] },
             attempted: "$rounds.candidates.attemptedDate", agent: { $ifNull: [{ $toString: "$rounds.candidates.agentInterviewId" }, ""] },
-            roundNumber: "$rounds.roundNumber",
+            roundNumber: "$rounds.roundNumber", roundTitle: "$rounds.title", candidateId: "$rounds.candidates.id",
             addedAt: { $ifNull: [{ $toDate: "$rounds.candidates._id" }, "$createdAt"] },
+            // The invitation email: when it was first sent, else (older records) the first round invitation logged on the candidate, else the old "last invited" time.
+            inviteAt: { $min: [
+                "$rounds.candidates.invitedAt",
+                { $min: { $map: { input: { $filter: { input: { $ifNull: ["$rounds.candidates.communications", []] }, as: "c", cond: { $and: [{ $eq: ["$$c.purpose", "INVITATION"] }, { $eq: ["$$c.channel", "EMAIL"] }, { $ne: ["$$c.status", "FAILED"] }] } } }, as: "c", in: "$$c.sentAt" } } },
+                "$rounds.candidates.lastInviteAt",
+            ] },
         } },
         { $group: {
             _id: { t: "$tenantId", d: "$_id", e: "$email" },
@@ -97,26 +106,29 @@ const aiLines = async ({ start, end }, scope) => {
             gaveEver: { $max: { $cond: [has("$attempted"), 1, 0] } },
             closedEver: { $max: { $cond: [{ $eq: ["$status", "CLOSED"] }, 1, 0] } },
             startedEver: { $max: { $cond: [{ $gt: [{ $strLenCP: "$agent" }, 0] }, 1, 0] } },
-            interviewsInPeriod: { $sum: { $cond: [inPeriod("$attempted"), 1, 0] } },
-            firstInPeriod: { $min: { $cond: [inPeriod("$attempted"), "$attempted", null] } },
-            lastInPeriod: { $max: { $cond: [inPeriod("$attempted"), "$attempted", null] } },
-            interviewsTotal: { $sum: { $cond: [has("$attempted"), 1, 0] } },
+            invitesInPeriod: { $sum: { $cond: [inPeriod("$inviteAt"), 1, 0] } },
+            firstInPeriod: { $min: { $cond: [inPeriod("$inviteAt"), "$inviteAt", null] } },
+            lastInPeriod: { $max: { $cond: [inPeriod("$inviteAt"), "$inviteAt", null] } },
+            invitesTotal: { $sum: { $cond: [has("$inviteAt"), 1, 0] } },
+            sentRounds: { $push: { $cond: [has("$inviteAt"), { round: "$roundNumber", title: "$roundTitle", at: "$inviteAt" }, "$$REMOVE"] } },
             bestScore: { $max: { $cond: [has("$attempted"), "$aiScore", null] } },
+            gaveTotal: { $sum: { $cond: [has("$attempted"), 1, 0] } },
+            personIds: { $addToSet: "$candidateId" },
             flags: { $sum: "$flags" },
         } },
-        { $match: { $or: [{ firstAddedAt: { $gte: start, $lte: end } }, { interviewsInPeriod: { $gt: 0 } }] } },
+        { $match: { $or: [{ firstAddedAt: { $gte: start, $lte: end } }, { invitesInPeriod: { $gt: 0 } }] } },
     ]).allowDiskUse(true)
     return rows.map((r) => ({
         key: String(r._id.t), product: "AI_INTERVIEW", sourceId: String(r._id.d), sourceTitle: r.driveTitle || "Interview drive", kind: r.driveKind || "HIRING",
         name: r.name || "", email: r._id.e, phone: r.phone || "",
         registeredAt: r.firstAddedAt, registeredInPeriod: between(r.firstAddedAt, start, end),
-        interviewsInPeriod: r.interviewsInPeriod, firstInterviewAt: r.firstInPeriod, lastInterviewAt: r.lastInPeriod, interviewsTotal: r.interviewsTotal,
+        invitesInPeriod: r.invitesInPeriod, firstInviteAt: r.firstInPeriod, lastInviteAt: r.lastInPeriod, invitesTotal: r.invitesTotal,
+        invitedRounds: (r.sentRounds || []).sort((x, y) => x.round - y.round || new Date(x.at) - new Date(y.at)).map((x) => ({ round: x.round, title: x.title || `Round ${x.round}`, at: x.at, inPeriod: between(x.at, start, end) })),
         outcome: r.gaveEver ? "GAVE" : r.closedEver ? "MISSED" : r.startedEver ? "STARTED_NOT_FINISHED" : "PENDING",
-        score: r.interviewsTotal ? r.bestScore ?? null : null, flags: r.flags || 0,
+        score: r.gaveTotal ? r.bestScore ?? null : null, flags: r.flags || 0, personIds: (r.personIds || []).filter(Boolean).map(String),
     }))
 }
 
-const attemptDate = (a) => a.submittedAt || a.startedAt
 const chunk = (list, n) => { const out = []; for (let i = 0; i < list.length; i += n) out.push(list.slice(i, i + n)); return out }
 
 const oaLines = async ({ start, end }, accountKey, scope) => {
@@ -124,15 +136,15 @@ const oaLines = async ({ start, end }, accountKey, scope) => {
     if (accountIds && !accountIds.length) return []
     const accountFilter = accountIds ? { accountId: { $in: accountIds.map((id) => new mongoose.Types.ObjectId(id)) } } : {}
     const range = { $gte: start, $lte: end }
-    const [created, finished] = await Promise.all([
-        OaStudent.find({ ...accountFilter, createdAt: range }).select("accountId assessmentId name email emailNormalized phone createdAt approval").lean(),
-        OaAttempt.find({ ...accountFilter, status: { $in: FINISHED }, $or: [{ submittedAt: range }, { submittedAt: null, startedAt: range }] }).select("studentId").lean(),
+    const inviteFields = "accountId assessmentId name email emailNormalized phone createdAt approval invite"
+    // Students created in the period, and students whose invitation went out in it (the billing event).
+    const [created, invited] = await Promise.all([
+        OaStudent.find({ ...accountFilter, createdAt: range }).select(inviteFields).lean(),
+        OaStudent.find({ ...accountFilter, $or: [{ "invite.firstSentAt": range }, { "invite.firstSentAt": null, "invite.status": "SENT", "invite.sentAt": range }] }).select(inviteFields).lean(),
     ])
+    const finished = []
     const have = new Set(created.map((s) => String(s._id)))
-    const missing = [...new Set(finished.map((a) => String(a.studentId)))].filter((id) => !have.has(id))
-    const extra = []
-    for (const ids of chunk(missing, 1000)) extra.push(...await OaStudent.find({ _id: { $in: ids } }).select("accountId assessmentId name email emailNormalized phone createdAt approval").lean())
-    const students = [...created, ...extra]
+    const students = [...created, ...invited.filter((s) => !have.has(String(s._id)))]
     if (!students.length) return []
     const attempts = []
     for (const ids of chunk(students.map((s) => s._id), 1000)) attempts.push(...await OaAttempt.find({ studentId: { $in: ids } }).select("studentId status startedAt submittedAt percent violationCount").lean())
@@ -148,19 +160,21 @@ const oaLines = async ({ start, end }, accountKey, scope) => {
         if (!key || s.approval?.status === "REJECTED") continue
         const attempt = byStudent.get(String(s._id))
         const gave = Boolean(attempt) && FINISHED.includes(attempt.status)
-        const when = gave ? attemptDate(attempt) : null
-        const inPeriod = gave && between(when, start, end)
+        // The invitation email: first send, or (older records) the send time of one marked SENT.
+        const invitedAt = s.invite?.firstSentAt || (s.invite?.status === "SENT" ? s.invite.sentAt : null) || null
+        const inPeriod = Boolean(invitedAt) && between(invitedAt, start, end)
         const registeredInPeriod = between(s.createdAt, start, end)
         if (!registeredInPeriod && !inPeriod) continue
         const a = aById.get(String(s.assessmentId))
         const drive = a?.driveId ? dById.get(String(a.driveId)) : null
         const outcome = gave ? "GAVE" : attempt ? "STARTED_NOT_FINISHED" : s.approval?.status === "PENDING" ? "AWAITING_APPROVAL" : "PENDING"
         lines.push({
-            key, product: "ONLINE_ASSESSMENT", sourceId: String(s.assessmentId), sourceTitle: `${drive || a?.title || "Online test"} · Round ${a?.roundNumber || 1}${a?.roundLabel ? ` (${a.roundLabel})` : ""}`, kind: "TEST",
+            key, product: "ONLINE_ASSESSMENT", sourceId: String(s.assessmentId), groupKey: a?.driveId ? `OA|drv:${a.driveId}` : null, groupTitle: drive || null, sourceTitle: `${drive || a?.title || "Online test"} · Round ${a?.roundNumber || 1}${a?.roundLabel ? ` (${a.roundLabel})` : ""}`, kind: "TEST",
             name: s.name, email: s.emailNormalized || String(s.email || "").toLowerCase(), phone: s.phone || "",
             registeredAt: s.createdAt, registeredInPeriod,
-            interviewsInPeriod: inPeriod ? 1 : 0, firstInterviewAt: inPeriod ? when : null, lastInterviewAt: inPeriod ? when : null, interviewsTotal: gave ? 1 : 0,
-            outcome, score: gave ? attempt.percent ?? null : null, flags: attempt?.violationCount || 0,
+            invitesInPeriod: inPeriod ? 1 : 0, firstInviteAt: inPeriod ? invitedAt : null, lastInviteAt: inPeriod ? invitedAt : null, invitesTotal: invitedAt ? 1 : 0,
+            invitedRounds: invitedAt ? [{ round: a?.roundNumber || 1, title: a?.roundLabel || `Round ${a?.roundNumber || 1}`, at: invitedAt, inPeriod }] : [],
+            outcome, score: gave ? attempt.percent ?? null : null, flags: attempt?.violationCount || 0, personIds: [String(s._id)],
         })
     }
     return lines
@@ -236,10 +250,10 @@ const round2 = (n) => Math.round(n * 100) / 100
 
 // ---------- numbers ----------
 
-const emptyStats = () => ({ registered: 0, gave: 0, pending: 0, missed: 0, started: 0, awaiting: 0, interviews: 0, billableCandidates: 0, billableUnits: 0, avgScore: null, flagged: 0 })
+const emptyStats = () => ({ registered: 0, gave: 0, pending: 0, missed: 0, started: 0, awaiting: 0, invites: 0, billableCandidates: 0, billableUnits: 0, avgScore: null, flagged: 0 })
 
 const statsOf = (lines, unit) => {
-    const s = emptyStats(); const gavePeople = new Set(); let scoreSum = 0; let scored = 0
+    const s = emptyStats(); const invitedPeople = new Set(); let scoreSum = 0; let scored = 0
     for (const l of lines) {
         if (l.registeredInPeriod) {
             if (l.outcome === "AWAITING_APPROVAL") s.awaiting += 1
@@ -251,14 +265,14 @@ const statsOf = (lines, unit) => {
                 else s.pending += 1
             }
         }
-        if (l.interviewsInPeriod > 0) {
-            s.interviews += l.interviewsInPeriod; gavePeople.add(l.email)
+        if (l.invitesInPeriod > 0) {
+            s.invites += l.invitesInPeriod; invitedPeople.add(l.email)
             if (l.score !== null && l.score !== undefined) { scoreSum += l.score; scored += 1 }
             if (l.flags > 0) s.flagged += 1
         }
     }
-    s.billableCandidates = gavePeople.size
-    s.billableUnits = unit === "INTERVIEW" ? s.interviews : s.billableCandidates
+    s.billableCandidates = invitedPeople.size
+    s.billableUnits = unit === "INTERVIEW" ? s.invites : s.billableCandidates
     s.avgScore = scored ? round2(scoreSum / scored) : null
     return s
 }
@@ -298,11 +312,11 @@ const comboOf = (lines, card, uses, aiStats, oaStats) => {
     const none = { candidates: 0, aiUnits: 0, oaUnits: 0 }
     // A client that only ever created combined drives is sold ONE package: everyone who gave any part of it is billed the package price once.
     if (uses && uses.combo && !uses.oa && !uses.ai) {
-        const people = new Set(lines.filter((l) => l.interviewsInPeriod > 0).map((l) => l.email))
+        const people = new Set(lines.filter((l) => l.invitesInPeriod > 0).map((l) => l.email))
         return { candidates: people.size, aiUnits: aiStats.billableUnits, oaUnits: oaStats.billableUnits }
     }
     if (!(card.comboRate > 0)) return none
-    const perPerson = (pred) => { const m = new Map(); for (const l of lines) if (l.interviewsInPeriod > 0 && pred(l)) m.set(l.email, (m.get(l.email) || 0) + l.interviewsInPeriod); return m }
+    const perPerson = (pred) => { const m = new Map(); for (const l of lines) if (l.invitesInPeriod > 0 && pred(l)) m.set(l.email, (m.get(l.email) || 0) + l.invitesInPeriod); return m }
     const ai = perPerson((l) => l.product === "AI_INTERVIEW" && l.linkedToTest)
     const oa = perPerson((l) => l.product === "ONLINE_ASSESSMENT")
     const both = [...ai.keys()].filter((e) => oa.has(e))
@@ -329,7 +343,7 @@ const orgRow = (org, lines, card, uses = null) => {
     return {
         key: org.key, name: org.name, kind: org.kind, status: org.status, contactName: org.contactName, email: org.email, phone: org.phone, since: org.since,
         ai, oa, registered, gaveOfRegistered: gave, pending: ai.pending + oa.pending, missed: ai.missed + oa.missed, startedNotFinished: ai.started + oa.started, awaitingApproval: ai.awaiting + oa.awaiting,
-        conversionPercent: pct(gave, registered), interviews: ai.interviews + oa.interviews,
+        conversionPercent: pct(gave, registered), invites: ai.invites + oa.invites,
         billableCandidates: ai.billableCandidates + oa.billableCandidates - combo.candidates, billableUnits: aiBilled + oaBilled + combo.candidates,
         combo: { candidates: combo.candidates, rate: card.comboRate, amount: comboAmount },
         uses: usesOf(uses, ai, oa, combo), aiBilledUnits: aiBilled, oaBilledUnits: oaBilled,
@@ -350,28 +364,30 @@ const trendFor = async (period, dir, docs, product) => {
     for (let i = 5; i >= 0; i -= 1) { const d = new Date(Date.UTC(y, m - 1 - i, 1)); months.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`) }
     const first = months[0]
     const windowStart = dayStart(`${first}-01`); const windowEnd = period.end
-    const buckets = new Map()     // `${month}|${key}|${product}` -> { people:Set, interviews }
-    const add = (month, key, prod, email, n) => { if (!months.includes(month)) return; const id = `${month}|${key}|${prod}`; if (!buckets.has(id)) buckets.set(id, { people: new Set(), interviews: 0 }); const b = buckets.get(id); b.people.add(email); b.interviews += n }
+    const buckets = new Map()     // `${month}|${key}|${product}` -> { people:Set, invites }
+    const add = (month, key, prod, email, n) => { if (!months.includes(month)) return; const id = `${month}|${key}|${prod}`; if (!buckets.has(id)) buckets.set(id, { people: new Set(), invites: 0 }); const b = buckets.get(id); b.people.add(email); b.invites += n }
     if (!product || product === "AI_INTERVIEW") {
+        const inviteAt = { $min: ["$rounds.candidates.invitedAt", { $min: { $map: { input: { $filter: { input: { $ifNull: ["$rounds.candidates.communications", []] }, as: "c", cond: { $and: [{ $eq: ["$$c.purpose", "INVITATION"] }, { $eq: ["$$c.channel", "EMAIL"] }, { $ne: ["$$c.status", "FAILED"] }] } } }, as: "c", in: "$$c.sentAt" } } }, "$rounds.candidates.lastInviteAt"] }
         const rows = await InterviewDrive.aggregate([
             { $unwind: "$rounds" }, { $unwind: "$rounds.candidates" },
-            { $match: { "rounds.candidates.demoAlwaysLive": { $ne: true }, "rounds.candidates.attemptedDate": { $gte: windowStart, $lte: windowEnd } } },
-            { $group: { _id: { t: "$tenantId", e: { $toLower: { $ifNull: ["$rounds.candidates.email", ""] } }, m: { $dateToString: { format: "%Y-%m", date: "$rounds.candidates.attemptedDate", timezone: "Asia/Kolkata" } } }, n: { $sum: 1 } } },
+            { $match: { "rounds.candidates.demoAlwaysLive": { $ne: true } } },
+            { $addFields: { inviteAt } },
+            { $match: { inviteAt: { $gte: windowStart, $lte: windowEnd } } },
+            { $group: { _id: { t: "$tenantId", e: { $toLower: { $ifNull: ["$rounds.candidates.email", ""] } }, m: { $dateToString: { format: "%Y-%m", date: "$inviteAt", timezone: "Asia/Kolkata" } } }, n: { $sum: 1 } } },
         ]).allowDiskUse(true)
         for (const r of rows) add(r._id.m, String(r._id.t), "AI_INTERVIEW", r._id.e, r.n)
     }
     if (!product || product === "ONLINE_ASSESSMENT") {
         const { accountKey } = await loadDirectory()
-        const attempts = await OaAttempt.find({ status: { $in: FINISHED }, $or: [{ submittedAt: { $gte: windowStart, $lte: windowEnd } }, { submittedAt: null, startedAt: { $gte: windowStart, $lte: windowEnd } }] }).select("studentId accountId startedAt submittedAt").lean()
-        const emails = new Map()
-        for (const ids of chunk([...new Set(attempts.map((a) => String(a.studentId)))], 1000)) for (const s of await OaStudent.find({ _id: { $in: ids } }).select("emailNormalized email").lean()) emails.set(String(s._id), s.emailNormalized || String(s.email || "").toLowerCase())
-        for (const a of attempts) { const key = accountKey.get(String(a.accountId)); if (key) add(monthOf(attemptDate(a)), key, "ONLINE_ASSESSMENT", emails.get(String(a.studentId)) || String(a.studentId), 1) }
+        const range = { $gte: windowStart, $lte: windowEnd }
+        const students = await OaStudent.find({ $or: [{ "invite.firstSentAt": range }, { "invite.firstSentAt": null, "invite.status": "SENT", "invite.sentAt": range }] }).select("accountId emailNormalized email invite").lean()
+        for (const st of students) { const key = accountKey.get(String(st.accountId)); const at = st.invite?.firstSentAt || st.invite?.sentAt; if (key && at) add(monthOf(at), key, "ONLINE_ASSESSMENT", st.emailNormalized || String(st.email || "").toLowerCase(), 1) }
     }
     return months.map((month) => {
-        let candidates = 0; let interviews = 0; let amount = 0
+        let candidates = 0; let invites = 0; let amount = 0
         const perKey = new Map()
-        for (const [id, b] of buckets) { const [mo, key, prod] = id.split("|"); if (mo !== month) continue; const card = cardOf(docs, key); const units = card.unit === "INTERVIEW" ? b.interviews : b.people.size; candidates += b.people.size; interviews += b.interviews; amount += units * (prod === "AI_INTERVIEW" ? card.aiRate : card.oaRate); perKey.set(key, true) }
-        return { month, candidates, interviews, amountExGst: round2(amount), organizations: perKey.size }
+        for (const [id, b] of buckets) { const [mo, key, prod] = id.split("|"); if (mo !== month) continue; const card = cardOf(docs, key); const units = card.unit === "INTERVIEW" ? b.invites : b.people.size; candidates += b.people.size; invites += b.invites; amount += units * (prod === "AI_INTERVIEW" ? card.aiRate : card.oaRate); perKey.set(key, true) }
+        return { month, candidates, invites, amountExGst: round2(amount), organizations: perKey.size }
     })
 }
 
@@ -395,7 +411,7 @@ export const getSummary = async (query = {}) => {
     const totals = {
         organizations: organizations.length,
         registered: sum((o) => o.registered), gaveOfRegistered: sum((o) => o.gaveOfRegistered), pending: sum((o) => o.pending), missed: sum((o) => o.missed),
-        startedNotFinished: sum((o) => o.startedNotFinished), awaitingApproval: sum((o) => o.awaitingApproval), interviews: sum((o) => o.interviews),
+        startedNotFinished: sum((o) => o.startedNotFinished), awaitingApproval: sum((o) => o.awaitingApproval), invites: sum((o) => o.invites),
         billableCandidates: sum((o) => o.billableCandidates), billableUnits: sum((o) => o.billableUnits),
         amountExGst: round2(sum((o) => o.amountExGst)), gstAmount: round2(sum((o) => o.gstAmount)), total: round2(sum((o) => o.total)),
         aiAmount: round2(sum((o) => o.aiAmount)), oaAmount: round2(sum((o) => o.oaAmount)), comboAmount: round2(sum((o) => o.comboAmount)), comboCandidates: sum((o) => o.combo.candidates),
@@ -407,6 +423,42 @@ export const getSummary = async (query = {}) => {
     return { period: { from: period.from, to: period.to }, product: product || "ALL", totals, organizations, trend: await trendFor(period, dir, docs, product), defaults: { ...defaults.custom, unit: docs.defaults?.unit ?? FALLBACK.unit, gstPercent: docs.defaults?.gstPercent ?? FALLBACK.gstPercent, aiRate: docs.defaults?.aiRate ?? null, oaRate: docs.defaults?.oaRate ?? null, comboRate: docs.defaults?.comboRate ?? null } }
 }
 
+
+/**
+ * One row per drive (a combined test + AI drive is one), with what it costs and the rounds inside it. A drive's amount is what
+ * the invoice grows by when the drive's candidates are added, in order of first invitation: so the drives always add up to the
+ * invoice exactly, even where a person is billed once across several drives or a combined rate applies.
+ */
+const driveBreakdown = (org, lines, card, uses) => {
+    const bySource = new Map()
+    for (const l of lines) { const id = l.packageKey || l.groupKey || `${l.product}|${l.sourceId}`; if (!bySource.has(id)) bySource.set(id, { product: l.packageKey ? "PACKAGE" : l.product, sourceId: l.packageKey || l.groupKey || l.sourceId, title: l.packageTitle || l.groupTitle || l.sourceTitle, lines: [] }); bySource.get(id).lines.push(l) }
+    const firstInvite = (g) => g.lines.reduce((min, l) => (l.firstInviteAt && new Date(l.firstInviteAt) < min ? new Date(l.firstInviteAt) : min), new Date(8.64e15))
+    const ordered = [...bySource.values()].sort((a, b) => firstInvite(a) - firstInvite(b))
+    const seen = []
+    let before = 0
+    const out = []
+    for (const g of ordered) {
+        seen.push(...g.lines)
+        const total = orgRow(org, seen, card, uses).amountExGst
+        const stats = statsOf(mergeByPerson(g.lines), card.unit)
+        // The rounds: how many invitations went out in each (by person, so a combined drive's two parts do not double count).
+        const rounds = new Map()
+        for (const l of g.lines) for (const r of l.invitedRounds || []) {
+            if (!r.inPeriod) continue
+            if (!rounds.has(r.round)) rounds.set(r.round, { round: r.round, title: r.title, invites: 0, people: new Set() })
+            const entry = rounds.get(r.round); entry.invites += 1; entry.people.add(l.email)
+        }
+        const roundRows = [...rounds.values()].sort((a, b) => a.round - b.round).map((r) => ({
+            round: r.round, title: r.title, invites: r.invites, candidates: r.people.size,
+            // Only when billed per round does a round have its own price; otherwise the candidate is billed once for the drive.
+            amountExGst: card.unit === "INTERVIEW" && g.product !== "PACKAGE" ? round2(r.invites * (g.product === "AI_INTERVIEW" ? card.aiRate : card.oaRate)) : null,
+        }))
+        out.push({ product: g.product, sourceId: g.sourceId, title: g.title, ...stats, amountExGst: round2(total - before), rounds: roundRows })
+        before = total
+    }
+    return out.sort((a, b) => b.amountExGst - a.amountExGst || b.invites - a.invites || b.registered - a.registered)
+}
+
 export const getOrganization = async (key, query = {}) => {
     checkKey(key); const period = resolvePeriod(query); const product = checkProduct(query.product)
     const docs = await loadRateDocs()
@@ -414,10 +466,8 @@ export const getOrganization = async (key, query = {}) => {
     const org = orgFor(dir, key)
     if (!dir.has(key)) throw new ApiError(404, "NOT_FOUND", "Organization not found.")
     const card = cardOf(docs, key)
-    const bySource = new Map()
-    for (const l of lines) { const id = l.packageKey || `${l.product}|${l.sourceId}`; if (!bySource.has(id)) bySource.set(id, { product: l.packageKey ? "PACKAGE" : l.product, sourceId: l.packageKey || l.sourceId, title: l.packageTitle || l.sourceTitle, lines: [] }); bySource.get(id).lines.push(l) }
-    const sources = [...bySource.values()].map((g) => ({ product: g.product, sourceId: g.sourceId, title: g.title, ...statsOf(g.product === "PACKAGE" ? mergeByPerson(g.lines) : g.lines, card.unit) })).sort((a, b) => b.interviews - a.interviews || b.registered - a.registered)
     const usage = await loadUsage(dir)
+    const sources = driveBreakdown(org, lines, card, usage.get(key))
     return { period: { from: period.from, to: period.to }, organization: orgRow(org, lines, card, usage.get(key)), rates: { aiRate: card.aiRate, oaRate: card.oaRate, comboRate: card.comboRate, gstPercent: card.gstPercent, unit: card.unit, custom: card.custom, notes: card.notes, defaults: { aiRate: docs.defaults?.aiRate ?? null, oaRate: docs.defaults?.oaRate ?? null, comboRate: docs.defaults?.comboRate ?? null, gstPercent: docs.defaults?.gstPercent ?? FALLBACK.gstPercent, unit: docs.defaults?.unit ?? FALLBACK.unit } }, sources }
 }
 
@@ -429,7 +479,9 @@ const mergeByPerson = (lines) => {
         const p = people.get(l.email)
         if (!p) { people.set(l.email, { ...l }); continue }
         p.registeredInPeriod = p.registeredInPeriod || l.registeredInPeriod
-        p.interviewsInPeriod += l.interviewsInPeriod
+        p.invitesInPeriod += l.invitesInPeriod
+        p.invitedRounds = [...(p.invitedRounds || []), ...(l.invitedRounds || [])]
+        p.personIds = [...(p.personIds || []), ...(l.personIds || [])]
         if (OUTCOME_RANK.indexOf(l.outcome) < OUTCOME_RANK.indexOf(p.outcome)) p.outcome = l.outcome
         if (l.score !== null && l.score !== undefined) p.score = Math.max(p.score ?? 0, l.score)
     }
@@ -438,12 +490,12 @@ const mergeByPerson = (lines) => {
 
 const annotateUnits = (lines, unit) => {
     const seen = new Set()
-    const order = [...lines].sort((a, b) => new Date(a.firstInterviewAt || 8.64e15) - new Date(b.firstInterviewAt || 8.64e15))
+    const order = [...lines].sort((a, b) => new Date(a.firstInviteAt || 8.64e15) - new Date(b.firstInviteAt || 8.64e15))
     const units = new Map()
     for (const l of order) {
-        if (unit === "INTERVIEW") { units.set(l, l.interviewsInPeriod); continue }
+        if (unit === "INTERVIEW") { units.set(l, l.invitesInPeriod); continue }
         const id = `${l.packageKey || l.product}|${l.email}`        // a combined drive bills a person once, not once per part
-        if (l.interviewsInPeriod > 0 && !seen.has(id)) { seen.add(id); units.set(l, 1) } else units.set(l, 0)
+        if (l.invitesInPeriod > 0 && !seen.has(id)) { seen.add(id); units.set(l, 1) } else units.set(l, 0)
     }
     return lines.map((l) => ({ ...l, units: units.get(l) || 0 }))
 }
@@ -457,11 +509,43 @@ const detailLines = async (key, query) => {
     const { dir, lines } = await collectLines(period, { product, key })
     if (!dir.has(key)) throw new ApiError(404, "NOT_FOUND", "Organization not found.")
     const card = cardOf(docs, key)
-    return { period, org: orgFor(dir, key), card, lines: annotateUnits(lines, card.unit) }
+    const uses = (await loadUsage(dir)).get(key)
+    return { period, org: orgFor(dir, key), card, uses, lines: annotateUnits(lines, card.unit) }
+}
+
+const MAIL_BATCH = 400
+
+/**
+ * Whether each line's invitation email went out and was opened, read from the communication service. A mail outage never breaks
+ * billing: the lines just carry mail: null and the page shows a dash.
+ */
+const attachMail = async (lines) => {
+    const driveIds = [...new Set(lines.filter((l) => l.product === "AI_INTERVIEW").map((l) => l.sourceId))]
+    const assessmentIds = [...new Set(lines.filter((l) => l.product === "ONLINE_ASSESSMENT").map((l) => l.sourceId))]
+    const rows = []
+    try {
+        for (let i = 0; i < Math.max(Math.ceil(driveIds.length / MAIL_BATCH), Math.ceil(assessmentIds.length / MAIL_BATCH), 1); i += 1) {
+            const batch = { driveIds: driveIds.slice(i * MAIL_BATCH, (i + 1) * MAIL_BATCH), assessmentIds: assessmentIds.slice(i * MAIL_BATCH, (i + 1) * MAIL_BATCH) }
+            if (!batch.driveIds.length && !batch.assessmentIds.length) break
+            rows.push(...((await communicationServiceClient.getInviteStatuses(batch)) || []))
+        }
+    } catch (error) {
+        console.error("[client-service] billing: invite status lookup failed:", error.message)
+        return lines.map((l) => ({ ...l, mail: null }))
+    }
+    const byKey = new Map()
+    for (const r of rows) { const k = `${r.sourceId}|${r.personId}`; byKey.set(k, [...(byKey.get(k) || []), r]) }
+    return lines.map((l) => {
+        const mine = (l.personIds || []).flatMap((id) => byKey.get(`${l.sourceId}|${id}`) || [])
+        if (!mine.length) return { ...l, mail: null }
+        const newest = [...mine].sort((a, b) => new Date(b.sentAt || 0) - new Date(a.sentAt || 0))[0]
+        const opened = mine.map((m) => m.openedAt).filter(Boolean).sort((a, b) => new Date(a) - new Date(b))[0] || null
+        return { ...l, mail: { status: opened ? "OPENED" : newest.status, sentAt: newest.sentAt || null, openedAt: opened } }
+    })
 }
 
 export const listLines = async (key, query = {}) => {
-    const { lines } = await detailLines(key, query)
+    const { lines, org, card, uses } = await detailLines(key, query)
     const term = String(query.search || "").trim().toLowerCase().slice(0, 80)
     const outcome = ["GAVE", "PENDING", "MISSED", "STARTED_NOT_FINISHED", "AWAITING_APPROVAL"].includes(query.outcome) ? query.outcome : null
     let rows = lines
@@ -469,33 +553,42 @@ export const listLines = async (key, query = {}) => {
     if (query.billable === "1") rows = rows.filter((l) => l.units > 0)
     if (term) rows = rows.filter((l) => `${l.name} ${l.email} ${l.phone} ${l.sourceTitle} ${l.packageTitle || ""}`.toLowerCase().includes(term))
     const latest = new Map()
-    for (const l of rows) { const t = new Date(l.lastInterviewAt || l.registeredAt || 0).getTime(); latest.set(l.email, Math.max(latest.get(l.email) || 0, t)) }
+    for (const l of rows) { const t = new Date(l.lastInviteAt || l.registeredAt || 0).getTime(); latest.set(l.email, Math.max(latest.get(l.email) || 0, t)) }
     const partOrder = (l) => (l.part === "AI interview" ? 1 : 0)
     // newest person first; each person's parts stay together, the test before the AI interview
     rows.sort((a, b) => latest.get(b.email) - latest.get(a.email) || a.email.localeCompare(b.email) || partOrder(a) - partOrder(b))
     const pageSize = [10, 25, 50, 100].includes(Number(query.pageSize)) ? Number(query.pageSize) : 25
     const page = Math.max(1, Number(query.page) || 1)
     if (query.view === "people") {
-        // One row per person, with every drive or test they took underneath it.
+        // One row per person, with every drive or test they were invited to underneath it, and what that person adds to the invoice.
         const people = new Map()
         for (const l of rows) {
             const id = String(l.email || "").toLowerCase()
-            if (!people.has(id)) people.set(id, { name: l.name, email: l.email, phone: l.phone, lastAt: null, units: 0, items: [] })
+            if (!people.has(id)) people.set(id, { name: l.name, email: l.email, phone: l.phone, lastAt: null, units: 0, lines: [] })
             const p = people.get(id)
-            p.items.push(lineView(l)); p.units += l.units || 0
-            const t = l.lastInterviewAt || l.registeredAt
+            p.lines.push(l); p.units += l.units || 0
+            const t = l.lastInviteAt || l.registeredAt
             if (t && (!p.lastAt || new Date(t) > new Date(p.lastAt))) p.lastAt = t
         }
         const all = [...people.values()]
-        return { items: all.slice((page - 1) * pageSize, page * pageSize), total: all.length, page, pageSize }
+        const pageRows = all.slice((page - 1) * pageSize, page * pageSize)
+        const withMail = await attachMail(pageRows.flatMap((p) => p.lines))
+        const mailOf = new Map(withMail.map((l) => [`${l.sourceId}|${l.email}`, l.mail]))
+        const items = pageRows.map((p) => ({
+            name: p.name, email: p.email, phone: p.phone, lastAt: p.lastAt, units: p.units,
+            amountExGst: orgRow(org, p.lines, card, uses).amountExGst,
+            items: p.lines.map((l) => lineView({ ...l, mail: mailOf.get(`${l.sourceId}|${l.email}`) ?? null })),
+        }))
+        return { items, total: all.length, page, pageSize }
     }
-    return { items: rows.slice((page - 1) * pageSize, page * pageSize).map(lineView), total: rows.length, page, pageSize }
+    const pageLines = rows.slice((page - 1) * pageSize, page * pageSize)
+    return { items: (await attachMail(pageLines)).map(lineView), total: rows.length, page, pageSize }
 }
 
 const lineView = (l) => ({
-    product: l.packageKey ? "PACKAGE" : l.product, part: l.part || null, source: l.packageTitle || l.sourceTitle, name: l.name, email: l.email, phone: l.phone,
-    registeredAt: l.registeredAt, registeredInPeriod: l.registeredInPeriod, interviewedAt: l.lastInterviewAt, interviewsInPeriod: l.interviewsInPeriod,
-    outcome: l.outcome, score: l.score, flags: l.flags, units: l.units,
+    product: l.packageKey ? "PACKAGE" : l.product, part: l.part || null, source: l.packageTitle || l.groupTitle || l.sourceTitle, name: l.name, email: l.email, phone: l.phone,
+    registeredAt: l.registeredAt, registeredInPeriod: l.registeredInPeriod, invitedAt: l.firstInviteAt, invitesInPeriod: l.invitesInPeriod, invitedRounds: l.invitedRounds || [],
+    outcome: l.outcome, score: l.score, flags: l.flags, units: l.units, mail: l.mail ?? null,
 })
 
 // ---------- rate cards: read and change ----------
@@ -540,23 +633,50 @@ const toCsv = (rows) => `﻿${rows.map((r) => r.map((c) => csvEscape(c)).join(",
 
 export const exportSummaryCsv = async (query = {}) => {
     const s = await getSummary(query)
-    const head = ["Organization", "Type", "Status", "Contact", "Contact email", "Contact phone", "Registered", "Gave the interview", "Not yet", "Missed", "Started, not finished", "Conversion %", "Interview rounds", "AI billable", "Online test billable", "Billing unit", "Billable units", "AI rate (INR)", "Online test rate (INR)", "Online test + AI rate (INR)", "Online test + AI candidates", "Amount excl. GST (INR)", "GST %", "GST (INR)", "Total (INR)"]
+    const head = ["Organization", "Type", "Status", "Contact", "Contact email", "Contact phone", "Registered", "Gave the interview", "Not yet", "Missed", "Started, not finished", "Conversion %", "Invitations sent", "AI billable", "Online test billable", "Billing unit", "Billable units", "AI rate (INR)", "Online test rate (INR)", "Online test + AI rate (INR)", "Online test + AI candidates", "Amount excl. GST (INR)", "GST %", "GST (INR)", "Total (INR)"]
     const rows = [[`Billing ${s.period.from} to ${s.period.to}`], head]
-    for (const o of s.organizations) rows.push([text(o.name), KIND_LABEL[o.kind] || o.kind, o.status, text(o.contactName), text(o.email), text(o.phone), o.registered, o.gaveOfRegistered, o.pending, o.missed, o.startedNotFinished, o.conversionPercent, o.interviews, o.ai.billableCandidates, o.oa.billableCandidates, o.unit === "INTERVIEW" ? "Per interview" : "Per candidate", o.billableUnits, o.aiRate, o.oaRate, o.comboRate, o.combo.candidates, o.amountExGst, o.gstPercent, o.gstAmount, o.total])
+    for (const o of s.organizations) rows.push([text(o.name), KIND_LABEL[o.kind] || o.kind, o.status, text(o.contactName), text(o.email), text(o.phone), o.registered, o.gaveOfRegistered, o.pending, o.missed, o.startedNotFinished, o.conversionPercent, o.invites, o.ai.billableCandidates, o.oa.billableCandidates, o.unit === "INTERVIEW" ? "Per round" : "Per candidate", o.billableUnits, o.aiRate, o.oaRate, o.comboRate, o.combo.candidates, o.amountExGst, o.gstPercent, o.gstAmount, o.total])
     const t = s.totals
-    rows.push(["TOTAL", "", "", "", "", "", t.registered, t.gaveOfRegistered, t.pending, t.missed, t.startedNotFinished, t.conversionPercent, t.interviews, t.aiBillable, t.oaBillable, "", t.billableUnits, "", "", t.amountExGst, "", t.gstAmount, t.total])
+    rows.push(["TOTAL", "", "", "", "", "", t.registered, t.gaveOfRegistered, t.pending, t.missed, t.startedNotFinished, t.conversionPercent, t.invites, t.aiBillable, t.oaBillable, "", t.billableUnits, "", "", t.amountExGst, "", t.gstAmount, t.total])
     return { filename: `billing-${s.period.from}-to-${s.period.to}.csv`, csv: toCsv(rows) }
 }
 
+const MAIL_LABEL = { QUEUED: "Queued", SENT: "Sent", DELIVERED: "Delivered", OPENED: "Opened", READ: "Opened", FAILED: "Failed", MOCK_SENT: "Sent" }
+const mailText = (mail) => (mail ? MAIL_LABEL[mail.status] || mail.status : "Sent")
+const fileName = (org, what, period) => `${org.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "organization"}-${what}-${period.from}-to-${period.to}.csv`
+const unitLine = (card) => `Billing unit: ${card.unit === "INTERVIEW" ? "per round (every round a candidate is invited to counts)" : "per candidate (each person once)"}. Billed when the invitation email is sent. AI interview rate ${card.aiRate} INR, online test rate ${card.oaRate} INR, online test + AI rate ${card.comboRate} INR, GST ${card.gstPercent}%`
+
+/** view=drives: one row per drive with its rounds underneath. view=candidates (default): one row per candidate. */
 export const exportOrganizationCsv = async (key, query = {}) => {
-    const { period, org, card, lines } = await detailLines(key, query)
-    const sorted = [...lines].sort((a, b) => new Date(a.registeredAt || 0) - new Date(b.registeredAt || 0))
-    const head = ["#", "Product", "Drive / test", "Candidate", "Email", "Phone", "Registered on", "Interviewed on", "Interview rounds in period", "Status", "Score", "Proctoring flags", "Billing units"]
-    const rows = [[`${org.name}: billing annexure ${period.from} to ${period.to}`], [`Billing unit: ${card.unit === "INTERVIEW" ? "per interview round" : "per candidate (each person once)"}. AI rate ${card.aiRate} INR, online test rate ${card.oaRate} INR, GST ${card.gstPercent}%`], head]
-    sorted.forEach((l, i) => rows.push([i + 1, l.packageKey ? `Online test + AI interview (${l.part})` : PRODUCT_LABEL[l.product], text(l.packageTitle || l.sourceTitle), text(l.name), text(l.email), text(l.phone), when(l.registeredAt), when(l.lastInterviewAt), l.interviewsInPeriod, OUTCOME_LABEL[l.outcome], l.score ?? "", l.flags, l.units]))
-    const units = sorted.reduce((s, l) => s + l.units, 0)
-    rows.push(["", "", "", "", "", "", "", "", "", "", "", "Total billing units", units])
-    return { filename: `${org.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "organization"}-annexure-${period.from}-to-${period.to}.csv`, csv: toCsv(rows) }
+    const { period, org, card, uses, lines } = await detailLines(key, query)
+    if (query.view === "drives") {
+        const sources = driveBreakdown(org, lines, card, uses)
+        const head = ["Drive / test", "Type", "Round", "Candidates invited", "Invitations sent", "Registered", "Gave the interview", "Not yet", "Missed", "Amount excl. GST (INR)"]
+        const rows = [[`${org.name}: billing by drive ${period.from} to ${period.to}`], [unitLine(card)], head]
+        for (const d of sources) {
+            rows.push([text(d.title), d.product === "PACKAGE" ? "Online test + AI interview" : PRODUCT_LABEL[d.product], "All rounds", d.billableCandidates, d.invites, d.registered, d.gave, d.pending + d.started, d.missed, d.amountExGst])
+            for (const r of d.rounds) rows.push(["", "", text(r.title), r.candidates, r.invites, "", "", "", "", r.amountExGst ?? ""])
+        }
+        const total = sources.reduce((n, d) => n + d.amountExGst, 0)
+        rows.push(["TOTAL", "", "", "", sources.reduce((n, d) => n + d.invites, 0), "", "", "", "", round2(total)])
+        return { filename: fileName(org, "billing-by-drive", period), csv: toCsv(rows) }
+    }
+    const withMail = await attachMail(lines)
+    const people = new Map()
+    for (const l of withMail) { const id = l.email; if (!people.has(id)) people.set(id, []); people.get(id).push(l) }
+    const sorted = [...people.values()].sort((a, b) => (a[0].name || "").localeCompare(b[0].name || ""))
+    const head = ["#", "Candidate", "Email", "Phone", "Drives / tests invited to", "Rounds invited", "First invited on", "Invitation email", "Opened on", "Gave the interview", "Billing units", "Amount excl. GST (INR)"]
+    const rows = [[`${org.name}: billing by candidate ${period.from} to ${period.to}`], [unitLine(card)], head]
+    sorted.forEach((ls, i) => {
+        const first = ls.map((l) => l.firstInviteAt).filter(Boolean).sort((a, b) => new Date(a) - new Date(b))[0]
+        const opened = ls.map((l) => l.mail?.openedAt).filter(Boolean).sort((a, b) => new Date(a) - new Date(b))[0]
+        const invited = ls.filter((l) => l.invitesInPeriod > 0)
+        const status = invited.length ? (opened ? "Opened" : mailText(invited[0].mail)) : "Not invited in this period"
+        rows.push([i + 1, text(ls[0].name), text(ls[0].email), text(ls[0].phone), text([...new Set(ls.map((l) => l.packageTitle || l.groupTitle || l.sourceTitle))].join("; ")), text(ls.flatMap((l) => (l.invitedRounds || []).filter((r) => r.inPeriod).map((r) => r.title)).join("; ")), when(first), status, when(opened), ls.some((l) => l.outcome === "GAVE") ? "Yes" : "No", ls.reduce((n, l) => n + (l.units || 0), 0), orgRow(org, ls, card, uses).amountExGst])
+    })
+    const units = lines.reduce((n, l) => n + l.units, 0)
+    rows.push(["", "", "", "", "", "", "", "", "", "Total", units, orgRow(org, lines, card, uses).amountExGst])
+    return { filename: fileName(org, "billing-by-candidate", period), csv: toCsv(rows) }
 }
 
 // ---------- an organization's own view: what it is billed, read-only ----------

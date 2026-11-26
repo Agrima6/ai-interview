@@ -21,6 +21,12 @@ export const communicationServiceClient = {
             params: { eventType },
             ...ctxHeaders(ctx),
         }),
+    // Whether each invitation email went out and was opened, for a set of AI-interview drives and online-test assessments.
+    getInviteStatuses: (payload, ctx) =>
+        client.post(`${process.env.COMMUNICATION_SERVICE_URL}/internal/v1/communications/invite-statuses`, payload, {
+            apiKey: process.env.COMMUNICATION_SERVICE_API_KEY,
+            ...ctxHeaders(ctx),
+        }),
 }
 
 // Creates (or re-links) a candidate's login account after they submit a

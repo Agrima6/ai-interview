@@ -159,6 +159,8 @@ const studentSchema = new Schema({
     invite: {
         status: { type: String, enum: ["NOT_SENT", "SENT", "FAILED"], default: "NOT_SENT" },
         sentAt: { type: Date, default: null },
+        // The first time the invitation went out. A re-send moves sentAt but never this: it is the billing event.
+        firstSentAt: { type: Date, default: null },
         error: { type: String, default: null },
     },
 }, { timestamps: true })

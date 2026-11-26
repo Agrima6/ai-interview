@@ -23,4 +23,11 @@ router.get(
     communicationController.getInviteStatusForDrive
 )
 
+router.post(
+    "/internal/v1/communications/invite-statuses",
+    authenticateService,
+    requireServicePermission("COMMUNICATION_READ"),
+    communicationController.getInviteStatuses
+)
+
 export default router

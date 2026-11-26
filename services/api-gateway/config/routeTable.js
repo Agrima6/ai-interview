@@ -1,6 +1,9 @@
 // Path-prefix -> upstream service. The browser only ever talks to this
 // gateway; it never learns a service's real host/port.
 export const routeTable = [
+    // The invisible pixel in each invitation email, loaded by the recipient's mail app: it records "opened". Public by nature.
+    // Set PUBLIC_BASE_URL (communication-service) to this gateway's public address so the pixel in the email points here.
+    { prefix: "/track", target: process.env.COMMUNICATION_SERVICE_URL },
     { prefix: "/api/v1/auth", target: process.env.AUTH_SERVICE_URL },
     { prefix: "/api/v1/me", target: process.env.AUTH_SERVICE_URL },
     { prefix: "/api/v1/registration-types", target: process.env.REGISTRATION_SERVICE_URL },

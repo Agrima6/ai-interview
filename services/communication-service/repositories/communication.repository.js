@@ -26,3 +26,11 @@ export const markOpened = async (id) => {
     if (Object.keys(patch).length === 0) return communication
     return Communication.findByIdAndUpdate(id, patch, { new: true })
 }
+
+// Every invitation email tagged with one of these drives (AI interviews) or assessments (online tests), newest first. Capped:
+// a billing page asks about a few hundred people at a time, not the whole history.
+export const listInvites = ({ driveIds = [], assessmentIds = [] }, limit = 20000) =>
+    Communication.find({ $or: [
+        ...(driveIds.length ? [{ "metadata.driveId": { $in: driveIds }, eventType: "CANDIDATE_INVITE" }] : []),
+        ...(assessmentIds.length ? [{ "metadata.assessmentId": { $in: assessmentIds }, eventType: "OA_INVITE" }] : []),
+    ] }).select("status sentAt openedAt createdAt metadata").sort({ createdAt: -1 }).limit(limit).lean()
