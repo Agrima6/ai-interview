@@ -101,7 +101,7 @@ export function OrgPanel({ orgKey, period, product, source = ADMIN_SOURCE, readO
     if (detail.isError) return <p role='alert' className='text-[14px] text-[var(--color-danger)]'>{detail.error.message}</p>
     if (detail.isLoading) return <div className='space-y-4' aria-busy='true'><Skeleton className='h-20 w-full rounded-2xl' /><Skeleton className='h-48 w-full rounded-2xl' /><Skeleton className='h-64 w-full rounded-2xl' /></div>
     const o = detail.data.organization; const r = detail.data.rates
-    const unitWord = o.unit === 'INTERVIEW' ? ['interview round', 'interview rounds'] : ['candidate', 'candidates']
+    const unitWord = o.unit === 'INTERVIEW' ? ['round', 'rounds'] : ['candidate', 'candidates']
     const comboUnits = o.combo?.candidates || 0
     // Only what this client created: no empty AI or test rows for a client that runs combined drives, and the other way round.
     const kinds = shownKinds(o.uses)
@@ -146,17 +146,7 @@ export function OrgPanel({ orgKey, period, product, source = ADMIN_SOURCE, readO
                 {o.rateMissing && <p role='alert' className='text-[13px] text-[var(--color-warning)] mt-2'>{readOnly ? 'Pricing for part of this usage has not been set yet. Your account manager will confirm it.' : 'No rate is set for part of this usage. Set one below.'}</p>}
             </section>
 
-            <details aria-label='Registered candidates' className='group'>
-                <summary className='text-[14px] font-bold text-ink mb-1 cursor-pointer'>What happened after the invitation</summary>
-                <p className='text-[12.5px] text-text-secondary mb-3'>Not billed on, only for your information: {num(o.conversionPercent)}% of the candidates registered in this period have given the interview so far. Awaiting approval (not counted): {num(o.awaitingApproval)}.</p>
-                <Funnel s={{ registered: o.registered, gave: o.gaveOfRegistered, pending: o.pending, started: o.startedNotFinished, missed: o.missed }} />
-            </details>
 
-            {!readOnly && <section aria-label='Rate card'>
-                <h3 className='text-[14px] font-bold text-ink mb-1'>Rates for this client</h3>
-                <p className='text-[12.5px] text-text-secondary mb-3'>Leave a box empty to use your default. Changes apply to every period, so figures you have already sent should be saved as an export first.</p>
-                <RateForm uses={o.uses} key={`${r.custom.aiRate}-${r.custom.oaRate}-${r.custom.comboRate}-${r.custom.gstPercent}-${r.custom.unit}-${r.notes}`} values={{ ...r.custom, notes: r.notes }} defaults={r.defaults} saving={save.isPending} error={saveError} onSave={(body) => save.mutate(body)} />
-            </section>}
 
             <section aria-label='Billing detail'>
                 <div className='flex flex-wrap items-center justify-between gap-2 mb-3'>
@@ -255,6 +245,17 @@ export function OrgPanel({ orgKey, period, product, source = ADMIN_SOURCE, readO
                     </>
                 )}
             </section>
+            <details aria-label='Registered candidates' className='group'>
+                <summary className='text-[14px] font-bold text-ink mb-1 cursor-pointer'>What happened after the invitation</summary>
+                <p className='text-[12.5px] text-text-secondary mb-3'>Not billed on, only for your information: {num(o.conversionPercent)}% of the candidates registered in this period have given the interview so far. Awaiting approval (not counted): {num(o.awaitingApproval)}.</p>
+                <Funnel s={{ registered: o.registered, gave: o.gaveOfRegistered, pending: o.pending, started: o.startedNotFinished, missed: o.missed }} />
+            </details>
+
+            {!readOnly && <section aria-label='Rate card'>
+                <h3 className='text-[14px] font-bold text-ink mb-1'>Rates for this client</h3>
+                <p className='text-[12.5px] text-text-secondary mb-3'>Leave a box empty to use your default. Changes apply to every period, so figures you have already sent should be saved as an export first.</p>
+                <RateForm uses={o.uses} key={`${r.custom.aiRate}-${r.custom.oaRate}-${r.custom.comboRate}-${r.custom.gstPercent}-${r.custom.unit}-${r.notes}`} values={{ ...r.custom, notes: r.notes }} defaults={r.defaults} saving={save.isPending} error={saveError} onSave={(body) => save.mutate(body)} />
+            </section>}
         </div>
     )
 }

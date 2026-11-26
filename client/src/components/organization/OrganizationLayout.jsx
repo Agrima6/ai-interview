@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, useReducedMotion } from 'motion/react'
 import OrganizationSidebar from './OrganizationSidebar'
 import OrganizationTopbar from './OrganizationTopbar'
+import AnnouncementBanner from '../AnnouncementBanner'
+import { listLiveAnnouncements } from '../../api/announcementsApi'
 import { useAuth } from '../../hooks/useAuth.jsx'
 import { useOrganizationProfile } from '../../hooks/organization/useOrganizationProfile'
 import { useOrganizationThemeStyle } from '../../hooks/organization/useOrganizationTheme'
@@ -57,6 +59,7 @@ function OrganizationLayout({ title, description, eyebrow, action, onSearch, chi
         <div className='min-h-screen bg-bg flex relative isolate' style={themeStyle}>
             <OrganizationSidebar profile={profile} profileLoading={profileLoading} mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
             <main className='flex-1 min-w-0 px-4 py-6 sm:px-[clamp(16px,3vw,44px)] sm:pt-7 pb-16 overflow-x-hidden'>
+                <AnnouncementBanner scope='org' fetcher={listLiveAnnouncements} />
                 <OrganizationTopbar title={title} description={description} eyebrow={eyebrow} action={action} onSearch={onSearch} onMenuClick={() => setMobileOpen(true)} />
                 <motion.div
                     key={location.pathname}

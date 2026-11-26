@@ -6,6 +6,7 @@ import { ArrowLeftRight, Layers, LayoutDashboard, LogOut, Menu, X } from 'lucide
 import { oaApi, oaTokens } from '../../api/oaApi'
 import { useAuth } from '../../hooks/useAuth.jsx'
 import { ErrorState } from './oaUi'
+import AnnouncementBanner from '../AnnouncementBanner'
 import Avatar from '../ui/Avatar'
 import logo from '../../assets/logo.webp'
 
@@ -105,6 +106,7 @@ export function RequireOaAdmin({ children }) {
                     <span className='font-display text-[14px] font-bold text-ink'>Online Assessment</span>
                 </header>
                 <main className='flex-1 w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8'>
+                    <AnnouncementBanner scope='oa' fetcher={oaApi.announcements} />
                     {me.isError ? <ErrorState message={me.error.message} onRetry={() => me.refetch()} /> : <Suspense fallback={null}><div key={pathname} className='oa-page'>{children}</div></Suspense>}
                 </main>
             </div>

@@ -14,6 +14,7 @@ import { placeName } from "../services/oaPlace.service.js"
 import { rateLimit } from "../utils/oaSecurity.js"
 import { aiConfigured, aiStatus } from "../services/oaAi.service.js"
 import { VIDEO_MAX_BYTES, verifyVideoSignature } from "../utils/oaVideo.js"
+import { liveFor as liveAnnouncements } from "../services/announcement.service.js"
 
 // The Online Assessment room. Mounted at /api/v1/oa. Its sign-in and tokens are separate from the platform's, so
 // the same email can exist here and as an organization admin, college admin or candidate at the same time.
@@ -136,6 +137,8 @@ router.get("/oa/me", ...admin, handle((req) => accounts.getMine(req.oa.accountId
 router.get("/oa/ai/status", ...admin, handle(() => aiStatus()))
 router.get("/oa/dashboard", ...admin, handle((req) => assessments.dashboard(req.oa.accountId)))
 
+// What the platform owner has announced, for an online-assessment organizer's own dashboard
+router.get("/oa/announcements", ...admin, handle((req) => liveAnnouncements({ accountId: req.oa.accountId })))
 router.get("/oa/drives", ...admin, handle((req) => drives.listDrives(req.oa.accountId, req.query), { list: true }))
 router.post("/oa/drives", ...admin, handle((req) => drives.createDrive(req.oa.accountId, req.body || {})))
 router.get("/oa/drives/:id", ...admin, handle((req) => drives.getDrive(req.oa.accountId, req.params.id)))

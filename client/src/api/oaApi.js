@@ -96,6 +96,7 @@ export const oaApi = {
     // drives: one hiring drive holds Round 1, Round 2, ...
     listDrives: (params) => list('/drives', cleanParams(params)),
     createDrive: (body) => post('/drives', body),
+    announcements: () => get('/announcements'),
     deleteDrive: (id) => del(`/drives/${id}`),
     restoreDrive: (id) => post(`/drives/${id}/restore`),
     getDrive: (id) => get(`/drives/${id}`),
