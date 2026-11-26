@@ -37,7 +37,11 @@ export const listInvites = ({ driveIds = [], assessmentIds = [] }, limit = 20000
 
 // Failed emails worth sending again: a temporary reason, not too many tries, recent. Oldest first.
 export const listRetryable = ({ codes, maxAttempts, since, limit }) =>
-    Communication.find({ channel: "EMAIL", status: "FAILED", lastErrorCode: { $in: codes }, attempts: { $lt: maxAttempts }, failedAt: { $gte: since } }).sort({ failedAt: 1 }).limit(limit)
+    Communication.find({
+        channel: "EMAIL", status: "FAILED", attempts: { $lt: maxAttempts }, failedAt: { $gte: since },
+        // a temporary reason, or an older failure recorded before reasons were kept (reason unknown: one more try is cheap, and a refusal is then recognised)
+        $or: [{ lastErrorCode: { $in: codes } }, { lastErrorCode: "PROVIDER_ERROR", lastError: null }],
+    }).sort({ failedAt: 1 }).limit(limit)
 
 // Take a failed email for retrying, once: two sweeps (or two processes) never send the same one twice.
 export const claimForRetry = (id) =>

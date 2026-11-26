@@ -289,7 +289,7 @@ export const getInviteStatuses = async ({ driveIds, assessmentIds }) => {
 // ---------- retrying temporary failures ----------
 
 const RETRY_MAX_ATTEMPTS = 4
-const RETRY_WINDOW_MS = 6 * 60 * 60 * 1000
+const RETRY_WINDOW_MS = 72 * 60 * 60 * 1000       // an invitation that is a day late still beats one that never arrives
 const retryDelayMs = (attempts) => [60 * 1000, 5 * 60 * 1000, 15 * 60 * 1000][Math.min(Math.max(attempts, 1), 3) - 1]
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 

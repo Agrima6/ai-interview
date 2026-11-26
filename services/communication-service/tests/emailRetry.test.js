@@ -70,7 +70,7 @@ test("an email the provider refused, one tried too often, a stale one, and one r
     await Communication.deleteMany({})
     const refused = await failed({ lastErrorCode: "REJECTED", lastError: "422 Invalid to" })
     const tooMany = await failed({ attempts: 4 })
-    const stale = await failed({ failedAt: new Date(Date.now() - 8 * 3600 * 1000) })
+    const stale = await failed({ failedAt: new Date(Date.now() - 80 * 3600 * 1000) })
     const justNow = await failed({ failedAt: new Date(Date.now() - 5 * 1000) })              // failed seconds ago: wait for the gap
     assert.equal((await svc.retryFailedEmails({ spacingMs: 0 })).tried, 0)
     for (const c of [refused, tooMany, stale, justNow]) assert.equal((await Communication.findById(c._id).lean()).status, "FAILED")
@@ -82,4 +82,16 @@ test("two sweeps never send the same email twice", opts, async () => {
     const [a, b] = await Promise.all([svc.retryFailedEmails({ spacingMs: 0 }), svc.retryFailedEmails({ spacingMs: 0 })])
     assert.equal(a.sent + b.sent, 1)
     assert.equal((await Communication.findById(c._id).lean()).attempts, 2)
+})
+
+test("an older failure, saved before reasons were kept, gets one more try", opts, async () => {
+    await Communication.deleteMany({})
+    const legacy = await failed({ lastErrorCode: "PROVIDER_ERROR", lastError: null, failedAt: new Date(Date.now() - 20 * 3600 * 1000) })
+    const run = await svc.retryFailedEmails({ spacingMs: 0 })
+    assert.equal(run.tried, 1); assert.equal(run.sent, 1)
+    assert.equal((await Communication.findById(legacy._id).lean()).status, "MOCK_SENT")
+    // but a failure whose reason IS known to be a refusal is never retried
+    const refused = await failed({ lastErrorCode: "PROVIDER_ERROR", lastError: "422 Invalid to" })
+    assert.equal((await svc.retryFailedEmails({ spacingMs: 0 })).tried, 0)
+    assert.equal((await Communication.findById(refused._id).lean()).status, "FAILED")
 })
