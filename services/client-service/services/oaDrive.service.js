@@ -3,6 +3,7 @@ import { OaAssessment, OaAttempt, OaDrive, OaStudent } from "../models/oa.model.
 import { ApiError } from "../utils/response.js"
 import { schedulePhase } from "../utils/oaExam.js"
 import { LIMITS, textLength } from "../utils/oaValidate.js"
+import { InterviewDrive } from "../models/interviewDrive.model.js"
 import { createAssessment, createNextRound } from "./oaAssessment.service.js"
 
 // A drive is one hiring drive; its rounds (Round 1, Round 2, ...) are assessments that point back at it.
@@ -56,6 +57,7 @@ const roundView = (a, stats = {}) => ({
 
 const driveView = (d, rounds = []) => ({
     id: String(d._id), title: d.title, description: d.description, department: d.department || "", roleCategory: d.roleCategory || "", experienceLevel: d.experienceLevel || "", status: d.status, createdAt: d.createdAt, updatedAt: d.updatedAt,
+    deletedAt: d.deletedAt || null, deletedBy: d.deletedBy || null,
     rounds, candidates: rounds[0]?.stats.candidates || 0,
 })
 
@@ -82,7 +84,7 @@ const roundsOf = async (driveIds) => {
 
 export const listDrives = async (accountId, { status, search, page, pageSize } = {}) => {
     await ensureDrives(accountId)
-    const filter = { accountId, status: status === "ARCHIVED" ? "ARCHIVED" : "ACTIVE" }
+    const filter = { accountId, deletedAt: null, status: status === "ARCHIVED" ? "ARCHIVED" : "ACTIVE" }
     const term = String(search || "").trim().slice(0, 80)
     if (term) filter.title = new RegExp(escapeRegex(term), "i")
     const p = { page: Math.max(parseInt(page, 10) || 1, 1), pageSize: [10, 25, 50, 100].includes(parseInt(pageSize, 10)) ? parseInt(pageSize, 10) : 10 }
@@ -139,6 +141,45 @@ export const updateDrive = async (accountId, id, patch = {}) => {
         if (patch.status === "ARCHIVED" && drive.status !== "ARCHIVED") await OaAssessment.updateMany({ driveId: drive._id }, { $set: { status: "ARCHIVED" } })
         drive.status = patch.status
     }
+    await drive.save()
+    return getDrive(accountId, id)
+}
+
+/** The AI interviews this drive uses as rounds, or as the AI part of a test round (their own InterviewDrive records). */
+const linkedAiDriveIds = async (accountId, driveId) => {
+    const rounds = await OaAssessment.find({ accountId, driveId }).select("kind aiInterviewDriveId aiPart.enabled aiPart.aiInterviewDriveId").lean()
+    return [...new Set(rounds.flatMap((r) => [r.aiInterviewDriveId, r.aiPart?.enabled ? r.aiPart.aiInterviewDriveId : null]).filter(Boolean).map(String))].filter((id) => mongoose.isValidObjectId(id))
+}
+
+/**
+ * Delete a drive made by mistake: hidden from every list and closed to candidates, but nothing is destroyed (candidates, results and
+ * the invitations already billed stay), and it can be restored. Its rounds, and the AI interviews that belong only to it, go with it.
+ */
+export const deleteDrive = async (accountId, id, actor = null, tenantId = null) => {
+    const drive = await ownedDrive(accountId, id)
+    if (drive.deletedAt) return getDrive(accountId, id)
+    await OaAssessment.updateMany({ driveId: drive._id, status: { $ne: "ARCHIVED" }, statusBeforeDelete: null }, [{ $set: { statusBeforeDelete: "$status", status: "ARCHIVED" } }], { updatePipeline: true })
+    if (tenantId) {
+        const mine = await linkedAiDriveIds(accountId, drive._id)
+        // an AI interview that another live drive also uses stays
+        const shared = new Set((await OaAssessment.find({ accountId, driveId: { $ne: drive._id }, $or: [{ aiInterviewDriveId: { $in: mine } }, { "aiPart.aiInterviewDriveId": { $in: mine } }] }).select("driveId aiInterviewDriveId aiPart.aiInterviewDriveId").lean()).flatMap((a) => [String(a.aiInterviewDriveId), String(a.aiPart?.aiInterviewDriveId)]))
+        const own = mine.filter((aiId) => !shared.has(aiId))
+        if (own.length) await InterviewDrive.updateMany({ _id: { $in: own }, tenantId: String(tenantId), deletedAt: null }, [{ $set: { statusBeforeDelete: "$status", status: "ARCHIVED", deletedAt: new Date(), deletedBy: actor ? String(actor).slice(0, 120) : null } }], { updatePipeline: true })
+    }
+    drive.deletedAt = new Date(); drive.deletedBy = actor ? String(actor).slice(0, 120) : null; drive.status = "ARCHIVED"
+    await drive.save()
+    return getDrive(accountId, id)
+}
+
+export const restoreDrive = async (accountId, id, tenantId = null) => {
+    const drive = await ownedDrive(accountId, id)
+    if (!drive.deletedAt) return getDrive(accountId, id)
+    await OaAssessment.updateMany({ driveId: drive._id, statusBeforeDelete: { $ne: null } }, [{ $set: { status: "$statusBeforeDelete", statusBeforeDelete: null } }], { updatePipeline: true })
+    if (tenantId) {
+        const mine = await linkedAiDriveIds(accountId, drive._id)
+        if (mine.length) await InterviewDrive.updateMany({ _id: { $in: mine }, tenantId: String(tenantId), deletedAt: { $ne: null } }, [{ $set: { status: { $cond: [{ $in: ["$statusBeforeDelete", [null, "ARCHIVED"]] }, "CLOSED", "$statusBeforeDelete"] }, statusBeforeDelete: null, deletedAt: null, deletedBy: null } }], { updatePipeline: true })
+    }
+    drive.deletedAt = null; drive.deletedBy = null; drive.status = "ACTIVE"
     await drive.save()
     return getDrive(accountId, id)
 }

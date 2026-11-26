@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
-import { Plus, ListChecks, Users, Trash2, Sparkles, AlertCircle, SlidersHorizontal, X, Download, LayoutGrid, List, Archive } from 'lucide-react'
+import { Plus, ListChecks, Users, Trash2, Sparkles, AlertCircle, SlidersHorizontal, X, Download, LayoutGrid, List, Archive, Undo2 } from 'lucide-react'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
 import CreateDriveModal from '../../components/organization/CreateDriveModal'
 import PublicLinkPopover from '../../components/organization/PublicLinkPopover'
 import { Card, Button, Badge, SearchInput, Tabs, EmptyState, Skeleton, ConfirmModal, Select, Tooltip, Drawer, Pagination, useToast } from '../../components/ui'
-import { listInterviewDrives, updateDriveStatus, exportDrivesCsv } from '../../api/organization/organizationApi'
+import { listInterviewDrives, updateDriveStatus, exportDrivesCsv, deleteInterviewDrive, restoreInterviewDrive } from '../../api/organization/organizationApi'
 import { formatEnumLabel } from '../../utils/formatEnumLabel'
 import { ROLE_CATEGORY_OPTIONS, DEPARTMENT_OPTIONS, EXPERIENCE_LEVEL_OPTIONS } from '../../constants/driveOptions'
 
@@ -40,6 +40,9 @@ function DrivesListPage() {
   const [error, setError] = useState('')
   const [archiveTarget, setArchiveTarget] = useState(null)
   const [archiving, setArchiving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [restoringId, setRestoringId] = useState(null)
   const [exporting, setExporting] = useState(false)
 
   const [filters, setFilters] = useState(EMPTY_FILTERS)
@@ -103,6 +106,35 @@ function DrivesListPage() {
       toast.error(err.message)
     } finally {
       setArchiving(false)
+    }
+  }
+
+  const runDelete = async () => {
+    if (!deleteTarget || deleting) return
+    setDeleting(true)
+    try {
+      await deleteInterviewDrive(deleteTarget.id)
+      toast.success('Drive deleted. You can find it under the Deleted filter.')
+      setDeleteTarget(null)
+      fetchDrives()
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const runRestore = async (driveId) => {
+    if (restoringId) return
+    setRestoringId(driveId)
+    try {
+      await restoreInterviewDrive(driveId)
+      toast.success('Drive restored.')
+      fetchDrives()
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setRestoringId(null)
     }
   }
 
@@ -198,6 +230,7 @@ function DrivesListPage() {
               { id: 'COMPLETED', label: 'Completed' },
               { id: 'CLOSED', label: 'Closed' },
               { id: 'DRAFT', label: 'Drafts' },
+              { id: 'DELETED', label: 'Deleted' },
             ]}
             value={activeTab}
             onChange={setActiveTab}
@@ -288,16 +321,39 @@ function DrivesListPage() {
                         {formatEnumLabel(drive.department)} · {formatEnumLabel(drive.roleCategory)}
                       </p>
                     </div>
-                    {drive.status !== 'ARCHIVED' && (
+                    {drive.deletedAt ? (
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); setArchiveTarget(driveId) }}
-                        className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-text-secondary hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] transition-colors"
-                        title="Archive drive"
-                        aria-label={`Archive ${drive.title}`}
+                        disabled={restoringId === driveId}
+                        onClick={(e) => { e.stopPropagation(); runRestore(driveId) }}
+                        className="shrink-0 h-10 px-3 rounded-xl inline-flex items-center gap-1.5 text-[13px] font-semibold text-accent hover:bg-accent/[0.08] transition-colors disabled:opacity-60"
+                        aria-label={`Restore ${drive.title}`}
                       >
-                        <Archive size={17} />
+                        <Undo2 size={16} /> {restoringId === driveId ? 'Restoring…' : 'Restore'}
                       </button>
+                    ) : (
+                      <div className="shrink-0 flex">
+                        {drive.status !== 'ARCHIVED' && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setArchiveTarget(driveId) }}
+                            className="w-10 h-10 rounded-xl flex items-center justify-center text-text-secondary hover:text-ink hover:bg-black/[0.05] transition-colors"
+                            title="Archive drive"
+                            aria-label={`Archive ${drive.title}`}
+                          >
+                            <Archive size={17} />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: driveId, title: drive.title }) }}
+                          className="w-10 h-10 rounded-xl flex items-center justify-center text-text-secondary hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] transition-colors"
+                          title="Delete drive"
+                          aria-label={`Delete ${drive.title}`}
+                        >
+                          <Trash2 size={17} />
+                        </button>
+                      </div>
                     )}
                   </div>
 
@@ -314,7 +370,9 @@ function DrivesListPage() {
                   </div>
 
                   <div className="flex items-center justify-between pt-3.5 border-t border-line">
-                    <Badge variant={tone} pulse={drive.status === 'ACTIVE'} dot={drive.status !== 'ACTIVE'}>{formatEnumLabel(drive.status)}</Badge>
+                    {drive.deletedAt
+                      ? <Badge variant="danger" dot title={drive.deletedBy ? `Deleted by ${drive.deletedBy}` : undefined}>Deleted {formatDate(drive.deletedAt)}</Badge>
+                      : <Badge variant={tone} pulse={drive.status === 'ACTIVE'} dot={drive.status !== 'ACTIVE'}>{formatEnumLabel(drive.status)}</Badge>}
                     <PublicLinkPopover publicLink={drive.publicLink} />
                   </div>
                 </article>
@@ -327,7 +385,7 @@ function DrivesListPage() {
               <thead>
                 <tr className="text-[12px] font-bold tracking-[0.06em] text-text-secondary">
                   <th className="px-3.5 py-3">DRIVE</th><th className="px-3.5 py-3">STATUS</th><th className="px-3.5 py-3">CANDIDATES</th>
-                  <th className="px-3.5 py-3">PASS</th><th className="px-3.5 py-3">CREATED</th><th className="px-3.5 py-3">LINK</th>
+                  <th className="px-3.5 py-3">PASS</th><th className="px-3.5 py-3">CREATED</th><th className="px-3.5 py-3">LINK</th><th className="px-3.5 py-3"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -344,11 +402,16 @@ function DrivesListPage() {
                           </span>
                         </span>
                       </td>
-                      <td className="px-3.5 py-3.5"><Badge variant={STATUS_BADGE[drive.status] || 'neutral'} dot>{formatEnumLabel(drive.status)}</Badge></td>
+                      <td className="px-3.5 py-3.5">{drive.deletedAt ? <Badge variant="danger" dot>Deleted {formatDate(drive.deletedAt)}</Badge> : <Badge variant={STATUS_BADGE[drive.status] || 'neutral'} dot>{formatEnumLabel(drive.status)}</Badge>}</td>
                       <td className="px-3.5 py-3.5 font-bold tabular-nums">{drive.candidatesCount}</td>
                       <td className="px-3.5 py-3.5 font-bold">{drive.passingThreshold}%</td>
                       <td className="px-3.5 py-3.5 text-[13px] text-text-secondary whitespace-nowrap">{formatDate(drive.createdAt)}</td>
                       <td className="px-3.5 py-3.5" onClick={(e) => e.stopPropagation()}><PublicLinkPopover publicLink={drive.publicLink} /></td>
+                      <td className="px-3.5 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
+                        {drive.deletedAt
+                          ? <button type="button" disabled={restoringId === driveId} onClick={() => runRestore(driveId)} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-accent hover:underline disabled:opacity-60"><Undo2 size={15} /> Restore</button>
+                          : <button type="button" onClick={() => setDeleteTarget({ id: driveId, title: drive.title })} className="p-2 rounded-lg text-text-secondary hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]" aria-label={`Delete ${drive.title}`} title="Delete drive"><Trash2 size={16} /></button>}
+                      </td>
                     </tr>
                   )
                 })}
@@ -367,6 +430,17 @@ function DrivesListPage() {
         onClose={() => setModalOpen(false)}
         onCreateDrive={handleCreateDrive}
       />
+
+      <ConfirmModal
+        open={!!deleteTarget}
+        onClose={() => !deleting && setDeleteTarget(null)}
+        title="Delete this drive?"
+        confirmLabel={deleting ? 'Deleting...' : 'Delete drive'}
+        danger
+        onConfirm={runDelete}
+      >
+        “{deleteTarget?.title}” will be removed from your drives and closed to candidates. Its candidates and results are kept, invitations already sent are still billed, and you can restore it any time from the Deleted filter.
+      </ConfirmModal>
 
       <ConfirmModal
         open={!!archiveTarget}

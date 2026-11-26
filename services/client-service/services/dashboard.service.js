@@ -24,7 +24,7 @@ const unavailable = (reason) => ({ available: false, reason })
 
 /** Pipeline prefix: one row per candidate, filtered. `period` bounds the candidate's activity date. */
 function candidatePipeline(tenantId, f, period) {
-    const driveMatch = { tenantId }
+    const driveMatch = { tenantId, deletedAt: null }
     if (f.department) driveMatch.department = f.department
     if (f.driveId) driveMatch._id = new mongoose.Types.ObjectId(f.driveId)
     const c = "$rounds.candidates"
@@ -105,7 +105,7 @@ export const getSummary = async (tenantId, query) => {
             one(tenantId, f, period, totalsTail), noShowCount(tenantId, f, period),
             f.compare ? one(tenantId, f, previousPeriod(f), totalsTail) : null,
             f.compare ? noShowCount(tenantId, f, previousPeriod(f)) : null,
-            InterviewDrive.countDocuments({ tenantId, status: "ACTIVE" }),
+            InterviewDrive.countDocuments({ tenantId, status: "ACTIVE", deletedAt: null }),
         ])
         const now = withRates(current, noShows)
         const before = prevTotals ? withRates(prevTotals, prevNoShows) : null

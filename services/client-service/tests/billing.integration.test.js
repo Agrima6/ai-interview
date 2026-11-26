@@ -470,3 +470,14 @@ test("downloads: by drive (with its rounds) and by candidate", opts, async () =>
     assert.match(String(people.json), /Invitation email/)
     assert.match(String(people.json), /Asha Verma/)
 })
+
+test("deleting a drive never removes what was already billed: the invitations went out", opts, async () => {
+    const before = (await get(`/organizations/${state.A}?${NOV}`)).data.organization
+    const hr = (await import("../services/interviewDrive.service.js"))
+    const mine = await state.Drive.findOne({ title: "Backend Hiring" })
+    await hr.deleteDrive(String(state.tA), String(mine._id), "hr@a.test")
+    const after = (await get(`/organizations/${state.A}?${NOV}`)).data.organization
+    assert.equal(after.amountExGst, before.amountExGst)
+    assert.equal(after.invites, before.invites)
+    await hr.restoreDrive(String(state.tA), String(mine._id))
+})

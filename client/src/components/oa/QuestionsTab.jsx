@@ -239,10 +239,17 @@ export default function QuestionsTab({ assessment: a }) {
     const [removing, setRemoving] = useState(null)
     const [renaming, setRenaming] = useState(null)
     const [dropping, setDropping] = useState(null)
+    const [selected, setSelected] = useState(() => new Set())
+    const [bulkOpen, setBulkOpen] = useState(false)
     const locked = a.locked
     const refresh = () => queryClient.invalidateQueries({ queryKey: ['oa'] })
 
     const bySection = useMemo(() => a.sections.map((s) => ({ ...s, questions: a.questions.filter((q) => q.sectionId === s.id) })), [a])
+
+    const allIds = useMemo(() => a.questions.map((q) => q.id), [a])
+    const toggleOne = (id) => setSelected((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
+    const toggleMany = (ids, on) => setSelected((prev) => { const n = new Set(prev); ids.forEach((id) => (on ? n.add(id) : n.delete(id))); return n })
+    const chosen = allIds.filter((id) => selected.has(id))
 
     const save = useMutation({
         mutationFn: ({ payload, id }) => (id ? oaApi.updateQuestion(a.id, id, payload) : oaApi.addQuestions(a.id, { questions: [payload], sectionId: payload.sectionId })),
@@ -252,6 +259,16 @@ export default function QuestionsTab({ assessment: a }) {
         mutationFn: (id) => oaApi.deleteQuestion(a.id, id),
         onSuccess: () => { refresh(); setRemoving(null); toast.success('Question deleted.') },
         onError: (err) => { setRemoving(null); toast.error(err.message) },
+    })
+    const bulkRemove = useMutation({
+        mutationFn: (ids) => oaApi.deleteQuestions(a.id, ids),
+        onSuccess: (res) => { refresh(); setSelected(new Set()); setBulkOpen(false); toast.success(`${res.deleted} question${res.deleted === 1 ? '' : 's'} deleted.`) },
+        onError: (err) => { setBulkOpen(false); toast.error(err.message) },
+    })
+    const dropSection = useMutation({
+        mutationFn: (sectionId) => oaApi.deleteSection(a.id, sectionId),
+        onSuccess: (res) => { refresh(); setDropping(null); setSelected(new Set()); toast.success(res.deleted ? `Section deleted with its ${res.deleted} question${res.deleted === 1 ? '' : 's'}.` : 'Section deleted.') },
+        onError: (err) => { setDropping(null); toast.error(err.message) },
     })
     const sections = useMutation({
         mutationFn: (next) => oaApi.updateAssessment(a.id, { sections: next }),
@@ -277,17 +294,30 @@ export default function QuestionsTab({ assessment: a }) {
                 </div>
             )}
 
+            {!locked && chosen.length > 0 && (
+                <div role='region' aria-label='Selected questions' className='sticky top-2 z-[var(--z-dropdown)] mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-ink px-4 py-2.5 text-white shadow-[var(--shadow-lift)]'>
+                    <p className='text-[13px] font-semibold'>{chosen.length} question{chosen.length === 1 ? '' : 's'} selected</p>
+                    <div className='flex flex-wrap items-center gap-2'>
+                        {chosen.length < allIds.length && <button type='button' className='text-[12.5px] font-semibold text-white/80 hover:text-white px-2 py-1' onClick={() => setSelected(new Set(allIds))}>Select all {allIds.length}</button>}
+                        <button type='button' className='text-[12.5px] font-semibold text-white/80 hover:text-white px-2 py-1' onClick={() => setSelected(new Set())}>Clear</button>
+                        <Button size='sm' variant='danger' onClick={() => setBulkOpen(true)}><Trash2 size={14} /> Delete selected</Button>
+                    </div>
+                </div>
+            )}
+
             <div className='space-y-6'>
                 {bySection.map((s, index) => (
                     <Panel key={s.id} title={sectionLabel(s, index)} description={`${s.questions.length} question${s.questions.length === 1 ? '' : 's'}`}
-                        actions={!locked && <div className='flex gap-1'>
+                        actions={!locked && <div className='flex items-center gap-1'>
+                            {s.questions.length > 0 && (() => { const ids = s.questions.map((q) => q.id); const all = ids.every((id) => selected.has(id)); return <label className='inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-text-secondary hover:text-ink px-2 py-1 cursor-pointer'><input type='checkbox' className='w-4 h-4 accent-[var(--color-accent)]' checked={all} onChange={() => toggleMany(ids, !all)} aria-label={`Select all questions in ${sectionLabel(s, index)}`} /> Select all</label> })()}
                             <button className='text-[12.5px] font-semibold text-text-secondary hover:text-ink px-2 py-1' onClick={() => setRenaming({ id: s.id, number: index + 1, title: s.title || '' })}>{s.title ? 'Rename' : 'Name it'}</button>
-                            {a.sections.length > 1 && <button className='text-[12.5px] font-semibold text-text-secondary hover:text-[var(--color-danger)] px-2 py-1' disabled={sections.isPending} onClick={() => (s.questions.length ? setDropping({ ...s, index }) : sections.mutate(a.sections.filter((x) => x.id !== s.id)))}>Delete</button>}
+                            {(a.sections.length > 1 || s.questions.length > 0) && <button className='text-[12.5px] font-semibold text-text-secondary hover:text-[var(--color-danger)] px-2 py-1' disabled={dropSection.isPending || sections.isPending} onClick={() => (s.questions.length ? setDropping({ ...s, index }) : sections.mutate(a.sections.filter((x) => x.id !== s.id)))}>{a.sections.length > 1 ? 'Delete section' : 'Delete all questions'}</button>}
                         </div>} bodyClassName='!p-0'>
                         {s.questions.length === 0 ? <p className='px-5 py-4 text-[13px] text-text-secondary'>Nothing in this section yet.</p> : (
                             <ol className='divide-y divide-line'>
                                 {s.questions.map((q, i) => (
-                                    <li key={q.id} className='flex items-start gap-3 px-5 py-3.5'>
+                                    <li key={q.id} className={`flex items-start gap-3 px-5 py-3.5 ${selected.has(q.id) ? 'bg-accent/[0.04]' : ''}`}>
+                                        {!locked && <input type='checkbox' className='mt-1 w-4 h-4 shrink-0 accent-[var(--color-accent)]' checked={selected.has(q.id)} onChange={() => toggleOne(q.id)} aria-label={`Select question ${i + 1}`} />}
                                         <span className='w-6 text-[12.5px] text-text-secondary pt-0.5 tabular-nums'>{i + 1}</span>
                                         <div className='min-w-0 flex-1'>
                                             <p className='text-[14px] text-ink break-words'>{q.text}</p>
@@ -322,9 +352,12 @@ export default function QuestionsTab({ assessment: a }) {
             <ConfirmModal open={Boolean(removing)} onClose={() => setRemoving(null)} danger title='Delete this question?' confirmLabel='Delete' onConfirm={() => remove.mutateAsync(removing.id)}>
                 “{removing?.text?.slice(0, 120)}” will be removed from this round.
             </ConfirmModal>
-            <ConfirmModal open={Boolean(dropping)} onClose={() => setDropping(null)} danger title={`Delete ${dropping ? sectionLabel(dropping, dropping.index) : 'this section'}?`} confirmLabel='Delete section'
-                onConfirm={() => sections.mutateAsync(a.sections.filter((x) => x.id !== dropping.id)).finally(() => setDropping(null))}>
-                Its {dropping?.questions.length} question{dropping?.questions.length === 1 ? '' : 's'} will be deleted with it.
+            <ConfirmModal open={bulkOpen} onClose={() => setBulkOpen(false)} danger title={`Delete ${chosen.length} question${chosen.length === 1 ? '' : 's'}?`} confirmLabel={`Delete ${chosen.length}`} onConfirm={() => bulkRemove.mutateAsync(chosen)}>
+                The selected questions will be removed from this round. This cannot be undone.
+            </ConfirmModal>
+            <ConfirmModal open={Boolean(dropping)} onClose={() => setDropping(null)} danger title={a.sections.length > 1 ? `Delete ${dropping ? sectionLabel(dropping, dropping.index) : 'this section'}?` : 'Delete all questions?'} confirmLabel={a.sections.length > 1 ? 'Delete section' : 'Delete all'}
+                onConfirm={() => dropSection.mutateAsync(dropping.id)}>
+                {a.sections.length > 1 ? 'The section' : 'All'} {dropping?.questions.length} question{dropping?.questions.length === 1 ? '' : 's'}{a.sections.length > 1 ? ' in it' : ''} will be deleted{a.sections.length > 1 ? ' with it' : ''}. This cannot be undone.
             </ConfirmModal>
             <Modal open={Boolean(renaming)} onClose={() => setRenaming(null)} title={`Name Section ${renaming?.number || ''}`} size='sm'
                 footer={<><Button variant='secondary' size='sm' onClick={() => setRenaming(null)}>Cancel</Button><Button size='sm' disabled={sections.isPending} onClick={() => sections.mutate(a.sections.map((x) => (x.id === renaming.id ? { ...x, title: renaming.title.trim() } : x)))}>{sections.isPending ? 'Saving…' : 'Save'}</Button></>}>

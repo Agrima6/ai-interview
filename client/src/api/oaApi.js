@@ -96,6 +96,8 @@ export const oaApi = {
     // drives: one hiring drive holds Round 1, Round 2, ...
     listDrives: (params) => list('/drives', cleanParams(params)),
     createDrive: (body) => post('/drives', body),
+    deleteDrive: (id) => del(`/drives/${id}`),
+    restoreDrive: (id) => post(`/drives/${id}/restore`),
     getDrive: (id) => get(`/drives/${id}`),
     updateDrive: (id, body) => patch(`/drives/${id}`, body),
     addRound: (id, body) => post(`/drives/${id}/rounds`, body),
@@ -116,6 +118,8 @@ export const oaApi = {
     generateQuestions: (id, body) => run(http.post(`/assessments/${id}/questions/generate`, body ?? {}, { timeout: 120000 })),
     updateQuestion: (id, qid, body) => patch(`/assessments/${id}/questions/${qid}`, body),
     deleteQuestion: (id, qid) => del(`/assessments/${id}/questions/${qid}`),
+    deleteQuestions: (id, ids) => run(http.post(`/assessments/${id}/questions/bulk-delete`, { ids })),
+    deleteSection: (id, sectionId) => del(`/assessments/${id}/sections/${sectionId}`),
 
     // students
     listStudents: (id, params) => list(`/assessments/${id}/students`, cleanParams(params)),

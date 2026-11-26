@@ -14,7 +14,7 @@ const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 const aiDrives = async (tenantId) => InterviewDrive.aggregate([
     { $match: { tenantId: String(tenantId) } },
     { $project: {
-        title: 1, status: 1, createdAt: 1, updatedAt: 1, department: 1, roleCategory: 1, experienceLevel: 1, driveKind: 1,
+        deletedAt: 1, deletedBy: 1, title: 1, status: 1, createdAt: 1, updatedAt: 1, department: 1, roleCategory: 1, experienceLevel: 1, driveKind: 1,
         rounds: { $map: { input: { $ifNull: ["$rounds", []] }, as: "r", in: { roundNumber: "$$r.roundNumber", title: "$$r.title", status: "$$r.status", candidates: { $size: { $ifNull: ["$$r.candidates", []] } } } } },
     } },
 ])
@@ -36,30 +36,33 @@ export const listAllDrives = async (tenantId, query = {}) => {
 
     const items = [
         ...ai.filter((d) => !used.has(String(d._id))).map((d) => ({
-            kind: "AI", id: String(d._id), title: d.title, status: d.status, createdAt: d.createdAt, updatedAt: d.updatedAt,
+            kind: "AI", id: String(d._id), title: d.title, status: d.status, deletedAt: d.deletedAt || null, deletedBy: d.deletedBy || null, createdAt: d.createdAt, updatedAt: d.updatedAt,
             department: d.department || "", role: d.roleCategory || "", examKind: d.driveKind || "HIRING",
             candidates: d.rounds.reduce((n, r) => n + r.candidates, 0),
             rounds: d.rounds.map((r) => ({ number: r.roundNumber, kind: "AI_INTERVIEW", name: r.title || "AI interview", status: r.status, candidates: r.candidates })),
         })),
         ...multi.map((m) => ({
-            kind: "MULTI", id: m.id, title: m.title, status: m.status, createdAt: m.createdAt, updatedAt: m.updatedAt, department: m.department || "", role: m.roleCategory || "", examKind: "HIRING",
+            kind: "MULTI", id: m.id, title: m.title, status: m.status, deletedAt: m.deletedAt || null, deletedBy: m.deletedBy || null, createdAt: m.createdAt, updatedAt: m.updatedAt, department: m.department || "", role: m.roleCategory || "", examKind: "HIRING",
             candidates: m.rounds.reduce((n, r) => Math.max(n, r.stats?.candidates || 0), 0),
             rounds: m.rounds.map((r) => ({ number: r.roundNumber, kind: r.kind, name: r.name || (r.kind === "AI_INTERVIEW" ? "AI interview" : "Online test"), status: r.status, phase: r.phase, candidates: r.stats?.candidates || 0, id: r.id })),
         })),
     ]
 
     const archived = query.archived === "1" || query.archived === true
+    const deleted = query.deleted === "1" || query.deleted === true
+    // Deleted drives show only under the Deleted filter; everywhere else (Active, Archived) they are hidden.
+    const view = (d) => (deleted ? Boolean(d.deletedAt) : !d.deletedAt && (d.status === "ARCHIVED") === archived)
     const term = String(query.search || "").trim().slice(0, 80)
     const rx = term ? new RegExp(escapeRegex(term), "i") : null
     const kind = ["AI", "MULTI"].includes(query.kind) ? query.kind : null
     const rows = items
-        .filter((d) => (d.status === "ARCHIVED") === archived)
+        .filter(view)
         .filter((d) => !kind || d.kind === kind)
         .filter((d) => !rx || rx.test(d.title) || rx.test(d.department) || rx.test(d.role))
         .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0))
 
     const pageSize = [10, 25, 50, 100].includes(Number(query.pageSize)) ? Number(query.pageSize) : 25
     const page = Math.max(1, Number(query.page) || 1)
-    const counts = { all: items.filter((d) => (d.status === "ARCHIVED") === archived).length }
+    const counts = { all: items.filter(view).length, deleted: items.filter((d) => d.deletedAt).length }
     return { items: rows.slice((page - 1) * pageSize, page * pageSize), total: rows.length, page, pageSize, counts }
 }

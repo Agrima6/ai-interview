@@ -147,3 +147,75 @@ test("notifications: who recently finished a test or an AI interview, only for t
     assert.equal((await call("GET", "/organization/notifications", { token: await tokenFor(null) })).status, 403)
     assert.equal((await call("GET", "/organization/notifications")).status, 401)
 })
+
+test("delete a drive made by mistake: hidden everywhere, shown under Deleted, restorable, and never someone else's", opts, async () => {
+    const hr = await tokenFor(state.tenant, ["CLIENT_SELF_READ", "CLIENT_SELF_UPDATE"])
+    const other = await tokenFor(state.other, ["CLIENT_SELF_READ", "CLIENT_SELF_UPDATE"])
+    const { InterviewDrive } = await import("../models/interviewDrive.model.js")
+    const backend = await InterviewDrive.findOne({ title: "Backend Engineer Hiring" })
+
+    assert.equal((await call("DELETE", `/drives/${backend._id}`, { token: other })).status, 404)                  // another organization cannot
+    assert.equal((await call("DELETE", `/drives/${backend._id}`, { token: state.token })).status, 403)            // a read-only user cannot
+    const gone = await call("DELETE", `/drives/${backend._id}`, { token: hr })
+    assert.equal(gone.status, 200); assert.ok(gone.data.deletedAt); assert.equal(gone.data.status, "ARCHIVED")
+    assert.equal((await call("DELETE", `/drives/${backend._id}`, { token: hr })).status, 200)                      // a second click is harmless
+
+    // hidden from the drives list, the Archived tab and the detailed interview list
+    assert.equal((await list()).data.some((d) => d.title === "Backend Engineer Hiring"), false)
+    assert.equal((await list("archived=1")).data.some((d) => d.title === "Backend Engineer Hiring"), false)
+    assert.equal((await call("GET", "/drives?pageSize=100", { token: hr })).data.some((d) => d.title === "Backend Engineer Hiring"), false)
+    // ...and visible under Deleted, with who and when
+    const deleted = await list("deleted=1")
+    assert.deepEqual(deleted.data.map((d) => d.title), ["Backend Engineer Hiring"])
+    assert.equal(deleted.data[0].deletedBy, "hr@x.test")
+    assert.equal((await call("GET", "/drives?status=DELETED&pageSize=100", { token: hr })).data.length, 1)
+    assert.equal((await call("GET", "/drives?status=DELETED&pageSize=100", { token: other })).data.length, 0)
+    // closed to candidates
+    assert.equal((await InterviewDrive.findById(backend._id)).status, "ARCHIVED")
+
+    const back = await call("POST", `/drives/${backend._id}/restore`, { token: hr })
+    assert.equal(back.status, 200); assert.equal(back.data.status, "ACTIVE"); assert.equal(back.data.deletedAt, null)
+    assert.equal((await list()).data.some((d) => d.title === "Backend Engineer Hiring"), true)
+    assert.equal((await list("deleted=1")).data.length, 0)
+})
+
+test("deleting a multi-round drive takes its rounds and its own AI interviews with it, and restoring puts them back", opts, async () => {
+    const drives = await import("../services/oaDrive.service.js")
+    const { InterviewDrive } = await import("../models/interviewDrive.model.js")
+    const account = await models.OaAccount.findOne({ email: "oa@org.test" })
+    const campus = await models.OaDrive.findOne({ accountId: account._id, title: "Campus Hiring 2026" })
+
+    await drives.deleteDrive(account._id, String(campus._id), "hr@x.test", String(state.tenant))
+    assert.equal((await list()).data.some((d) => d.title === "Campus Hiring 2026"), false)
+    const deleted = (await list("deleted=1")).data
+    assert.deepEqual(deleted.map((d) => d.title), ["Campus Hiring 2026"])         // one row: the AI interviews inside it are not listed again
+    assert.equal(await models.OaAssessment.countDocuments({ driveId: campus._id, status: "ARCHIVED" }), 4)
+    assert.equal((await InterviewDrive.findById(state.linked._id)).deletedAt !== null, true)
+    assert.equal((await InterviewDrive.findById(state.partOf._id)).status, "ARCHIVED")
+
+    await drives.restoreDrive(account._id, String(campus._id), String(state.tenant))
+    assert.equal((await list()).data.some((d) => d.title === "Campus Hiring 2026"), true)
+    assert.equal(await models.OaAssessment.countDocuments({ driveId: campus._id, status: "PUBLISHED" }), 4)
+    const linked = await InterviewDrive.findById(state.linked._id)
+    assert.equal(linked.deletedAt, null); assert.equal(linked.status, "ACTIVE")
+    assert.equal((await list("deleted=1")).data.length, 0)
+})
+
+test("the platform owner sees every deleted drive, with who deleted it and what was already invited", opts, async () => {
+    const root = (await import("jsonwebtoken")).default.sign({ sub: "507f1f77bcf86cd799439011", email: "root@platform.test", permissions: ["SETTINGS_WRITE"] }, process.env.ACCESS_TOKEN_SECRET)
+    const hr = await tokenFor(state.tenant, ["CLIENT_SELF_READ", "CLIENT_SELF_UPDATE"])
+    const { InterviewDrive } = await import("../models/interviewDrive.model.js")
+    await InterviewDrive.updateOne({ title: "Backend Engineer Hiring" }, { $set: { "rounds.0.candidates.0.invitedAt": new Date() } })
+    const drive = await InterviewDrive.findOne({ title: "Backend Engineer Hiring" })
+    await call("DELETE", `/drives/${drive._id}`, { token: hr })
+
+    assert.equal((await call("GET", "/admin/deleted-drives", { token: hr })).status, 403)                          // an organization cannot read the platform list
+    const res = await call("GET", "/admin/deleted-drives", { token: root })
+    assert.equal(res.status, 200)
+    const row = res.data.find((d) => d.title === "Backend Engineer Hiring")
+    assert.ok(row); assert.equal(row.deletedBy, "hr@x.test"); assert.equal(row.candidates, 3); assert.equal(row.invitationsSent, 1)
+    assert.equal(row.kind, "AI")
+    assert.equal((await call("GET", "/admin/deleted-drives?search=nothing-like-this", { token: root })).data.length, 0)
+    await call("POST", `/drives/${drive._id}/restore`, { token: hr })
+    assert.equal((await call("GET", "/admin/deleted-drives", { token: root })).data.some((d) => d.title === "Backend Engineer Hiring"), false)
+})

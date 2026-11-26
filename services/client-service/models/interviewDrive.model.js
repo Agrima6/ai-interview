@@ -190,6 +190,11 @@ const InterviewDriveSchema = new mongoose.Schema(
             blockedPeriods: [{ start: Date, end: Date, reason: String }],
         },
         rounds: [RoundSchema],
+        // Soft delete: a deleted drive is hidden from every list and shut to candidates (its status becomes ARCHIVED), but the
+        // record, its candidates and what was billed stay, and it can be restored from the Deleted filter.
+        deletedAt: { type: Date, default: null, index: true },
+        deletedBy: { type: String, default: null },
+        statusBeforeDelete: { type: String, default: null },
     },
     { timestamps: true }
 )

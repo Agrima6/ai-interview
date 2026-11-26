@@ -140,6 +140,8 @@ router.get("/oa/drives", ...admin, handle((req) => drives.listDrives(req.oa.acco
 router.post("/oa/drives", ...admin, handle((req) => drives.createDrive(req.oa.accountId, req.body || {})))
 router.get("/oa/drives/:id", ...admin, handle((req) => drives.getDrive(req.oa.accountId, req.params.id)))
 router.patch("/oa/drives/:id", ...admin, handle((req) => drives.updateDrive(req.oa.accountId, req.params.id, req.body || {})))
+router.delete("/oa/drives/:id", ...admin, handle(async (req) => { const account = await OaAccount.findById(req.oa.accountId).select("tenantId email").lean(); return drives.deleteDrive(req.oa.accountId, req.params.id, account?.email || null, account?.tenantId || null) }))
+router.post("/oa/drives/:id/restore", ...admin, handle(async (req) => { const account = await OaAccount.findById(req.oa.accountId).select("tenantId").lean(); return drives.restoreDrive(req.oa.accountId, req.params.id, account?.tenantId || null) }))
 router.post("/oa/drives/:id/rounds", ...admin, handle((req) => drives.addRound(req.oa.accountId, req.params.id, req.body || {})))
 
 router.get("/oa/assessments", ...admin, handle((req) => assessments.listAssessments(req.oa.accountId, req.query), { list: true }))
@@ -154,6 +156,8 @@ router.post("/oa/assessments/:id/next-round", ...admin, handle((req) => drives.n
 router.post("/oa/assessments/:id/questions", ...admin, handle((req) => assessments.addQuestions(req.oa.accountId, req.params.id, req.body)))
 router.post("/oa/assessments/:id/questions/generate", ...admin, handle((req) => assessments.aiDraft(req.oa.accountId, req.params.id, req.body)))
 router.patch("/oa/assessments/:id/questions/:questionId", ...admin, handle((req) => assessments.updateQuestion(req.oa.accountId, req.params.id, req.params.questionId, req.body)))
+router.post("/oa/assessments/:id/questions/bulk-delete", ...admin, handle((req) => assessments.deleteQuestions(req.oa.accountId, req.params.id, req.body?.ids)))
+router.delete("/oa/assessments/:id/sections/:sectionId", ...admin, handle((req) => assessments.deleteSection(req.oa.accountId, req.params.id, req.params.sectionId)))
 router.delete("/oa/assessments/:id/questions/:questionId", ...admin, handle((req) => assessments.deleteQuestion(req.oa.accountId, req.params.id, req.params.questionId)))
 
 router.get("/oa/assessments/:id/students", ...admin, handle((req) => assessments.listStudents(req.oa.accountId, req.params.id, req.query), { list: true }))
