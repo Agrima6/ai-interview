@@ -504,3 +504,52 @@ test("a test + AI interview drive is billed at the combined price from the first
     const people = await get(`/organizations/${String(tN)}/lines?${NOV}&pageSize=100&view=people`)
     assert.equal(people.data.reduce((n, p) => n + p.amountExGst, 0), 750)
 })
+
+test("the candidate scorecard: test and AI scores, email status, filters and sorting by any of them", opts, async () => {
+    const url = (q) => `/organizations/${state.A}/lines?${NOV}&pageSize=100&view=people${q ? `&${q}` : ""}`
+    const all = await get(url())
+    assert.equal(all.status, 200)
+    const s = all.json.meta.summary
+    assert.equal(s.people, all.data.length)
+    assert.ok(s.gaveAi >= 3 && s.gaveTest >= 1)                                   // Asha, Ravi, Olga took the AI interview; students took the test
+    assert.equal(s.emailed + all.data.filter((p) => p.mailStatus === "NONE").length, s.people)
+    const asha = all.data.find((p) => p.email === "asha@a.test")
+    assert.equal(asha.aiScore, 90)                                                // her best AI interview score
+    assert.ok(asha.items.some((l) => l.aiDriveId), "an AI line carries the interview's id, to open its report")
+    const testLine = all.data.flatMap((p) => p.items).find((l) => l.testId && l.attemptId)
+    assert.ok(testLine, "a test line carries the test and the attempt, to open the detailed score")
+
+    // sorting: highest AI score first, blanks last; the other way round for ascending
+    const byAi = (await get(url("sortBy=aiScore&order=desc"))).data
+    const scores = byAi.map((p) => p.aiScore)
+    const filled = scores.filter((x) => x !== null)
+    assert.deepEqual(filled, [...filled].sort((a, b) => b - a))
+    assert.ok(scores.slice(0, filled.length).every((x) => x !== null))            // every blank comes after every score
+    const asc = (await get(url("sortBy=testScore&order=asc"))).data.map((p) => p.testScore).filter((x) => x !== null)
+    assert.deepEqual(asc, [...asc].sort((a, b) => a - b))
+
+    // filters
+    assert.ok((await get(url("ai=GAVE"))).data.every((p) => p.aiStatus === "GAVE"))
+    assert.ok((await get(url("test=GAVE"))).data.every((p) => p.testStatus === "GAVE"))
+    const notOpened = (await get(url("mail=NOT_OPENED"))).data
+    assert.ok(notOpened.length > 0 && notOpened.every((p) => p.mailStatus === "SENT"))     // no mail service here: invited reads as sent
+    assert.equal((await get(url("mail=OPENED"))).data.length, 0)
+    assert.ok((await get(url("mail=NOT_EMAILED"))).data.every((p) => p.mailStatus === "NONE" && p.emails === 0))
+    assert.equal((await get(url("test=GAVE&ai=GAVE"))).data.every((p) => p.testStatus === "GAVE" && p.aiStatus === "GAVE"), true)
+    // the summary is for everyone, so the chips do not change while filtering
+    assert.equal((await get(url("ai=GAVE"))).json.meta.summary.people, s.people)
+
+    // the same detail is reachable by the organization itself, and only its own
+    const own = await call("GET", `/organization/billing/lines?${NOV}&view=people&sortBy=aiScore&order=desc`, { token: state.ownA })
+    assert.equal(own.status, 200); assert.ok(own.json.meta.summary.gaveAi >= 3)
+})
+
+test("emails by day answer 'when were they invited', and a person invited to two parts shows two emails", opts, async () => {
+    const detail = (await get(`/organizations/${state.A}?${NOV}`)).data
+    assert.ok(detail.emailsByDay.length > 0)
+    assert.equal(detail.emailsByDay.reduce((n, d) => n + d.count, 0), detail.organization.invites)       // the days add up to the emails sent
+    assert.ok(detail.emailsByDay.every((d, i, a) => i === 0 || a[i - 1].day < d.day))                    // oldest day first
+    const people = (await get(`/organizations/${state.A}/lines?${NOV}&pageSize=100&view=people&sortBy=emails&order=desc`)).data
+    assert.ok(people[0].emails >= 2)                                                                       // Asha: two AI rounds, and the test
+    assert.equal(people.reduce((n, p) => n + p.emails, 0), detail.organization.invites)
+})

@@ -11,7 +11,8 @@ import ReportQuestionCard from './ReportQuestionCard'
 import { openReportPdf } from '../../utils/reportPdf'
 
 // examMode: college exam drives record results only - the Shortlist / Reject decision buttons are not shown.
-function CandidateDetailModal({ open, onClose, candidate, onStatusChange, examMode = false, passMark = 0 }) {
+// viewOnly: the written evaluation only (no decisions, recording, transcript, resume or PDF): for the billing pages and the platform owner.
+function CandidateDetailModal({ open, onClose, candidate, onStatusChange, examMode = false, passMark = 0, viewOnly = false }) {
   const toast = useToast()
   const [downloading, setDownloading] = useState(false)
   const [transcript, setTranscript] = useState(null)          // null = not loaded yet
@@ -83,7 +84,7 @@ function CandidateDetailModal({ open, onClose, candidate, onStatusChange, examMo
               </Badge>
             )}
           </div>
-          {examMode ? <Button type="button" variant="secondary" size="sm" onClick={onClose}>Close</Button> : <div className="flex items-center gap-2">
+          {examMode || viewOnly ? <Button type="button" variant="secondary" size="sm" onClick={onClose}>Close</Button> : <div className="flex items-center gap-2">
             <Button
               type="button"
               variant="secondary"
@@ -123,7 +124,7 @@ function CandidateDetailModal({ open, onClose, candidate, onStatusChange, examMo
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-        {!examMode && (candidate.agentReport || candidate.status === 'COMPLETED') && (
+        {!examMode && !viewOnly && (candidate.agentReport || candidate.status === 'COMPLETED') && (
           <Button size="sm" variant="secondary" onClick={handleDownloadPdf} disabled={preparingPdf}>
             <Download size={14} /> {preparingPdf ? 'Preparing…' : 'Download PDF'}
           </Button>
@@ -179,7 +180,7 @@ function CandidateDetailModal({ open, onClose, candidate, onStatusChange, examMo
         </div>
       )}
 
-      {(candidate.recordingFilename || candidate.recordings?.length > 0 || candidate.status === 'COMPLETED') && (
+      {!viewOnly && (candidate.recordingFilename || candidate.recordings?.length > 0 || candidate.status === 'COMPLETED') && (
         <div className="mb-6">
           <h3 className="text-[13px] font-semibold text-ink mb-2.5 flex items-center gap-1.5">
             <Video size={14} /> Interview Recording
@@ -267,7 +268,7 @@ function CandidateDetailModal({ open, onClose, candidate, onStatusChange, examMo
         </div>
       )}
 
-      {(candidate.agentReport || candidate.status === 'COMPLETED') && (
+      {!viewOnly && (candidate.agentReport || candidate.status === 'COMPLETED') && (
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2.5">
             <h3 className="text-[13px] font-semibold text-ink">Conversation transcript</h3>

@@ -1,12 +1,14 @@
-import React, { useEffect, useState } from 'react'
-import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import React, { useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight, Download, Mail, MailCheck, Phone } from 'lucide-react'
 import { Badge, Button, Drawer, Pagination, SearchInput, Select, Skeleton, useToast } from '../../components/ui'
 import { downloadBillingCsv, getBillingOrganization, listBillingLines, saveBillingRates } from '../../api/billingApi'
+import { adminResultsApi } from '../../api/adminResultsApi'
 
 // Where the panel reads from. The platform owner reads any client; an organization reads only itself.
-const ADMIN_SOURCE = { ns: 'admin', getOrganization: getBillingOrganization, listLines: listBillingLines, download: (key, params) => downloadBillingCsv(`organizations/${key}/export`, params), save: saveBillingRates }
+const ADMIN_SOURCE = { ns: 'admin', detailApi: adminResultsApi, aiCandidate: adminResultsApi.aiCandidate, getOrganization: getBillingOrganization, listLines: listBillingLines, download: (key, params) => downloadBillingCsv(`organizations/${key}/export`, params), save: saveBillingRates }
 import RateForm from './RateForm'
+import CandidateScorecard from './CandidateScorecard'
 import { KIND, MAIL, OUTCOME, PRODUCT, UNIT_LABEL, formatDay, formatWhen, inr, num, shownKinds, usesLabel } from './billingFormat'
 
 const plural = (n, one, many) => `${num(n)} ${n === 1 ? one : many}`
@@ -80,17 +82,12 @@ function DriveRow({ d, unit, open, onToggle }) {
 export function OrgPanel({ orgKey, period, product, source = ADMIN_SOURCE, readOnly = false }) {
     const toast = useToast()
     const queryClient = useQueryClient()
-    const [search, setSearch] = useState(''); const [q, setQ] = useState('')
-    const [outcome, setOutcome] = useState(''); const [billableOnly, setBillableOnly] = useState(false)
-    const [page, setPage] = useState(1); const [pageSize, setPageSize] = useState(25)
     const [saveError, setSaveError] = useState('')
     const [view, setView] = useState('drives')
     const [open, setOpen] = useState(() => new Set())
     const toggle = (id) => setOpen((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
-    useEffect(() => { const id = setTimeout(() => { setQ(search); setPage(1) }, 350); return () => clearTimeout(id) }, [search])
 
     const detail = useQuery({ queryKey: ['billing', source.ns, 'org', orgKey, period.from, period.to, product], queryFn: () => source.getOrganization(orgKey, { ...period, product }) })
-    const lines = useQuery({ queryKey: ['billing', source.ns, 'lines', orgKey, period.from, period.to, product, q, outcome, billableOnly, page, pageSize], queryFn: () => source.listLines(orgKey, { ...period, product, view: 'people', search: q, outcome, billable: billableOnly ? '1' : '', page, pageSize }), placeholderData: keepPreviousData, enabled: view === 'candidates' })
     const save = useMutation({
         mutationFn: (body) => source.save(orgKey, body),
         onSuccess: () => { setSaveError(''); queryClient.invalidateQueries({ queryKey: ['billing'] }); toast.success('Rates saved. The figures are updated.') },
@@ -143,6 +140,7 @@ export function OrgPanel({ orgKey, period, product, source = ADMIN_SOURCE, readO
                     </table>
                 </div>
                 <p className='text-[12px] text-text-secondary mt-2'>Billed {UNIT_LABEL[o.unit]}, when the invitation email is sent. {o.unit !== 'INTERVIEW' && o.invites > o.billableCandidates ? `${num(o.billableCandidates)} people were emailed ${num(o.invites)} times between them, so each person is billed once.` : `${plural(o.invites, 'invitation', 'invitations')} sent in this period.`}</p>
+                {detail.data.emailsByDay?.length > 0 && <p className='text-[12px] text-text-secondary mt-1'>Emails sent: {detail.data.emailsByDay.map((d) => `${num(d.count)} on ${formatDay(`${d.day}T00:00:00+05:30`)}`).join(', ')}.</p>}
                 {o.rateMissing && <p role='alert' className='text-[13px] text-[var(--color-warning)] mt-2'>{readOnly ? 'Pricing for part of this usage has not been set yet. Your account manager will confirm it.' : 'No rate is set for part of this usage. Set one below.'}</p>}
             </section>
 
@@ -174,74 +172,8 @@ export function OrgPanel({ orgKey, period, product, source = ADMIN_SOURCE, readO
                     </>
                 ) : (
                     <>
-                        <p className='text-[12.5px] text-text-secondary mb-3'>Every candidate who was emailed. Click a candidate to see which drives and rounds they were invited to, and whether they opened the email.</p>
-                        <div className='flex flex-wrap items-center gap-2 mb-3'>
-                            <SearchInput value={search} onChange={(e) => setSearch(e.target.value.slice(0, 80))} placeholder='Search name, email or drive' className='sm:w-64' />
-                            <div className='w-52'><Select aria-label='Filter by status' value={outcome} onChange={(e) => { setOutcome(e.target.value); setPage(1) }} options={[{ value: '', label: 'All statuses' }, ...Object.entries(OUTCOME).map(([value, [, label]]) => ({ value, label }))]} /></div>
-                            <label className='inline-flex items-center gap-2 text-[13px] text-ink cursor-pointer'><input type='checkbox' checked={billableOnly} onChange={(e) => { setBillableOnly(e.target.checked); setPage(1) }} className='w-4 h-4 accent-[var(--color-accent)]' /> Billed only</label>
-                        </div>
-                        <div className='border border-line rounded-2xl overflow-hidden'>
-                            <div className={`hidden md:grid ${GRID_PEOPLE} gap-3 px-4 py-2.5 bg-surface-muted text-[12px] font-semibold text-text-secondary`} aria-hidden='true'>
-                                <span className='pl-7'>Candidate</span><span className='text-right'>Drives</span><span>Invited on</span><span>Email</span><span className='text-right'>Billed</span><span className='text-right'>Amount</span>
-                            </div>
-                            <div className='divide-y divide-line'>
-                                {lines.isError && <p role='alert' className='px-4 py-6 text-[var(--color-danger)]'>{lines.error.message}</p>}
-                                {lines.isLoading && <div className='p-4'><Skeleton className='h-6 w-full' /></div>}
-                                {lines.data?.items.length === 0 && <p className='px-4 py-8 text-center text-text-secondary text-[13px]'>No candidates match.</p>}
-                                {lines.data?.items.map((c) => {
-                                    const id = `c:${c.email || c.name}`
-                                    const isOpen = open.has(id)
-                                    const drives = new Set(c.items.map((l) => l.source)).size
-                                    const invitedItems = c.items.filter((l) => l.invitesInPeriod > 0)
-                                    const opened = c.items.map((l) => l.mail?.openedAt).filter(Boolean).sort()[0]
-                                    const mail = invitedItems.length ? (opened ? { status: 'OPENED', openedAt: opened } : invitedItems[0].mail) : null
-                                    return (
-                                        <div key={id}>
-                                            <button type='button' onClick={() => toggle(id)} aria-expanded={isOpen} className={`w-full grid grid-cols-[minmax(0,1fr)_auto] ${GRID_PEOPLE} items-center gap-x-3 gap-y-0.5 px-4 py-3 text-left hover:bg-surface-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent`}>
-                                                <span className='flex items-center gap-2 min-w-0'>
-                                                    {isOpen ? <ChevronDown size={16} aria-hidden='true' className='shrink-0 text-text-secondary' /> : <ChevronRight size={16} aria-hidden='true' className='shrink-0 text-text-secondary' />}
-                                                    <span className='min-w-0'><span className='block font-medium text-ink text-[13.5px] truncate'>{c.name || '—'}</span><span className='block text-[12px] text-text-secondary truncate'>{c.email}</span></span>
-                                                </span>
-                                                <span className='md:hidden text-right text-[13px] font-semibold tabular-nums'>{c.units > 0 ? inr(c.amountExGst) : '—'}</span>
-                                                <span className='hidden md:block text-right tabular-nums text-[13px]'>{drives}</span>
-                                                <span className='hidden md:block text-[12.5px] text-text-secondary'>{invitedItems.length ? formatDay(invitedItems.map((l) => l.invitedAt).filter(Boolean).sort()[0]) : '—'}</span>
-                                                <span className='hidden md:block'><MailBadge mail={mail} invited={invitedItems.length > 0} /></span>
-                                                <span className='hidden md:block text-right tabular-nums text-[13px]'>{c.units > 0 ? c.units : <span className='text-text-secondary'>—</span>}</span>
-                                                <span className='hidden md:block text-right tabular-nums text-[13.5px] font-semibold'>{c.units > 0 ? inr(c.amountExGst) : <span className='font-normal text-text-secondary'>—</span>}</span>
-                                            </button>
-                                            {isOpen && (
-                                                <div className='bg-surface-muted/40 px-4 pb-3 pt-1 sm:pl-11'>
-                                                    <p className='text-[12px] text-text-secondary mb-2'>{c.phone ? `${c.phone} · ` : ''}Last activity {formatWhen(c.lastAt)}</p>
-                                                    <ul className='space-y-2'>
-                                                        {c.items.map((l, i) => (
-                                                            <li key={i} className='bg-card border border-line rounded-xl px-3 py-2.5 text-[12.5px] grid gap-x-4 gap-y-1.5 sm:grid-cols-[1fr_auto]'>
-                                                                <div className='min-w-0'>
-                                                                    <div className='font-semibold text-ink break-words'>{l.source}</div>
-                                                                    <div className='text-text-secondary'>{l.part ? `${l.part} · part of a combined drive` : PRODUCT[l.product]}</div>
-                                                                </div>
-                                                                <div className='sm:text-right'><Badge variant={OUTCOME[l.outcome][0]} className='normal-case'>{OUTCOME[l.outcome][1]}</Badge></div>
-                                                                <div className='sm:col-span-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-text-secondary'>
-                                                                    <span className='inline-flex items-center gap-1.5'><MailCheck size={13} aria-hidden='true' /> Email <MailBadge mail={l.mail} invited={l.invitedRounds.length > 0} />{l.mail?.openedAt ? <span>on {formatWhen(l.mail.openedAt)}</span> : null}</span>
-                                                                    <span>Registered {formatDay(l.registeredAt)}</span>
-                                                                    <span>Score {l.score ?? '—'}</span>
-                                                                    <span>Billed {l.units > 0 ? l.units : '—'}</span>
-                                                                </div>
-                                                                {l.invitedRounds.length > 0 && (
-                                                                    <div className='sm:col-span-2 flex flex-wrap gap-1.5'>
-                                                                        {l.invitedRounds.map((r, k) => <Badge key={k} variant={r.inPeriod ? 'brand' : 'neutral'} className='normal-case'>{r.title} · emailed {formatDay(r.at)}</Badge>)}
-                                                                    </div>
-                                                                )}
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )
-                                })}
-                            </div>
-                        </div>
-                        {lines.data?.total > 0 && <Pagination page={page} pageSize={pageSize} total={lines.data.total} onPageChange={setPage} onPageSizeChange={(n) => { setPageSize(n); setPage(1) }} />}
+                        <p className='text-[12.5px] text-text-secondary mb-3'>Every candidate who was emailed, with their test and AI interview scores. Click a candidate for the detail, then "View detailed score" for the question-by-question view the organization sees.</p>
+                        <CandidateScorecard orgKey={orgKey} period={period} product={product} source={source} />
                     </>
                 )}
             </section>

@@ -174,7 +174,7 @@ const oaLines = async ({ start, end }, accountKey, scope) => {
             registeredAt: s.createdAt, registeredInPeriod,
             invitesInPeriod: inPeriod ? 1 : 0, firstInviteAt: inPeriod ? invitedAt : null, lastInviteAt: inPeriod ? invitedAt : null, invitesTotal: invitedAt ? 1 : 0,
             invitedRounds: invitedAt ? [{ round: a?.roundNumber || 1, title: a?.roundLabel || `Round ${a?.roundNumber || 1}`, at: invitedAt, inPeriod }] : [],
-            outcome, score: gave ? attempt.percent ?? null : null, flags: attempt?.violationCount || 0, personIds: [String(s._id)],
+            outcome, score: gave ? attempt.percent ?? null : null, flags: attempt?.violationCount || 0, personIds: [String(s._id)], attemptId: attempt ? String(attempt._id) : null,
         })
     }
     return lines
@@ -474,7 +474,12 @@ export const getOrganization = async (key, query = {}) => {
     const card = cardOf(docs, key)
     const usage = await loadUsage(dir)
     const sources = driveBreakdown(org, lines, card, usage.get(key))
-    return { period: { from: period.from, to: period.to }, organization: orgRow(org, lines, card, usage.get(key)), rates: { aiRate: card.aiRate, oaRate: card.oaRate, comboRate: card.comboRate, gstPercent: card.gstPercent, unit: card.unit, custom: card.custom, notes: card.notes, defaults: { aiRate: docs.defaults?.aiRate ?? null, oaRate: docs.defaults?.oaRate ?? null, comboRate: docs.defaults?.comboRate ?? null, gstPercent: docs.defaults?.gstPercent ?? FALLBACK.gstPercent, unit: docs.defaults?.unit ?? FALLBACK.unit } }, sources }
+    // When the invitations went out, by day (Indian time), so "62 candidates" can be read as "when".
+    const perDay = new Map()
+    const dayOf = (d) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date(d))
+    for (const l of lines) for (const r of l.invitedRounds || []) if (r.inPeriod) { const day = dayOf(r.at); perDay.set(day, (perDay.get(day) || 0) + 1) }
+    const emailsByDay = [...perDay.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([day, count]) => ({ day, count }))
+    return { period: { from: period.from, to: period.to }, organization: orgRow(org, lines, card, usage.get(key)), rates: { aiRate: card.aiRate, oaRate: card.oaRate, comboRate: card.comboRate, gstPercent: card.gstPercent, unit: card.unit, custom: card.custom, notes: card.notes, defaults: { aiRate: docs.defaults?.aiRate ?? null, oaRate: docs.defaults?.oaRate ?? null, comboRate: docs.defaults?.comboRate ?? null, gstPercent: docs.defaults?.gstPercent ?? FALLBACK.gstPercent, unit: docs.defaults?.unit ?? FALLBACK.unit } }, sources, emailsByDay }
 }
 
 // One entry per person for a combined drive: they registered once and gave the drive once, whichever part they have reached.
@@ -576,25 +581,80 @@ export const listLines = async (key, query = {}) => {
             const t = l.lastInviteAt || l.registeredAt
             if (t && (!p.lastAt || new Date(t) > new Date(p.lastAt))) p.lastAt = t
         }
-        const all = [...people.values()]
-        const pageRows = all.slice((page - 1) * pageSize, page * pageSize)
-        const withMail = await attachMail(pageRows.flatMap((p) => p.lines))
+        // Everyone's email status is needed to filter and sort by it, so it is read for the whole list (one call per few hundred drives).
+        const withMail = await attachMail([...people.values()].flatMap((p) => p.lines))
         const mailOf = new Map(withMail.map((l) => [`${l.sourceId}|${l.email}`, l.mail]))
-        const items = pageRows.map((p) => ({
-            name: p.name, email: p.email, phone: p.phone, lastAt: p.lastAt, units: p.units,
-            amountExGst: orgRow(org, p.lines, card, uses).amountExGst,
-            items: p.lines.map((l) => lineView({ ...l, mail: mailOf.get(`${l.sourceId}|${l.email}`) ?? null })),
+        const scored = [...people.values()].map((p) => {
+            const lines = p.lines.map((l) => ({ ...l, mail: mailOf.get(`${l.sourceId}|${l.email}`) ?? null }))
+            return { ...p, lines, ...personSummary(lines), amountExGst: orgRow(org, lines, card, uses).amountExGst }
+        })
+        const summary = peopleSummary(scored)
+
+        let list = scored
+        const MAIL_FILTERS = { OPENED: (m) => m === "OPENED", NOT_OPENED: (m) => ["SENT", "DELIVERED", "QUEUED"].includes(m), FAILED: (m) => m === "FAILED", NOT_EMAILED: (m) => m === "NONE", EMAILED: (m) => m !== "NONE" }
+        if (MAIL_FILTERS[query.mail]) list = list.filter((p) => MAIL_FILTERS[query.mail](p.mailStatus))
+        if (query.test === "GAVE") list = list.filter((p) => p.testStatus === "GAVE")
+        if (query.test === "NOT_YET") list = list.filter((p) => ["NOT_YET", "STARTED", "MISSED"].includes(p.testStatus))
+        if (query.ai === "GAVE") list = list.filter((p) => p.aiStatus === "GAVE")
+        if (query.ai === "NOT_YET") list = list.filter((p) => ["NOT_YET", "STARTED", "MISSED"].includes(p.aiStatus))
+
+        const dir = query.order === "asc" ? 1 : -1
+        const KEYS = { recent: (p) => new Date(p.lastAt || 0).getTime(), name: (p) => String(p.name || "").toLowerCase(), testScore: (p) => p.testScore, aiScore: (p) => p.aiScore, emails: (p) => p.emails, amount: (p) => p.amountExGst, invited: (p) => (p.invitedAt ? new Date(p.invitedAt).getTime() : null) }
+        const key = KEYS[query.sortBy] || KEYS.recent
+        list = [...list].sort((a, b) => {
+            const av = key(a); const bv = key(b)
+            if (av === null || av === undefined) return bv === null || bv === undefined ? String(a.name).localeCompare(String(b.name)) : 1     // blanks always last
+            if (bv === null || bv === undefined) return -1
+            return (typeof av === "string" ? av.localeCompare(bv) : av - bv) * dir || String(a.name).localeCompare(String(b.name))
+        })
+        const items = list.slice((page - 1) * pageSize, page * pageSize).map((p) => ({
+            name: p.name, email: p.email, phone: p.phone, lastAt: p.lastAt, units: p.units, amountExGst: p.amountExGst,
+            testScore: p.testScore, testStatus: p.testStatus, aiScore: p.aiScore, aiStatus: p.aiStatus, mailStatus: p.mailStatus, openedAt: p.openedAt, emails: p.emails, invitedAt: p.invitedAt,
+            items: p.lines.map(lineView),
         }))
-        return { items, total: all.length, page, pageSize }
+        return { items, total: list.length, page, pageSize, summary }
     }
     const pageLines = rows.slice((page - 1) * pageSize, page * pageSize)
     return { items: (await attachMail(pageLines)).map(lineView), total: rows.length, page, pageSize }
+}
+
+// ---------- a person's scorecard ----------
+
+const gaveStatus = (ls) => (!ls.length ? "NONE" : ls.some((l) => l.outcome === "GAVE") ? "GAVE" : ls.some((l) => l.outcome === "STARTED_NOT_FINISHED") ? "STARTED" : ls.some((l) => l.outcome === "MISSED") ? "MISSED" : "NOT_YET")
+const bestScore = (ls) => { const v = ls.map((l) => l.score).filter((x) => x !== null && x !== undefined); return v.length ? Math.max(...v) : null }
+
+/** What one candidate looks like at a glance: test score, AI interview score, and what happened to their invitation email. */
+const personSummary = (lines) => {
+    const test = lines.filter((l) => l.product === "ONLINE_ASSESSMENT"); const ai = lines.filter((l) => l.product === "AI_INTERVIEW")
+    const invited = lines.filter((l) => l.invitesInPeriod > 0)
+    const opened = invited.map((l) => l.mail?.openedAt).filter(Boolean).sort((a, b) => new Date(a) - new Date(b))[0] || null
+    const newest = [...invited].sort((a, b) => new Date(b.mail?.sentAt || 0) - new Date(a.mail?.sentAt || 0))[0]
+    const first = invited.map((l) => l.firstInviteAt).filter(Boolean).sort((a, b) => new Date(a) - new Date(b))[0] || null
+    // Invited and nothing known about the email (older records, or the mail service unreachable) reads as "sent".
+    const mailStatus = !invited.length ? "NONE" : opened ? "OPENED" : invited.some((l) => l.mail?.status === "FAILED") && !invited.some((l) => l.mail && l.mail.status !== "FAILED") ? "FAILED" : newest?.mail?.status === "QUEUED" ? "QUEUED" : "SENT"
+    return { testStatus: gaveStatus(test), testScore: bestScore(test.filter((l) => l.outcome === "GAVE")), aiStatus: gaveStatus(ai), aiScore: bestScore(ai.filter((l) => l.outcome === "GAVE")), mailStatus, openedAt: opened, emails: invited.reduce((n, l) => n + l.invitesInPeriod, 0), invitedAt: first }
+}
+
+const peopleSummary = (people) => {
+    const avg = (xs) => (xs.length ? round2(xs.reduce((s, x) => s + x, 0) / xs.length) : null)
+    return {
+        people: people.length,
+        emailed: people.filter((p) => p.mailStatus !== "NONE").length,
+        opened: people.filter((p) => p.mailStatus === "OPENED").length,
+        notOpened: people.filter((p) => ["SENT", "DELIVERED", "QUEUED"].includes(p.mailStatus)).length,
+        failed: people.filter((p) => p.mailStatus === "FAILED").length,
+        gaveTest: people.filter((p) => p.testStatus === "GAVE").length, hasTest: people.filter((p) => p.testStatus !== "NONE").length,
+        gaveAi: people.filter((p) => p.aiStatus === "GAVE").length, hasAi: people.filter((p) => p.aiStatus !== "NONE").length,
+        averageTest: avg(people.map((p) => p.testScore).filter((x) => x !== null)), averageAi: avg(people.map((p) => p.aiScore).filter((x) => x !== null)),
+    }
 }
 
 const lineView = (l) => ({
     product: l.packageKey ? "PACKAGE" : l.product, part: l.part || null, source: l.packageTitle || l.groupTitle || l.sourceTitle, name: l.name, email: l.email, phone: l.phone,
     registeredAt: l.registeredAt, registeredInPeriod: l.registeredInPeriod, invitedAt: l.firstInviteAt, invitesInPeriod: l.invitesInPeriod, invitedRounds: l.invitedRounds || [],
     outcome: l.outcome, score: l.score, flags: l.flags, units: l.units, mail: l.mail ?? null,
+    // to open the detailed score: the test (and the candidate's sitting of it), or the AI interview drive
+    testId: l.product === "ONLINE_ASSESSMENT" ? l.sourceId : null, attemptId: l.attemptId || null, aiDriveId: l.product === "AI_INTERVIEW" ? l.sourceId : null,
 })
 
 // ---------- rate cards: read and change ----------
@@ -702,7 +762,7 @@ export const getOwnBilling = async (tenantId, query = {}) => {
         period: res.period,
         organization: { ...res.organization, hasCustomRate: false },
         rates: { aiRate: res.rates.aiRate, oaRate: res.rates.oaRate, comboRate: res.rates.comboRate, gstPercent: res.rates.gstPercent, unit: res.rates.unit, custom: { aiRate: null, oaRate: null, comboRate: null, gstPercent: null, unit: null }, notes: "", defaults: { aiRate: null, oaRate: null, comboRate: null, gstPercent: res.rates.gstPercent, unit: res.rates.unit } },
-        sources: res.sources,
+        sources: res.sources, emailsByDay: res.emailsByDay,
     }
 }
 export const listOwnLines = (tenantId, query = {}) => listLines(ownKey(tenantId), query)

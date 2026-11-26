@@ -9,5 +9,6 @@ export const adminResultsApi = {
     results: (testId, params) => apiGetList(`/api/v1/admin/oa-results/tests/${testId}/results`, clean(params)),
     paper: (testId) => apiGet(`/api/v1/admin/oa-results/tests/${testId}/paper`),
     insights: (testId) => apiGet(`/api/v1/admin/oa-results/tests/${testId}/insights`),
+    aiCandidate: (driveId, email) => apiGet('/api/v1/admin/oa-results/ai-candidate', { driveId, email }),
     attempt: (testId, attemptId) => apiGet(`/api/v1/admin/oa-results/tests/${testId}/attempts/${attemptId}`),
 }

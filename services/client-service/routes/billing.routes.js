@@ -25,8 +25,8 @@ router.get("/admin/billing/summary", ...adminOnly, wrap(async (req, res) => ok(r
 router.get("/admin/billing/export", ...adminOnly, wrap(async (req, res) => sendCsv(res, await billing.exportSummaryCsv(req.query))))
 router.get("/admin/billing/organizations/:key", ...adminOnly, wrap(async (req, res) => ok(res, await billing.getOrganization(req.params.key, req.query))))
 router.get("/admin/billing/organizations/:key/lines", ...adminOnly, wrap(async (req, res) => {
-    const { items, total, page, pageSize } = await billing.listLines(req.params.key, req.query)
-    okList(res, items, { total, page, pageSize })
+    const { items, total, page, pageSize, summary } = await billing.listLines(req.params.key, req.query)
+    okList(res, items, { total, page, pageSize, summary })
 }))
 router.get("/admin/billing/organizations/:key/export", ...adminOnly, wrap(async (req, res) => sendCsv(res, await billing.exportOrganizationCsv(req.params.key, req.query))))
 router.put("/admin/billing/rates/:key", ...adminOnly, wrap(async (req, res) => ok(res, await billing.saveRates(req.params.key, req.body || {}, req.user?.email || req.user?.sub))))
