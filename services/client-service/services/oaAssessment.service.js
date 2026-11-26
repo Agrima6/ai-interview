@@ -481,6 +481,11 @@ const buildResultRows = async (assessment) => {
     const aiByEmail = new Map()
     const aiDriveId = assessment.aiPart?.enabled ? assessment.aiPart.aiInterviewDriveId : assessment.kind === "AI_INTERVIEW" ? assessment.aiInterviewDriveId : null
     if (aiDriveId && mongoose.isValidObjectId(aiDriveId)) {
+        // Pick up AI reports that finished since the interview ended (the agent builds them some minutes later). Never slows or breaks the page.
+        try {
+            const { refreshDriveReports } = await import("./interviewDrive.service.js")
+            await Promise.race([refreshDriveReports(aiDriveId), new Promise((resolve) => setTimeout(resolve, 6000))])
+        } catch (error) { console.warn("[client-service] could not refresh AI reports:", error.message) }
         const drive = await InterviewDrive.findById(aiDriveId).select("rounds.roundNumber rounds.candidates.email rounds.candidates.status rounds.candidates.aiScore").lean()
         const roundNumber = assessment.aiPart?.enabled ? assessment.aiPart.roundNumber || 1 : 1
         const round = (drive?.rounds || []).find((r) => r.roundNumber === roundNumber) || drive?.rounds?.[0]

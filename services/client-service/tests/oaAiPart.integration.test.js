@@ -30,7 +30,7 @@ before(async () => {
     }
     process.env.MONGODB_URL = `mongodb://127.0.0.1:${port}/oa_aipart_test`
     process.env.ACCESS_TOKEN_SECRET = "test-secret"
-    process.env.SERVICE_NAME = "client-service-test"
+    process.env.SERVICE_NAME = "client-service-test"; process.env.NODE_ENV = "test"
     process.env.COMMUNICATION_SERVICE_URL = "http://127.0.0.1:9"
     process.env.COMMUNICATION_SERVICE_API_KEY = "x"
     // (no AI provider needed here)
@@ -240,4 +240,30 @@ test("an organization's name and logo are found by the id on its sign-in tokens 
     assert.equal(res.status, 200)
     assert.equal(res.headers.get("content-type"), "image/png")
     assert.equal((await fetch(`${base}/oa/brand/client/not-an-id/logo`)).status, 404)
+})
+
+test("opening the results fetches AI reports the interviewer service finished after the interview ended", opts, async () => {
+    const { createServer } = await import("node:http")
+    const agent = createServer((req, res) => {
+        res.writeHead(200, { "content-type": "application/json" })
+        res.end(JSON.stringify(req.url.endsWith("/report") ? { report_status: "READY", final_score: 63.6, content: "report" } : {}))
+    })
+    await new Promise((resolve) => agent.listen(0, "127.0.0.1", resolve))
+    const previous = process.env.AGENT_SERVICE_URL
+    process.env.AGENT_SERVICE_URL = `http://127.0.0.1:${agent.address().port}`
+    try {
+        await call("PATCH", `/oa/assessments/${state.a}`, { token: state.admin, body: { aiPart: { enabled: true, aiInterviewDriveId: state.ai, roundNumber: 1, when: "AFTER_SUBMIT" } } })
+        const email = await sit("submit")
+        assert.ok(await waitFor(() => onAi(email)), "the candidate was never added to the AI interview")
+        // the interview is over, but its report was not ready then: finished, with an interview id and no stored report
+        await drives.InterviewDrive.updateOne({ _id: state.ai }, { $set: { "rounds.0.candidates.$[c].status": "COMPLETED", "rounds.0.candidates.$[c].agentInterviewId": "intv_late", "rounds.0.candidates.$[c].attemptedDate": new Date() } }, { arrayFilters: [{ "c.email": email }] })
+        const row = (await call("GET", `/oa/assessments/${state.a}/results`, { token: state.admin })).data.find((r) => r.email === email)
+        assert.deepEqual(row.aiResult, { status: "COMPLETED", score: 64 })               // fetched on the way (63.6 rounds to 64), not left at 0 / pending
+        const stored = (await drives.InterviewDrive.findById(state.ai)).rounds[0].candidates.find((c) => c.email === email)
+        assert.equal(stored.aiScore, 64); assert.ok(stored.agentReport)                  // and kept, so it is not fetched again
+    } finally {
+        process.env.AGENT_SERVICE_URL = previous
+        if (previous === undefined) delete process.env.AGENT_SERVICE_URL
+        agent.close()
+    }
 })
