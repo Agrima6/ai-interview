@@ -14,7 +14,7 @@ const SORT_OPTIONS = [['recent', 'Latest activity'], ['testScore', 'Test score']
 /** A score you can read at a glance: big, bold, with a bar. */
 function Score({ value, status, label }) {
     if (value === null || value === undefined) {
-        const text = status === 'NONE' ? 'n/a' : status === 'GAVE' ? 'pending' : status === 'STARTED' ? 'started' : status === 'MISSED' ? 'missed' : 'not yet'
+        const text = status === 'NONE' ? 'n/a' : status === 'GAVE' ? 'report pending' : status === 'STARTED' ? 'started' : status === 'MISSED' ? 'missed' : 'not yet'
         return <span className='text-[12.5px] text-text-secondary' aria-label={`${label}: ${text}`}>{text}</span>
     }
     const tone = value >= 60 ? 'bg-[var(--color-success)]' : value >= 40 ? 'bg-[var(--color-warning)]' : 'bg-[var(--color-danger)]'

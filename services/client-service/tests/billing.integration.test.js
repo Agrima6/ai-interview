@@ -553,3 +553,25 @@ test("emails by day answer 'when were they invited', and a person invited to two
     assert.ok(people[0].emails >= 2)                                                                       // Asha: two AI rounds, and the test
     assert.equal(people.reduce((n, p) => n + p.emails, 0), detail.organization.invites)
 })
+
+test("the scorecard fetches AI reports that finished after the interview, instead of showing 'pending' forever", opts, async () => {
+    const { createServer } = await import("node:http")
+    const { default: Client } = await import("../models/client.model.js")
+    const agent = createServer((req, res) => { res.writeHead(200, { "content-type": "application/json" }); res.end(JSON.stringify(req.url.endsWith("/report") ? { report_status: "READY", final_score: 63.6, content: "r" } : {})) })
+    await new Promise((resolve) => agent.listen(0, "127.0.0.1", resolve))
+    const previous = process.env.AGENT_SERVICE_URL
+    process.env.AGENT_SERVICE_URL = `http://127.0.0.1:${agent.address().port}`
+    try {
+        const tR = oid()
+        await Client.create({ onboardingId: oid(), registrationId: oid(), tenantId: tR, type: "ORGANIZATION", name: "Report Co", status: "ACTIVE", primaryContact: { name: "Owner", email: "owner@report.test", phone: "9876543210" } })
+        await call("PUT", `/admin/billing/rates/${String(tR)}`, { token: state.root, body: { aiRate: 100, gstPercent: 0 } })
+        await drive(tR, "Plant AI", [{ roundNumber: 1, title: "AI", type: "Screening", candidates: [candidate("late@r.test", "Late Report", "2026-11-05", { status: "COMPLETED", attemptedDate: at("2026-11-10T10:00:00Z"), invitedAt: at("2026-11-06T09:00:00Z"), agentInterviewId: "iv_late", aiScore: 0 })] }])
+        const people = (await get(`/organizations/${String(tR)}/lines?${NOV}&pageSize=100&view=people`)).data
+        assert.equal(people[0].aiStatus, "GAVE"); assert.equal(people[0].aiScore, 64)             // fetched on the way: a real score, not pending
+        assert.equal(people[0].items[0].score, 64)
+    } finally {
+        process.env.AGENT_SERVICE_URL = previous
+        if (previous === undefined) delete process.env.AGENT_SERVICE_URL
+        agent.close()
+    }
+})
