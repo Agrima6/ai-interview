@@ -555,8 +555,22 @@ const attachMail = async (lines) => {
     })
 }
 
+/**
+ * AI interviews that are finished but have no score stored yet: their reports are ready on the interviewer service minutes after the
+ * interview, and are fetched here (bounded, best-effort), so the scorecard shows real scores instead of "pending".
+ */
+const withFreshAiReports = async (key, query, data) => {
+    const stale = [...new Set(data.lines.filter((l) => l.product === "AI_INTERVIEW" && l.outcome === "GAVE" && (l.score === null || l.score === undefined)).map((l) => l.sourceId))]
+    if (!stale.length) return data
+    try {
+        const { refreshDriveReports } = await import("./interviewDrive.service.js")
+        await Promise.race([Promise.all(stale.slice(0, 20).map((id) => refreshDriveReports(id))), new Promise((resolve) => setTimeout(resolve, 6000))])
+    } catch (error) { console.warn("[client-service] billing: could not refresh AI reports:", error.message); return data }
+    return detailLines(key, query)
+}
+
 export const listLines = async (key, query = {}) => {
-    const { lines, org, card, uses } = await detailLines(key, query)
+    const { lines, org, card, uses } = await withFreshAiReports(key, query, await detailLines(key, query))
     const term = String(query.search || "").trim().toLowerCase().slice(0, 80)
     const outcome = ["GAVE", "PENDING", "MISSED", "STARTED_NOT_FINISHED", "AWAITING_APPROVAL"].includes(query.outcome) ? query.outcome : null
     let rows = lines
