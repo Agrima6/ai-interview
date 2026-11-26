@@ -7,6 +7,7 @@ import clientInternalRoutes from "./routes/client.internal.routes.js"
 import interviewDriveRoutes from "./routes/interviewDrive.routes.js"
 import adminSettingsRoutes from "./routes/adminSettings.routes.js"
 import billingRoutes from "./routes/billing.routes.js"
+import announcementRoutes from "./routes/announcement.routes.js"
 import oaRoutes from "./routes/oa.routes.js"
 
 const app = express()
@@ -41,6 +42,7 @@ app.use("/api/v1", organizationRoutes)
 app.use("/api/v1", interviewDriveRoutes)
 app.use("/api/v1", adminSettingsRoutes)
 app.use("/api/v1", billingRoutes)
+app.use("/api/v1", announcementRoutes)
 app.use("/api/v1", oaRoutes)
 app.use("/", clientInternalRoutes)
 

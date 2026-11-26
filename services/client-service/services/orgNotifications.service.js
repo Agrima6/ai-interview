@@ -34,7 +34,7 @@ export const listNotifications = async (tenantId) => {
     }
 
     const drives = await InterviewDrive.aggregate([
-        { $match: { tenantId: String(tenantId) } },
+        { $match: { tenantId: String(tenantId), deletedAt: null } },
         { $unwind: "$rounds" }, { $unwind: "$rounds.candidates" },
         { $match: { "rounds.candidates.attemptedDate": { $ne: null }, "rounds.candidates.status": { $in: ["COMPLETED", "SHORTLISTED", "REJECTED"] } } },
         { $sort: { "rounds.candidates.attemptedDate": -1 } }, { $limit: LIMIT },

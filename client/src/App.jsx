@@ -32,6 +32,8 @@ const OaDrivesPage = lazy(() => import('./pages/oa/OaDrivesPage'))
 const OaDrivePage = lazy(() => import('./pages/oa/OaDrivePage'))
 const OaJoinPage = lazy(() => import('./pages/oa/OaJoinPage'))
 const BillingPage = lazy(() => import('./pages/billing/BillingPage'))
+const DeletedDrivesPage = lazy(() => import('./pages/admin/DeletedDrivesPage'))
+const AnnouncementsPage = lazy(() => import('./pages/admin/AnnouncementsPage'))
 const AllDrivesPage = lazy(() => import('./pages/organization/AllDrivesPage'))
 const HiringDrivePage = lazy(() => import('./pages/organization/HiringDrivePage'))
 const OrganizationBillingPage = lazy(() => import('./pages/organization/OrganizationBillingPage'))
@@ -161,6 +163,8 @@ function App() {
       <Route path='/platform/admin/onboarding' element={<RequirePlatformAuth permission={featurePermissions.onboarding}><OnboardingReviewList/></RequirePlatformAuth>}/>
       <Route path='/platform/admin/onboarding/:id' element={<RequirePlatformAuth permission={featurePermissions.onboarding}><OnboardingReviewDetail/></RequirePlatformAuth>}/>
       <Route path='/platform/admin/clients' element={<RequirePlatformAuth permission={featurePermissions.clients}><ClientList/></RequirePlatformAuth>}/>
+      <Route path='/platform/admin/announcements' element={<RequirePlatformAuth permission={featurePermissions.settings}><AnnouncementsPage/></RequirePlatformAuth>}/>
+      <Route path='/platform/admin/deleted-drives' element={<RequirePlatformAuth permission={featurePermissions.settings}><DeletedDrivesPage/></RequirePlatformAuth>}/>
       <Route path='/platform/admin/billing' element={<RequirePlatformAuth permission={featurePermissions.settings}><BillingPage/></RequirePlatformAuth>}/>
       <Route path='/platform/admin/settings' element={<RequirePlatformAuth permission={featurePermissions.settings}><VoiceProviderSettings/></RequirePlatformAuth>}/>
       {/* Online Assessment: a separate room with its own sign-in (organizers) and its own student entry. */}

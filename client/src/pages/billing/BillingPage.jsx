@@ -27,13 +27,13 @@ function Trend({ trend }) {
     const max = Math.max(1, ...trend.map((m) => m.candidates))
     return (
         <section aria-label='Last six months' className='border border-line rounded-2xl bg-card px-5 py-4'>
-            <h2 className='text-[13px] font-bold text-ink mb-3'>Billable candidates, last six months <span className='font-normal text-text-secondary'>(amounts at today's rates, before GST)</span></h2>
+            <h2 className='text-[13px] font-bold text-ink mb-3'>Candidates emailed, last six months <span className='font-normal text-text-secondary'>(amounts at today's rates, before GST)</span></h2>
             <ol className='grid grid-cols-6 gap-2 sm:gap-4 items-end'>
                 {trend.map((m, i) => (
                     <li key={m.month} className='flex flex-col items-center min-w-0'>
                         <span className='text-[12px] font-bold text-ink tabular-nums'>{num(m.candidates)}</span>
                         <div className='w-full max-w-[56px] h-24 flex items-end mt-1'>
-                            <div className={`w-full rounded-t-lg ${i === trend.length - 1 ? 'bg-accent' : 'bg-accent/35'}`} style={{ height: `${Math.max(m.candidates ? 6 : 2, (m.candidates / max) * 100)}%` }} title={`${monthLabel(m.month)}: ${m.candidates} candidates, ${m.interviews} interviews`} />
+                            <div className={`w-full rounded-t-lg ${i === trend.length - 1 ? 'bg-accent' : 'bg-accent/35'}`} style={{ height: `${Math.max(m.candidates ? 6 : 2, (m.candidates / max) * 100)}%` }} title={`${monthLabel(m.month)}: ${m.candidates} candidates, ${m.invites} invitations`} />
                         </div>
                         <span className='text-[11.5px] text-text-secondary mt-1.5'>{monthLabel(m.month)}</span>
                         <span className='text-[11px] text-text-secondary tabular-nums'>{inr(m.amountExGst)}</span>
@@ -88,7 +88,7 @@ export default function BillingPage() {
     const data = summary.data
     const rows = useMemo(() => {
         const term = search.trim().toLowerCase()
-        const key = { name: (o) => o.name.toLowerCase(), registered: (o) => o.registered, gave: (o) => o.gaveOfRegistered, conversion: (o) => o.conversionPercent, billable: (o) => o.billableUnits, amount: (o) => o.amountExGst, total: (o) => o.total }[sort.field]
+        const key = { name: (o) => o.name.toLowerCase(), registered: (o) => o.registered, gave: (o) => o.gaveOfRegistered, conversion: (o) => o.conversionPercent, invites: (o) => o.invites, billable: (o) => o.billableUnits, amount: (o) => o.amountExGst, total: (o) => o.total }[sort.field]
         const list = (data?.organizations || []).filter((o) => !term || `${o.name} ${o.email} ${o.contactName}`.toLowerCase().includes(term))
         return [...list].sort((a, b) => (key(a) > key(b) ? 1 : key(a) < key(b) ? -1 : 0) * (sort.dir === 'asc' ? 1 : -1))
     }, [data, search, sort])
@@ -101,7 +101,7 @@ export default function BillingPage() {
                 <header className='flex flex-wrap items-end justify-between gap-3 mb-5'>
                     <div>
                         <h1 className='font-display text-[26px] font-bold text-ink'>Billing</h1>
-                        <p className='text-[14px] text-text-secondary mt-0.5'>Candidate-wise billing across every client. A candidate is billed once they have given the interview.</p>
+                        <p className='text-[14px] text-text-secondary mt-0.5'>Billing across every client, by drive and by candidate. A candidate is billed when their invitation email is sent.</p>
                     </div>
                     <div className='flex flex-wrap gap-2'>
                         <Button size='sm' variant='secondary' onClick={() => { setRateError(''); setRates(true) }}><SlidersHorizontal size={14} /> Default rates</Button>
@@ -132,10 +132,9 @@ export default function BillingPage() {
                     <button type='button' onClick={() => setExplain((v) => !v)} aria-expanded={explain} className='ml-3 inline-flex items-center gap-1 font-semibold text-accent hover:underline'><Info size={13} aria-hidden='true' /> How billing is counted</button></p>
                 {explain && (
                     <div className='mb-4 rounded-2xl border border-line bg-surface-muted/60 px-5 py-4 text-[13px] text-ink space-y-1.5' role='note'>
-                        <p><b>Registered</b>: a candidate added to a drive or test in this period (by HR, an upload, or the open registration link). People still awaiting approval, or rejected, are not counted.</p>
-                        <p><b>Gave the interview</b>: they finished, or the platform ended it for them (for example too many proctoring warnings). Candidates who only registered, or who opened the room and left, are not billed.</p>
-                        <p><b>Billable</b>: the unique candidates who gave an interview in this period. Someone who sat two rounds is billed once, unless a client is set to "every interview round".</p>
-                        <p><b>Of those registered</b>: how many have since given the interview, are still to, or missed it because the round closed.</p>
+                        <p><b>Emails sent</b>: invitation emails that went out to candidates in this period. This is what is billed: a candidate is charged once their email is sent, whether or not they sit it.</p>
+                        <p><b>Billable</b>: the unique candidates emailed in this period. Someone invited to two rounds is billed once, unless a client is set to bill per round, when every round counts.</p>
+                        <p><b>Registered</b> and <b>gave the interview</b> are shown for your information. Candidates who only registered through the open link, and are never emailed, are not billed.</p>
                     </div>
                 )}
 
@@ -152,11 +151,11 @@ export default function BillingPage() {
                         <section aria-label='Totals' className='border border-line rounded-2xl bg-card overflow-hidden'>
                             <dl className='grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 divide-line md:divide-x gap-y-px'>
                                 <Stat label='Registered' value={num(t.registered)} hint={`${num(t.organizations)} client${t.organizations === 1 ? '' : 's'} with activity`} />
-                                <Stat label='Gave the interview' value={num(t.gaveOfRegistered)} hint='of those registered' tone='text-[var(--color-success)]' />
+                                <Stat label='Emails sent' value={num(t.invites)} hint='invitations in this period' tone='text-accent' />
+                                <Stat label='Billable candidates' value={num(t.billableCandidates)} hint='emailed at least once' tone='text-accent' />
+                                <Stat label='Gave the interview' value={num(t.gaveOfRegistered)} hint='of those registered (not billed on)' tone='text-[var(--color-success)]' />
                                 <Stat label='Still to interview' value={num(t.pending + t.startedNotFinished)} hint={`${num(t.startedNotFinished)} started, not finished`} />
                                 <Stat label='Missed' value={num(t.missed)} hint='round closed first' tone={t.missed ? 'text-[var(--color-danger)]' : 'text-ink'} />
-                                <Stat label='Conversion' value={`${num(t.conversionPercent)}%`} hint='registered who interviewed' />
-                                <Stat label='Billable candidates' value={num(t.billableCandidates)} hint={`${num(t.interviews)} interview rounds`} tone='text-accent' />
                             </dl>
                             <div className='grid sm:grid-cols-3 bg-ink text-white divide-white/15 sm:divide-x'>
                                 <div className='px-5 py-3.5'><p className='text-[12px] text-white/70'>Amount before GST</p><p className='font-display text-[24px] font-bold tabular-nums'>{inr(t.amountExGst)}</p><p className='text-[11.5px] text-white/60'>{[t.comboAmount > 0 && `Test + AI ${inr(t.comboAmount)}`, t.oaAmount > 0 && `Online tests ${inr(t.oaAmount)}`, t.aiAmount > 0 && `AI ${inr(t.aiAmount)}`].filter(Boolean).join(' · ') || 'Nothing to bill yet'}</p></div>
@@ -184,15 +183,12 @@ export default function BillingPage() {
                                 {rows.length === 0 ? (
                                     <EmptyState compact title={search ? 'No clients match' : 'No activity in this period'} description={search ? 'Try a different name.' : 'No candidates registered or gave an interview between these dates. Try another period.'} />
                                 ) : (
-                                    <table className='w-full text-[13.5px] min-w-[1000px]'>
+                                    <table className='w-full text-[13.5px] min-w-[900px]'>
                                         <thead className='bg-surface-muted text-[12px] sticky top-0'>
                                             <tr>
                                                 <SortHead label='Client' field='name' sort={sort} onSort={onSort} align='left' />
                                                 <SortHead label='Registered' field='registered' sort={sort} onSort={onSort} />
-                                                <SortHead label='Gave the interview' field='gave' sort={sort} onSort={onSort} />
-                                                <th scope='col' className='px-3 py-3 text-right font-semibold text-text-secondary whitespace-nowrap'>Not yet</th>
-                                                <th scope='col' className='px-3 py-3 text-right font-semibold text-text-secondary whitespace-nowrap'>Missed</th>
-                                                <SortHead label='Conversion' field='conversion' sort={sort} onSort={onSort} />
+                                                <SortHead label='Emails sent' field='invites' sort={sort} onSort={onSort} />
                                                 <SortHead label='Billable' field='billable' sort={sort} onSort={onSort} />
                                                 <th scope='col' className='px-3 py-3 text-right font-semibold text-text-secondary whitespace-nowrap'>Rate</th>
                                                 <SortHead label='Amount' field='amount' sort={sort} onSort={onSort} />
@@ -208,13 +204,8 @@ export default function BillingPage() {
                                                         <div className='flex flex-wrap items-center gap-1.5 mt-0.5'><Badge variant='neutral'>{KIND[o.kind] || o.kind}</Badge>{usesLabel(o.uses) && <Badge variant='brand' className='normal-case'>{usesLabel(o.uses)}</Badge>}{o.status !== 'ACTIVE' && <Badge variant={STATUS_TONE[o.status] || 'neutral'}>{o.status}</Badge>}{o.hasCustomRate && <span className='text-[11px] text-text-secondary'>custom rate</span>}</div>
                                                     </td>
                                                     <td className='px-3 py-3 text-right tabular-nums'>{num(o.registered)}{o.awaitingApproval > 0 && <span className='block text-[11px] text-text-secondary' title='Registered through the open link and not yet approved'>+{o.awaitingApproval} awaiting</span>}</td>
-                                                    <td className='px-3 py-3 text-right tabular-nums font-semibold text-[var(--color-success)]'>{num(o.gaveOfRegistered)}</td>
-                                                    <td className='px-3 py-3 text-right tabular-nums text-text-secondary'>{num(o.pending + o.startedNotFinished)}</td>
-                                                    <td className='px-3 py-3 text-right tabular-nums'>{o.missed ? <span className='text-[var(--color-danger)]'>{num(o.missed)}</span> : <span className='text-text-secondary'>0</span>}</td>
-                                                    <td className='px-3 py-3 text-right tabular-nums'>
-                                                        <div className='flex items-center justify-end gap-2'><span className='hidden xl:block w-14 h-1.5 rounded-full bg-line overflow-hidden' aria-hidden='true'><span className='block h-full bg-[var(--color-success)]' style={{ width: `${Math.min(100, o.conversionPercent)}%` }} /></span>{num(o.conversionPercent)}%</div>
-                                                    </td>
-                                                    <td className='px-3 py-3 text-right tabular-nums font-semibold'>{num(o.billableUnits)}<span className='block text-[11px] font-normal text-text-secondary'>{o.unit === 'INTERVIEW' ? 'interviews' : 'candidates'}</span></td>
+                                                    <td className='px-3 py-3 text-right tabular-nums'>{num(o.invites)}</td>
+                                                    <td className='px-3 py-3 text-right tabular-nums font-semibold'>{num(o.billableUnits)}<span className='block text-[11px] font-normal text-text-secondary'>{o.unit === 'INTERVIEW' ? 'rounds' : 'candidates'}</span></td>
                                                     <td className='px-3 py-3 text-right tabular-nums text-[12.5px]'>{o.rateMissing ? <span className='text-[var(--color-warning)] font-semibold'>No rate</span> : <>{shownKinds(o.uses).combo && <div>Test + AI {inr(o.comboRate)}</div>}{shownKinds(o.uses).oa && <div>Test {inr(o.oaRate)}</div>}{shownKinds(o.uses).ai && <div>AI {inr(o.aiRate)}</div>}</>}</td>
                                                     <td className='px-3 py-3 text-right tabular-nums'>{inr(o.amountExGst)}</td>
                                                     <td className='px-3 py-3 text-right tabular-nums font-bold text-ink'>{inr(o.total)}</td>
@@ -226,10 +217,7 @@ export default function BillingPage() {
                                             <tr className='bg-surface-muted font-bold text-ink'>
                                                 <td className='px-4 py-3'>Total ({rows.length}{search ? ' shown' : ''})</td>
                                                 <td className='px-3 py-3 text-right tabular-nums'>{num(rows.reduce((s, o) => s + o.registered, 0))}</td>
-                                                <td className='px-3 py-3 text-right tabular-nums'>{num(rows.reduce((s, o) => s + o.gaveOfRegistered, 0))}</td>
-                                                <td className='px-3 py-3 text-right tabular-nums'>{num(rows.reduce((s, o) => s + o.pending + o.startedNotFinished, 0))}</td>
-                                                <td className='px-3 py-3 text-right tabular-nums'>{num(rows.reduce((s, o) => s + o.missed, 0))}</td>
-                                                <td />
+                                                <td className='px-3 py-3 text-right tabular-nums'>{num(rows.reduce((s, o) => s + o.invites, 0))}</td>
                                                 <td className='px-3 py-3 text-right tabular-nums'>{num(rows.reduce((s, o) => s + o.billableUnits, 0))}</td>
                                                 <td />
                                                 <td className='px-3 py-3 text-right tabular-nums'>{inr(rows.reduce((s, o) => s + o.amountExGst, 0))}</td>

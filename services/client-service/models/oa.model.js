@@ -34,6 +34,9 @@ const driveSchema = new Schema({
     roleCategory: { type: String, default: "", maxlength: 80 },
     experienceLevel: { type: String, default: "", maxlength: 80 },
     status: { type: String, enum: ["ACTIVE", "ARCHIVED"], default: "ACTIVE", index: true },
+    // Soft delete (see InterviewDrive): hidden from lists, shut to candidates, restorable.
+    deletedAt: { type: Date, default: null, index: true },
+    deletedBy: { type: String, default: null },
 }, { timestamps: true })
 
 driveSchema.index({ accountId: 1, createdAt: -1 })
@@ -69,6 +72,8 @@ const assessmentSchema = new Schema({
     instructions: { type: String, default: "", maxlength: 4000 },
     // DRAFT: being built. PUBLISHED: students can be invited and may sit it. ARCHIVED: hidden.
     status: { type: String, enum: ["DRAFT", "PUBLISHED", "ARCHIVED"], default: "DRAFT", index: true },
+    // Set when its drive is deleted, so restoring the drive puts the round back as it was.
+    statusBeforeDelete: { type: String, default: null },
     roundLabel: { type: String, default: "", maxlength: 60 },
     previousAssessmentId: { type: Schema.Types.ObjectId, default: null },
     // A round of a drive. TEST: an online test. AI_INTERVIEW: a round handed over to an AI interview drive.
@@ -159,6 +164,8 @@ const studentSchema = new Schema({
     invite: {
         status: { type: String, enum: ["NOT_SENT", "SENT", "FAILED"], default: "NOT_SENT" },
         sentAt: { type: Date, default: null },
+        // The first time the invitation went out. A re-send moves sentAt but never this: it is the billing event.
+        firstSentAt: { type: Date, default: null },
         error: { type: String, default: null },
     },
 }, { timestamps: true })

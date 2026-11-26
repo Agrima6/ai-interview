@@ -62,6 +62,7 @@ export const listAssessments = async (accountId, { status, search, page, pageSiz
     const filter = { accountId }
     if (["DRAFT", "PUBLISHED", "ARCHIVED"].includes(status)) filter.status = status
     else filter.status = { $ne: "ARCHIVED" }
+    if (filter.status === "ARCHIVED") filter.statusBeforeDelete = null      // rounds of a deleted drive are not "archived": they are deleted with it
     const term = String(search || "").trim().slice(0, 80)
     if (term) filter.title = new RegExp(escapeRegex(term), "i")
     const p = pageParams({ page, pageSize })
@@ -331,6 +332,31 @@ export const deleteQuestion = async (accountId, id, questionId) => {
     return { total: assessment.questions.length }
 }
 
+// Delete several questions at once (the ones ticked in the list). Questions already gone are ignored, so a double click is safe.
+export const deleteQuestions = async (accountId, id, ids) => {
+    const assessment = await owned(accountId, id)
+    await assertEditable(assessment)
+    const wanted = new Set((Array.isArray(ids) ? ids : []).map((x) => String(x)).slice(0, 1000))
+    if (!wanted.size) throw new ApiError(400, "VALIDATION_ERROR", "Choose at least one question to delete.", { ids: "Choose at least one question." })
+    const before = assessment.questions.length
+    assessment.questions = assessment.questions.filter((q) => !wanted.has(String(q.id)))
+    const deleted = before - assessment.questions.length
+    if (deleted) await assessment.save()
+    return { deleted, total: assessment.questions.length }
+}
+
+// Delete a section together with its questions. A test always keeps one section, so deleting the only one empties it instead.
+export const deleteSection = async (accountId, id, sectionId) => {
+    const assessment = await owned(accountId, id)
+    await assertEditable(assessment)
+    if (!assessment.sections.some((s) => s.id === sectionId)) throw new ApiError(404, "NOT_FOUND", "Section not found.")
+    const deleted = assessment.questions.filter((q) => q.sectionId === sectionId).length
+    assessment.questions = assessment.questions.filter((q) => q.sectionId !== sectionId)
+    if (assessment.sections.length > 1) assessment.sections = assessment.sections.filter((s) => s.id !== sectionId)
+    await assessment.save()
+    return { deleted, sections: assessment.sections.length, total: assessment.questions.length }
+}
+
 export const aiDraft = async (accountId, id, input = {}) => {
     const assessment = await owned(accountId, id)
     const ctx = sectionContext(assessment, input.sectionId)
@@ -430,7 +456,7 @@ export const sendInvites = async (accountId, id, { studentIds, resend = false } 
             const code = decryptSecret(student.codeEncrypted)
             const mail = inviteEmail({ assessment, student, code, orgName: brand.name || account?.orgName || "Your organizer", brand })
             const result = await sendOaEmail({ accountId, to: student.email, eventType: "OA_INVITE", fromName: brand.name || account?.orgName, ...mail, metadata: { assessmentId: String(assessment._id), studentId: String(student._id) } })
-            student.invite = result.ok ? { status: "SENT", sentAt: new Date(), error: null } : { status: "FAILED", sentAt: student.invite?.sentAt || null, error: String(result.error || "send failed").slice(0, 120) }
+            student.invite = result.ok ? { status: "SENT", sentAt: new Date(), firstSentAt: student.invite?.firstSentAt || (student.invite?.status === "SENT" ? student.invite.sentAt : null) || new Date(), error: null } : { status: "FAILED", sentAt: student.invite?.sentAt || null, firstSentAt: student.invite?.firstSentAt || null, error: String(result.error || "send failed").slice(0, 120) }
             await student.save()
             if (result.ok) sent += 1; else failed.push({ email: student.email, reason: student.invite.error })
         }

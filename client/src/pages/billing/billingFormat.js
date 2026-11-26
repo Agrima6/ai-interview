@@ -40,7 +40,9 @@ export const OUTCOME = {
 }
 export const KIND = { ORGANIZATION: 'Organization', COLLEGE: 'College', ONLINE_ASSESSMENT: 'Online tests only', UNKNOWN: 'Unknown' }
 export const PRODUCT = { AI_INTERVIEW: 'AI Interview', ONLINE_ASSESSMENT: 'Online Assessment' }
-export const UNIT_LABEL = { CANDIDATE: 'per candidate', INTERVIEW: 'per interview round' }
+export const UNIT_LABEL = { CANDIDATE: 'per candidate', INTERVIEW: 'per round' }
+// What happened to the invitation email. View only.
+export const MAIL = { OPENED: ['success', 'Opened'], READ: ['success', 'Opened'], DELIVERED: ['info', 'Delivered'], SENT: ['info', 'Sent'], MOCK_SENT: ['info', 'Sent'], QUEUED: ['neutral', 'Queued'], FAILED: ['danger', 'Failed'] }
 
 /** What a client has created, in words: "Online test + AI interview", "Online test", "AI interview" (or several, joined). */
 export const usesLabel = (uses) => {

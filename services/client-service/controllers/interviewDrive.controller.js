@@ -300,6 +300,14 @@ export const updateDriveStatus = async (req, res, next) => {
     }
 }
 
+export const deleteDrive = async (req, res, next) => {
+    try { ok(res, await driveService.deleteDrive(req.user?.tenantId, req.params.id, req.user?.email || req.user?.sub)) } catch (error) { next(error) }
+}
+
+export const restoreDrive = async (req, res, next) => {
+    try { ok(res, await driveService.restoreDrive(req.user?.tenantId, req.params.id)) } catch (error) { next(error) }
+}
+
 export const updateRoundStatus = async (req, res, next) => {
     try {
         const tenantId = req.user?.tenantId

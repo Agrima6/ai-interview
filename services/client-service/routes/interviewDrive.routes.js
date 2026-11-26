@@ -31,6 +31,8 @@ router.get("/drives/:id/results/export", authenticate, requirePermission("CLIENT
 router.get("/drives/:id", authenticate, requirePermission("CLIENT_SELF_READ"), driveController.getDriveById)
 router.post("/drives/:id/candidates", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.addCandidatesToDrive)
 router.post("/drives/:id/rounds", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.addRoundToDrive)
+router.delete("/drives/:id", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.deleteDrive)
+router.post("/drives/:id/restore", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.restoreDrive)
 router.patch("/drives/:id/status", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.updateDriveStatus)
 router.patch("/drives/:id/rounds/:roundNumber/status", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.updateRoundStatus)
 router.patch("/drives/:id/rounds/:roundNumber", authenticate, requirePermission("CLIENT_SELF_UPDATE"), driveController.updateRound)

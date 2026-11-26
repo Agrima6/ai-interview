@@ -14,7 +14,7 @@ const OWN_SOURCE = {
     save: async () => { throw new Error('Rates are set by your account manager.') },
 }
 
-/** What the organization is billed for candidates who gave the interview, with the candidates behind it. Read-only. */
+/** What the organization is billed for candidates who were emailed an invitation, by drive and by candidate. Read-only. */
 export default function OrganizationBillingPage() {
     const [params, setParams] = useSearchParams()
     const preset = params.get('preset') || (params.get('from') ? 'custom' : 'thisMonth')
@@ -22,7 +22,7 @@ export default function OrganizationBillingPage() {
     const update = (patch) => setParams((prev) => { const next = new URLSearchParams(prev); Object.entries(patch).forEach(([k, v]) => (v ? next.set(k, v) : next.delete(k))); return next }, { replace: true })
 
     return (
-        <OrganizationLayout title='Billing' description='What you are billed for candidates who gave the interview, and the candidates behind every charge.'>
+        <OrganizationLayout title='Billing' description='What you are billed when invitations are sent, by drive and by candidate.'>
             <div className='max-w-[1100px]'>
                 <div className='flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4'>
                     <div role='tablist' aria-label='Period' className='flex flex-wrap gap-1'>
@@ -41,7 +41,7 @@ export default function OrganizationBillingPage() {
                         </div>
                     )}
                 </div>
-                <p className='text-[12.5px] text-text-secondary mb-5'>A candidate is billed once they have given the interview or test. Candidates who only registered are not billed. Amounts are in Indian rupees and Indian time (IST).</p>
+                <p className='text-[12.5px] text-text-secondary mb-5'>A candidate is billed when their invitation email is sent, whether or not they sit it. Candidates who only registered are not billed. Amounts are in Indian rupees and Indian time (IST).</p>
                 <OrgPanel orgKey='own' period={range} product='' source={OWN_SOURCE} readOnly />
             </div>
         </OrganizationLayout>

@@ -46,15 +46,15 @@ export default function RateForm({ values, defaults, isDefault = false, saving, 
                 </div>
             </div>
             <fieldset>
-                <legend className='block text-[12.5px] font-semibold text-ink mb-1.5'>A candidate is billed</legend>
+                <legend className='block text-[12.5px] font-semibold text-ink mb-1.5'>Billing is</legend>
                 <div className='flex flex-wrap gap-2'>
-                    {[['', isDefault ? 'Once per period (each person once)' : `Use default (${defaults.unit === 'INTERVIEW' ? 'every interview round' : 'each person once'})`], ['CANDIDATE', 'Each person once per period'], ['INTERVIEW', 'Every interview round']].filter(([v]) => !(isDefault && v === '')).map(([v, label]) => (
+                    {[['', isDefault ? 'Candidate-wise: each person once per period' : `Use default (${defaults.unit === 'INTERVIEW' ? 'round-wise' : 'each person once'})`], ['CANDIDATE', 'Candidate-wise: each person once per period'], ['INTERVIEW', 'Round-wise: every round invited is charged']].filter(([v]) => !(isDefault && v === '')).map(([v, label]) => (
                         <label key={v || 'default'} className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border-[1.5px] text-[13px] cursor-pointer ${f.unit === v || (isDefault && v === (f.unit || 'CANDIDATE')) ? 'border-accent bg-accent/[0.05] font-semibold text-ink' : 'border-line text-text-secondary hover:border-accent/40'}`}>
                             <input type='radio' name='unit' className='sr-only' checked={f.unit === v || (isDefault && v === (f.unit || 'CANDIDATE'))} onChange={() => setF((s) => ({ ...s, unit: v }))} />{label}
                         </label>
                     ))}
                 </div>
-                <p className='text-[12px] text-text-secondary mt-1.5'>"Each person once" bills a candidate one time in the period even if they sat two rounds. "Every interview round" bills each round separately.</p>
+                <p className='text-[12px] text-text-secondary mt-1.5'>Candidate-wise charges a person one time in the period however many rounds they are invited to. Round-wise charges every round separately, and the organization sees each round’s price inside its drives.</p>
             </fieldset>
             {!isDefault && (
                 <div>

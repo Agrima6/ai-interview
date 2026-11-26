@@ -33,5 +33,6 @@ const communicationSchema = new mongoose.Schema({
 communicationSchema.index({ entityType: 1, entityId: 1, createdAt: -1 })
 communicationSchema.index({ status: 1, createdAt: -1 })
 communicationSchema.index({ "metadata.driveId": 1 })
+communicationSchema.index({ "metadata.assessmentId": 1 })
 
 export default mongoose.model("Communication", communicationSchema)

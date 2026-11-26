@@ -70,7 +70,8 @@ const idOn = (iso) => mongoose.Types.ObjectId.createFromTime(Math.floor(new Date
 const NOV = "from=2026-11-01&to=2026-11-30"
 const get = (url, token = state.root) => call("GET", `/admin/billing${url}`, { token })
 
-const candidate = (email, name, added, extra = {}) => ({ _id: idOn(added), name, email, status: "INVITED", ...extra })
+// Billing counts invitation emails. Unless a test says otherwise, whoever sat the interview was invited the moment they sat it.
+const candidate = (email, name, added, extra = {}) => ({ _id: idOn(added), name, email, status: "INVITED", ...(extra.attemptedDate && !("invitedAt" in extra) ? { invitedAt: extra.attemptedDate } : {}), ...extra })
 const drive = (tenantId, title, rounds, kind = "HIRING") => state.Drive.create({
     tenantId: String(tenantId), title, driveKind: kind, roleCategory: "SOFTWARE_ENGINEERING", department: "ENGINEERING", experienceLevel: "1_3_YEARS",
     expiryDate: at("2027-01-01"), createdAt: at("2026-10-01"), rounds,
@@ -117,12 +118,13 @@ test("set up: two clients, AI interview drives and online tests with a known mix
     const test = (acc, title) => models.OaAssessment.create({ accountId: acc._id, title, status: "PUBLISHED", sections: [{ id: "s1", title: "" }] })
     const aT = await test(acmeOa, "Campus Test"); const sT = await test(solo, "Skill Check")
     const student = (acc, a, n, extra = {}) => models.OaStudent.create({ accountId: acc._id, assessmentId: a._id, name: `Student ${n}`, email: `s${n}@${acc === solo ? "solo" : "oa"}.test`, emailNormalized: `s${n}@${acc === solo ? "solo" : "oa"}.test`, phone: null, codeHash: "h", codeEncrypted: "e", createdAt: at("2026-11-08T08:00:00Z"), ...extra })
+    const sentOn = (iso) => ({ invite: { status: "SENT", sentAt: at(iso), firstSentAt: at(iso) } })
     const attempt = (acc, a, s, status, extra = {}) => models.OaAttempt.create({ accountId: acc._id, assessmentId: a._id, studentId: s._id, status, startedAt: at("2026-11-09T08:00:00Z"), deadline: at("2026-11-09T09:00:00Z"), order: {}, percent: 64, ...extra })
-    const s1 = await student(acmeOa, aT, 1); const s2 = await student(acmeOa, aT, 2); await student(acmeOa, aT, 3)
+    const s1 = await student(acmeOa, aT, 1, sentOn("2026-11-09T08:40:00Z")); const s2 = await student(acmeOa, aT, 2); await student(acmeOa, aT, 3)
     await student(acmeOa, aT, 4, { approval: { status: "PENDING", source: "SELF" } }); await student(acmeOa, aT, 5, { approval: { status: "REJECTED", source: "SELF" } })
     await attempt(acmeOa, aT, s1, "SUBMITTED", { submittedAt: at("2026-11-09T08:40:00Z") })
     await attempt(acmeOa, aT, s2, "IN_PROGRESS")
-    const t1 = await student(solo, sT, 1)
+    const t1 = await student(solo, sT, 1, sentOn("2026-11-09T09:00:00Z"))
     await attempt(solo, sT, t1, "AUTO_SUBMITTED", { submittedAt: at("2026-11-09T09:00:00Z") })
 
     state.root = await platformToken(["SETTINGS_WRITE"])
@@ -151,7 +153,7 @@ test("the numbers: registered, gave the interview, still pending, missed, and wh
     assert.equal(a.ai.pending, 2)         // meera and "=cmd"
     assert.equal(a.ai.missed, 1)          // kiran: the round closed
     assert.equal(a.ai.started, 1)         // sam opened the room and never finished
-    assert.equal(a.ai.interviews, 4)      // asha twice (two rounds), ravi, and Olga who registered in October but sat in November
+    assert.equal(a.ai.invites, 4)      // asha twice (two rounds), ravi, and Olga who registered in October but sat in November
     assert.equal(a.ai.billableCandidates, 3)   // asha once, ravi, Olga
     // online tests at Acme: students 1-3 registered (4 awaits approval, 5 rejected); one finished, one is still in progress
     assert.equal(a.oa.registered, 3)
@@ -202,7 +204,7 @@ test("one organization in detail, line by line, adding up to the invoice", opts,
     assert.equal(lines.status, 200)
     assert.equal(lines.data.reduce((sum, l) => sum + l.units, 0), 4)         // billing units on the lines equal the billable count
     const asha = lines.data.filter((l) => l.email === "asha@a.test")
-    assert.equal(asha.length, 1); assert.equal(asha[0].interviewsInPeriod, 2); assert.equal(asha[0].units, 1)   // two rounds, billed once
+    assert.equal(asha.length, 1); assert.equal(asha[0].invitesInPeriod, 2); assert.equal(asha[0].units, 1)   // two rounds, billed once
     const awaiting = lines.data.find((l) => l.name === "Student 4")
     assert.equal(awaiting.outcome, "AWAITING_APPROVAL"); assert.equal(awaiting.units, 0)      // registered through the open link, not approved: never billed
     assert.equal(lines.data.find((l) => l.name === "Student 5"), undefined)                      // rejected: not a candidate at all
@@ -266,7 +268,7 @@ test("CSV exports: the whole summary and one client's annexure, safe to open in 
     assert.equal(annex.status, 200)
     const csv = String(annex.json)
     assert.match(csv, /Asha Verma/)
-    assert.match(csv, /Total billing units/)
+    assert.match(csv, /Total/)
     assert.match(csv, /'=HYPERLINK/)           // a name that starts with = is neutralised, so a spreadsheet will not run it
     assert.doesNotMatch(csv, /(^|,)"?=HYPERLINK/m)
 })
@@ -325,7 +327,7 @@ test("a candidate who gives the online test AND its linked AI interview is bille
     const acme = await models.OaAccount.findOne({ email: "oa@acme.test" })
     const linked = await models.OaAssessment.create({ accountId: acme._id, title: "Backend Test", status: "PUBLISHED", sections: [{ id: "s1", title: "" }], aiPart: { enabled: true, aiInterviewDriveId: String(drv._id), roundNumber: 1, when: "AFTER_SUBMIT" } })
     // Asha gave the AI interview in November and now also sits this test
-    const asha = await models.OaStudent.create({ accountId: acme._id, assessmentId: linked._id, name: "Asha Verma", email: "asha@a.test", emailNormalized: "asha@a.test", phone: null, codeHash: "h", codeEncrypted: "e", createdAt: at("2026-11-08T08:00:00Z") })
+    const asha = await models.OaStudent.create({ accountId: acme._id, assessmentId: linked._id, name: "Asha Verma", email: "asha@a.test", emailNormalized: "asha@a.test", phone: null, codeHash: "h", codeEncrypted: "e", createdAt: at("2026-11-08T08:00:00Z"), invite: { status: "SENT", sentAt: at("2026-11-09T08:00:00Z"), firstSentAt: at("2026-11-09T08:00:00Z") } })
     await models.OaAttempt.create({ accountId: acme._id, assessmentId: linked._id, studentId: asha._id, status: "SUBMITTED", submittedAt: at("2026-11-09T08:40:00Z"), startedAt: at("2026-11-09T08:00:00Z"), deadline: at("2026-11-09T09:00:00Z"), order: {}, percent: 70 })
     const row = async () => (await get(`/summary?${NOV}`)).data.organizations.find((o) => o.name === "Acme Corp")
 
@@ -357,7 +359,7 @@ test("billing shows only what each client created; a client with only combined d
     const acc = await models.OaAccount.create({ orgName: "Combo Co", contactName: "Owner", email: "oa@combo.test", emailNormalized: "oa@combo.test", passwordHash: "x", status: "ACTIVE", tenantId: String(tC) })
     const test = await models.OaAssessment.create({ accountId: acc._id, title: "Combo Test", status: "PUBLISHED", sections: [{ id: "s1", title: "" }], aiPart: { enabled: true, aiInterviewDriveId: String(aiDrive._id), roundNumber: 1, when: "AFTER_SUBMIT" } })
     const sit = async (email, n) => {
-        const st = await models.OaStudent.create({ accountId: acc._id, assessmentId: test._id, name: `P${n}`, email, emailNormalized: email, phone: null, codeHash: "h", codeEncrypted: "e", createdAt: at("2026-11-08T08:00:00Z") })
+        const st = await models.OaStudent.create({ accountId: acc._id, assessmentId: test._id, name: `P${n}`, email, emailNormalized: email, phone: null, codeHash: "h", codeEncrypted: "e", createdAt: at("2026-11-08T08:00:00Z"), invite: { status: "SENT", sentAt: at("2026-11-09T08:00:00Z"), firstSentAt: at("2026-11-09T08:00:00Z") } })
         await models.OaAttempt.create({ accountId: acc._id, assessmentId: test._id, studentId: st._id, status: "SUBMITTED", submittedAt: at("2026-11-09T08:40:00Z"), startedAt: at("2026-11-09T08:00:00Z"), deadline: at("2026-11-09T09:00:00Z"), order: {}, percent: 60 })
     }
     await sit("cc@c.test", 1)         // gave both parts
@@ -393,5 +395,89 @@ test("a test and its AI interview read as ONE drive with two parts, per candidat
     assert.equal(detail.sources.some((s) => s.product === "AI_INTERVIEW" && s.title === "Backend Hiring"), false)    // the two halves are not listed on their own
     assert.equal(detail.sources.some((s) => s.product === "ONLINE_ASSESSMENT" && /Backend Test/.test(s.title)), false)
     const csv = await call("GET", `/admin/billing/organizations/${state.A}/export?${NOV}`, { token: state.root })
-    assert.match(String(csv.json), /Online test \+ AI interview \(AI interview\)/)
+    assert.match(String(csv.json), /Asha Verma[^\n]*Backend Test/)          // one candidate row naming the combined drive
+})
+
+test("billing follows the invitation email: invited and never sat is billed; sat without an email, or a failed send, is not", opts, async () => {
+    const { default: Client } = await import("../models/client.model.js")
+    const tD = oid()
+    await Client.create({ onboardingId: oid(), registrationId: oid(), tenantId: tD, type: "ORGANIZATION", name: "Nifco Test", status: "ACTIVE", primaryContact: { name: "Owner", email: "owner@nifco.test", phone: "9876543210" } })
+    await call("PUT", `/admin/billing/rates/${String(tD)}`, { token: state.root, body: { aiRate: 250, oaRate: 250, gstPercent: 0 } })
+    await drive(tD, "Plant Operators", [
+        { roundNumber: 1, title: "Screening", type: "Screening", candidates: [
+            candidate("sent1@n.test", "Sent One", "2026-11-05", { invitedAt: at("2026-11-06T09:00:00Z") }),                 // emailed, never sat it
+            candidate("sent2@n.test", "Sent Two", "2026-11-05", { invitedAt: at("2026-11-06T09:00:00Z") }),
+            candidate("self@n.test", "Self Applied", "2026-11-05", { status: "COMPLETED", attemptedDate: at("2026-11-10T10:00:00Z"), invitedAt: null }),   // sat it through the open link: never emailed
+            candidate("failed@n.test", "Failed Send", "2026-11-05"),                                                          // the email did not go out
+            candidate("oct@n.test", "October Mail", "2026-10-05", { invitedAt: at("2026-10-06T09:00:00Z") }),                 // emailed last month
+        ] },
+        { roundNumber: 2, title: "Final", type: "HR Round", candidates: [
+            candidate("sent1@n.test", "Sent One", "2026-11-14", { invitedAt: at("2026-11-15T09:00:00Z") }),                  // emailed again for round 2
+        ] },
+    ])
+    const org = async () => (await get(`/organizations/${String(tD)}?${NOV}`)).data
+    const o = (await org()).organization
+    assert.equal(o.invites, 3)                    // sent1 (two rounds), sent2
+    assert.equal(o.billableCandidates, 2)         // sent1, sent2: not the self-applied, the failed send, or last month's
+    assert.equal(o.billableUnits, 2)
+    assert.equal(o.amountExGst, 500)              // 2 x 250
+    assert.equal(o.gaveOfRegistered, 1)           // the funnel still shows who actually sat it
+
+    // billed per round instead: every round emailed counts
+    await call("PUT", `/admin/billing/rates/${String(tD)}`, { token: state.root, body: { unit: "INTERVIEW" } })
+    const perRound = await org()
+    assert.equal(perRound.organization.billableUnits, 3); assert.equal(perRound.organization.amountExGst, 750)
+    const driveRow = perRound.sources.find((s) => s.title === "Plant Operators")
+    assert.deepEqual(driveRow.rounds.map((r) => [r.round, r.invites, r.amountExGst]), [[1, 2, 500], [2, 1, 250]])
+    assert.equal(driveRow.amountExGst, 750)
+    await call("PUT", `/admin/billing/rates/${String(tD)}`, { token: state.root, body: { unit: null } })
+    const perCandidate = (await org()).sources.find((s) => s.title === "Plant Operators")
+    assert.equal(perCandidate.amountExGst, 500)
+    assert.deepEqual(perCandidate.rounds.map((r) => [r.round, r.invites, r.amountExGst]), [[1, 2, null], [2, 1, null]])      // one price for the drive, not per round
+
+    // an online test student's first send date survives a re-send
+    const acc = await models.OaAccount.create({ orgName: "Nifco Test", contactName: "Owner", email: "oa@nifco.test", emailNormalized: "oa@nifco.test", passwordHash: "x", status: "ACTIVE", tenantId: String(tD) })
+    const a = await models.OaAssessment.create({ accountId: acc._id, title: "Nifco Aptitude", status: "PUBLISHED", sections: [{ id: "s1", title: "" }] })
+    const st = await models.OaStudent.create({ accountId: acc._id, assessmentId: a._id, name: "Oa One", email: "oa1@n.test", emailNormalized: "oa1@n.test", phone: null, codeHash: "h", codeEncrypted: "e", createdAt: at("2026-10-20T08:00:00Z"), invite: { status: "SENT", sentAt: at("2026-12-05T08:00:00Z"), firstSentAt: at("2026-11-20T08:00:00Z") } })
+    const withOa = (await org()).organization
+    assert.equal(withOa.oa.billableCandidates, 1)             // billed in November, when it was first sent, not when it was re-sent in December
+    assert.equal(withOa.amountExGst, 750)
+    await models.OaStudent.updateOne({ _id: st._id }, { $set: { "invite.status": "FAILED", "invite.firstSentAt": null, "invite.sentAt": null } })
+    assert.equal((await org()).organization.oa.billableCandidates, 0)       // never went out: not billed
+})
+
+test("each drive's amount, and each candidate's, add up to the invoice; the rounds sit inside the drive", opts, async () => {
+    const detail = (await get(`/organizations/${state.A}?${NOV}`)).data
+    const total = detail.sources.reduce((n, s) => n + s.amountExGst, 0)
+    assert.equal(Math.round(total * 100) / 100, detail.organization.amountExGst)
+    const backend = detail.sources.find((s) => s.title === "Backend Hiring" || s.title === "Backend Test")
+    assert.ok(backend.rounds.length >= 1)
+    const people = await get(`/organizations/${state.A}/lines?${NOV}&pageSize=100&view=people`)
+    assert.equal(people.status, 200)
+    const sum = people.data.reduce((n, p) => n + p.amountExGst, 0)
+    assert.equal(Math.round(sum * 100) / 100, detail.organization.amountExGst)               // candidate view reconciles to the same invoice
+    assert.ok(people.data.every((p) => Array.isArray(p.items) && p.items.every((l) => "mail" in l)))   // the email status is there (unknown here: no mail service)
+})
+
+test("downloads: by drive (with its rounds) and by candidate", opts, async () => {
+    const drives = await call("GET", `/admin/billing/organizations/${state.A}/export?${NOV}&view=drives`, { token: state.root })
+    assert.equal(drives.status, 200)
+    assert.match(String(drives.json), /billing by drive/)
+    assert.match(String(drives.json), /Technical/)                      // a round of the drive
+    assert.match(String(drives.json), /TOTAL/)
+    const people = await call("GET", `/admin/billing/organizations/${state.A}/export?${NOV}&view=candidates`, { token: state.root })
+    assert.match(String(people.json), /billing by candidate/)
+    assert.match(String(people.json), /Invitation email/)
+    assert.match(String(people.json), /Asha Verma/)
+})
+
+test("deleting a drive never removes what was already billed: the invitations went out", opts, async () => {
+    const before = (await get(`/organizations/${state.A}?${NOV}`)).data.organization
+    const hr = (await import("../services/interviewDrive.service.js"))
+    const mine = await state.Drive.findOne({ title: "Backend Hiring" })
+    await hr.deleteDrive(String(state.tA), String(mine._id), "hr@a.test")
+    const after = (await get(`/organizations/${state.A}?${NOV}`)).data.organization
+    assert.equal(after.amountExGst, before.amountExGst)
+    assert.equal(after.invites, before.invites)
+    await hr.restoreDrive(String(state.tA), String(mine._id))
 })

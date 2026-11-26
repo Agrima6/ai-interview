@@ -1,11 +1,13 @@
 import React, { useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { useQuery, keepPreviousData } from '@tanstack/react-query'
-import { Bot, ChevronRight, ClipboardCheck, Layers, Plus } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import { Bot, ChevronRight, ClipboardCheck, Layers, Plus, Trash2, Undo2 } from 'lucide-react'
 import OrganizationLayout from '../../components/organization/OrganizationLayout'
-import { Badge, Button, EmptyState, Pagination, SearchInput, Skeleton } from '../../components/ui'
+import { Badge, Button, ConfirmModal, EmptyState, Pagination, SearchInput, Skeleton, useToast } from '../../components/ui'
 import NewDriveModal from '../../components/oa/NewDriveModal'
 import { listAllDrives } from '../../api/unifiedDrivesApi'
+import { oaApi } from '../../api/oaApi'
+import { deleteInterviewDrive, restoreInterviewDrive } from '../../api/organization/organizationApi'
 import useDebouncedValue from '../../hooks/useDebouncedValue'
 import { formatDate } from '../../components/oa/oaFormat'
 
@@ -35,7 +37,11 @@ export default function AllDrivesPage() {
     const { pathname } = useLocation()
     const prefix = pathname.startsWith('/platform/client') ? '/platform/client' : '/organization'
     const [params, setParams] = useSearchParams()
-    const archived = params.get('archived') === '1'
+    const toast = useToast()
+    const queryClient = useQueryClient()
+    const deleted = params.get('deleted') === '1'
+    const archived = !deleted && params.get('archived') === '1'
+    const [removing, setRemoving] = useState(null)
     const kind = params.get('kind') || ''
     const page = Number(params.get('page')) || 1
     const pageSize = Number(params.get('pageSize')) || 25
@@ -44,8 +50,19 @@ export default function AllDrivesPage() {
     const [creating, setCreating] = useState(params.get('new') === '1')
 
     const update = (patch) => setParams((p) => { const next = new URLSearchParams(p); Object.entries(patch).forEach(([k, v]) => (v ? next.set(k, v) : next.delete(k))); return next }, { replace: true })
-    const list = useQuery({ queryKey: ['unified-drives', { archived, kind, q, page, pageSize }], queryFn: () => listAllDrives({ archived: archived ? '1' : '', kind, search: q, page, pageSize }), placeholderData: keepPreviousData })
+    const list = useQuery({ queryKey: ['unified-drives', { archived, deleted, kind, q, page, pageSize }], queryFn: () => listAllDrives({ archived: archived ? '1' : '', deleted: deleted ? '1' : '', kind, search: q, page, pageSize }), placeholderData: keepPreviousData })
     const items = list.data?.items || []
+    const refresh = () => queryClient.invalidateQueries({ queryKey: ['unified-drives'] })
+    const remove = useMutation({
+        mutationFn: (d) => (d.kind === 'MULTI' ? oaApi.deleteDrive(d.id) : deleteInterviewDrive(d.id)),
+        onSuccess: () => { refresh(); setRemoving(null); toast.success('Drive deleted. You can find it under Deleted.') },
+        onError: (err) => { setRemoving(null); toast.error(err.message) },
+    })
+    const restore = useMutation({
+        mutationFn: (d) => (d.kind === 'MULTI' ? oaApi.restoreDrive(d.id) : restoreInterviewDrive(d.id)),
+        onSuccess: () => { refresh(); toast.success('Drive restored.') },
+        onError: (err) => toast.error(err.message),
+    })
     const openDrive = (d) => navigate(d.kind === 'MULTI' ? `${prefix}/drives/rounds/${d.id}` : `${prefix}/drives/${d.id}`)
     const closeNew = () => { setCreating(false); if (params.get('new')) update({ new: '' }) }
 
@@ -55,9 +72,9 @@ export default function AllDrivesPage() {
             <div className='flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4'>
                 <div className='flex flex-wrap items-center gap-3'>
                     <div role='tablist' aria-label='Status' className='flex gap-1'>
-                        {[[false, 'Active'], [true, 'Archived']].map(([value, label]) => (
-                            <button key={label} role='tab' aria-selected={archived === value} onClick={() => update({ archived: value ? '1' : '', page: '' })}
-                                className={`px-3.5 py-2 rounded-full text-[13px] font-semibold whitespace-nowrap transition-colors ${archived === value ? 'bg-ink text-white' : 'text-text-secondary hover:bg-black/[0.04]'}`}>{label}</button>
+                        {[['Active', !archived && !deleted, { archived: '', deleted: '' }], ['Archived', archived, { archived: '1', deleted: '' }], ['Deleted', deleted, { archived: '', deleted: '1' }]].map(([label, on, patch]) => (
+                            <button key={label} role='tab' aria-selected={on} onClick={() => update({ ...patch, page: '' })}
+                                className={`px-3.5 py-2 rounded-full text-[13px] font-semibold whitespace-nowrap transition-colors ${on ? 'bg-ink text-white' : 'text-text-secondary hover:bg-black/[0.04]'}`}>{label}</button>
                         ))}
                     </div>
                     <div role='group' aria-label='Type of drive' className='flex flex-wrap gap-1.5'>
@@ -76,14 +93,14 @@ export default function AllDrivesPage() {
                 ) : list.isLoading ? (
                     <div className='p-5 space-y-3' aria-busy='true' aria-label='Loading drives'>{[0, 1, 2, 3].map((i) => <Skeleton key={i} className='h-14 w-full rounded-xl' />)}</div>
                 ) : items.length === 0 ? (
-                    <EmptyState icon={Layers} title={search || kind || archived ? 'No drives match' : 'No drives yet'}
-                        description={search || kind || archived ? 'Try a different search or filter.' : 'A drive holds one hiring campaign. Add rounds to it: online tests, AI interviews, or a mix.'}
-                        actionLabel={search || kind || archived ? undefined : 'Create your first drive'} onAction={() => setCreating(true)} />
+                    <EmptyState icon={Layers} title={deleted ? 'No deleted drives' : search || kind || archived ? 'No drives match' : 'No drives yet'}
+                        description={deleted ? 'Drives you delete are kept here so you can restore them.' : search || kind || archived ? 'Try a different search or filter.' : 'A drive holds one hiring campaign. Add rounds to it: online tests, AI interviews, or a mix.'}
+                        actionLabel={search || kind || archived || deleted ? undefined : 'Create your first drive'} onAction={() => setCreating(true)} />
                 ) : (
                     <div className='overflow-x-auto'>
                         <table className='w-full text-[13.5px] min-w-[820px]'>
                             <thead className='bg-surface-muted text-left text-[12px] font-semibold text-text-secondary'>
-                                <tr><th className='px-4 py-3'>Drive</th><th className='px-4 py-3'>Rounds</th><th className='px-4 py-3 text-right'>Candidates</th><th className='px-4 py-3'>Status</th><th className='px-4 py-3'>Last updated</th><th className='px-2 py-3 w-8'><span className='sr-only'>Open</span></th></tr>
+                                <tr><th className='px-4 py-3'>Drive</th><th className='px-4 py-3'>Rounds</th><th className='px-4 py-3 text-right'>Candidates</th><th className='px-4 py-3'>Status</th><th className='px-4 py-3'>{deleted ? 'Deleted' : 'Last updated'}</th><th className='px-2 py-3 w-24'><span className='sr-only'>Actions</span></th></tr>
                             </thead>
                             <tbody className='divide-y divide-line'>
                                 {items.map((d) => (
@@ -94,9 +111,16 @@ export default function AllDrivesPage() {
                                         </td>
                                         <td className='px-4 py-3'><div className='flex flex-wrap gap-1.5'>{d.rounds.map((r) => <RoundChip key={`${r.number}-${r.id || r.name}`} round={r} />)}{d.rounds.length === 0 && <span className='text-text-secondary'>No rounds yet</span>}</div></td>
                                         <td className='px-4 py-3 text-right tabular-nums'>{d.candidates}</td>
-                                        <td className='px-4 py-3'><Badge variant={d.status === 'ARCHIVED' ? 'danger' : d.status === 'DRAFT' ? 'neutral' : 'success'}>{STATE_LABEL[d.status] || d.status}</Badge></td>
-                                        <td className='px-4 py-3 whitespace-nowrap text-text-secondary'>{formatDate(d.updatedAt)}</td>
-                                        <td className='px-2 py-3 text-text-secondary'><ChevronRight size={16} className='transition-transform group-hover:translate-x-0.5 group-hover:text-accent' aria-hidden='true' /></td>
+                                        <td className='px-4 py-3'>{d.deletedAt ? <Badge variant='danger'>Deleted</Badge> : <Badge variant={d.status === 'ARCHIVED' ? 'danger' : d.status === 'DRAFT' ? 'neutral' : 'success'}>{STATE_LABEL[d.status] || d.status}</Badge>}</td>
+                                        <td className='px-4 py-3 whitespace-nowrap text-text-secondary'>{d.deletedAt ? <>{formatDate(d.deletedAt)}{d.deletedBy && <span className='block text-[11.5px]'>by {d.deletedBy}</span>}</> : formatDate(d.updatedAt)}</td>
+                                        <td className='px-2 py-3 text-text-secondary'>
+                                            <div className='flex items-center justify-end gap-1'>
+                                                {d.deletedAt
+                                                    ? <button type='button' disabled={restore.isPending} onClick={(e) => { e.stopPropagation(); restore.mutate(d) }} className='inline-flex items-center gap-1.5 px-2 py-1 text-[13px] font-semibold text-accent hover:underline disabled:opacity-60'><Undo2 size={14} aria-hidden='true' /> Restore</button>
+                                                    : <button type='button' onClick={(e) => { e.stopPropagation(); setRemoving(d) }} aria-label={`Delete ${d.title}`} title='Delete drive' className='p-2 rounded-lg hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]'><Trash2 size={15} aria-hidden='true' /></button>}
+                                                <ChevronRight size={16} className='transition-transform group-hover:translate-x-0.5 group-hover:text-accent' aria-hidden='true' />
+                                            </div>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -107,6 +131,9 @@ export default function AllDrivesPage() {
             {list.data && list.data.total > 0 && <Pagination page={page} pageSize={pageSize} total={list.data.total} onPageChange={(p) => update({ page: p > 1 ? String(p) : '' })} onPageSizeChange={(s) => update({ pageSize: String(s), page: '' })} />}
             <p className='text-[12.5px] text-text-secondary mt-3'>Need the department, experience and date filters for AI interviews? <Link to={`${prefix}/interview-drives`} className='font-semibold text-accent hover:underline'>Open the detailed interview list</Link>.</p>
 
+            <ConfirmModal open={Boolean(removing)} onClose={() => !remove.isPending && setRemoving(null)} danger title='Delete this drive?' confirmLabel={remove.isPending ? 'Deleting…' : 'Delete drive'} onConfirm={() => remove.mutateAsync(removing)}>
+                “{removing?.title}” will be removed from your drives and closed to candidates{removing?.kind === 'MULTI' ? ', with all its rounds' : ''}. Its candidates and results are kept, invitations already sent are still billed, and you can restore it any time from the Deleted tab.
+            </ConfirmModal>
             <NewDriveModal open={creating} onClose={closeNew} onCreated={(d, o) => { closeNew(); navigate(`${prefix}/drives/rounds/${d.id}${o?.withAi ? '?ai=1' : ''}`) }} />
         </OrganizationLayout>
     )

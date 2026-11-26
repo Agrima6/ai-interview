@@ -243,3 +243,24 @@ export const retry = async (id) => {
 }
 
 export { TRACKING_PIXEL_GIF }
+
+// One row per invited person across many drives/assessments: whether the email went out and when it was first opened.
+// Status and sent time follow the newest send; the opened time is the earliest open of ANY send, so a re-invite never hides it.
+export const getInviteStatuses = async ({ driveIds, assessmentIds }) => {
+    const clean = (ids) => [...new Set((Array.isArray(ids) ? ids : []).map(String).filter((id) => mongoose.isValidObjectId(id)))].slice(0, 500)
+    const records = await communicationRepo.listInvites({ driveIds: clean(driveIds), assessmentIds: clean(assessmentIds) })
+    const rows = new Map()
+    for (const record of records) {
+        const m = record.metadata || {}
+        const sourceId = m.driveId || m.assessmentId
+        const personId = m.candidateId || m.studentId
+        if (!sourceId || !personId) continue
+        const id = `${sourceId}|${personId}`
+        const row = rows.get(id)
+        if (!row) { rows.set(id, { sourceId: String(sourceId), personId: String(personId), roundNumber: m.roundNumber || null, status: record.status, sentAt: record.sentAt, openedAt: record.openedAt || null, sends: 1 }); continue }
+        row.sends += 1
+        if (record.openedAt && (!row.openedAt || record.openedAt < row.openedAt)) row.openedAt = record.openedAt
+        if (record.openedAt && row.status !== "FAILED") row.status = "OPENED"
+    }
+    return [...rows.values()]
+}

@@ -26,3 +26,8 @@ export const getInviteStatusForDrive = async (req, res, next) => {
         ok(res, statuses)
     } catch (error) { next(error) }
 }
+
+// POST /internal/v1/communications/invite-statuses { driveIds, assessmentIds }
+export const getInviteStatuses = async (req, res, next) => {
+    try { ok(res, await communicationService.getInviteStatuses(req.body || {})) } catch (error) { next(error) }
+}

@@ -423,13 +423,23 @@ const inviteCandidates = async (tenantId, drive, candidates, ctx, round = null) 
     const attempted = candidates.filter((c) => c.email).length
     // Remember when this went out so a re-invite can refuse a double-click.
     const invitedIds = candidates.filter((c) => c.email).map((c) => c.id)
+    const roundNumber = round?.roundNumber || 1
     await InterviewDrive.updateOne(
         { _id: drive._id },
         { $set: { "rounds.$[r].candidates.$[c].lastInviteAt": new Date() } },
-        { arrayFilters: [{ "r.roundNumber": round?.roundNumber || 1 }, { "c.id": { $in: invitedIds } }] }
+        { arrayFilters: [{ "r.roundNumber": roundNumber }, { "c.id": { $in: invitedIds } }] }
     ).catch((err) => console.error("[client-service] could not record invite time:", err.message))
+    // Billing counts invitations: once the sends have settled, stamp the first successful one on each candidate, and clear the
+    // double-click guard on the ones that failed so they can be sent again straight away.
+    const recordOutcome = Promise.all(pending).then(async () => {
+        const failedEmails = new Set(failed.map((f) => String(f.email).toLowerCase()))
+        const sentIds = candidates.filter((c) => c.email && !failedEmails.has(String(c.email).toLowerCase())).map((c) => c.id)
+        const failedIds = invitedIds.filter((id) => !sentIds.includes(id))
+        if (sentIds.length) await InterviewDrive.updateOne({ _id: drive._id }, { $set: { "rounds.$[r].candidates.$[c].invitedAt": new Date() } }, { arrayFilters: [{ "r.roundNumber": roundNumber }, { "c.id": { $in: sentIds }, "c.invitedAt": null }] })
+        if (failedIds.length) await InterviewDrive.updateOne({ _id: drive._id }, { $unset: { "rounds.$[r].candidates.$[c].lastInviteAt": "" } }, { arrayFilters: [{ "r.roundNumber": roundNumber }, { "c.id": { $in: failedIds }, "c.invitedAt": null }] })
+    }).catch((err) => console.error("[client-service] could not record the invitation outcome:", err.message))
     if (candidates.length > INVITE_AWAIT_LIMIT) return { attempted, failed: [], pending: true }
-    await Promise.all(pending)
+    await recordOutcome
     return { attempted, failed }
 }
 
@@ -854,6 +864,7 @@ export const getMyInterviews = async (tenantId, email) => {
     const org = await clientRepo.findById(tenantId).catch(() => null)
     const drives = await InterviewDrive.find({
         tenantId,
+        deletedAt: null,
         status: { $ne: "ARCHIVED" },
         "rounds.candidates.email": normalizedEmail,
     })
@@ -1502,15 +1513,17 @@ export const streamCandidateRecording = async (tenantId, driveId, roundNumber, c
 // filters" means - integration.md section 16 requires an export to
 // contain exactly the filtered rows, not a separately-computed set.
 const DRIVE_STATUSES = ["ACTIVE", "COMPLETED", "CLOSED", "DRAFT", "ARCHIVED"]
+// "DELETED" is not a stored status: it is the filter that shows soft-deleted drives (everywhere else they are hidden).
 const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 // Query-string values can arrive as objects/arrays (?status[$ne]=x). Only plain strings are ever used in a query.
 const asText = (value) => (typeof value === "string" ? value.trim().slice(0, 200) : "")
 const asDate = (value) => { const d = new Date(asText(value)); return Number.isNaN(d.getTime()) ? null : d }
 
 const buildDriveQuery = (tenantId, filters = {}) => {
-    const query = { tenantId }
+    const query = { tenantId, deletedAt: null }
     const status = asText(filters.status).toUpperCase()
-    if (status && status !== "ALL") {
+    if (status === "DELETED") query.deletedAt = { $ne: null }
+    else if (status && status !== "ALL") {
         if (!DRIVE_STATUSES.includes(status)) throw new ApiError(400, "INVALID_FILTER", "Unknown status filter.")
         query.status = status
     }
@@ -1775,6 +1788,36 @@ export const updateDriveStatus = async (tenantId, driveId, status, ctx = {}) => 
     return drive
 }
 
+/**
+ * Delete a drive the organizer made by mistake. It is hidden from every list and closed to candidates, but nothing is destroyed:
+ * its candidates, results and the invitations already sent (which are billed) stay, and it can be restored from the Deleted filter.
+ */
+export const deleteDrive = async (tenantId, driveId, actor = null) => {
+    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+    requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
+    if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    if (drive.deletedAt) return drive
+    drive.statusBeforeDelete = drive.status
+    drive.status = "ARCHIVED"
+    drive.deletedAt = new Date()
+    drive.deletedBy = actor ? String(actor).slice(0, 120) : null
+    await drive.save()
+    return drive
+}
+
+export const restoreDrive = async (tenantId, driveId) => {
+    if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
+    requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
+    if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
+    if (!drive.deletedAt) return drive
+    drive.status = drive.statusBeforeDelete && drive.statusBeforeDelete !== "ARCHIVED" ? drive.statusBeforeDelete : "CLOSED"
+    drive.deletedAt = null; drive.deletedBy = null; drive.statusBeforeDelete = null
+    await drive.save()
+    return drive
+}
+
 export const updateRoundStatus = async (tenantId, driveId, roundNumber, status, ctx = {}) => {
     if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
     requireValidObjectId(driveId, "DRIVE_NOT_FOUND", "Interview drive not found.")
@@ -1953,7 +1996,7 @@ const buildCandidatePipeline = (tenantId, { search, status, department } = {}) =
     if (department) matchCandidate["department"] = department
 
     return [
-        { $match: { tenantId } },
+        { $match: { tenantId, deletedAt: null } },
         { $unwind: "$rounds" },
         { $unwind: "$rounds.candidates" },
         {
@@ -2030,9 +2073,9 @@ export const getTenantReport = async (tenantId, { days = 30 } = {}) => {
     if (!tenantId) throw new ApiError(403, "TENANT_REQUIRED", "Tenant context is missing.")
 
     const [drives, candidateRows] = await Promise.all([
-        InterviewDrive.find({ tenantId }).select("status department createdAt").lean(),
+        InterviewDrive.find({ tenantId, deletedAt: null }).select("status department createdAt").lean(),
         InterviewDrive.aggregate([
-            { $match: { tenantId } },
+            { $match: { tenantId, deletedAt: null } },
             { $unwind: "$rounds" },
             { $unwind: "$rounds.candidates" },
             {

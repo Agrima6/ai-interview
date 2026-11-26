@@ -129,6 +129,34 @@ test("build a test: sections, manual questions, a CSV-style upload with a bad ro
     assert.equal(full.data.totalMarks, 12 * 2 + 4 + 10 + 20)
 })
 
+test("delete several questions at once, and delete a whole section (even the only one)", opts, async () => {
+    const created = (await call("POST", "/oa/assessments", { token: state.admin, body: { title: "Cleanup Test" } })).data
+    const id = created.id; const only = created.sections[0].id
+    const qs = Array.from({ length: 6 }, (_, i) => ({ type: "MCQ", text: `Pasted question ${i + 1}`, options: ["one", "two", "three", "four"], correct: "A", marks: 1, sectionId: only }))
+    assert.equal((await call("POST", `/oa/assessments/${id}/questions`, { token: state.admin, body: { source: "UPLOAD", questions: qs } })).data.added, 6)
+    const view = async () => (await call("GET", `/oa/assessments/${id}`, { token: state.admin })).data
+    const ids = (await view()).questions.map((q) => q.id)
+
+    assert.equal((await call("POST", `/oa/assessments/${id}/questions/bulk-delete`, { token: state.admin, body: { ids: [] } })).status, 400)
+    const some = await call("POST", `/oa/assessments/${id}/questions/bulk-delete`, { token: state.admin, body: { ids: [...ids.slice(0, 4), "no-such-question"] } })
+    assert.equal(some.data.deleted, 4); assert.equal(some.data.total, 2)           // unknown ids are ignored
+    assert.equal((await call("POST", `/oa/assessments/${id}/questions/bulk-delete`, { token: state.admin, body: { ids: ids.slice(0, 4) } })).data.deleted, 0)   // a second click is harmless
+
+    // the only section: deleting it empties it, the test keeps one section
+    const emptied = await call("DELETE", `/oa/assessments/${id}/sections/${only}`, { token: state.admin })
+    assert.equal(emptied.data.deleted, 2); assert.equal(emptied.data.sections, 1)
+    assert.equal((await view()).questionCount, 0)
+
+    // with more than one section, the section goes and takes its questions with it
+    const two = await call("PATCH", `/oa/assessments/${id}`, { token: state.admin, body: { sections: [{ id: only, title: "A" }, { title: "B" }] } })
+    const second = two.data.sections[1].id
+    await call("POST", `/oa/assessments/${id}/questions`, { token: state.admin, body: { questions: [{ type: "SHORT", text: "Explain a join", marks: 2, sectionId: second }] } })
+    const dropped = await call("DELETE", `/oa/assessments/${id}/sections/${second}`, { token: state.admin })
+    assert.equal(dropped.data.deleted, 1); assert.equal(dropped.data.sections, 1)
+    assert.equal((await call("DELETE", `/oa/assessments/${id}/sections/${second}`, { token: state.admin })).status, 404)
+    assert.equal((await view()).questionCount, 0)
+})
+
 test("publishing is refused until the test is ready", opts, async () => {
     const early = await call("POST", `/oa/assessments/${state.a}/publish`, { token: state.admin })
     assert.equal(early.status, 400)    // no schedule yet
@@ -327,6 +355,8 @@ test("the student sees their score only when the organizer allows it", opts, asy
 test("questions and rules are locked once anyone has started", opts, async () => {
     const q = (await call("GET", `/oa/assessments/${state.a}`, { token: state.admin })).data.questions[0]
     assert.equal((await call("DELETE", `/oa/assessments/${state.a}/questions/${q.id}`, { token: state.admin })).error.code, "TEST_STARTED")
+    assert.equal((await call("POST", `/oa/assessments/${state.a}/questions/bulk-delete`, { token: state.admin, body: { ids: [q.id] } })).error.code, "TEST_STARTED")
+    assert.equal((await call("DELETE", `/oa/assessments/${state.a}/sections/${state.sections[0]}`, { token: state.admin })).error.code, "TEST_STARTED")
     assert.equal((await call("PATCH", `/oa/assessments/${state.a}`, { token: state.admin, body: { settings: { passPercent: 1 } } })).error.code, "TEST_STARTED")
     assert.equal((await call("POST", `/oa/assessments/${state.a}/unpublish`, { token: state.admin })).error.code, "TEST_STARTED")
     assert.equal((await call("DELETE", `/oa/assessments/${state.a}/students/${state.students[0].id}`, { token: state.admin })).error.code, "TEST_STARTED")
