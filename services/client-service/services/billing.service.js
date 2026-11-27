@@ -88,7 +88,7 @@ const aiLines = async ({ start, end }, scope) => {
         { $project: {
             tenantId: 1, title: 1, driveKind: 1,
             email: { $toLower: { $ifNull: ["$rounds.candidates.email", ""] } }, name: "$rounds.candidates.name", phone: "$rounds.candidates.phone",
-            status: "$rounds.candidates.status", aiScore: "$rounds.candidates.aiScore", flags: { $ifNull: ["$rounds.candidates.malpracticeFlags", 0] },
+            status: "$rounds.candidates.status", aiScore: "$rounds.candidates.aiScore", hasReport: { $cond: [{ $ifNull: ["$rounds.candidates.agentReport", false] }, 1, 0] }, flags: { $ifNull: ["$rounds.candidates.malpracticeFlags", 0] },
             attempted: "$rounds.candidates.attemptedDate", agent: { $ifNull: [{ $toString: "$rounds.candidates.agentInterviewId" }, ""] },
             roundNumber: "$rounds.roundNumber", roundTitle: "$rounds.title", candidateId: "$rounds.candidates.id",
             addedAt: { $ifNull: [{ $toDate: "$rounds.candidates._id" }, "$createdAt"] },
@@ -111,7 +111,7 @@ const aiLines = async ({ start, end }, scope) => {
             lastInPeriod: { $max: { $cond: [inPeriod("$inviteAt"), "$inviteAt", null] } },
             invitesTotal: { $sum: { $cond: [has("$inviteAt"), 1, 0] } },
             sentRounds: { $push: { $cond: [has("$inviteAt"), { round: "$roundNumber", title: "$roundTitle", at: "$inviteAt" }, "$$REMOVE"] } },
-            bestScore: { $max: { $cond: [{ $and: [has("$attempted"), { $gt: [{ $ifNull: ["$aiScore", 0] }, 0] }] }, "$aiScore", null] } },
+            bestScore: { $max: { $cond: [{ $and: [has("$attempted"), { $or: [{ $gt: [{ $ifNull: ["$aiScore", 0] }, 0] }, { $eq: ["$hasReport", 1] }] }] }, { $ifNull: ["$aiScore", 0] }, null] } },
             gaveTotal: { $sum: { $cond: [has("$attempted"), 1, 0] } },
             personIds: { $addToSet: "$candidateId" },
             flags: { $sum: "$flags" },
