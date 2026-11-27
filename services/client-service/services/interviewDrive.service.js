@@ -1627,7 +1627,7 @@ export const getDriveById = async (tenantId, driveId) => {
     const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
     if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
     const repaired = await repairRoundStatuses(drive)
-    await refreshPendingReports(tenantId, repaired).catch(() => {})
+    await refreshPendingReports(tenantId, repaired, 500).catch(() => {})
 
     // Best-effort invite-status enrichment (invite sent/opened, per
     // candidate) - communication-service being unreachable should never
