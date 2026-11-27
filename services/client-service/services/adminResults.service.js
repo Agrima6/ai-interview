@@ -224,7 +224,7 @@ export const aiCandidateOf = async (driveId, email, tenantId = null) => {
     if (!(await InterviewDrive.exists(filter))) throw new ApiError(404, "NOT_FOUND", "AI interview not found.")
     try {
         const { refreshDriveReports } = await import("./interviewDrive.service.js")
-        await Promise.race([refreshDriveReports(driveId), new Promise((resolve) => setTimeout(resolve, 6000))])
+        await Promise.race([refreshDriveReports(driveId, { all: true }), new Promise((resolve) => setTimeout(resolve, 15000))])
     } catch { /* the report is shown if it is already stored */ }
     const drive = await InterviewDrive.findOne(filter).select("title rounds").lean()
     const wanted = String(email || "").trim().toLowerCase()

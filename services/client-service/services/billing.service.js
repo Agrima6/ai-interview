@@ -564,7 +564,7 @@ const withFreshAiReports = async (key, query, data) => {
     if (!stale.length) return data
     try {
         const { refreshDriveReports } = await import("./interviewDrive.service.js")
-        await Promise.race([Promise.all(stale.slice(0, 20).map((id) => refreshDriveReports(id))), new Promise((resolve) => setTimeout(resolve, 6000))])
+        await Promise.race([Promise.all(stale.slice(0, 20).map((id) => refreshDriveReports(id, { all: true }))), new Promise((resolve) => setTimeout(resolve, 20000))])
     } catch (error) { console.warn("[client-service] billing: could not refresh AI reports:", error.message); return data }
     return detailLines(key, query)
 }

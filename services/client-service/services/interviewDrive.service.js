@@ -1313,16 +1313,19 @@ export const completeAgentInterview = async (tenantId, email, driveId, roundNumb
 // HR opens a drive: fetch reports for finished interviews that do not have one stored yet. Bounded and best-effort -
 // the agent being slow or down must never break the drive page.
 const REFRESH_LIMIT = 8
-const refreshPendingReports = async (tenantId, drive) => {
+const refreshPendingReports = async (tenantId, drive, limit = REFRESH_LIMIT) => {
     const jobs = []
     for (const round of drive.rounds || []) {
         for (const candidate of round.candidates || []) {
-            if (jobs.length >= REFRESH_LIMIT) break
+            if (jobs.length >= limit) break
             if (!candidate.agentInterviewId || candidate.agentReport || !["COMPLETED", "REJECTED", "SHORTLISTED"].includes(candidate.status)) continue
             jobs.push({ round, candidate })
         }
     }
-    await Promise.all(jobs.map(async ({ round, candidate }) => {
+    // Bounded concurrency: a bulk fetch of a whole drive must not open 60 requests to the interviewer service at once.
+    let next = 0
+    const worker = async () => { while (next < jobs.length) { const job = jobs[next++]; await fetchOne(job) } }
+    const fetchOne = async ({ round, candidate }) => {
         try {
             const report = await agentServiceClient.getReport(candidate.agentInterviewId)
             if (await storeAgentReport(tenantId, drive, round, candidate, report)) {
@@ -1332,7 +1335,8 @@ const refreshPendingReports = async (tenantId, drive) => {
         } catch (err) {
             if (err?.status !== 404) console.warn("[client-service] report refresh failed:", err.message)
         }
-    }))
+    }
+    await Promise.all(Array.from({ length: Math.min(jobs.length, 5) }, worker))
 }
 
 /**
@@ -1342,12 +1346,12 @@ const refreshPendingReports = async (tenantId, drive) => {
  * per drive, so a busy page never hammers the interviewer service.
  */
 const recentlyChecked = new Map()
-export const refreshDriveReports = async (driveId) => {
+export const refreshDriveReports = async (driveId, { all = false } = {}) => {
     const key = String(driveId)
     if (process.env.NODE_ENV !== "test" && Date.now() - (recentlyChecked.get(key) || 0) < 20000) return
     recentlyChecked.set(key, Date.now())
     const drive = await InterviewDrive.findById(driveId)
-    if (drive) await refreshPendingReports(String(drive.tenantId), drive)
+    if (drive) await refreshPendingReports(String(drive.tenantId), drive, all ? 500 : REFRESH_LIMIT)
 }
 
 // Candidate-scoped - stores the candidate's own camera/mic recording of
@@ -1623,7 +1627,7 @@ export const getDriveById = async (tenantId, driveId) => {
     const drive = await InterviewDrive.findOne({ _id: driveId, tenantId })
     if (!drive) throw new ApiError(404, "DRIVE_NOT_FOUND", "Interview drive not found.")
     const repaired = await repairRoundStatuses(drive)
-    await refreshPendingReports(tenantId, repaired).catch(() => {})
+    await refreshPendingReports(tenantId, repaired, 500).catch(() => {})
 
     // Best-effort invite-status enrichment (invite sent/opened, per
     // candidate) - communication-service being unreachable should never
